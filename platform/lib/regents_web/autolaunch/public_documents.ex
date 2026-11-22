@@ -5,7 +5,8 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
   for `text/markdown` receives it at the page's own address, through the site's
   `RegentsWeb.PublicDocuments.document/1`; the page shows the same words as
   HTML. Never a signed-in page or an account. Also the title and description of
-  every Autolaunch page the site's root document shows.
+  every Autolaunch page the site's root document shows, a token's page's
+  naming its token (`market_page/3`) or saying it shows none (`market_page/1`).
   """
 
   alias Regents.Autolaunch.LaunchActions, as: RevstakeLaunchActions
@@ -69,6 +70,31 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
         raise RegentsWeb.NotFoundError
     end
   end
+
+  @token_description "A token launched through Autolaunch on Base, to trade and stake."
+
+  @doc """
+  The `page_title` and `page_description` of a token's page, the title naming
+  its token, as in "First Bite (BITE) token", or "SANDY token" when the name is
+  the ticker. A token's page has no written version.
+  """
+  def market_page(:token, name, ticker) do
+    named = if same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
+    [page_title: "#{named} token", page_description: @token_description]
+  end
+
+  @doc """
+  The `page_title` and `page_description` of a token's page that shows no
+  token: "Token not found" once its address names none, "Token unavailable"
+  when it could not be read.
+  """
+  def market_page(:token_not_found),
+    do: [page_title: "Token not found", page_description: @token_description]
+
+  def market_page(:token_unavailable),
+    do: [page_title: "Token unavailable", page_description: @token_description]
+
+  defp same_name?(name, ticker), do: String.downcase(name) == String.downcase(ticker || "")
 
   # About names this site's addresses (`{{origin}}`) and how long a new launch's
   # auction runs and how a new Memestock creator's tokens are released, in

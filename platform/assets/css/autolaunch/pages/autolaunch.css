@@ -3,6 +3,8 @@
 .autolaunch-heading { display: grid; gap: var(--space-2); padding-bottom: var(--space-2); }
 .autolaunch-heading > * { margin: 0; }
 .autolaunch-heading h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
+.market-back { width: fit-content; color: var(--color-fg-muted); font-size: .8125rem; text-decoration: none; }
+.market-back:hover { color: var(--color-fg); text-decoration: underline; }
 .chain-icon { display: inline-block; inline-size: 1em; block-size: 1em; vertical-align: -0.125em; flex: none; }
 .link-icon { display: inline-block; inline-size: 1em; block-size: 1em; vertical-align: -0.125em; flex: none; }
 /* ENS's own mark: dark blue on a light page, white on a dark one. */

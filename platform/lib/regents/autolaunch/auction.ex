@@ -4,8 +4,9 @@ defmodule Regents.Autolaunch.Auction do
   the creator's links and picture, and the latest figures read from its
   contract.
 
-  The table and its rows as autolaunch.sh keeps them. Autolaunch's lists read
-  them (`Regents.Autolaunch.HomeMarket`); nothing here writes them yet.
+  The table and its rows as autolaunch.sh keeps them. Autolaunch's lists
+  (`Regents.Autolaunch.HomeMarket`) and a token's own page, by its address
+  (`Regents.Autolaunch.TokenPage`), read them; nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -500,6 +501,26 @@ defmodule Regents.Autolaunch.Auction do
       end
     end
 
+    # The listed auctions a page address names: its ticker, in any case, and
+    # the end of its contract address. More than one match means the address
+    # is too short to name one auction.
+    read :by_path do
+      argument :symbol, :string, allow_nil?: false, constraints: [max_length: 16]
+
+      argument :tail, :string,
+        allow_nil?: false,
+        constraints: [match: ~r/\A[0-9a-fA-F]{5,40}\z/]
+
+      filter expr(string_downcase(token_symbol) == string_downcase(^arg(:symbol)))
+      prepare Regents.Autolaunch.Auction.Preparations.Listed
+      prepare Regents.Autolaunch.Auction.Preparations.Shown
+      prepare build(load: [:path_tail], limit: 2)
+
+      prepare fn query, _context ->
+        Ash.Query.filter(query, ilike(auction_address, ^("%" <> query.arguments.tail)))
+      end
+    end
+
     # The listed auctions sharing any of these tickers, ignoring case, which
     # decide how much of each address its page address needs; see
     # `Regents.Autolaunch.Auction.Calculations.PathTail`.
@@ -511,10 +532,10 @@ defmodule Regents.Autolaunch.Auction do
     end
   end
 
-  # Only the reads the lists use are carried; any other action is refused until
-  # it comes with its own policy.
+  # Only the reads the lists and the token page use are carried; any other
+  # action is refused until it comes with its own policy.
   policies do
-    policy action([:read, :listed, :path_peers, :home_market]) do
+    policy action([:read, :listed, :by_path, :path_peers, :home_market]) do
       authorize_if always()
     end
   end

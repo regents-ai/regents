@@ -17,13 +17,15 @@ defmodule Regents.Autolaunch.StoredImage do
 
   @lanes ["images", "stock-images"]
   @digest ~r/\A[0-9a-f]{64}\z/
-  # Twice the largest size a page draws each kind of picture at: 96 for the
-  # list icons (up to 48 pixels), 640 for the cards (up to about 320), and 320
-  # for those on a phone, where they are drawn at about 150 to 200.
-  @widths [96, 320, 640]
+  # At least twice the largest size a page draws each kind of picture at: 96
+  # for the list icons (up to 48 pixels), 160 for a token page's heading
+  # (drawn at 64, the width autolaunch.sh asked for there), 640 for the cards
+  # (up to about 320), and 320 for those on a phone, where they are drawn at
+  # about 150 to 200.
+  @widths [96, 160, 320, 640]
 
   @type key :: {String.t(), String.t(), String.t()}
-  @type width :: 96 | 320 | 640
+  @type width :: 96 | 160 | 320 | 640
 
   @doc "The width a sized copy's file name asks for, as 320 for `320.webp`, or `:error`."
   @spec width(String.t()) :: {:ok, width()} | :error

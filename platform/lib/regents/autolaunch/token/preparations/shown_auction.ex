@@ -3,7 +3,12 @@ defmodule Regents.Autolaunch.Token.Preparations.ShownAuction do
   use Ash.Resource.Preparation
 
   # A token is shown when its auction is: see
-  # `Regents.Autolaunch.Auction.Preparations.Shown`.
+  # `Regents.Autolaunch.Auction.Preparations.Shown`. `path` leads from what is
+  # read to that auction, as in
+  # `Regents.Autolaunch.Token.Preparations.BaseAuctionOnly`.
   @impl true
-  def prepare(query, _opts, _context), do: Ash.Query.filter(query, exists(auction, not hidden))
+  def prepare(query, opts, _context) do
+    path = Keyword.get(opts, :path, [:auction])
+    Ash.Query.filter(query, exists(^path, not hidden))
+  end
 end

@@ -11,7 +11,8 @@ defmodule RegentsWeb.Autolaunch.LiveListings do
   list page's first listing also starts, in the background and under that
   one spend, the dollar prices (`Regents.Autolaunch.UsdRates`) and the
   page's own other reads; when the allowance is spent none of them is read,
-  and each is failed.
+  and each is failed. A token's page reads its parts the same way, under one
+  spend (`spend/2`).
 
   Still to come: the lists rereading themselves while the page is open.
   """
@@ -34,6 +35,25 @@ defmodule RegentsWeb.Autolaunch.LiveListings do
     if connected?(socket),
       do: Limits.spend(:autolaunch_list_reads, socket.assigns.client_tag),
       else: :ok
+  end
+
+  @doc """
+  Starts each of `reads`, `{assign, read}` where `read` answers `{:ok, value}`
+  or `{:error, reason}`, in the background under one spend (`admit/1`):
+  `{:ok, socket}` with each one loading, or `{:limited, socket}` once the
+  allowance is spent, with none of them read and each failed as
+  `{:error, :limited}`.
+  """
+  def spend(socket, reads) do
+    case admit(socket) do
+      :ok ->
+        {:ok,
+         Enum.reduce(reads, socket, fn {key, read}, socket -> start_read(socket, key, read) end)}
+
+      :limited ->
+        {:limited,
+         Enum.reduce(reads, socket, fn {key, _read}, socket -> refused(socket, key) end)}
+    end
   end
 
   @doc """
@@ -93,17 +113,14 @@ defmodule RegentsWeb.Autolaunch.LiveListings do
 
     socket = assign(socket, :append, append?)
 
-    case admit(socket) do
-      :ok ->
-        reads
-        |> Enum.reduce(socket, fn {key, read}, socket -> start_read(socket, key, read) end)
+    case spend(socket, reads) do
+      {:ok, socket} ->
+        socket
         |> assign(loading: true, failed: false)
         |> start_async(:listings, fn -> read(options, cursor) end)
 
-      :limited ->
-        reads
-        |> Enum.reduce(socket, fn {key, _read}, socket -> refused(socket, key) end)
-        |> assign(loading: false, failed: true)
+      {:limited, socket} ->
+        assign(socket, loading: false, failed: true)
     end
   end
 

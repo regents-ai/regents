@@ -691,9 +691,11 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
     default: nil,
     doc: "the USD price of one unit of that currency, nil while none is known"
 
-  # A price per token in dollars where the currency's dollar price is known,
-  # otherwise in the currency itself.
-  defp price_figure(assigns) do
+  @doc """
+  A price per token in dollars where the currency's dollar price is known,
+  otherwise in the currency itself.
+  """
+  def price_figure(assigns) do
     price = decimal(assigns.amount)
 
     assigns =
@@ -739,15 +741,28 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
       money(auction.bid_volume, nil, auction.quote_token_symbol) || "Not counted yet"
   end
 
-  # An amount in dollars where its currency's dollar price is known, otherwise
-  # in the currency itself; nil while the amount is not known.
-  defp money(amount, rate, unit \\ nil)
-  defp money(nil, _rate, _unit), do: nil
+  @doc """
+  An amount in dollars where its currency's dollar price is known, otherwise
+  in the currency itself; nil while the amount is not known.
+  """
+  def money(amount, rate, unit \\ nil)
+  def money(nil, _rate, _unit), do: nil
 
-  defp money(%Decimal{} = amount, nil, unit),
+  def money(%Decimal{} = amount, nil, unit),
     do: String.trim("#{TokenDisplay.short(amount)} #{unit}")
 
-  defp money(%Decimal{} = amount, rate, _unit), do: UsdValue.dollars(Decimal.mult(amount, rate))
+  def money(%Decimal{} = amount, rate, _unit), do: UsdValue.dollars(Decimal.mult(amount, rate))
+
+  @doc """
+  How many characters a price per token shows as (`price_figure/1`), so the
+  figure can be sized to fit its line; nil for a price not known yet.
+  """
+  def price_length(amount, unit, rate) do
+    case decimal(amount) do
+      nil -> nil
+      price -> price |> money(rate, unit) |> String.length()
+    end
+  end
 
   # Stored prices can run past a hundred decimal places.
   defp decimal(value) when is_binary(value) do
@@ -1046,23 +1061,25 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
     }
   end
 
-  # The currency a Base token's pool is entered with (the swap's own on
-  # autolaunch.sh), or nil where it cannot be swapped here.
-  defp entry_symbol(%{kind: :agent, chain_id: chain_id, quote_token_symbol: "REGENT"}) do
+  @doc """
+  The currency a Base token's pool is entered with (the swap's own on
+  autolaunch.sh), or nil where it cannot be swapped here.
+  """
+  def entry_symbol(%{kind: :agent, chain_id: chain_id, quote_token_symbol: "REGENT"}) do
     if base_chain?(chain_id), do: "REGENT"
   end
 
-  defp entry_symbol(%{
-         kind: :stocks,
-         chain_id: chain_id,
-         quote_token_address: address,
-         quote_token_symbol: symbol
-       })
-       when is_binary(address) and address != "" and is_binary(symbol) do
+  def entry_symbol(%{
+        kind: :stocks,
+        chain_id: chain_id,
+        quote_token_address: address,
+        quote_token_symbol: symbol
+      })
+      when is_binary(address) and address != "" and is_binary(symbol) do
     if base_chain?(chain_id) and String.trim(symbol) != "", do: symbol
   end
 
-  defp entry_symbol(_auction), do: nil
+  def entry_symbol(_auction), do: nil
 
   defp base_chain?(chain_id), do: chain_id in [8453, Lab.chain_id()]
 
@@ -1153,12 +1170,14 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   defp auction_age(auction),
     do: ago(Map.get(auction, :inserted_at) || Map.get(auction, :opened_at))
 
-  # A creator's website as a link and a short label, or nil when it is not an
-  # ordinary web address or names this site or Regents.
-  defp web_link(url) when is_binary(url) do
+  @doc """
+  A creator's website as a link and a short label, or nil when it is not an
+  https address with a host (an http one included, which autolaunch.sh drew)
+  or names this site or Regents.
+  """
+  def web_link(url) when is_binary(url) do
     case URI.parse(String.trim(url)) do
-      %URI{scheme: scheme, host: host} = uri
-      when scheme in ["http", "https"] and host not in [nil, ""] ->
+      %URI{scheme: "https", host: host} = uri when host not in [nil, ""] ->
         if own_site?(host), do: nil, else: %{url: URI.to_string(uri), label: website_label(uri)}
 
       _other ->
@@ -1166,7 +1185,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
     end
   end
 
-  defp web_link(_url), do: nil
+  def web_link(_url), do: nil
 
   # A creator who names this site or Regents as their website has named no
   # website of their own.

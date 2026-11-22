@@ -1,9 +1,10 @@
 defmodule RegentsWeb.Autolaunch.Components.CreatorLabel do
   @moduledoc """
   Who launched an auction or token, in a word or two, the same on every list
-  row: the creator's first account shown as ownership checked (X, Company X,
-  ENS, then GitHub), else the launching wallet, shortened.
+  row and token page: the creator's first account shown as ownership checked
+  (X, Company X, ENS, then GitHub), else the launching wallet, shortened.
   """
+  use Phoenix.Component
 
   alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias RegentsWeb.Autolaunch.Components.{BidPlaced, MarketCard}
@@ -39,4 +40,20 @@ defmodule RegentsWeb.Autolaunch.Components.CreatorLabel do
   end
 
   defp wallet(_auction), do: nil
+
+  attr :auction, :map, required: true, doc: "the auction, or a token's auction"
+  attr :connections, :map, default: nil, doc: "the creator's connected accounts"
+  attr :class, :string, default: nil
+
+  @doc "\"by\" and the creator's name, which opens their account or their wallet on the explorer."
+  def creator(assigns) do
+    assigns = assign(assigns, :name, name(assigns.auction, assigns.connections))
+
+    ~H"""
+    <p :if={@name} class={["creator-label", @class]}>
+      by
+      <a href={@name.url} title={@name.title} target="_blank" rel="noopener noreferrer">{@name.text}</a>
+    </p>
+    """
+  end
 end

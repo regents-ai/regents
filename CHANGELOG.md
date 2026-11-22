@@ -8320,9 +8320,9 @@ seasons), on the shared Points library regents.sh was already on.
 
 ## 2026-11-22 — One site: Autolaunch's launch pictures come from this site (not released)
 
-- The launch pictures autolaunch.sh stored now come from regents.sh, at `/autolaunch/images/<id>/<digest>` and `/autolaunch/stock-images/<id>/<digest>` as stored, and 96, 320 or 640 wide at `<address>/<width>.webp`, with the same bytes, type and caching autolaunch.sh gives them. A browser keeps each one for good.
+- The launch pictures autolaunch.sh stored now come from regents.sh, at `/autolaunch/images/<id>/<digest>` and `/autolaunch/stock-images/<id>/<digest>` as stored, and 96, 160, 320 or 640 wide at `<address>/<width>.webp`, with the same bytes, type and caching autolaunch.sh gives them. A browser keeps each one for good.
 - The home page and the Auctions and Tokens lists draw every stored picture from this site and ask autolaunch.sh for none. Each launch keeps the autolaunch.sh address it was given; nothing stored is rewritten.
-- A picture that is not stored here is shown as it is when its address is a secure web address; otherwise the card shows the launch's first letter.
+- A picture that is not stored here is not shown; the card shows the launch's first letter.
 - Each sized copy is made the first time it is asked for, one at a time, and kept in memory, about 300 at most. The picture is read only when its copy's turn comes, so requests waiting in line hold no picture, and the maker gives back its memory a second after it goes quiet.
 - Any other address under these paths answers "Not found": a wrong digest, another width, another kind of file, or a picture stored as anything but PNG, JPEG or WebP.
 - Pictures have allowances of their own from one address: 600 sized copies a minute, and 60 pictures as stored, which no page shows and which can be 2 MiB each. A page's pictures no longer count against the 120 page reads a minute.
@@ -8332,3 +8332,18 @@ seasons), on the shared Points library regents.sh was already on.
 
 - With launch pictures served by this site, the pages' picture rule no longer names autolaunch.sh. Pictures may come from this site, from the page itself and from the ENS picture service.
 - Not released: on the `one-site` branch only. No table, migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Autolaunch's token pages (not released)
+
+- Each launched Base token has its own page at `/autolaunch/tokens/<TICKER>/<tail>`, as autolaunch.sh shows it at `4799025d` without its trading parts: the heading with the token's picture, name, pair, chain, launch type and creator, the price, the market figures, a Revstake token's revenue history, who launched it and the launch's contracts, in the same words. The ticker can be written in any case. The token cards and rows, and a graduated auction's Buy, now open it.
+- An address that names no token, an auction whose token has not launched, or a Robinhood market answers "not found". When the token can't be read as the page opens, the site's own error page shows; autolaunch.sh showed a "Try again" page when it could not reach its database.
+- The browser tab names the token whether the page is opened from a Tokens row or a Buy, or loaded directly. A token opened from the home page is loaded fresh, as on autolaunch.sh, so its tab reads the same. When the page shows no token it reads "Token not found" or "Token unavailable"; autolaunch.sh kept the token's name there.
+- The price and the market cap are in dollars where the token's currency has a dollar price, as on the lists, and otherwise in the token's own currency.
+- Once open, the page reads the token, the prices and the revenue under the same allowance as the lists, 120 a minute from one address. Past it the page says the token couldn't be loaded, with Retry. Retry reads again only what failed, and only after a read has failed.
+- The page is one column, no wider than autolaunch.sh's main column at its widest, until the trading panel comes.
+- The heading's picture is the 160-wide copy, served like the other widths.
+- A launch picture not stored on this site is not shown on the token page either: it shows the launch's first letter, as the home page and the lists do, where autolaunch.sh tried to show whatever picture address a launch held.
+- A press the page does not take changes nothing; on autolaunch.sh it stopped the page and loaded it again.
+- A creator's website shows as a link, on the cards and on the token page, only when it is an https address; autolaunch.sh linked http addresses too. A Telegram or Discord link shows only when it is a whole https address with a site in it.
+- Left out for now: the pool's figures (the change, the trades, the pool and its locker), with the Uniswap Pool and View Chart buttons staying closed; the price chart; trading, staking and claiming; Share; and the page updating itself while open.
+- Not released: on the `fold/autolaunch` branch only. One route added. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.

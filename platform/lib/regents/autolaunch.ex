@@ -18,10 +18,11 @@ defmodule Regents.Autolaunch do
   (`Regents.Autolaunch.HomeMarket`) are here with their policies, with what
   their cards show of a record (`AuctionFigures`, `StoredImage` and
   `Token.presentation/1`), the dollar prices their figures are shown in
-  (`UsdRates`) and the Auctions page's counts (`AuctionStats`), and the public
-  read of the two launch picture tables (`StoredImage`); every other resource
-  has no action yet and one policy refusing every action, so nothing here
-  writes a row.
+  (`UsdRates`) and the Auctions page's counts (`AuctionStats`), the reads
+  behind a token's own page (`TokenPage`: the auction its address names, its
+  token and the token's revenue), and the public read of the two launch
+  picture tables (`StoredImage`); every other resource has no action yet and
+  one policy refusing every action, so nothing here writes a row.
 
   It also reads the deployment descriptions, the files that say which
   contracts on which chain the site describes: Base's (`Lab`), Base Stocks'
@@ -41,11 +42,13 @@ defmodule Regents.Autolaunch do
       LaunchChain,
       Robinhood.Lab,
       Search,
+      Stocks.Assets,
       Stocks.FeeSchedule,
       Stocks.LaunchActions,
       StoredImage,
       Supervisor,
       Token,
+      TokenPage,
       UsdRates
     ]
 
@@ -57,7 +60,11 @@ defmodule Regents.Autolaunch do
     resource Regents.Autolaunch.BidActivity
     resource Regents.Autolaunch.BidSettlement
     resource Regents.Autolaunch.TokenTrade
-    resource Regents.Autolaunch.TokenRevenue
+
+    resource Regents.Autolaunch.TokenRevenue do
+      define :token_revenue, action: :for_token, args: [:token_id]
+    end
+
     resource Regents.Autolaunch.TokenStake
     resource Regents.Autolaunch.ShareVideoRequest
     resource Regents.Autolaunch.AuctionReading
@@ -72,6 +79,7 @@ defmodule Regents.Autolaunch do
     end
 
     resource Regents.Autolaunch.Auction do
+      define :list_auctions_by_path, action: :by_path, args: [:symbol, :tail]
       define :list_path_peers, action: :path_peers, args: [:symbols]
     end
 
@@ -93,7 +101,14 @@ defmodule Regents.Autolaunch do
 
     resource Regents.Autolaunch.Stocks.AdmissionScan
     resource Regents.Autolaunch.Stocks.StockCandidate
-    resource Regents.Autolaunch.Token
+
+    resource Regents.Autolaunch.Token do
+      define :get_public_token_by_auction,
+        action: :public_by_auction,
+        args: [:auction_id],
+        not_found_error?: false
+    end
+
     resource Regents.Autolaunch.Subject
     resource Regents.Autolaunch.PaymentLink
     resource Regents.Autolaunch.LaunchJob

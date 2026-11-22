@@ -1,0 +1,64 @@
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+/* The token page, in the manner of a trading site: the heading across the
+   top; then the price and the market figures, with the revenue, the creator
+   and the contracts under them. One column on every screen, no wider than
+   autolaunch.sh's main column beside its trade panel at its widest (901
+   pixels), so its lines keep that measure. The trade panel's side column and
+   its rules come with the trade panel (slice 3). */
+.token-page { max-width: 56.25rem; }
+.token-page__head { display: grid; gap: var(--space-2); min-width: 0; }
+.token-page__layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); align-items: start; min-width: 0; }
+.token-page__overview { display: grid; gap: var(--space-5); min-width: 0; }
+.token-page__details { display: grid; gap: var(--space-5); min-width: 0; }
+.token-page__title { margin: 0 0 var(--space-2); font-size: 1.25rem; font-weight: 400; }
+/* While the token is first read, the page holds a screen's height, so the
+   footer does not sit under the reading card and jump when the token arrives. */
+.token-page__reading { min-height: 100svh; }
+
+/* The price, large, and the price in the currency under it. The number is
+   never broken: a price too long for its row at full size is set smaller, by
+   its count of characters, until it fits. Only a ticker of unusually wide
+   letters can still move to a second line. */
+.token-figures { display: grid; gap: 6px; min-width: 0; container-type: inline-size; }
+.token-figures p { margin: 0; }
+.token-figures__price { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--space-2); }
+.token-figures__price strong { font-size: min(clamp(2.25rem, 1.6rem + 2.4vw, 3rem), calc(100cqi / (var(--figure-length, 12) * .58))); font-weight: 400; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.token-figures__price .figure__value { white-space: nowrap; }
+.token-figures__unit { color: var(--color-fg-muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
+
+/* The market figures, three to a row on a wide screen and two on a phone. A
+   figure is never broken: one too long to share its row takes a row to itself. */
+.token-market__stats { display: flex; flex-wrap: wrap; margin: 0; border-top: 1px solid var(--hairline); }
+.token-market__stats > div { flex: 1 1 calc(100% / 3); display: grid; align-content: start; gap: 4px; min-width: max-content; padding: var(--space-3) var(--space-3) var(--space-3) 0; border-bottom: 1px solid var(--hairline); }
+.token-market__stats dt { color: var(--color-fg-muted); font-size: .8125rem; }
+.token-market__stats dd { margin: 0; font-size: 1.125rem; white-space: nowrap; }
+@media (max-width: 40rem) { .token-market__stats > div { flex-basis: 50%; } }
+
+/* The creator and the contracts as plain lists: a label and its value on
+   each ruled row. */
+.token-facts { gap: var(--space-5); }
+.token-facts .launch-trust__block { gap: 0; padding: 0; border: 0; background: none; }
+.token-facts .launch-trust__block > h2 { margin: 0 0 var(--space-2); font-size: 1.25rem; font-weight: 400; }
+.token-facts .launch-trust__rows { display: block; border-top: 1px solid var(--hairline); font-size: .9375rem; }
+.token-facts .launch-trust__rows > div { display: grid; grid-template-columns: 9rem minmax(0, 1fr); align-items: center; gap: var(--space-3); min-height: 48px; padding-block: 6px; border-bottom: 1px solid var(--hairline); }
+.token-facts .launch-trust__rows dt { font-size: .875rem; }
+.token-facts__list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--hairline); }
+.token-facts__list > li { display: grid; grid-template-columns: 9rem minmax(0, 1fr); align-items: center; gap: var(--space-3); min-height: 48px; padding-block: 6px; border-bottom: 1px solid var(--hairline); font-size: .9375rem; }
+.token-facts__label { color: var(--color-fg-muted); font-size: .875rem; }
+@media (max-width: 30rem) {
+  .token-facts .launch-trust__rows > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .token-facts__list > li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+
+/* A Revstake token's revenue history: each payment's amount, day and
+   transaction, newest first. */
+.revenue-history { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); }
+.revenue-history h2 { margin: 0; font-size: 1.125rem; }
+.revenue-history__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.revenue-history__rows { display: grid; margin: 0; padding: 0; list-style: none; }
+.revenue-history__rows > li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: var(--space-2); padding-block: var(--space-1); border-bottom: 1px solid var(--hairline); font-variant-numeric: tabular-nums; }
+.revenue-history__rows strong { overflow-wrap: anywhere; }
+.revenue-history__rows time { color: var(--color-fg-muted); font-size: .875rem; }
+.revenue-history__rows a { font-size: .875rem; text-underline-offset: .2em; }
+.revenue-history__rows strong span { color: var(--color-fg-muted); font-weight: var(--font-weight-regular); }
+}

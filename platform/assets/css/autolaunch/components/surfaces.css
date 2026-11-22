@@ -15,21 +15,28 @@
   }
 }
 
-/* Cards. These hold a table or a picture that reaches their edges. */
+/* Cards. The padded ones hold words; the others hold a table or a picture that
+   reaches their edges. */
 :where(
   .market-list__scroll,
   .home-coin,
+  .autolaunch-empty,
   .home-empty,
-  .market-list__empty
+  .market-list__empty,
+  .loading-card
 ) {
   border: 1px solid var(--hairline);
   border-radius: var(--radius);
   background: var(--color-surface);
 }
 
+:where(.autolaunch-empty, .loading-card) {
+  padding: var(--card-padding);
+}
+
 /* Empty states: what is missing, why in a line, and where to go next, centred
-   in a card. */
-:where(.home-empty, .market-list__empty) {
+   in a card. A page that is itself the message keeps its heading at the left. */
+:where(.home-empty, .market-list__empty, .autolaunch-empty) {
   display: grid;
   justify-items: center;
   gap: var(--space-2);
@@ -38,14 +45,28 @@
   text-align: center;
 }
 
-:where(.home-empty, .market-list__empty) > :where(h2, h3, p) {
+:where(.home-empty, .market-list__empty, .autolaunch-empty) > :where(h2, h3, p) {
   max-width: 30rem;
   margin: 0;
 }
 
-:where(.home-empty, .market-list__empty) > :where(h2, h3) {
+:where(.home-empty, .market-list__empty, .autolaunch-empty) > :where(h2, h3) {
   color: var(--color-fg);
   font-size: 1.125rem;
+}
+
+:where(.autolaunch-page.autolaunch-empty) {
+  justify-items: start;
+  padding: var(--card-padding);
+  text-align: start;
+}
+
+/* A link on a line of its own is a full 44px press; a link inside a sentence
+   stays part of the sentence. */
+:where(.market-back, .launch-trust__rows dd > a) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
 }
 
 /* A choice and its words are one press: a full 44px one on a touch screen, by the
@@ -77,5 +98,25 @@
   50% {
     opacity: 0.55;
   }
+}
+
+/* `RegentsWeb.Autolaunch.Components.Loading.placeholder/1`: a card of lines. */
+.loading-card {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.loading-card__title {
+  width: 40%;
+  height: 1.25rem;
+  margin-block-end: var(--space-1);
+}
+
+.loading-card__line {
+  height: 0.75rem;
+}
+
+.loading-card__line:last-child {
+  width: 60%;
 }
 }
