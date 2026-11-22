@@ -104,9 +104,12 @@ defmodule RegentsWeb.Keyfleet.Components.ScheduleCard do
   @doc """
   The fleets whose Schedule this browser put away, from the cookie the
   `ScheduleCard` hook writes (`assets/js/keyfleet/hooks/schedule_card.ts`): their ids,
-  joined by dots.
+  joined by dots. Only the catalog's fleets are kept, each once.
   """
-  def put_away(cookie), do: String.split(cookie, ".", trim: true)
+  def put_away(cookie) do
+    catalog = Fleets.catalog_ids()
+    cookie |> String.split(".", trim: true) |> Enum.filter(&(&1 in catalog)) |> Enum.uniq()
+  end
 
   defp words(agents) do
     case Enum.uniq_by(agents, & &1.wallet) do

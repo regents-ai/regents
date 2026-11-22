@@ -152,7 +152,8 @@
       "changes": [
         "need: the Agents page it named (agents_panel.ex) is the site's now; the moduledoc names the variant by its attribute",
         "need: the check-in words came from pairing_box.ex (not carried); they are kept here, word for word, as @check_in",
-        "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)"
+        "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)",
+        "the regents chief's review of K3 (b): put_away/1 keeps only the catalog's fleets from the cookie, each once, for the page as it is requested and for the press alike, where the source's kept every id the cookie held (K3 b fixes)"
       ]
     },
     {

@@ -16,6 +16,9 @@ type ScheduleCardHook = {
  */
 const cookieName = "keyfleet_schedule"
 const maxAge = 60 * 60 * 24 * 365
+/** A fleet's id as the catalog writes it, and how many the cookie keeps, the latest. */
+const fleetId = /^[a-z0-9_]+$/
+const kept = 16
 
 /** The fleets whose Schedule this browser put away, as their ids joined by dots. */
 function putAway(): string {
@@ -33,7 +36,10 @@ function fleetsPutAway(): string[] {
 }
 
 function keepAway(fleet: string) {
-  const fleets = [...new Set([...fleetsPutAway(), fleet])].join(".")
+  const fleets = [...new Set([...fleetsPutAway().filter(id => id !== fleet), fleet])]
+    .filter(id => fleetId.test(id))
+    .slice(-kept)
+    .join(".")
   const secure = window.location.protocol === "https:" ? "; Secure" : ""
   document.cookie = `${cookieName}=${fleets}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`
 }
