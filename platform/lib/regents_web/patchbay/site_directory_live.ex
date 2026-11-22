@@ -7,27 +7,61 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
   tools, and changes as Patchbay's checks of its sites finish
   (`Regents.Patchbay.Forum.SiteCheck.topic/1`; nothing tells that topic yet:
   the checks come with Patchbay's background work).
+
+  Drawn with the page, the directory takes the page the page already read;
+  it reads it itself once when it joins. A read that fails as it joins says
+  so in the directory's place, with a link that opens the page again; one
+  that fails loading more sites says so by the button and keeps the list.
   """
   use RegentsWeb, :live_view
 
-  import RegentsWeb.Patchbay.Forum.BoardHTML, only: [domain_path: 1, picture_url: 1, web_link: 1]
+  require Logger
+
+  import RegentsWeb.Patchbay.Forum.BoardHTML,
+    only: [domain_path: 1, picture_url: 1, section_unavailable: 1, web_link: 1]
 
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.SiteDirectory
+  alias RegentsWeb.Patchbay.Forum.Board
 
   @impl true
-  def mount(_params, session, socket) do
-    # The page asked for was checked before this page was rendered.
-    {:ok, page} = SiteDirectory.page(session["filters"])
+  def mount(_params, %{"filters" => filters}, socket) do
+    socket = assign_new(socket, :directory, fn -> read_directory(filters) end)
 
-    socket =
-      socket
-      |> assign(page: page, expanded: MapSet.new(), subscribed: MapSet.new())
-      |> stream_configure(:sites, dom_id: &"directory-#{&1.host}")
-      |> stream(:sites, page.sites)
-      |> subscribe_sites(page.sites)
+    case socket.assigns.directory do
+      :unavailable ->
+        {:ok, assign(socket, retry: ~p"/patchbay/sites?#{filters}"), layout: false}
 
-    {:ok, socket, layout: false}
+      page ->
+        {:ok,
+         socket
+         |> assign(
+           directory: nil,
+           page: page,
+           more_failed: false,
+           expanded: MapSet.new(),
+           subscribed: MapSet.new()
+         )
+         |> stream_configure(:sites, dom_id: &"directory-#{&1.host}")
+         |> stream(:sites, page.sites)
+         |> subscribe_sites(page.sites), layout: false}
+    end
+  end
+
+  defp read_directory(filters) do
+    case SiteDirectory.page(filters) do
+      {:ok, page} -> page
+      {:error, failure} -> failed(failure)
+    end
+  end
+
+  # A read that fails is logged by its kind only.
+  defp failed(failure) do
+    Logger.warning(
+      "The site directory could not be read: " <> inspect(Board.failure_kind(failure))
+    )
+
+    :unavailable
   end
 
   @impl true
@@ -35,20 +69,9 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
     page = socket.assigns.page
 
     if page.page < page.pages do
-      {:ok, next} =
-        SiteDirectory.page(%{
-          "q" => page.q,
-          "category" => page.category,
-          "page" => to_string(page.page + 1)
-        })
-
-      merged = %{next | sites: page.sites ++ next.sites}
-
-      {:noreply,
-       socket
-       |> assign(page: merged)
-       |> stream(:sites, next.sites)
-       |> subscribe_sites(next.sites)}
+      %{"q" => page.q, "category" => page.category, "page" => to_string(page.page + 1)}
+      |> read_directory()
+      |> more(socket)
     else
       {:noreply, socket}
     end
@@ -69,6 +92,20 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
     {:noreply, if(site, do: stream_insert(socket, :sites, site), else: socket)}
   end
 
+  # The next page joins the list; one that could not be read says so by the
+  # button, which reads it again.
+  defp more(:unavailable, socket), do: {:noreply, assign(socket, more_failed: true)}
+
+  defp more(next, socket) do
+    page = socket.assigns.page
+
+    {:noreply,
+     socket
+     |> assign(page: %{next | sites: page.sites ++ next.sites}, more_failed: false)
+     |> stream(:sites, next.sites)
+     |> subscribe_sites(next.sites)}
+  end
+
   @impl true
   def handle_info(%Ash.Notifier.Notification{data: check}, socket) do
     page = SiteDirectory.replace_check(socket.assigns.page, check)
@@ -77,6 +114,21 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
   end
 
   @impl true
+  def render(%{retry: _retry} = assigns) do
+    ~H"""
+    <section id="site-directory" class="pb-site-directory" aria-labelledby="directory-heading">
+      <header class="pb-directory-intro">
+        <div>
+          <h2 id="directory-heading">All sites</h2>
+        </div>
+      </header>
+      <.section_unavailable retry={@retry}>
+        The sites could not be loaded just now.
+      </.section_unavailable>
+    </section>
+    """
+  end
+
   def render(assigns) do
     ~H"""
     <section id="site-directory" class="pb-site-directory" aria-labelledby="directory-heading">
@@ -252,6 +304,7 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
           phx-disable-with="Loading…"
           class="rg-button rg-button--secondary"
         >Load more sites</button>
+        <p :if={@more_failed} role="alert">More sites could not be loaded just now.</p>
         <p :if={@page.page == @page.pages and @page.total > 0} role="status">
           End of results
         </p>

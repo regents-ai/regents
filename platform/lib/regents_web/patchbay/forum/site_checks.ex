@@ -12,9 +12,9 @@ defmodule RegentsWeb.Patchbay.Forum.SiteChecks do
   alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Forum.SiteCheck
 
-  @doc "The site's check as last kept, or nil before the first."
-  @spec current(String.t()) :: Ash.Resource.record() | nil
-  def current(domain), do: Forum.get_site_check!(domain, not_found_error?: false)
+  @doc "The site's check as last kept, or nil before the first; a read that fails is its error."
+  @spec current(String.t()) :: {:ok, Ash.Resource.record() | nil} | {:error, term()}
+  def current(domain), do: Forum.get_site_check(domain, not_found_error?: false)
 
   @doc "Where a site's check stands, for the words beside it."
   @spec state(Ash.Resource.record() | nil) :: :none | :checking | :failed | :done

@@ -109,12 +109,9 @@ defmodule RegentsWeb.Patchbay.ThreadLive do
   # A read that fails as the thread connects is logged by its kind only, as
   # the page's own is.
   defp failed(failure) do
-    Logger.warning("Report replies unavailable: " <> inspect(kind(failure)))
+    Logger.warning("Report replies unavailable: " <> inspect(Board.failure_kind(failure)))
     :unavailable
   end
-
-  defp kind(failure) when is_struct(failure), do: failure.__struct__
-  defp kind(failure), do: failure
 
   # Retry opens the same page of replies again, as the 503 page's does.
   defp unavailable(socket, %{"after" => cursor}) when is_binary(cursor),

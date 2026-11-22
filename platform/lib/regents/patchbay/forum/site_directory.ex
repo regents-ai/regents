@@ -52,12 +52,15 @@ defmodule Regents.Patchbay.Forum.SiteDirectory do
   @doc """
   One page of the listing with its checks and forum counts, or why `params`
   names no page. The listing leaves out the hosts `hidden_hosts/0` names, and
-  its totals do not count them.
+  its totals do not count them. A read the page cannot be drawn without that
+  fails is its error.
   """
-  @spec page(map()) :: {:ok, map()} | {:error, {:invalid, [String.t()]}}
+  @spec page(map()) :: {:ok, map()} | {:error, {:invalid, [String.t()]}} | {:error, term()}
   def page(params) do
     with {:ok, number} <- page_number(params["page"]),
-         do: {:ok, params |> select(number, hidden_hosts()) |> read()}
+         {:ok, hidden} <- hidden_hosts(),
+         {:ok, selected} <- select(params, number, hidden),
+         do: read(selected)
   end
 
   # The listed hosts whose last finished check read every one of their pages
@@ -65,30 +68,37 @@ defmodule Regents.Patchbay.Forum.SiteDirectory do
   # leaves them out until a check finds a tool; their own pages stay open.
   # Read with each listing: nothing on this site records a check yet.
   defp hidden_hosts do
-    for check <- Forum.list_site_checks_without_tools!(),
-        seed <- Map.get(@by_domain, check.domain, []),
-        Enum.all?(entry_pages(seed), &(&1 in check.read_directory_pages)),
-        into: MapSet.new(),
-        do: seed["host"]
+    with {:ok, checks} <- Forum.list_site_checks_without_tools() do
+      hidden =
+        for check <- checks,
+            seed <- Map.get(@by_domain, check.domain, []),
+            Enum.all?(entry_pages(seed), &(&1 in check.read_directory_pages)),
+            into: MapSet.new(),
+            do: seed["host"]
+
+      {:ok, hidden}
+    end
   end
 
   defp read(selected) do
     domains = selected.sites |> Enum.map(&domain/1) |> Enum.uniq()
-    checks = SiteCheck |> Ash.Query.filter(domain in ^domains) |> Ash.read!()
-    page = decorate(selected, Map.new(checks, &{&1.domain, &1}))
 
-    # One public aggregate read for the visible domains. Hidden posts never count.
-    result =
-      with {:ok, sites} <-
-             Site
-             |> Ash.Query.filter(origin in ^domains)
-             |> Ash.Query.select([:origin, :logo_path, :screenshot_path])
-             |> Ash.Query.load(:report_count)
-             |> Ash.read(),
-           {:ok, pictures} <- Forum.list_shown_listed_site_pictures(domains),
-           do: {:ok, sites, pictures}
+    with {:ok, checks} <- SiteCheck |> Ash.Query.filter(domain in ^domains) |> Ash.read() do
+      page = decorate(selected, Map.new(checks, &{&1.domain, &1}))
 
-    with_forum(page, result)
+      # One public aggregate read for the visible domains. Hidden posts never count.
+      result =
+        with {:ok, sites} <-
+               Site
+               |> Ash.Query.filter(origin in ^domains)
+               |> Ash.Query.select([:origin, :logo_path, :screenshot_path])
+               |> Ash.Query.load(:report_count)
+               |> Ash.read(),
+             {:ok, pictures} <- Forum.list_shown_listed_site_pictures(domains),
+             do: {:ok, sites, pictures}
+
+      {:ok, with_forum(page, result)}
+    end
   end
 
   defp with_forum(page, {:error, _failure}), do: page
@@ -134,40 +144,43 @@ defmodule Regents.Patchbay.Forum.SiteDirectory do
           Enum.all?(words, &String.contains?(haystack, &1))
       end)
 
-    boards = board_count(words, category)
-    total = length(entries) + boards
-    pages = max(1, ceil(total / @page_size))
-    page = min(number, pages)
-    start = (page - 1) * @page_size
-    listed = Enum.slice(entries, start, @page_size)
-    offset = max(start - length(entries), 0)
-    room = min(@page_size - length(listed), boards - offset)
-
-    %{
-      sites:
-        Enum.map(listed, &{:seed, &1}) ++
-          Enum.map(boards(words, offset, room), &{:board, &1}),
-      total: total,
-      page: page,
-      pages: pages,
-      q: q,
-      category: category
-    }
+    with {:ok, boards} <- board_count(words, category),
+         total = length(entries) + boards,
+         pages = max(1, ceil(total / @page_size)),
+         page = min(number, pages),
+         start = (page - 1) * @page_size,
+         listed = Enum.slice(entries, start, @page_size),
+         offset = max(start - length(entries), 0),
+         room = min(@page_size - length(listed), boards - offset),
+         {:ok, rows} <- boards(words, offset, room) do
+      {:ok,
+       %{
+         sites: Enum.map(listed, &{:seed, &1}) ++ Enum.map(rows, &{:board, &1}),
+         total: total,
+         page: page,
+         pages: pages,
+         q: q,
+         category: category
+       }}
+    end
   end
 
   # A board carries no category, so a search by category lists none.
-  defp board_count(_words, category) when category != "", do: 0
+  defp board_count(_words, category) when category != "", do: {:ok, 0}
 
   defp board_count(words, _category) do
     Site
     |> Ash.Query.for_read(:directory_boards, %{except: @domains, words: words})
-    |> Ash.count!()
+    |> Ash.count()
   end
 
-  defp boards(_words, _offset, room) when room <= 0, do: []
+  defp boards(_words, _offset, room) when room <= 0, do: {:ok, []}
 
-  defp boards(words, offset, room),
-    do: Forum.list_directory_boards!(@domains, words, page: [offset: offset, limit: room]).results
+  defp boards(words, offset, room) do
+    with {:ok, page} <-
+           Forum.list_directory_boards(@domains, words, page: [offset: offset, limit: room]),
+         do: {:ok, page.results}
+  end
 
   defp decorate(page, checks),
     do: Map.put(page, :sites, Enum.map(page.sites, &entry(&1, Map.get(checks, domain(&1)))))

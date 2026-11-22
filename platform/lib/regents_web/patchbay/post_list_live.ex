@@ -13,11 +13,16 @@ defmodule RegentsWeb.Patchbay.PostListLive do
   writing pages.
 
   Drawn with the page, the list takes the posts the page already read; it
-  reads its first page itself once when it joins.
+  reads its first page itself once when it joins. A read that fails as it
+  joins says so in the list's place, with a link that opens the page again,
+  and the list then hears nothing.
   """
   use RegentsWeb, :live_view
 
-  import RegentsWeb.Patchbay.Forum.BoardHTML, only: [post_row: 1, posts_empty: 1]
+  require Logger
+
+  import RegentsWeb.Patchbay.Forum.BoardHTML,
+    only: [domain_path: 1, post_row: 1, posts_empty: 1, section_unavailable: 1]
 
   alias Regents.Patchbay.Forum.LivePost
   alias RegentsWeb.Patchbay.Forum.Board
@@ -28,19 +33,27 @@ defmodule RegentsWeb.Patchbay.PostListLive do
     list = list(session)
     # Listening starts before the list is read, so no post falls between.
     if connected?(socket), do: :ok = Phoenix.PubSub.subscribe(Regents.PubSub, list.topic)
-    {socket, posts} = socket |> assign(list: list) |> first_page(list)
+
+    case socket |> assign(list: list) |> first_page(list) do
+      {socket, :unavailable} -> {:ok, assign(socket, retry: list.path), layout: false}
+      {socket, posts} -> {:ok, show(socket, posts), layout: false}
+    end
+  end
+
+  defp show(socket, posts) do
     rows = Enum.map(posts, &LivePost.row/1)
     ids = Enum.map(rows, & &1.id)
     if connected?(socket), do: Enum.each(ids, &follow/1)
 
-    {:ok,
-     socket
-     |> assign(ids: ids, empty: rows == [])
-     |> stream_configure(:posts, dom_id: &"feed-#{&1.id}")
-     |> stream(:posts, rows, limit: list.size), layout: false}
+    socket
+    |> assign(ids: ids, empty: rows == [])
+    |> stream_configure(:posts, dom_id: &"feed-#{&1.id}")
+    |> stream(:posts, rows, limit: socket.assigns.list.size)
   end
 
   @impl true
+  def handle_info(_notice, %{assigns: %{retry: _retry}} = socket), do: {:noreply, socket}
+
   def handle_info(%{event: "posted", payload: row}, socket) do
     %{list: list, ids: ids} = socket.assigns
 
@@ -77,6 +90,12 @@ defmodule RegentsWeb.Patchbay.PostListLive do
   end
 
   @impl true
+  def render(%{retry: _retry} = assigns) do
+    ~H"""
+    <.section_unavailable retry={@retry}>{@list.unavailable}</.section_unavailable>
+    """
+  end
+
   def render(assigns) do
     ~H"""
     <ol
@@ -99,7 +118,9 @@ defmodule RegentsWeb.Patchbay.PostListLive do
       size: Discussions.page_size(),
       likes: :post,
       topic: LivePost.posts_topic(),
-      empty: session["empty"]
+      empty: session["empty"],
+      path: ~p"/patchbay",
+      unavailable: "The questions could not be loaded just now."
     }
 
   defp list(%{"list" => "site", "site_id" => site_id, "origin" => origin} = session),
@@ -110,7 +131,9 @@ defmodule RegentsWeb.Patchbay.PostListLive do
       likes: :thread,
       topic: LivePost.site_topic(site_id),
       origin: origin,
-      empty: session["empty"]
+      empty: session["empty"],
+      path: domain_path(origin),
+      unavailable: "The posts could not be loaded just now."
     }
 
   # Drawn with the page, the list has the page's own posts; joined, it reads
@@ -126,15 +149,28 @@ defmodule RegentsWeb.Patchbay.PostListLive do
   end
 
   defp home_posts do
-    {:ok, filters} = Discussions.filters(%{})
-    {:ok, posts, _next} = Discussions.page(filters, nil)
-    posts
+    with {:ok, filters} <- Discussions.filters(%{}),
+         {:ok, posts, _next} <- Discussions.page(filters, nil) do
+      posts
+    else
+      {:error, failure} -> failed(failure)
+    end
   end
 
   defp site_posts(origin) do
-    {:ok, site} = Board.fetch_site(origin)
-    {:ok, posts, _next} = Board.site_threads(site, nil, nil)
-    posts
+    with {:ok, site} <- Board.fetch_site(origin),
+         {:ok, posts, _next} <- Board.site_threads(site, nil, nil) do
+      posts
+    else
+      {:error, failure} -> failed(failure)
+      :error -> failed(:no_site)
+    end
+  end
+
+  # A read that fails as the list joins is logged by its kind only.
+  defp failed(failure) do
+    Logger.warning("A post list could not be read: " <> inspect(Board.failure_kind(failure)))
+    :unavailable
   end
 
   defp follow(id),

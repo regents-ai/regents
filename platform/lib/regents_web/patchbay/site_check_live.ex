@@ -14,10 +14,14 @@ defmodule RegentsWeb.Patchbay.SiteCheckLive do
   (count, list and copied text with it) on `SiteCheck.topic/1`. Nothing tells
   that topic yet: the check itself comes with Patchbay's background work. It
   is drawn with the page, so it is there without JavaScript; a live
-  connection only adds the finished check.
+  connection only adds the finished check. A read the panel needs that fails
+  says so in its place, with a link that opens the page again, and the panel
+  then hears nothing.
   """
 
   use RegentsWeb, :live_view
+
+  require Logger
 
   import RegentsWeb.Patchbay.Forum.BoardHTML,
     only: [
@@ -26,6 +30,7 @@ defmodule RegentsWeb.Patchbay.SiteCheckLive do
       moment: 1,
       page_label: 1,
       page_nav: 1,
+      section_unavailable: 1,
       tool_path: 2,
       web_link: 1
     ]
@@ -48,13 +53,15 @@ defmodule RegentsWeb.Patchbay.SiteCheckLive do
      socket
      |> assign(domain: domain, cursor: session["tools_after"], ask: session["ask"])
      |> assign_new(:site, fn -> read_site(domain) end)
-     |> assign_new(:check, fn -> SiteChecks.current(domain) end)
+     |> assign_new(:check, fn -> read_check(domain) end)
      |> assign_tools(), layout: false}
   end
 
+  @impl true
+  def handle_info(_notice, %{assigns: %{retry: _retry}} = socket), do: {:noreply, socket}
+
   # A finished check may also have given the board pages for its tools, so
   # the site is read again with it.
-  @impl true
   def handle_info(%Ash.Notifier.Notification{data: check}, socket),
     do:
       {:noreply,
@@ -64,24 +71,56 @@ defmodule RegentsWeb.Patchbay.SiteCheckLive do
     case Board.fetch_site(domain) do
       {:ok, site} -> site
       :error -> nil
+      {:error, failure} -> failed(failure)
     end
+  end
+
+  defp read_check(domain) do
+    case SiteChecks.current(domain) do
+      {:ok, check} -> check
+      {:error, failure} -> failed(failure)
+    end
+  end
+
+  # A read that fails is logged by its kind only.
+  defp failed(failure) do
+    Logger.warning("A site's tools could not be read: " <> inspect(Board.failure_kind(failure)))
+    :unavailable
   end
 
   # One page of the tools the check found, and the board's page for each
   # that has one.
+  defp assign_tools(%{assigns: %{site: :unavailable}} = socket), do: unavailable(socket)
+  defp assign_tools(%{assigns: %{check: :unavailable}} = socket), do: unavailable(socket)
+
   defp assign_tools(socket) do
     %{site: site, check: check, cursor: cursor} = socket.assigns
     tools = SiteCheck.tools(check)
     {page, next_tools} = Board.tool_page(tools || [], cursor)
 
-    assign(socket,
-      tools: page,
-      next_tools: next_tools,
-      tool_count: tools && length(tools),
-      tool_pages: Board.tool_pages(site, Enum.map(page, & &1["name"]))
-    )
-    |> assign_copy_text()
+    case Board.tool_pages(site, Enum.map(page, & &1["name"])) do
+      {:ok, tool_pages} ->
+        socket
+        |> assign(
+          tools: page,
+          next_tools: next_tools,
+          tool_count: tools && length(tools),
+          tool_pages: tool_pages
+        )
+        |> assign_copy_text()
+
+      {:error, failure} ->
+        failed(failure)
+        unavailable(socket)
+    end
   end
+
+  # Try again opens the same page of tools, as the address had it.
+  defp unavailable(%{assigns: %{domain: domain, cursor: nil}} = socket),
+    do: assign(socket, retry: domain_path(domain))
+
+  defp unavailable(%{assigns: %{domain: domain, cursor: cursor}} = socket),
+    do: assign(socket, retry: domain_path(domain) <> "?" <> URI.encode_query(tools_after: cursor))
 
   @looking "Looking for WebMCP tools…"
   @not_checked "Not checked"
@@ -134,6 +173,17 @@ defmodule RegentsWeb.Patchbay.SiteCheckLive do
     do: "- #{name}: " <> (description |> MD.line() |> BoundedText.cut(@copy_description))
 
   @impl true
+  def render(%{retry: _retry} = assigns) do
+    ~H"""
+    <section class="pb-site-agent-panel" id="pb-site-agents" aria-labelledby="pb-site-agents-title">
+      <h2 id="pb-site-agents-title" class="pb-site-agent-title">For agents</h2>
+      <.section_unavailable retry={@retry}>
+        This site's tools for agents could not be loaded just now.
+      </.section_unavailable>
+    </section>
+    """
+  end
+
   def render(assigns) do
     ~H"""
     <section class="pb-site-agent-panel" id="pb-site-agents" aria-labelledby="pb-site-agents-title">

@@ -150,7 +150,8 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
   defp section({:error, failure}, name) do
     Logger.warning(
-      name <> " could not be read" <> read_of(failure) <> ": " <> inspect(error_type(failure))
+      name <>
+        " could not be read" <> read_of(failure) <> ": " <> inspect(Board.failure_kind(failure))
     )
 
     :unavailable
@@ -162,9 +163,6 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
     do: " (#{inspect(resource)}.#{action})"
 
   defp read_of(_failure), do: ""
-
-  defp error_type(failure) when is_struct(failure), do: failure.__struct__
-  defp error_type(failure), do: failure
 
   @doc """
   One post and a page of its replies: the opening page, or the page a
@@ -222,7 +220,10 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
         conn
 
       {:error, failure} ->
-        Logger.warning("A thread view could not be recorded: " <> inspect(error_type(failure)))
+        Logger.warning(
+          "A thread view could not be recorded: " <> inspect(Board.failure_kind(failure))
+        )
+
         conn
     end
   end
@@ -260,7 +261,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
         |> render(:report_error, report: report, problem: :invalid_cursor, cursor: nil)
 
       {:error, failure} ->
-        Logger.warning("Report replies unavailable: " <> inspect(error_type(failure)))
+        Logger.warning("Report replies unavailable: " <> inspect(Board.failure_kind(failure)))
 
         conn
         |> put_status(:service_unavailable)
@@ -271,34 +272,30 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
   @doc """
   The site directory: the most popular sites, then every site with its
-  search. The page reads the directory live; its Markdown is the listing
+  search. The page draws the directory it read and keeps it live
+  (`RegentsWeb.Patchbay.SiteDirectoryLive`); its Markdown is the listing
   itself.
   """
   def sites(conn, params) do
-    case SiteDirectory.page_number(params["page"]) do
-      {:ok, number} ->
-        conn
-        |> page(:sites)
-        |> sites_page(params, get_format(conn), popular(params, number))
-
+    with {:ok, number} <- SiteDirectory.page_number(params["page"]),
+         {:ok, directory} <- SiteDirectory.page(params) do
+      conn
+      |> page(:sites)
+      |> render(:sites,
+        popular: popular(params, number),
+        directory: directory,
+        directory_filters: Map.take(params, ~w(q category page))
+      )
+    else
       {:error, {:invalid, _messages}} ->
         conn
         |> put_status(:unprocessable_entity)
         |> page(:no_such_sites_page)
         |> render(:sites_error)
+
+      {:error, failure} ->
+        raise failure
     end
-  end
-
-  defp sites_page(conn, params, "html", popular) do
-    render(conn, :sites,
-      popular: popular,
-      directory_filters: Map.take(params, ~w(q category page))
-    )
-  end
-
-  defp sites_page(conn, params, "md", popular) do
-    {:ok, directory} = SiteDirectory.page(params)
-    render(conn, :sites, popular: popular, directory: directory)
   end
 
   # The most popular sites open the directory's first page, before any search
@@ -349,7 +346,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   end
 
   defp site_page(conn, domain, params) do
-    check = SiteChecks.current(domain)
+    check = read!(SiteChecks.current(domain))
     goal = presence(params["goal"])
     error = presence(params["error"])
     ask = ask_call(domain, Origin.inner_page(params["page"]), goal, error)
@@ -384,8 +381,16 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
       {:error, :invalid_posts_cursor} ->
         first_posts_page(conn, BoardHTML.domain_path(domain))
+
+      {:error, failure} ->
+        raise failure
     end
   end
+
+  # A read a page cannot be drawn without that fails is raised, so `action/2`
+  # answers a busy database with the busy page and anything else as an error.
+  defp read!({:ok, value}), do: value
+  defp read!({:error, failure}), do: raise(failure)
 
   # The board's posts for the site, about one address when the page names
   # one, and the tools its check found for the Markdown page; the HTML page's
@@ -410,6 +415,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
            %{site: nil, posts: [], next_posts: nil},
            inventory(format, nil, check, params)
          )}
+
+      {:error, failure} ->
+        {:error, failure}
     end
   end
 
@@ -421,7 +429,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
       tools: tools && page,
       tool_count: tools && length(tools),
       next_tools: next_tools,
-      tool_pages: Board.tool_pages(site, Enum.map(page, & &1["name"]))
+      tool_pages: read!(Board.tool_pages(site, Enum.map(page, & &1["name"])))
     }
   end
 

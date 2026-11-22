@@ -100,17 +100,22 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
     end
   end
 
+  @doc "What a read that failed is logged as: its error's kind, never what it was asked for."
+  @spec failure_kind(term()) :: term()
+  def failure_kind(failure) when is_struct(failure), do: failure.__struct__
+  def failure_kind(failure), do: failure
+
   @doc """
   The site filed under a domain, if the board has one, with anything more a
-  page shows loaded in the same read. A read that fails is raised, never
-  taken for a site the board does not have.
+  page shows loaded in the same read; `:error` when it has none. A read that
+  fails is its error, never taken for a site the board does not have.
   """
-  @spec fetch_site(String.t(), list()) :: {:ok, Forum.Site.t()} | :error
+  @spec fetch_site(String.t(), list()) :: {:ok, Forum.Site.t()} | :error | {:error, term()}
   def fetch_site(origin, load \\ []) do
     case Forum.get_site_by_origin(origin, load: load) do
       {:ok, site} -> {:ok, site}
       {:error, %Ash.Error.Invalid{}} -> :error
-      {:error, failure} -> raise failure
+      {:error, failure} -> {:error, failure}
     end
   end
 
@@ -148,15 +153,15 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
   with how many posts it holds. The names are a page of the ones a check
   found, so the read is as small as that page.
   """
-  @spec tool_pages(Forum.Site.t() | nil, [String.t()]) :: %{optional(String.t()) => map()}
-  def tool_pages(nil, _names), do: %{}
-  def tool_pages(_site, []), do: %{}
+  @spec tool_pages(Forum.Site.t() | nil, [String.t()]) ::
+          {:ok, %{optional(String.t()) => map()}} | {:error, term()}
+  def tool_pages(nil, _names), do: {:ok, %{}}
+  def tool_pages(_site, []), do: {:ok, %{}}
 
-  def tool_pages(site, names),
-    do:
-      site.id
-      |> Forum.list_site_tools_named!(names, load: [:report_count])
-      |> Map.new(&{&1.name, &1})
+  def tool_pages(site, names) do
+    with {:ok, tools} <- Forum.list_site_tools_named(site.id, names, load: [:report_count]),
+         do: {:ok, Map.new(tools, &{&1.name, &1})}
+  end
 
   @doc "Whether an address segment could name a tool at all; anything else is not on the board."
   @spec tool_name?(term()) :: boolean()
@@ -199,7 +204,9 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
   such as `web.autocad.com` (`Regents.Patchbay.Forum.Report`'s `:address`).
   """
   @spec site_threads(Forum.Site.t(), String.t() | nil, String.t() | nil) ::
-          {:ok, [Forum.Report.t()], String.t() | nil} | {:error, :invalid_posts_cursor}
+          {:ok, [Forum.Report.t()], String.t() | nil}
+          | {:error, :invalid_posts_cursor}
+          | {:error, term()}
   def site_threads(site, cursor, address) do
     site.id
     |> Forum.list_ranked_threads_for_site(address,
@@ -232,18 +239,18 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
 
   # A page of posts and the cursor that continues it, which never expires. A
   # cursor that cannot be read — edited or made up — is said so, never shown
-  # as an empty list.
+  # as an empty list; a read that fails is its error.
   defp post_page_result({:ok, %{results: results, more?: more?}}) do
     {:ok, results, if(more?, do: List.last(results).__metadata__.keyset)}
   end
 
-  defp post_page_result({:error, %Ash.Error.Invalid{errors: errors}}) do
+  defp post_page_result({:error, %Ash.Error.Invalid{errors: errors} = failure}) do
     if Enum.any?(errors, &match?(%Ash.Error.Page.InvalidKeyset{}, &1)),
       do: {:error, :invalid_posts_cursor},
-      else: raise(Ash.Error.Invalid, errors: errors)
+      else: {:error, failure}
   end
 
-  defp post_page_result({:error, failure}), do: raise(failure)
+  defp post_page_result({:error, failure}), do: {:error, failure}
 
   @doc """
   One report, with its author and the tool and site it belongs to. An address

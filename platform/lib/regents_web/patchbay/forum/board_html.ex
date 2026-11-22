@@ -119,6 +119,22 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
     """
   end
 
+  @doc """
+  What a live part of a page says in its place when its read fails as it
+  connects; the rest of the page stays.
+  """
+  attr :retry, :string, required: true, doc: "The address that opens the page again."
+  slot :inner_block, required: true, doc: "What could not be loaded."
+
+  def section_unavailable(assigns) do
+    ~H"""
+    <Regent.Primitives.notice tone="error" class="pb-section-unavailable" role="alert">
+      <strong>{render_slot(@inner_block)}</strong>
+      <a href={@retry}>Try again</a>
+    </Regent.Primitives.notice>
+    """
+  end
+
   def site_name(site), do: site.display_name || site.origin
 
   # A post about the site's own domain, or one naming no page, reads as the site.
