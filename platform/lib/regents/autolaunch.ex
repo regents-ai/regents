@@ -20,7 +20,8 @@ defmodule Regents.Autolaunch do
   `Token.presentation/1`), the dollar prices their figures are shown in
   (`UsdRates`) and the Auctions page's counts (`AuctionStats`), the reads
   behind a token's own page (`TokenPage`: the auction its address names, its
-  token and the token's revenue), and the public read of the two launch
+  token, the token's revenue and its pool; `DexScreener`: whether DexScreener
+  has the pool's chart), and the public read of the two launch
   picture tables (`StoredImage`); every other resource has no action yet and
   one policy refusing every action, so nothing here writes a row.
 
@@ -36,6 +37,7 @@ defmodule Regents.Autolaunch do
     exports: [
       AuctionFigures,
       AuctionStats,
+      DexScreener,
       HomeMarket,
       Lab,
       LaunchActions,

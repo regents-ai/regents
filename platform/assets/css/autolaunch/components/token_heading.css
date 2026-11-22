@@ -16,6 +16,16 @@
 .token-heading__link { display: inline-flex; align-items: center; gap: .45rem; }
 .token-heading__chart { display: inline-flex; }
 .token-heading__icon { width: 1.1em; height: 1.1em; flex: none; }
+/* DexScreener's mark beside View Chart, drawn in the button's ink through the site's own copy of it. */
+.token-heading__dexscreener {
+  display: inline-block;
+  flex: none;
+  width: 1em;
+  height: 1.15em;
+  background: currentColor;
+  -webkit-mask: url("/images/autolaunch/dexscreener-mark.png") center / contain no-repeat;
+  mask: url("/images/autolaunch/dexscreener-mark.png") center / contain no-repeat;
+}
 @media (pointer: coarse) { .token-heading__links .rg-button { min-height: 44px; } }
 @media (max-width: 40rem) {
   .token-heading { grid-template-columns: auto minmax(0, 1fr); }

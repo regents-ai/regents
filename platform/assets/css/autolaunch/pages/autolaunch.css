@@ -5,6 +5,7 @@
 .autolaunch-heading h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
 .market-back { width: fit-content; color: var(--color-fg-muted); font-size: .8125rem; text-decoration: none; }
 .market-back:hover { color: var(--color-fg); text-decoration: underline; }
+.price-chart { --price-line: var(--image-color, var(--color-fg)); display: grid; gap: 8px; min-width: 0; margin: 0; padding: 14px 16px 10px; }
 .chain-icon { display: inline-block; inline-size: 1em; block-size: 1em; vertical-align: -0.125em; flex: none; }
 .link-icon { display: inline-block; inline-size: 1em; block-size: 1em; vertical-align: -0.125em; flex: none; }
 /* ENS's own mark: dark blue on a light page, white on a dark one. */

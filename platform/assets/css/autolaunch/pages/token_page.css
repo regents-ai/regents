@@ -1,10 +1,10 @@
 @scope (:root[data-product="autolaunch"]) to (.regents-frame) {
 /* The token page, in the manner of a trading site: the heading across the
-   top; then the price and the market figures, with the revenue, the creator
-   and the contracts under them. One column on every screen, no wider than
-   autolaunch.sh's main column beside its trade panel at its widest (901
-   pixels), so its lines keep that measure. The trade panel's side column and
-   its rules come with the trade panel (slice 3). */
+   top; then the price, its chart and the market figures, with the revenue,
+   the creator and the contracts under them. One column on every screen, no
+   wider than autolaunch.sh's main column beside its trade panel at its widest
+   (901 pixels), so its lines keep that measure. The trade panel's side column
+   and its rules come with the trade panel (slice 3). */
 .token-page { max-width: 56.25rem; }
 .token-page__head { display: grid; gap: var(--space-2); min-width: 0; }
 .token-page__layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); align-items: start; min-width: 0; }
@@ -28,6 +28,15 @@
 .token-figures__move--up { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 12%, transparent); }
 .token-figures__move--down { color: var(--color-error); background: color-mix(in srgb, var(--color-error) 12%, transparent); }
 .token-figures__unit { color: var(--color-fg-muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
+
+/* The chart in its sheet: what the line is and the Trades or Time choice
+   above, the low, the high and the trades in a footer. */
+.token-page__chart .price-chart { gap: var(--space-2); padding: var(--space-3) var(--space-4); border: 0; background: none; }
+.token-page__chart .price-chart__caption { align-items: center; font-size: .8125rem; }
+.token-page__chart .price-chart__line { height: 280px; }
+.token-page__chart .price-chart__facts { gap: var(--space-1) var(--space-5); padding-top: var(--space-2); border-top: 1px solid var(--hairline); color: var(--color-fg-muted); }
+.token-page__chart .price-chart__facts dd { color: var(--color-fg); }
+@media (max-width: 40rem) { .token-page__chart .price-chart__line { height: 200px; } }
 
 /* The market figures, three to a row on a wide screen and two on a phone. A
    figure is never broken: one too long to share its row takes a row to itself. */

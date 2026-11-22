@@ -4,9 +4,10 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
   trades as, a line of tags (its chain, its launch type and who made it), and
   its address through `Regent.Primitives.address` (short form, copy icon,
   explorer arrow), and where to trade and chart it. On Base, the trade and
-  chart buttons hold their place from the first paint, closed: the trade
-  button opens the token's pool on Uniswap once the pool is read, and the
-  chart button stays closed (its chart comes with its own part). They and the
+  chart buttons hold their place from the first paint and open once the pool
+  is read, so nothing below them moves: the trade button opens the token's
+  pool on Uniswap, and the chart button (`ChartLink`) DexScreener's chart, or
+  the page's own price chart where DexScreener has none. They and the
   explorer arrow name public networks only, so a local fork's token shows its
   address and copy icon without them.
 
@@ -22,6 +23,10 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
   attr :chain_id, :integer, required: true
   attr :address, :string, required: true, doc: "the token's contract address"
   attr :pool, :map, default: nil, doc: "the token's pool facts, once read"
+
+  attr :own_chart, :string,
+    default: nil,
+    doc: "the id of the page's own price chart, when it draws one"
 
   slot :tags, doc: "the chain, the launch type and the creator, under the name"
 
@@ -68,6 +73,13 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
         >
           <.uniswap_icon /> Uniswap Pool
         </a>
+        <.live_component
+          :if={@network && @pool}
+          module={RegentsWeb.Autolaunch.Components.ChartLink}
+          id={"token-chart-#{@network}-#{@pool.pool_id}"}
+          pool_id={@pool.pool_id}
+          own_chart={@own_chart}
+        />
         <Regent.Primitives.button
           :if={@network && !@pool}
           variant="secondary"
@@ -76,7 +88,7 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
         >
           <.uniswap_icon /> Uniswap Pool
         </Regent.Primitives.button>
-        <span :if={@network} class="token-heading__chart">
+        <span :if={@network && !@pool} class="token-heading__chart">
           <Regent.Primitives.button variant="secondary" disabled class="token-heading__link">
             View Chart
           </Regent.Primitives.button>

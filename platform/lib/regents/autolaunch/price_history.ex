@@ -1,25 +1,30 @@
 defmodule Regents.Autolaunch.PriceHistory do
   @moduledoc """
-  A graduated token's price since its pool opened, read from the chain's own
-  logs each time a page asks.
+  A graduated token's price since its pool opened, for its chart, read from
+  the chain's own logs with the rest of its pool (`Regents.Autolaunch.Pool`).
 
   The PoolManager's `Initialize` log for the pool gives the opening price and
-  each `Swap` log the price the trade left behind. `points` has one
-  `[block, price]` pair per log, the last price carried to the block the page
-  read at, thinned to 400 evenly spaced points that always keep the first and
-  the last; `trades` is the number of `Swap` logs. A token's page shows how far
-  the price has moved from the first point to the last, and the number of
-  trades.
+  each `Swap` log the price the trade left behind. The history holds two lines
+  of the same prices. `points` has one `[block, price]` pair per log, the last
+  price carried to the block the page read at, thinned to 400 evenly spaced
+  points that always keep the first and the last. `times` has 100 `[unix
+  seconds, price]` pairs evenly spaced from the first log's time to the read
+  block's time, each the price the last trade at or before it left, or nil
+  while the read block's time is still the first log's. Each log's time is the
+  `blockTimestamp` the node gives with it, so the times cost no call of their
+  own; a log without one fails the read. Beside the lines come the lowest and
+  highest price and the number of trades, taken from every log.
 
-  The prices are floats: they say how far the price moved to a tenth of a
-  percent, while every exact price a page states keeps coming from its exact
-  reads.
+  The figures are floats: they draw the line, say how far the price moved to a
+  tenth of a percent and give the low and the high to a few digits, while
+  every exact price a page states keeps coming from its exact reads.
   """
 
   alias Regents.Autolaunch.LabAbi
   alias Regents.Chain.Rpc
 
   @max_points 400
+  @time_points 100
   @q96 Integer.pow(2, 96)
   @sqrt_price_bound Integer.pow(2, 160)
   @token_decimals 18
@@ -27,13 +32,19 @@ defmodule Regents.Autolaunch.PriceHistory do
   @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
 
   @type point :: [number()]
-  @type history :: %{points: [point()], trades: non_neg_integer()}
+  @type history :: %{
+          points: [point()],
+          times: [point()] | nil,
+          low: float(),
+          high: float(),
+          trades: non_neg_integer()
+        }
 
   @doc """
-  A pool's price after every trade from `from_block` to the pinned block, and
-  the number of trades. `pool` names the PoolManager, the pool id, which side
-  the token is on and the currency's decimals. A pool with no logs yet has no
-  history.
+  A pool's price after every trade from `from_block` to the pinned block: the
+  line by trade, the line by time, the low, the high and the number of trades.
+  `pool` names the PoolManager, the pool id, which side the token is on and
+  the currency's decimals. A pool with no logs yet has no history.
   """
   @spec pool(map(), non_neg_integer(), Rpc.block(), keyword()) ::
           {:ok, history() | nil} | {:error, atom()}
@@ -49,33 +60,42 @@ defmodule Regents.Autolaunch.PriceHistory do
   defp history([], _block), do: nil
 
   defp history(moments, block) do
-    {_number, _event, last} = List.last(moments)
-    points = Enum.map(moments, fn {number, _event, price} -> [number, price] end)
+    {low, high} =
+      moments |> Enum.map(fn {_number, _at, _event, price} -> price end) |> Enum.min_max()
+
+    {_number, _at, _event, last} = List.last(moments)
+    points = Enum.map(moments, fn {number, _at, _event, price} -> [number, price] end)
 
     %{
       points: thin(points ++ [[block.number, last]]),
-      trades: Enum.count(moments, &match?({_number, :swap, _price}, &1))
+      times: times(moments, block.timestamp),
+      low: low,
+      high: high,
+      trades: Enum.count(moments, &match?({_number, _at, :swap, _price}, &1))
     }
   end
 
-  # Each log's block, event and price, in chain order. A removed log, one past
-  # the pinned block, or one that is not this pool's `Initialize` or `Swap`
-  # means the history moved under the read or the answer is not the chain's.
+  # Each log's block, time, event and price, in chain order. A removed log, one
+  # past the pinned block, one without its block's time, or one that is not this
+  # pool's `Initialize` or `Swap` means the history moved under the read or the
+  # answer is not the chain's.
   defp moments(logs, block, pool) do
     logs
     |> Enum.reduce_while({:ok, []}, fn log, {:ok, found} ->
       with %{
              "removed" => false,
              "blockNumber" => "0x" <> number,
+             "blockTimestamp" => "0x" <> at,
              "topics" => [topic | _indexed],
              "data" => "0x" <> data
            } <- log,
            {number, ""} when number <= block.number <- Integer.parse(number, 16),
+           {at, ""} <- Integer.parse(at, 16),
            {:ok, event} <- event(topic),
            {:ok, words} <- words(data),
            {:ok, sqrt_price} <- sqrt_price(event, words) do
         price = pool_price(sqrt_price, pool.token_is_currency0?, pool.currency_decimals)
-        {:cont, {:ok, [{number, event, price} | found]}}
+        {:cont, {:ok, [{number, at, event, price} | found]}}
       else
         _invalid -> {:halt, {:error, :invalid_chain_response}}
       end
@@ -118,6 +138,25 @@ defmodule Regents.Autolaunch.PriceHistory do
     per_base_unit = if token_is_currency0?, do: ratio, else: 1 / ratio
     per_base_unit * :math.pow(10, @token_decimals - currency_decimals)
   end
+
+  # The price at evenly spaced moments from the first log to `now`; none
+  # while no time has passed since it.
+  defp times([{_number, opened, _event, _price} | _rest], now) when now <= opened, do: nil
+
+  defp times([{_number, opened, _event, _price} | _rest] = moments, now) do
+    0..(@time_points - 1)
+    |> Enum.map(&(opened + div((now - opened) * &1, @time_points - 1)))
+    |> sample(moments, nil, [])
+  end
+
+  defp sample([], _moments, _price, found), do: Enum.reverse(found)
+
+  defp sample([at | _later] = moments_at, [{_number, time, _event, price} | rest], _last, found)
+       when time <= at,
+       do: sample(moments_at, rest, price, found)
+
+  defp sample([at | later], moments, price, found),
+    do: sample(later, moments, price, [[at, price] | found])
 
   defp thin(points) when length(points) <= @max_points, do: points
 

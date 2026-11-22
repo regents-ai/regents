@@ -19,7 +19,8 @@ defmodule Regents.Autolaunch.Pool do
   a Memestock launch); and one `eth_getLogs` on the PoolManager, read again as
   halves only for a span the node refuses. A failed call ends the read there.
 
-  Nothing here writes, signs or caches; every figure is the chain's own answer.
+  Nothing here writes or signs, and every figure is the chain's own answer;
+  the token pages keep a read 15 seconds (`Regents.Autolaunch.PoolCache`).
   """
 
   alias Regents.Autolaunch.Chain.{Abi, Lifecycle}

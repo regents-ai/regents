@@ -2,31 +2,36 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
   @moduledoc """
   A launched Base token's page, read only, which
   `RegentsWeb.Autolaunch.MarketPageLive` shows at the token's address: its
-  heading, its price and market figures, a Revstake token's revenue, and who
-  launched it with the launch's contracts.
+  heading, its price, its price chart and market figures, a Revstake token's
+  revenue, and who launched it with the launch's contracts.
 
   Once the page is open it reads, in the background and under one spend of
   the address's list reads (`RegentsWeb.Autolaunch.LiveListings.spend/2`),
   the token (`Regents.Autolaunch.TokenPage.read/2`), the dollar prices
   (`Regents.Autolaunch.UsdRates`), the token's revenue
   (`Regents.Autolaunch.TokenPage.revenue/2`) and, on a site given a Base
-  deployment, the token's pool from the chain
-  (`Regents.Autolaunch.TokenPage.pool/2`): its move, change and trades, its
-  locker and pool id among the contracts, and its Uniswap button on Base.
-  While the pool is being read, and when it could not be read, its figures
-  show "…" and the rest of the page is shown as it is. The token's answer
-  lands in `handle_async/3`, which shows the token and names the tab for it, as the
-  page's first render does, so a token opened from a Tokens row or a Buy is
-  named too; a page that shows no token is named "Token not found" or
-  "Token unavailable". When the allowance is spent none of them is read and
-  each is failed, so the page says the token could not be loaded, with Retry.
+  deployment, the token's pool (`Regents.Autolaunch.TokenPage.pool/2`), as
+  the chain gave it within the last 15 seconds or read from it now: its move,
+  change and trades, its price chart, its locker and pool id among the
+  contracts, and on Base its Uniswap and View Chart buttons. View Chart asks
+  DexScreener once, in the background, whether it has the pool's chart
+  (`RegentsWeb.Autolaunch.Components.ChartLink`), and opens it if so, the
+  page's own chart otherwise. While the pool is being read its figures show
+  "…" and the chart holds its place; when it could not be read the figures
+  show "…", the chart stays out, and the rest of the page is shown as it is.
+  The token's answer lands in `handle_async/3`, which shows the token and
+  names the tab for it, as the page's first render does, so a token opened
+  from a Tokens row or a Buy is named too; a page that shows no token is
+  named "Token not found" or "Token unavailable". When the allowance is spent
+  none of them is read and each is failed, so the page says the token could
+  not be loaded, with Retry.
   Retry reads again only what failed, and only while nothing is being read.
   Until the dollar prices arrive, and when they could not be read, every
   figure is in the token's own currency.
 
-  Still to come, each with its own part: the price chart and its chart link;
-  the trade, stake and claim panel beside the figures; Share; the page
-  rereading itself while open; the notices about reading the chain.
+  Still to come, each with its own part: the trade, stake and claim panel
+  beside the figures; Share; the page rereading itself while open; the
+  notices about reading the chain.
   """
   use RegentsWeb, :live_view
 
@@ -40,6 +45,7 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
     LaunchTrust,
     Loading,
     MarketCard,
+    PriceChart,
     RevenueHistory,
     TokenFigures,
     TokenHeading
@@ -114,6 +120,7 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
           chain_id={@record.auction.chain_id}
           address={@record.auction.token_address}
           pool={@facts}
+          own_chart={own_chart(@pool, "token-price-chart")}
         >
           <:tags>
             <ChainIcon.chain_chip chain="Base" label="Base" />
@@ -132,6 +139,12 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
             unit={@unit}
             rate={@rate}
             pool={@pool}
+          />
+          <PriceChart.pool_chart
+            id="token-price-chart"
+            pool={@pool}
+            unit={@unit}
+            color={@presentation.image_color}
           />
           <TokenFigures.market_stats
             id="token-market"
@@ -220,6 +233,13 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
   defp part(:rates, _symbol, _tail), do: fn -> {:ok, UsdRates.rates()} end
   defp part(:revenue, symbol, tail), do: fn -> TokenPage.revenue(symbol, tail) end
   defp part(:pool, symbol, tail), do: fn -> TokenPage.pool(symbol, tail) end
+
+  # The id of the page's own price chart, which View Chart opens where
+  # DexScreener has none, while the page draws one.
+  defp own_chart(%{ok?: true, result: %{prices: %{points: [_first, _second | _rest]}}}, id),
+    do: id
+
+  defp own_chart(_pool, _id), do: nil
 
   # A page that shows no token, with the tab named for what it shows.
   defp shown(socket, :empty),

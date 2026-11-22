@@ -1,0 +1,32 @@
+import type {Hook} from "../hook_composition"
+import type {Painter} from "./price_chart_painter"
+
+type PriceChartHook = Hook & {
+  el: HTMLElement
+  painter?: Promise<Painter | undefined>
+}
+
+// A token page's price line (`RegentsWeb.Autolaunch.Components.PriceChart`).
+// WebGPU loads only on a page that shows one; a browser without it keeps the
+// caption, which says how far the price moved, and marks the canvas so the
+// empty box folds away. The canvas is left out of page updates, so the mark
+// stays. Picking "Trades" or "Time" draws that line.
+export const PriceChart = {
+  mounted(this: PriceChartHook) {
+    this.painter = import("./price_chart_painter")
+      .then(({paint}) => paint(this.el))
+      .catch(() => {
+        this.el.querySelector("canvas")!.dataset.unavailable = "true"
+        return undefined
+      })
+    this.el.addEventListener("change", () => {
+      void this.painter?.then(painter => painter?.update())
+    })
+  },
+  updated(this: PriceChartHook) {
+    void this.painter?.then(painter => painter?.update())
+  },
+  destroyed(this: PriceChartHook) {
+    void this.painter?.then(painter => painter?.dispose())
+  },
+}

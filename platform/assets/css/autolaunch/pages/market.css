@@ -5,6 +5,27 @@
 .launchpad-card__socials a { color: inherit; }
 .token-pair__unit { color: var(--color-fg-muted); font-size: .6em; font-weight: var(--font-weight-regular); white-space: nowrap; }
 
+/* A token's price chart (`PriceChart`): its caption with the move in words, the line, and the low, the high and the trades. */
+.price-chart__caption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; color: var(--color-fg-muted); font-size: .75rem; }
+.price-chart__change { color: var(--color-fg); font-variant-numeric: tabular-nums; }
+/* Trades or Time: two choices in one bordered strip, the chosen one filled. */
+.price-chart__scale { display: inline-flex; gap: 2px; margin-left: auto; padding: 2px; border: 1px solid var(--hairline-strong); }
+.price-chart__scale label { position: relative; display: inline-grid; place-items: center; min-height: 28px; padding: 0 10px; color: var(--color-fg-muted); font-size: .8125rem; cursor: pointer; transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease; }
+.price-chart__scale input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.price-chart__scale label:hover { color: var(--color-fg); }
+.price-chart__scale label:has(input:checked) { background: var(--color-fg); color: var(--color-bg); }
+.price-chart__scale label:has(input:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+@media (pointer: coarse) { .price-chart__scale label { min-height: 44px; } }
+.price-chart__line { display: block; width: 100%; height: 140px; }
+.price-chart__line[data-unavailable] { display: none; }
+.price-chart:has(.price-chart__line[data-unavailable]) .price-chart__scale { display: none; }
+.price-chart__caption-reading { width: 50%; height: 1rem; }
+.price-chart__facts-reading { width: 70%; height: 1.25rem; }
+.price-chart__facts { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.price-chart__facts div { display: flex; gap: 6px; min-width: 0; }
+.price-chart__facts dt { color: var(--color-fg-muted); }
+.price-chart__facts dd { margin: 0; overflow-wrap: anywhere; }
+
 /* Auction counts band: the auctions page. */
 .auction-stats { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-4); width: 100%; min-width: 0; margin: 0; padding-block: 10px; border-radius: var(--radius); }
 .auction-stats__group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-2); min-width: 0; }
