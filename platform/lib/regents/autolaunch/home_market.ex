@@ -13,7 +13,8 @@ defmodule Regents.Autolaunch.HomeMarket do
   options (`[limit: n]`, or `[limit: n, after: keyset]` for a later page) and
   `unshown` the auction fields left out. Answers the page and whether it holds
   auctions or tokens. Every auction, and every token's auction, carries its
-  creator's linked usernames (`creator_links`) for `creators/1`.
+  creator's linked usernames (`creator_links`) for `creators/1`, and every
+  token has its auction.
   """
   @spec read(map(), keyword(), [atom()]) ::
           {:ok, Ash.Page.Keyset.t(), :auction | :token} | {:error, term()}
@@ -43,7 +44,20 @@ defmodule Regents.Autolaunch.HomeMarket do
          |> Ash.Query.deselect(unshown), :auction}
       end
 
-    with {:ok, page} <- Ash.read(query, page: page), do: {:ok, page, kind}
+    with {:ok, page} <- Ash.read(query, page: page),
+         {:ok, page} <- shown(page),
+         do: {:ok, page, kind}
+  end
+
+  # A token's auction is read by a second statement. A token whose auction
+  # left the lists between the two is not shown. A page that loses every token
+  # that way has no last record to continue from, so it is an error and the
+  # next read asks again.
+  defp shown(%{results: results} = page) do
+    case Enum.reject(results, &match?(%Token{auction: nil}, &1)) do
+      [] when results != [] -> {:error, :changed_while_read}
+      kept -> {:ok, %{page | results: kept}}
+    end
   end
 
   @doc """
