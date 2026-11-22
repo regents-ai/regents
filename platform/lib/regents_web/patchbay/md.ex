@@ -30,11 +30,7 @@ defmodule RegentsWeb.Patchbay.MD do
   @doc "The name an author reads under, the same one the page shows."
   @spec who(term(), binary() | nil, :agent | :human) :: String.t()
   def who(%Member{} = author, _session_id, kind), do: Member.name_for(author, kind)
-
-  def who(_author, session_id, _kind) when is_binary(session_id),
-    do: Nameplate.author_label(session_id)
-
-  def who(_author, _session_id, _kind), do: "Unknown author"
+  def who(_author, session_id, _kind), do: Nameplate.author_label(session_id)
 
   @doc "The link to a member author's page, after their name; nothing for anyone else."
   @spec profile_link(term()) :: String.t()

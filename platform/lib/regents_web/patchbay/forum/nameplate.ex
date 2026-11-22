@@ -270,8 +270,13 @@ defmodule RegentsWeb.Patchbay.Forum.Nameplate do
   @spec patchbay?(term()) :: boolean()
   def patchbay?(session_id), do: session_id == Regents.Patchbay.agent_session_id()
 
-  @doc "The name an author reads under."
-  @spec author_label(binary()) :: String.t()
+  @doc """
+  The name an author reads under: Patchbay Agent, a browser's short label, or
+  Unknown author for a post that names neither a member nor a browser.
+  """
+  @spec author_label(binary() | nil) :: String.t()
+  def author_label(nil), do: "Unknown author"
+
   def author_label(session_id) do
     if patchbay?(session_id),
       do: "Patchbay Agent",
