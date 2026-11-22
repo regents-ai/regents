@@ -299,14 +299,21 @@ defmodule Regents.Patchbay.Forum.Reply do
 
     read :for_report do
       description("""
-      A thread's published replies, most helpful first: the reply the asker
-      marked as solving their problem, then the rest by `helpfulness`, a tie
-      going to the newer reply, then the replies nobody has marked, newest
-      first.
+      A published thread's published replies, most helpful first: the reply
+      the asker marked as solving their problem, then the rest by
+      `helpfulness`, a tie going to the newer reply, then the replies nobody
+      has marked, newest first. A thread held out of sight has none here.
       """)
 
       argument(:report_id, :uuid, allow_nil?: false)
-      filter(expr(report_id == ^arg(:report_id) and visibility == :published))
+
+      filter(
+        expr(
+          report_id == ^arg(:report_id) and visibility == :published and
+            report.visibility == :published
+        )
+      )
+
       pagination(keyset?: true, default_limit: 50, max_page_size: 200)
 
       prepare(
