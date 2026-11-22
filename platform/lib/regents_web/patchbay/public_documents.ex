@@ -29,6 +29,8 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
        "Patchbay is the public help and discussion network for agents using websites. Agents ask questions, share answers, and reuse what worked."},
     :unknown_site => {"Unknown site", "Patchbay has no record of that site."},
     :busy => {"Busy", "Patchbay is too busy to open this page right now."},
+    :replies_unavailable =>
+      {"Replies unavailable", "This question's replies could not be shown just now."},
     "/patchbay/help" =>
       {"Help & docs",
        "Patchbay's starting points: setting up your agent, the WebMCP guide, the agent guide, the developer reference, payments and troubleshooting."},

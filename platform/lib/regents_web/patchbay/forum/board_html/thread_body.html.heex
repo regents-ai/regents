@@ -1,0 +1,178 @@
+<%!-- Drawn by `RegentsWeb.Patchbay.ThreadLive`, which keeps it current while it
+is open. A new reply settles in at the end and glows once, and a count that
+changes ticks once. What is drawn only with the page is kept as drawn
+(`phx-update="ignore"`). --%>
+<nav class="pb-thread-navigation" aria-label="Discussion navigation">
+  <a href={~p"/patchbay"} class="pb-thread-back">← All questions</a>
+</nav>
+<Regent.Discussion.thread
+  id="pb-thread"
+  class="pb-thread"
+  title={post_title(@report)}
+  solved={not is_nil(@report.solution_reply)}
+  replies={@report.reply_count}
+  views={@report.view_count}
+  likes={@report.thread_like_count}
+  last_activity_at={@report.last_activity_at}
+  last_activity={RegentFormat.relative_time(@report.last_activity_at, DateTime.utc_now())}
+  phx-hook="MotionThread"
+  data-variant="roll"
+  data-arrivals=".rg-discussion__replies > li"
+  data-glow
+  data-figures="[data-count], .rg-discussion__replies-title > span"
+>
+  <:context>
+    <a href={site_path(@report.site)}>{site_name(@report.site)}</a>
+    <.tool_chips site={@report.site} names={@report.tool_names} />
+    <span :if={!@report.cve_now_id} class="pb-kind-pill">
+      {thread_kind_label(@report)}
+    </span>
+    <IncidentHTML.cve_badges :if={@report.cve_now_id} facts={@report.cve_facts} />
+    <span
+      :if={@report.verdict && is_nil(@report.solution_reply)}
+      class={["pb-kind-pill", verdict_class(@report.verdict)]}
+    >{verdict_label(@report.verdict)}</span>
+  </:context>
+
+  <.fix_card :if={@answer} answer={@answer} report={@report} replies={@replies} />
+
+  <Regent.Discussion.post
+    id="pb-post"
+    opening
+    author={author_name(@report.author, @report.browser_session_id, @report.author_kind)}
+    author_href={author_href(@report.author)}
+    at={@report.inserted_at}
+    ago={RegentFormat.relative_time(@report.inserted_at, DateTime.utc_now())}
+    href={PostAddress.path(@report)}
+  >
+    <:avatar>
+      <span class="pb-agent-face" tabindex={agent_card?(@report) && "0"}>
+        <.author_avatar
+          author={@report.author}
+          session_id={@report.browser_session_id}
+          kind={@report.author_kind}
+        />
+      </span>
+    </:avatar>
+    <:label>
+      <.author_marks
+        author={@report.author}
+        session_id={@report.browser_session_id}
+        kind={@report.author_kind}
+      />
+      <.agent_card post={@report} />
+      <.for_person id="pb-post-person" post={@report} />
+    </:label>
+    <:label :if={@report.code_caution}>
+      <Labels.caution_mark />
+    </:label>
+    <Labels.caution_line :if={@report.code_caution} id="pb-post-caution" />
+    <div :if={@report.body_markdown} class="pb-markdown">
+      {markdown(@report.body_markdown)}
+    </div>
+    <p
+      :if={!@report.body_markdown && @report.note && @report.note != post_title(@report)}
+      class="pb-thread-prose"
+      phx-no-format
+    >{@report.note}</p>
+    <.post_pictures pictures={@report.pictures} />
+    <p :if={@report.page_url} class="pb-post-page">
+      <Regent.Icons.icon name="link" />
+      <a href={@report.page_url} rel="nofollow ugc noopener noreferrer" target="_blank">
+        {@report.page_url}
+      </a>
+    </p>
+  </Regent.Discussion.post>
+
+  <p :if={@report.jev_reading} id="pb-thread-jev" class="pb-thread-jev">
+    <strong>{jev_line(@report.jev_reading)}</strong>
+    <span>{jev_caption()}</span>
+  </p>
+
+  <%!-- Each reply is drawn against `@reply_report`, which changes only when
+  the asker's pick does, so a new reply redraws only its own reply. --%>
+  <Regent.Discussion.replies
+    id="patchbay-replies"
+    count={@report.reply_count}
+    shown={length(@replies)}
+    filters={reply_filters(@report, @reply_filter)}
+    empty={replies_empty(@reply_filter, @replies_cursor)}
+  >
+    <.reply
+      :for={reply <- @replies}
+      :key={reply.id}
+      reply={reply}
+      report={@reply_report}
+      cursor={@replies_cursor}
+      reply_filter={@reply_filter}
+    />
+    <:footer>
+      <nav
+        :if={@replies_cursor || @next_cursor}
+        aria-label="Reply pages"
+        class="pb-thread-pagination"
+      >
+        <a
+          :if={@replies_cursor}
+          href={PostAddress.path(@report, replies: @reply_filter) <> "#patchbay-replies"}
+        >Back to first replies</a>
+        <a
+          :if={@next_cursor}
+          href={PostAddress.path(@report, after: @next_cursor, replies: @reply_filter) <> "#patchbay-replies"}
+        >More replies →</a>
+      </nav>
+      <.reply_sign_in />
+    </:footer>
+  </Regent.Discussion.replies>
+
+  <div id="pb-kept-evidence" phx-update="ignore">
+    <Regent.Primitives.disclosure
+      id="report-evidence"
+      summary="Evidence"
+      class="pb-thread-evidence"
+    >
+      <dl class="pb-evidence-facts">
+        <dt :if={@report.verified}>Record</dt><dd :if={@report.verified}>
+          <.checked_mark id="pb-thread-checked" report={@report} />
+        </dd>
+        <dt :if={@report.verdict}>Result</dt><dd :if={@report.verdict}>
+          {verdict_label(@report.verdict)}
+        </dd>
+        <dt>Reported</dt><dd>{DateTime.to_iso8601(@report.inserted_at)}</dd>
+        <dt>Report ID</dt><dd><code>{@report.id}</code></dd>
+        <dt :if={@report.tool}>Tool version</dt><dd :if={@report.tool}>
+          <code>{@report.tool.contract_sha256}</code>
+        </dd>
+        <dt :if={@report.arguments_sha256}>Arguments fingerprint</dt><dd :if={
+          @report.arguments_sha256
+        }>
+          <code>{@report.arguments_sha256}</code>
+        </dd>
+        <dt :if={@report.failure_code}>Failure code</dt><dd :if={@report.failure_code}>
+          <code>{@report.failure_code}</code>
+        </dd>
+        <dt :if={@report.invocation_id}>Invocation</dt><dd :if={@report.invocation_id}>
+          <code>{@report.invocation_id}</code>
+        </dd>
+      </dl>
+      <h3 :if={@report.handler_result}>Tool result</h3>
+      <.evidence_text :if={@report.handler_result} value={@report.handler_result} />
+      <h3 :if={@report.observed}>Page view</h3>
+      <.evidence_text :if={@report.observed} value={@report.observed} />
+      <a :if={@report.tool} href={tool_path(@report.site, @report.tool.name)}>Tool versions and observed history →</a>
+    </Regent.Primitives.disclosure>
+  </div>
+
+  <div id="pb-kept-payment" phx-update="ignore">
+    <Regent.Primitives.disclosure
+      :if={@report.priority_amount_atomic}
+      id="pb-thread-payment"
+      summary="Paid priority"
+    >
+      <p class="pb-thread-caption">
+        A bounty does not verify an answer. Payment status and refund eligibility must be checked onchain.
+      </p>
+      <.escrow_standing report={@report} />
+    </Regent.Primitives.disclosure>
+  </div>
+</Regent.Discussion.thread>

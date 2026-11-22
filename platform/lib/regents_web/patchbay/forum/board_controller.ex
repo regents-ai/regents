@@ -1,8 +1,9 @@
 defmodule RegentsWeb.Patchbay.Forum.BoardController do
   @moduledoc """
-  Patchbay's board pages: the home page with its question lists, agent setup,
-  payments and each agent program's troubleshooting page. Opening any of them
-  writes nothing: the pages read the stored threads and committed files only.
+  Patchbay's board pages: the home page with its question lists, a thread
+  with its replies, agent setup, payments and each agent program's
+  troubleshooting page. The pages read the stored threads and committed
+  files; the one write is a reader opening a thread (`post/2`).
   """
 
   use RegentsWeb, :controller
@@ -11,6 +12,8 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
   alias Regents.Patchbay.DatabaseBusy
   alias Regents.Patchbay.Forum.BoardActivity
+  alias Regents.Patchbay.Forum.PostAddress
+  alias Regents.Patchbay.Forum.PostSummary
   alias Regents.Patchbay.Forum.SearchUnavailable
   alias Regents.Patchbay.Incidents
   alias RegentsWeb.Patchbay.BusyPage
@@ -157,6 +160,104 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
   defp error_type(failure) when is_struct(failure), do: failure.__struct__
   defp error_type(failure), do: failure
+
+  @doc """
+  One post and a page of its replies: the opening page, or the page a
+  continuation from this board names.
+
+  The post answers at its own address only (`PostAddress.path/1`). Any other
+  address with its id, such as `/patchbay/posts/<id>`,
+  `/patchbay/reports/<id>` or one whose words are not its headline's, moves
+  there for good, query and all. An id that names no post, or one held out
+  of sight, is not on the board.
+  """
+  def post(conn, %{"id" => id} = params) do
+    report = fetch_report!(id)
+    path = PostAddress.path(report)
+
+    if conn.request_path == path do
+      conn
+      |> viewed(report)
+      |> show_report(report, params)
+    else
+      conn
+      |> put_status(:moved_permanently)
+      |> redirect(to: path <> query_part(conn.query_string))
+    end
+  end
+
+  defp fetch_report!(id) do
+    case Board.fetch_report(id) do
+      {:ok, report} -> report
+      :error -> raise RegentsWeb.NotFoundError
+      {:error, failure} -> raise failure
+    end
+  end
+
+  # The browser's forum identifier, kept in the signed session cookie. A
+  # caller never names it, so nobody can be counted as someone else.
+  @forum_session "patchbay_forum_session_id"
+
+  # The page shows the post as read above, so a reader's first view is counted
+  # from their next one. The reader is the browser's own forum session, given
+  # it here when it has none. Where the site only reads, nothing is written.
+  defp viewed(conn, report) do
+    if Regents.read_only?() do
+      conn
+    else
+      conn = forum_session(conn)
+      :ok = Board.record_view(report, get_session(conn, @forum_session))
+      conn
+    end
+  end
+
+  defp forum_session(conn) do
+    case get_session(conn, @forum_session) do
+      id when is_binary(id) -> conn
+      _none -> put_session(conn, @forum_session, Ash.UUID.generate())
+    end
+  end
+
+  defp query_part(""), do: ""
+  defp query_part(query), do: "?" <> query
+
+  # A bad continuation and a reply read that fails are each said for what
+  # they are, never shown as an empty thread.
+  defp show_report(conn, report, params) do
+    filter = if params["replies"] in ["solution", "official"], do: params["replies"], else: "all"
+
+    case Board.thread_page(report, params["after"], filter) do
+      {:ok, thread} ->
+        conn
+        |> merge_assigns(Layouts.frame(conn, [BoardHTML.thread_data(report, thread.replies)]))
+        |> render(
+          :report,
+          Map.merge(thread, %{
+            page_title: PostSummary.title(report),
+            page_description: PostSummary.description(report),
+            canonical: RegentsWeb.Endpoint.url() <> PostAddress.path(report),
+            report: report,
+            # The live thread under the post takes the page it was drawn with
+            # (`RegentsWeb.Patchbay.ThreadLive`).
+            thread: thread
+          })
+        )
+
+      {:error, :invalid_cursor} ->
+        conn
+        |> put_status(:bad_request)
+        |> page(:replies_unavailable)
+        |> render(:report_error, report: report, problem: :invalid_cursor, cursor: nil)
+
+      {:error, failure} ->
+        Logger.warning("Report replies unavailable: " <> inspect(error_type(failure)))
+
+        conn
+        |> put_status(:service_unavailable)
+        |> page(:replies_unavailable)
+        |> render(:report_error, report: report, problem: :unavailable, cursor: params["after"])
+    end
+  end
 
   @doc "Agent setup: the instruction for each agent, `?agent=` picking the tab."
   def start(conn, params) do

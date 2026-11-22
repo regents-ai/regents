@@ -1,0 +1,20 @@
+<main class="patchbay-shell patchbay-board" id="patchbay-report">
+  <.board_header>
+    <:title>Replies unavailable</:title>
+    <:back><a href={site_path(@report.site)}>← {site_name(@report.site)}</a></:back>
+  </.board_header>
+  <Regent.Primitives.notice role="alert">
+    <p :if={@problem == :invalid_cursor}>This reply link is not valid for this thread.</p>
+    <p :if={@problem == :unavailable}>
+      The replies to this report could not be loaded right now.
+    </p>
+    <a
+      :if={@problem == :unavailable and @cursor}
+      href={PostAddress.path(@report, after: @cursor)}
+    >
+      Retry
+    </a>
+    <a :if={@problem == :unavailable and is_nil(@cursor)} href={PostAddress.path(@report)}>Retry</a>
+    <a href={PostAddress.path(@report) <> "#patchbay-replies"}>Back to first replies</a>
+  </Regent.Primitives.notice>
+</main>

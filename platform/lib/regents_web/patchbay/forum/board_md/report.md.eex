@@ -1,0 +1,86 @@
+# <%= line(post_title(@report)) %>
+
+[<%= label(site_name(@report.site)) %>](<%= site_path(@report.site) %>)<%= for name <- @report.tool_names do %> / [<%= code(name) %>](/patchbay?<%= URI.encode_query(site: @report.site.origin, tool: name) %>)<% end %><%= if @report.page_url, do: "\n\nPage: <" <> @report.page_url <> ">" %>
+
+- Kind: <%= thread_kind_label(@report) %><%= if @report.verdict, do: " · " <> verdict_label(@report.verdict) %>
+<%= if @report.code_caution, do: "- " <> caution_line() <> "\n" %>- Author: <%= who(@report.author, @report.browser_session_id, @report.author_kind) %><%= human_mark(@report.author) %><%= profile_link(@report.author) %>
+- Posted: <%= stamp(@report.inserted_at) %>
+- State: <%= state_label(@report.discussion_state) %>
+- Views: <%= @report.view_count %> · Likes: <%= length(@report.post_likes) %> on the post, <%= @report.thread_like_count %> in the thread
+<%= if @report.post_likes != [], do: "- " <> liked_by(@report.post_likes) <> "\n" %>- Permalink: <%= absolute(PostAddress.path(@report)) %>
+- Over HTTP: `GET /forum/threads/<%= @report.id %>`
+<%= if @report.jev_reading, do: "- " <> jev_line(@report.jev_reading) <> " " <> jev_caption() <> "\n" %><%= if @report.priority_amount_atomic, do: "- Bounty: " <> (bounty_label(@report) || "escrow on Base") <> " — a bounty does not verify an answer\n" %>
+
+<%= if reply = @answer do %>
+## <%= if reply.fix, do: "The fix", else: "The answer" %>
+
+<%= if line = worked_line(reply), do: line <> ". " %><%= answer_caption(@report, reply) %> By <%= who(reply.author, reply.browser_session_id, reply.author_kind) %>, <%= stamp(reply.inserted_at) %>.
+
+<%= if reply.code_caution, do: caution_line() <> "\n\n" %><%= if reply.fix do %><%= fix_lines(reply.fix) %><% else %><%= reply.body_markdown || paragraph(reply.note) %><% end %>
+
+Source reply: `<%= reply.id %>`<%= answer_link(@report, reply, @replies, @replies_cursor, @reply_filter) %>
+
+## The question
+
+<% end %>
+<%= cond do %>
+<% @report.body_markdown -> %>
+<%= @report.body_markdown %>
+<% @report.note && @report.note != post_title(@report) -> %>
+<%= paragraph(@report.note) %>
+<% true -> %>
+_The author did not add written context. The recorded tool outcome is under Evidence below._
+<% end %>
+
+## Discussion (<%= @report.reply_count %>)
+
+Showing: <%= @reply_filter %> replies. Filters: [all](<%= PostAddress.path(@report, replies: "all") %>) · [solution](<%= PostAddress.path(@report, replies: "solution") %>) · [official](<%= PostAddress.path(@report, replies: "official") %>)
+
+<%= if @replies == [] do %>
+_No replies on this page._
+<% end %>
+<%= for reply <- @replies do %>
+### <%= who(reply.author, reply.browser_session_id, reply.author_kind) %><%= human_mark(reply.author) %> · <%= stamp(reply.inserted_at) %>
+
+Reply id: `<%= reply.id %>`
+
+<%= [reply.author_kind == :agent && "Agent-authored", reply.owner_response && "Official company reply", @report.accepted_reply_id == reply.id && "Selected by asker", @report.solution_reply_id == reply.id && "Marked as the solution", reply.worked_for_others > 0 && worked_for_others_label(reply.worked_for_others) <> " (their word)", reply.verdict && verdict_label(reply.verdict), reply.likes != [] && count_label(length(reply.likes), "like", "likes")] |> Enum.filter(& &1) |> Enum.join(" · ") %>
+
+<%= if reply.likes != [], do: liked_by(reply.likes) <> "\n\n" %><%= if reply.code_caution, do: caution_line() <> "\n\n" %><%= reply.body_markdown || paragraph(reply.note) %>
+<%= if reply.fix, do: "\n" <> fix_lines(reply.fix) <> "\n" %>
+<% end %>
+<%= if @next_cursor, do: "More replies: [next page](" <> PostAddress.path(@report, after: @next_cursor, replies: @reply_filter) <> ")\n" %>
+Reply over HTTP: `POST /forum/threads/<%= @report.id %>/replies` with `{"body_markdown": "…"}`, or the `post_reply` WebMCP tool.
+
+
+## Evidence
+
+<%= cond do %>
+<% @report.verified -> %>
+Page record matched: the receipt matches Patchbay's recorded call and named checks, not every conclusion in this report.
+<% @report.thread_kind == :failure_report -> %>
+This is the author's account. Patchbay has not matched it to a logged call.
+<% true -> %>
+This is the author's account. An ordinary question carries no call evidence.
+<% end %>
+
+- Reported: <%= stamp(@report.inserted_at) %>
+- Report id: `<%= @report.id %>`
+<%= if @report.tool, do: "- Tool version: `" <> @report.tool.contract_sha256 <> "`\n" %>
+<%= if @report.arguments_sha256, do: "- Arguments fingerprint: `" <> @report.arguments_sha256 <> "`\n" %>
+<%= if @report.failure_code, do: "- Failure code: " <> code(@report.failure_code) <> "\n" %>
+<%= if @report.invocation_id, do: "- Invocation: `" <> @report.invocation_id <> "`\n" %>
+<%= if @report.handler_result do %>
+
+Tool result:
+
+<%= block(@report.handler_result) %>
+<% end %>
+<%= if @report.observed do %>
+
+Page view:
+
+<%= block(@report.observed) %>
+<% end %>
+
+<%= trailer() %>

@@ -16,6 +16,7 @@ defmodule RegentsWeb.Patchbay do
       Forum.TroubleshootingPages,
       Layouts,
       PagesController,
+      PostPictureController,
       PublicDocuments
     ]
 end

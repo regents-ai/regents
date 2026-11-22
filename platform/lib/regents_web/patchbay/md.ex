@@ -36,6 +36,27 @@ defmodule RegentsWeb.Patchbay.MD do
 
   def who(_author, _session_id, _kind), do: "Unknown author"
 
+  @doc "The link to a member author's page, after their name; nothing for anyone else."
+  @spec profile_link(term()) :: String.t()
+  def profile_link(%Member{} = author), do: " ([profile](#{Member.profile_url(author)}))"
+  def profile_link(_author), do: ""
+
+  @doc """
+  Visitor or site text as one paragraph of its own: one line, with the
+  brackets that make a link escaped as in `label/1`, every `<` that could
+  open a link or HTML escaped, and a mark at its start that would open a
+  heading, list, quote, code block, table or rule escaped, so it reads as
+  the words it is.
+  """
+  @spec paragraph(term()) :: String.t()
+  def paragraph(text) do
+    text
+    |> label()
+    |> String.replace("<", "\\<")
+    |> String.replace(~r/\A(\d+)([.)])/, "\\1\\\\\\2")
+    |> String.replace(~r/\A[#>\-+*=_`~|]/, "\\\\\\0")
+  end
+
   @doc "What follows the name of an author a verified person stands behind."
   @spec human_mark(term()) :: String.t()
   def human_mark(author),
@@ -47,13 +68,22 @@ defmodule RegentsWeb.Patchbay.MD do
   def stamp(%DateTime{} = at), do: DateTime.to_iso8601(at)
 
   @doc """
-  A value as a code block, as it is. The fence is longer than any run of
-  backticks in what it holds, so nothing inside can close it.
+  A value as a code block: text as it is, a map or list as JSON. The fence
+  is longer than any run of backticks in what it holds, so nothing inside
+  can close it.
   """
-  @spec block(String.t()) :: String.t()
-  def block(code) when is_binary(code) do
+  @spec block(term()) :: String.t()
+  def block(nil), do: ""
+  def block(value) when is_binary(value), do: fenced("", value)
+
+  def block(value) when is_map(value) or is_list(value),
+    do: fenced("json", Jason.encode!(value, pretty: true))
+
+  def block(value), do: block(inspect(value))
+
+  defp fenced(info, code) do
     fence = fence(code, 3)
-    fence <> "\n" <> code <> "\n" <> fence
+    fence <> info <> "\n" <> code <> "\n" <> fence
   end
 
   @doc """
