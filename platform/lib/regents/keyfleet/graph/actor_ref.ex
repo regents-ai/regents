@@ -14,7 +14,9 @@ defmodule Regents.Keyfleet.Graph.ActorRef do
   `privy_user_id`) and the credential that signed the request
   (`credential_ref`, which only names it in the write's audit stamp). The
   graph reads the pairing and the person behind it again
-  (`Regents.Account.Actors.Agent.refresh/1`). How the agent signed in (`chain_id`,
+  (`Regents.Account.Actors.Agent.with_pairing/1`): the agent acts as nobody
+  unless the wallet is still paired in that episode, with that owner, who has
+  an account here. How the agent signed in (`chain_id`,
   `verification`) is the site's statement, and it can only refuse:
   `Regents.Account.Actors.Agent.authenticated?/1` admits no other pair.
   """
@@ -80,8 +82,8 @@ defmodule Regents.Keyfleet.Graph.ActorRef do
 
   @doc """
   The actor `ref` names, read now with `opts` (a read's time limit): `{:ok,
-  actor}`, `{:ok, nil}` for a person who acts as nobody, or the error the read
-  got.
+  actor}`, `{:ok, nil}` for a person or agent who acts as nobody, or the error
+  the read got.
   """
   @spec actor(t(), keyword()) :: {:ok, Human.t() | Agent.t() | nil} | {:error, term()}
   def actor(%{"kind" => "human", "account_id" => account_id}, opts) do
@@ -94,18 +96,27 @@ defmodule Regents.Keyfleet.Graph.ActorRef do
     end
   end
 
-  # Only the identifiers are taken; the pairing and the person behind it are
-  # read at the write's turn (`Regents.Keyfleet.Graph.Checks.KeyActor`).
-  def actor(%{"kind" => "agent"} = ref, _opts) do
-    {:ok,
-     %Agent{
-       wallet_address: ref["wallet"],
-       chain_id: ref["chain_id"],
-       verification_method: Map.fetch!(@verifications, ref["verification"]),
-       audience: "regents",
-       credential_ref: ref["credential_ref"],
-       pairing_id: ref["pairing_id"],
-       privy_user_id: ref["privy_user_id"]
-     }}
+  # The pairing the reference names, read now; `Regents.Keyfleet.Graph.Checks.KeyActor`
+  # reads it again as the write is checked (`Regents.Account.Actors.Agent.refresh/1`).
+  def actor(
+        %{"kind" => "agent", "pairing_id" => pairing_id, "privy_user_id" => owner} = ref,
+        _opts
+      ) do
+    case Agent.with_pairing(%Agent{
+           wallet_address: ref["wallet"],
+           chain_id: ref["chain_id"],
+           verification_method: Map.fetch!(@verifications, ref["verification"]),
+           audience: "regents",
+           credential_ref: ref["credential_ref"]
+         }) do
+      {:ok, %Agent{pairing: %Human{}, pairing_id: ^pairing_id, privy_user_id: ^owner} = agent} ->
+        {:ok, agent}
+
+      {:ok, _another_episode_or_unpaired} ->
+        {:ok, nil}
+
+      {:error, error} ->
+        {:error, error}
+    end
   end
 end

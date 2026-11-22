@@ -498,6 +498,13 @@
         ],
         "edit": "Agents.with_pairing/1 is not brought; the roster's holders/1 reads an agent's pairing with Regents.Account.Actors.Agent.with_pairing/1 and keeps an agent only while it is paired with a person who has an account here (pairing a Human); any other answer is no holder (K2d)",
         "reason": "the site's Agent.with_pairing/1 is the one place that decides a pairing, and Agent.refresh/1, which the roster's Notebooks.member?/2 reaches through Keys.identity/2, reads it again and admits only a Human pairing; keyfleet.ai's with_pairing returned :not_paired as an error and kept the pairing episode for a person not here, which no caller here reads"
+      },
+      {
+        "files": [
+          "graph/actor_ref.ex"
+        ],
+        "edit": "actor/2 rebuilds an agent through Regents.Account.Actors.Agent.with_pairing/1 and answers it only while its pairing is a Human in the episode and with the owner the reference names; any other pairing is {:ok, nil}, an agent acting as nobody, and a pairing that can't be read is the read's error; the moduledoc and the clause's comment say so (K2d)",
+        "reason": "regents.sh's Agent.refresh/1, which the graph's KeyActor calls at the write's turn, admits only an agent whose pairing is already a Human; the agent keyfleet.ai rebuilt from identifiers alone had pairing :none, so every agent's graph write would be refused there. keyfleet.ai's refresh turned a pairing it could not read into not a key holder; here the write is unavailable and logged, as for a person whose account can't be read"
       }
     ],
     "not_carried": {
