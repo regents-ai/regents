@@ -328,7 +328,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
               id="fleet-search-q"
               name="q"
               type="search"
-              value={if @view == :search, do: @params["q"]}
+              value={if @view == :search and is_binary(@params["q"]), do: @params["q"]}
               placeholder="Search"
               maxlength={Search.max_query()}
               autocomplete="off"
