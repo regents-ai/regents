@@ -64,7 +64,12 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
     :unavailable
   end
 
+  # A directory that could not be read takes no presses until it is opened
+  # again; any press sent by hand changes nothing.
   @impl true
+  def handle_event(_event, _params, %{assigns: %{retry: _retry}} = socket),
+    do: {:noreply, socket}
+
   def handle_event("load-more", _params, socket) do
     page = socket.assigns.page
 
@@ -91,6 +96,8 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
     site = Enum.find(socket.assigns.page.sites, &(&1.host == host))
     {:noreply, if(site, do: stream_insert(socket, :sites, site), else: socket)}
   end
+
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   # The next page joins the list; one that could not be read says so by the
   # button, which reads it again.

@@ -68,6 +68,10 @@ defmodule RegentsWeb.Patchbay.ThreadLive do
       else: {:noreply, redirect(socket, to: socket.assigns.path)}
   end
 
+  # The thread takes no presses here; one sent by hand changes nothing.
+  @impl true
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   @impl true
   def render(%{retry: _retry} = assigns) do
     ~H"""
