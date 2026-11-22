@@ -323,8 +323,9 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
   # The fleet's notebooks open on their own address, signed in by a code that
   # works once, which Keyfleet's notebook page sends there
   # (`RegentsWeb.Keyfleet.NotebookOpenController`); only a holder of one of the
-  # fleet's keys gets one.
-  defp press("open_notebooks", _params, socket) do
+  # fleet's keys gets one. This, the git password and every workspace press
+  # are for the workspace on show; from any other page they change nothing.
+  defp press("open_notebooks", _params, %{assigns: %{workspace: %{}}} = socket) do
     case human_actor(socket) do
       %Human{} ->
         {:noreply,
@@ -337,7 +338,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
 
   # A git password for the fleet's code, for a holder of one of its keys; it
   # ends when this sign-in does.
-  defp press("get_code_password", _params, socket) do
+  defp press("get_code_password", _params, %{assigns: %{workspace: %{}}} = socket) do
     with %Human{} = actor <- human_actor(socket),
          {:ok, %{password: password, expires_at: expires_at}} <-
            CodePassword.for_person(
@@ -392,8 +393,9 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
   defp press("schedule_put_away", %{"put_away" => cookie}, socket),
     do: {:noreply, assign(socket, :schedule_put_away, ScheduleCard.put_away(cookie))}
 
-  defp press(event, params, socket) when event in @workspace_events,
-    do: WorkspaceLive.handle_event(event, params, socket)
+  defp press(event, params, %{assigns: %{workspace: %{}}} = socket)
+       when event in @workspace_events,
+       do: WorkspaceLive.handle_event(event, params, socket)
 
   defp press(event, params, socket) when event in @room_events,
     do: RoomsLive.handle_event(event, params, socket)
