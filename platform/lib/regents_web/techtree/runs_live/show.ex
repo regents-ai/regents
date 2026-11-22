@@ -83,6 +83,9 @@ defmodule RegentsWeb.Techtree.RunsLive.Show do
     {:noreply, assign(socket, task_filter: task_filter)}
   end
 
+  # Any other press, one sent by hand, changes nothing.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   @impl true
   def render(assigns) do
     assigns = assign(assigns, :filtered_tasks, filtered_tasks(assigns.tasks, assigns.task_filter))

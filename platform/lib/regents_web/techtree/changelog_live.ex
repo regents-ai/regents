@@ -20,6 +20,10 @@ defmodule RegentsWeb.Techtree.ChangelogLive do
     {:ok, assign(socket, page_title: "Changelog", changelog_html: @html)}
   end
 
+  # The page takes no presses; one sent by hand changes nothing.
+  @impl true
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   @impl true
   # @html is rendered from the committed changelog at compile time, never request data.
   # sobelow_skip ["XSS.Raw"]
