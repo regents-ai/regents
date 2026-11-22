@@ -164,7 +164,15 @@ config :regents, Oban,
       # From the Points start, the one-time points for what accounts already had.
       {"@hourly", RegentPoints.StartAwards},
       # One line for each kind of shared reading a producer rereads on notice.
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "points_board"}}
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "points_board"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_agents"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_key_agents"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_now"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_proposals"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_treasury"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_share_card"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_project_cards"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_proposal"}}
     ]
   ],
   pruner: [max_age: {7, :days}],
@@ -305,6 +313,11 @@ config :regents, :keyfleet_agent_wait_ms, 20_000
 # happened in the fleet before it reads the hall's feed again, so a burst of
 # changes is read once.
 config :regents, :keyfleet_fleet_feed_wait_ms, 2_000
+
+# The longest the first read of every fleet's shared reading of what it is doing
+# now and of its proposals may take as the site starts; a fleet not read by then
+# shows as not read until its next notice or the minute's heal.
+config :regents, :keyfleet_first_read_ms, 5_000
 
 # The public address agents' pictures are read from: keyfleet.ai's picture
 # bucket (Regents.Keyfleet.Agents.AvatarBucket). Nothing here writes to it.
