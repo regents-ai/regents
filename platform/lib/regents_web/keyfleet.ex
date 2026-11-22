@@ -8,7 +8,8 @@ defmodule RegentsWeb.Keyfleet do
   (`RegentsWeb.Keyfleet.ShellLive`) that patches between its pages. The agent
   guides it serves (`/keyfleet/skill.md` and the rest) are answered outside the
   page scope, by `RegentsWeb.Keyfleet.AgentFilesController` and
-  `RegentsWeb.Keyfleet.PublicPagesController`.
+  `RegentsWeb.Keyfleet.PublicPagesController`, and so are its share pictures
+  (`/keyfleet/share/...`), by `RegentsWeb.Keyfleet.ShareCardController`.
   """
   use Boundary,
     deps: [RegentsWeb, Regents.Keyfleet],
@@ -18,6 +19,7 @@ defmodule RegentsWeb.Keyfleet do
       PublicDocuments,
       PublicPagesController,
       RouteCatalog,
+      ShareCardController,
       ShellLive
     ]
 end

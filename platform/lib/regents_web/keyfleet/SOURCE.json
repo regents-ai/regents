@@ -3,12 +3,12 @@
   "commit": "03eb26813",
   "taken": "2026-11-21",
   "rules": "K2's naming rules plus the web side's: KeyfleetWeb.X is RegentsWeb.Keyfleet.X at the same path under platform/lib/regents_web/keyfleet/, the endpoint and router are the site's, use RegentsWeb.Keyfleet as slice 1 has it, addresses under /keyfleet. The difference report (the reviewer's script) compares each file with the source after the rules",
-  "reachable": "Slice 1's reading pages and guides, and since K3 (b) each of the five catalog fleets' own pages, signed out: its hall (:fleet), a Key (:keys), Seasons, Proposals, a proposal, Treasury, Polls, a poll and Search, under /keyfleet (the router reads RouteCatalog.entries/0). Every other carried page compiles but has no route yet: the workspace and its item, the three code pages, a project, the worldline and the atlas (they need the graph machine and the code store), and the DMs (signed in only)",
+  "reachable": "Slice 1's reading pages and guides, and since K3 (b) each of the five catalog fleets' own pages, signed out: its hall (:fleet), a Key (:keys), Seasons, Proposals, a proposal, Treasury, Polls, a poll and Search, under /keyfleet (the router reads RouteCatalog.entries/0), and since K5 the share pictures of Classic #1 and the Regents Club and of their projects, under /keyfleet/share (ShareCardController). Every other carried page compiles but has no route yet: the workspace and its item, the three code pages, a project, the worldline and the atlas (they need the graph machine and the code store), and the DMs (signed in only)",
   "files": [
     {
       "from": "platform/lib/keyfleet_web.ex",
       "to": "platform/lib/regents_web/keyfleet.ex",
-      "changes": "slice 1's boundary root for RegentsWeb.Keyfleet: depends on RegentsWeb and Regents.Keyfleet; exports AgentFilesController, Layouts, PublicDocuments, PublicPagesController and ShellLive, and since K3 (b) RouteCatalog, whose entries/0 the router's fleet routes read"
+      "changes": "slice 1's boundary root for RegentsWeb.Keyfleet: depends on RegentsWeb and Regents.Keyfleet; exports AgentFilesController, Layouts, PublicDocuments, PublicPagesController and ShellLive, and since K3 (b) RouteCatalog, whose entries/0 the router's fleet routes read, and since K5 ShareCardController, which the router's share picture routes name"
     },
     {
       "from": "platform/lib/keyfleet_web/activity_lines.ex",
