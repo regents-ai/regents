@@ -29,9 +29,17 @@ defmodule Regents.Techtree do
       Catalog.Error,
       Catalog.Query,
       Catalog.Route,
+      Enquiries,
+      Enquiries.Enquiry,
       ModelClimb,
+      ModelClimb.Proof,
+      Network,
       Network.AgentVersions,
       Network.Assessment,
+      Network.Document,
+      Network.Error,
+      Network.Ingest,
+      Network.Key,
       Network.Projection,
       Network.Query,
       Network.ResultFilters,
@@ -43,8 +51,14 @@ defmodule Regents.Techtree do
       WalletBench,
       WalletBench.BaseRpc,
       WalletBench.Catalog,
+      WalletBench.Evidence,
       WalletBench.Judge,
-      WalletBench.Reading
+      WalletBench.Reading,
+      Watchdog,
+      Watchdog.Host,
+      Watchdog.Limits,
+      Watchdog.Ownership,
+      Watchdog.Route
     ]
 
   alias Regents.Techtree.Catalog.Query

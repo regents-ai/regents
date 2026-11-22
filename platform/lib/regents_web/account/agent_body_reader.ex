@@ -11,10 +11,49 @@ defmodule RegentsWeb.Account.AgentBodyReader do
   @limit 8192
 
   def read_body(conn, opts) do
-    if signed?(conn),
-      do: Siwa.AgentAuthPlug.read_body(conn, opts, @limit),
-      else: RegentIdentity.BodyReader.read_body(conn, opts)
+    cond do
+      techtree_publication_post?(conn) ->
+        publication_body(conn, opts)
+
+      techtree_model_climb_post?(conn) ->
+        Siwa.AgentAuthPlug.read_body(
+          conn,
+          opts,
+          Regents.Techtree.ModelClimb.Proof.maximum_bytes()
+        )
+
+      signed?(conn) ->
+        Siwa.AgentAuthPlug.read_body(conn, opts, @limit)
+
+      true ->
+        RegentIdentity.BodyReader.read_body(conn, opts)
+    end
   end
+
+  defp publication_body(conn, opts) do
+    case Siwa.AgentAuthPlug.read_body(conn, opts, Regents.Techtree.Network.maximum_body_bytes()) do
+      {:ok, body, conn} -> {:ok, body, Plug.Conn.assign(conn, :submitted_bytes, body)}
+      other -> other
+    end
+  end
+
+  defp techtree_publication_post?(%{
+         method: "POST",
+         path_info: ["api", "v1", "techtree", "publications"]
+       }),
+       do: true
+
+  defp techtree_publication_post?(_conn), do: false
+
+  defp techtree_model_climb_post?(%{
+         method: "POST",
+         path_info: ["api", "v1", "techtree", "model-climb", "reports"]
+       }),
+       do: true
+
+  defp techtree_model_climb_post?(_conn), do: false
+
+  defp signed?(%{method: "POST", path_info: ["mcp"]}), do: true
 
   defp signed?(%{method: method, path_info: ["api" | _rest]}) when method in ["POST", "PATCH"],
     do: true

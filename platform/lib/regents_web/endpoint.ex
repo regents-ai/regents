@@ -114,6 +114,21 @@ defmodule RegentsWeb.Endpoint do
   defp limit_rate(%Plug.Conn{method: "POST", path_info: ["visit-log"]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
 
+  defp limit_rate(
+         %Plug.Conn{method: "POST", path_info: ["api", "v1", "techtree", "publications"]} = conn,
+         _opts
+       ),
+       do: RegentsWeb.Techtree.PublicationRate.call(conn, [])
+
+  defp limit_rate(
+         %Plug.Conn{
+           method: "POST",
+           path_info: ["api", "v1", "techtree", "model-climb", "reports"]
+         } = conn,
+         _opts
+       ),
+       do: RegentsWeb.Techtree.PublicationRate.call(conn, [])
+
   defp limit_rate(%Plug.Conn{path_info: ["api" | _]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
 

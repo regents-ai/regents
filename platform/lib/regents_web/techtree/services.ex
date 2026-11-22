@@ -625,7 +625,8 @@ defmodule RegentsWeb.Techtree.Services do
             "You prove each site is yours: a short DNS record, or a small file at a set address. No proof, no testing.",
             "We test the proven addresses, inside the limits you agreed.",
             "You get only the weaknesses we reproduced, each with a fix, and we retest after you fix."
-          ]
+          ],
+          link: {"Your sites", ~p"/techtree/watchdog"}
         }
       ],
       rules: [

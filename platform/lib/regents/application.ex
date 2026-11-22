@@ -39,6 +39,8 @@ defmodule Regents.Application do
         Regents.Patchbay.Forum.SearchSlots,
         # Techtree's Wallet Bench reading, kept 30 seconds.
         Regents.Techtree.WalletBench.Reading,
+        # Concurrent Wallet Bench evidence/zip downloads on this machine.
+        {Registry, keys: :duplicate, name: RegentsWeb.Techtree.ResultsDownloads},
         # Each agent's reading for an open account menu, unlinked from the page.
         {Task.Supervisor, name: Regents.Account.Agents.Reads},
         # Each product's health read for /api/v1/health, unlinked from the request.

@@ -318,7 +318,15 @@ defmodule RegentsWeb.Router do
     get "/publications", PublicationController, :index
     get "/publications/:bundle_digest", PublicationController, :show
     get "/publications/:bundle_digest/bundle", PublicationController, :bundle
+    get "/publication-keys/:key_id", PublicationKeyController, :show
     get "/skills/:root_digest", PublishedSkillController, :show
+  end
+
+  # Techtree's signed publication and withdrawal endpoint: paired agent only,
+  # refused automatically on the read-only venue by :paired_agent.
+  scope "/api/v1/techtree", RegentsWeb.Techtree do
+    pipe_through [:api, :paired_agent]
+    post "/publications", PublicationController, :create
   end
 
   scope "/api/agents/v1" do
@@ -394,6 +402,8 @@ defmodule RegentsWeb.Router do
     get "/agents/:agent", PublicPagesController, :show
     get "/services/security/sample-report", PublicPagesController, :show
     get "/account/projects/:id/package", ProjectPackageController, :show
+    get "/wallet-bench/:id/evidence/:turn/:file", WalletBenchEvidenceController, :show
+    get "/wallet-bench/:id/results.zip", WalletBenchEvidenceController, :results
 
     live_session :techtree,
       session: {RegentsWeb.Live.Session, :render_context, []},
@@ -419,6 +429,7 @@ defmodule RegentsWeb.Router do
       live "/wallet-bench/:id", WalletBenchLive.Show
       live "/account/projects", ProjectsLive, :index
       live "/account/projects/:id", ProjectsLive, :show
+      live "/watchdog", WatchdogLive, :index
     end
   end
 

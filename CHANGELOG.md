@@ -8357,3 +8357,12 @@ seasons), on the shared Points library regents.sh was already on.
 - Shortened the NEAR Private AI sentence on `/cloak` (decision 390 a).
 - Added Techtree's six Wallet Bench tables and Autolaunch's two launch-picture tables (five public columns each) to `platform/priv/reader/grants.sql` (decisions 392 a and 395 a).
 - Not released: on the `one-site` branch only. No live database, deployment, or frozen product repository touched.
+
+
+## 2026-11-22 — One site: Techtree publishing, Wallet Bench evidence downloads, Enquiries, and Watchdog (not released)
+
+- Added signed Techtree publication and withdrawal ingestion at `POST /api/v1/techtree/publications` and public signing key lookup at `GET /api/v1/techtree/publication-keys/:key_id`, with exact-body capture and dedicated publication rate limiting. Refused on the read-only venue.
+- Added Techtree Wallet Bench recorded file serving (`/techtree/wallet-bench/:id/evidence/:turn/:file`) and streaming zip downloads (`/techtree/wallet-bench/:id/results.zip`) backed by `zstream` and a per-node download slot registry, updating Wallet Bench links to local paths.
+- Added Techtree's contact inquiry form (`Regents.Techtree.Enquiries`, `/techtree` and `/techtree/services/*`, rate-limited via `:techtree_enquiries`, hidden on the read-only venue).
+- Added Techtree's Watchdog host & route verification domain (`Regents.Techtree.Watchdog`) and `/techtree/watchdog` page, with Oban queue `techtree_watchdog` (disabled on the read-only venue) and Monitoring link from `/techtree/services/security`.
+- Not released: on the `one-site` branch only.

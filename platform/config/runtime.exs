@@ -120,6 +120,19 @@ config :regents,
          fn {_key, value} -> is_nil(value) end
        )
 
+if signing_key = System.get_env("TECHTREE_NETWORK_SIGNING_KEY") do
+  config :regents, Regents.Techtree.Network.Key, private_key: signing_key
+end
+
+if System.get_env("WALLETBENCH_BUCKET_NAME") do
+  config :regents, Regents.Techtree.WalletBench.Evidence,
+    endpoint: System.get_env("WALLETBENCH_AWS_ENDPOINT_URL_S3"),
+    bucket: System.get_env("WALLETBENCH_BUCKET_NAME"),
+    region: System.get_env("WALLETBENCH_AWS_REGION"),
+    access_key_id: System.get_env("WALLETBENCH_AWS_ACCESS_KEY_ID"),
+    secret_access_key: System.get_env("WALLETBENCH_AWS_SECRET_ACCESS_KEY")
+end
+
 # Autolaunch's deployment descriptions: for each network, the path of the file
 # naming its contracts. Production reads Base's and Base Stocks' from the files
 # the release ships (`priv/autolaunch/deployment`), under the label autolaunch.sh

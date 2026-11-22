@@ -57,6 +57,7 @@ import {syncTheme} from "./theme"
 // in and figures that count up, the Docs' Copy page control, the Results page's
 // agent-version strip, and the Services panel in Techtree's row under the bar.
 import {AgentVersions} from "./techtree/agent_versions"
+import {EnquiryForm} from "./techtree/enquiry_form"
 import {marketingHooks, mountEntrance} from "./techtree/marketing"
 import {CopyCommandPage, CopyCommandPageView} from "./techtree/page_copy"
 import {installSiteMenu} from "./techtree/site_menu"
@@ -301,6 +302,7 @@ const hooks = {
   CopyCommandPage,
   CopyCommandPageView,
   Docs,
+  EnquiryForm,
   InfiniteScroll,
   InfoDialog,
   KeyfleetShell,
@@ -326,6 +328,7 @@ const hooks = {
   Tour,
   ValueCard,
   VerifiedConnections,
+  WatchdogSites: MotionList,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 

@@ -474,7 +474,7 @@ defmodule RegentsWeb.Techtree.WalletBenchLive.Index do
       />
       <footer class="wallet-bench__window-actions">
         <a
-          href={"https://techtree.sh/wallet-bench/#{@attempt.id}/results.zip"}
+          href={~p"/techtree/wallet-bench/#{@attempt.id}/results.zip"}
           class="rg-button rg-button--primary"
           download
         >
