@@ -7,11 +7,11 @@ defmodule RegentsWeb.Keyfleet.Telemetry do
   for (`wallet_failed/2`).
   """
 
-  # The reasons the wallet hook reports (`Failure` in send_step.ts), and
-  # `blocked`, a press the server refused because the chain's state makes its
-  # step certain to fail. Only these are counted, so a label never holds
-  # whatever a browser chose to send.
-  @wallet_failures ~w(step_unknown blocked wallet_unavailable switch_declined network_mismatch wallet_declined insufficient_funds send_unconfirmed sign_unconfirmed)
+  # The reasons a page may report (the shared library's list in
+  # `RegentChain.Presses`), and `blocked`, a press the server refused because
+  # the chain's state makes its step certain to fail. Only these are counted,
+  # so a label never holds whatever a browser chose to send.
+  @wallet_failures ~w(step_unknown blocked wallet_unavailable switch_declined network_mismatch wallet_declined wallet_refused insufficient_funds send_unconfirmed sign_unconfirmed)
 
   @doc """
   Counts one press the browser reported as not sent or not confirmed, or the
