@@ -437,6 +437,24 @@ defmodule RegentsWeb.Router do
       live "/agents/:agent", ShellLive, :agent
       live "/privacy", ShellLive, :privacy
       live "/terms", ShellLive, :terms
+
+      # Each fleet's pages, at the fleet's own address (RouteCatalog). Its
+      # workspace, code, projects, worldline, atlas and messages are not open yet.
+      for %{fleet_id: fleet_id, live_action: action, path_pattern: "/keyfleet" <> path}
+          when fleet_id != nil and
+                 action in [
+                   :fleet,
+                   :keys,
+                   :seasons,
+                   :proposals,
+                   :proposal,
+                   :treasury,
+                   :polls,
+                   :poll,
+                   :search
+                 ] <- RegentsWeb.Keyfleet.RouteCatalog.entries() do
+        live path, ShellLive, action
+      end
     end
   end
 
