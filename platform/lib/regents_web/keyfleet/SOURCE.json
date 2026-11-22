@@ -557,7 +557,7 @@
     "carried": [
       "[:regents, :keyfleet_wallet, :failure] (RegentsWeb.Keyfleet.Telemetry.wallet_failed/2, metadata flow and reason): the source exposed it as the metric health.wallet_send_failures.total, tagged flow and reason"
     ],
-    "named_as": "K2's :keyfleet_<name> form; the brief says [:regents, :keyfleet, ...]: the Keyfleet chief to rule",
+    "named_as": "K2's :keyfleet_<name> form, [:regents, :keyfleet_<area>, ...], as the regents chief ruled; the site's metric for it is the regents chief's to add in RegentsWeb.Telemetry",
     "source_metrics_not_carried": [
       "privy browser_failure, session_refused, session_bootstrap rate_limited, session_authority absent_row",
       "repo query queue_time and total_time",
