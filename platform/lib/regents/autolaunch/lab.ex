@@ -2,9 +2,10 @@ defmodule Regents.Autolaunch.Lab do
   @moduledoc """
   The Base deployment description: `site-config.json` as the lab controller
   writes it at deployment, and as the contracts thread writes it for Base
-  mainnet. One shape in every environment: the chain id, the site's RPC door,
-  the door wallets use, every address the site prepares against and every ABI
-  it encodes with.
+  mainnet. One shape in every environment: the chain id, the door wallets use,
+  every address the site prepares against and every ABI it encodes with. The
+  site reads the chain through its own setting (`config :regents,
+  :base_read_rpc_url`), never through an address the description names.
 
   `AUTOLAUNCH_BASE_DEPLOYMENT` names the file and `AUTOLAUNCH_BASE_DEPLOYMENT_ID`
   labels the deployment; the Stocks admission scan
@@ -57,7 +58,6 @@ defmodule Regents.Autolaunch.Lab do
   @type t :: %{
           path: String.t(),
           run_id: String.t(),
-          rpc_url: String.t(),
           public_rpc_url: String.t(),
           chain_id: pos_integer(),
           version: version(),
@@ -150,8 +150,7 @@ defmodule Regents.Autolaunch.Lab do
   @doc """
   Reads and validates `site-config.json`.
 
-  `rpc_url` is the site's own door (`LabRpcUrl.admitted/1`);
-  `public_rpc_url` is the door wallets use (`LabRpcUrl.public/2`).
+  `public_rpc_url` is the door wallets use (`LabRpcUrl.public/1`).
   """
   # Founder-supplied startup input; this path never comes from an HTTP request.
   # sobelow_skip ["Traversal.FileModule"]
@@ -159,8 +158,7 @@ defmodule Regents.Autolaunch.Lab do
     with true <- Path.type(path) == :absolute,
          {:ok, body} <- File.read(path),
          {:ok, decoded} <- Jason.decode(body),
-         {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"]),
-         {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"], rpc_url),
+         {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"]),
          {:ok, chain_id} <- chain_id(decoded["chain_id"]),
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
          {:ok, abis} <- exact_abis(decoded["abis"]),
@@ -169,7 +167,6 @@ defmodule Regents.Autolaunch.Lab do
       {:ok,
        %{
          path: path,
-         rpc_url: rpc_url,
          public_rpc_url: public_rpc_url,
          chain_id: chain_id,
          version: :v3,
@@ -224,7 +221,11 @@ defmodule Regents.Autolaunch.Lab do
 
   def contracts(_config, _version), do: {:error, :contracts_missing}
 
-  @doc "The RPC options for reads and calls against this deployment's chain."
+  @doc """
+  The `Regents.Chain.Rpc` options for reads and calls against this
+  deployment's chain: its chain id and the scope failures are counted under.
+  The address read is the site's own (`:base_read_rpc_url`), Rpc's default.
+  """
   def rpc_opts(config, scope \\ "autolaunch local lab"), do: LabRpc.opts(config, scope)
 
   @doc "The chain id a description names: any positive integer, exactly as written."

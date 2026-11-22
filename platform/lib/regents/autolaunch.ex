@@ -17,8 +17,9 @@ defmodule Regents.Autolaunch do
   is as autolaunch.sh has it. The reads behind the Auctions and Tokens lists
   (`Regents.Autolaunch.HomeMarket`) are here with their policies, with what
   their cards show of a record (`AuctionFigures`, `StoredImage` and
-  `Token.presentation/1`); every other resource has no action yet and one
-  policy refusing every action, so nothing here writes a row.
+  `Token.presentation/1`) and the dollar prices their figures are shown in
+  (`UsdRates`); every other resource has no action yet and one policy refusing
+  every action, so nothing here writes a row.
 
   It also reads the deployment descriptions, the files that say which
   contracts on which chain the site describes: Base's (`Lab`), Base Stocks'
@@ -28,7 +29,7 @@ defmodule Regents.Autolaunch do
   """
   use Boundary,
     top_level?: true,
-    deps: [Regents, Regents.Chain],
+    deps: [Regents, Regents.Chain, Regents.Stake],
     exports: [
       AuctionFigures,
       HomeMarket,
@@ -41,7 +42,8 @@ defmodule Regents.Autolaunch do
       Stocks.LaunchActions,
       StoredImage,
       Supervisor,
-      Token
+      Token,
+      UsdRates
     ]
 
   use Ash.Domain, otp_app: :regents
@@ -68,7 +70,11 @@ defmodule Regents.Autolaunch do
     resource Regents.Autolaunch.Stocks.LaunchDraft
     resource Regents.Autolaunch.Stocks.LaunchDraftImage
     resource Regents.Autolaunch.Stocks.LaunchOperation
-    resource Regents.Autolaunch.Stocks.Stock
+
+    resource Regents.Autolaunch.Stocks.Stock do
+      define :launch_currency_stocks, action: :launch_currencies, args: [:chain_id]
+    end
+
     resource Regents.Autolaunch.Stocks.AdmissionScan
     resource Regents.Autolaunch.Stocks.StockCandidate
     resource Regents.Autolaunch.Token
