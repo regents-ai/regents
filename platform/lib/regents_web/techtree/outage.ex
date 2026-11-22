@@ -62,9 +62,8 @@ defmodule RegentsWeb.Techtree.Outage do
   defp outage?(_error), do: false
 
   # What is logged of an outage: the kind of failure and the SQLSTATE. A lost
-  # connection's message is the pool's own words, which name no value.
-  defp summary(%DBConnection.ConnectionError{message: message}),
-    do: "DBConnection.ConnectionError: #{message}"
+  # connection's message can name the database's address, so it is left out.
+  defp summary(%DBConnection.ConnectionError{}), do: "DBConnection.ConnectionError"
 
   defp summary(%Postgrex.Error{postgres: %{pg_code: state}}), do: "Postgrex.Error #{state}"
 
