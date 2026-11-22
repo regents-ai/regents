@@ -7506,3 +7506,10 @@ seasons), on the shared Points library regents.sh was already on.
 - A live fault fixed. At 19:22Z a visitor opened about 80 paper links at once; each took 49 to 60 seconds and one other page read was dropped (Sentinel's alert). Each link to a paper rendered every newer day's papers for itself, however many other requests had just done the same.
 - Each day's papers are now kept by themselves for the minute, so a link to an older paper reads and renders only the days not kept yet, and one request at a time does that work while the others wait and take what it kept.
 - No table, setting or migration.
+
+## 2026-11-22 — Released the Paper Pro Daily per-day keep
+
+- Commit 3351c407, Fly v368. Full check exit 0 on 3351c407; the practice run built the image and found no migration pending.
+- Live read, signed out: every public page and the health answer as before. All 108 paper links opened at once, twice: 108 of 108 answered, the slowest in 7.1 seconds, where 78 at once had taken 49 to 60 seconds each; no error line followed.
+- Still true: a link to the oldest paper is a page of about 4 MB, because the feed above it is on the page.
+- Rollback: the image main-f36c34f20679.
