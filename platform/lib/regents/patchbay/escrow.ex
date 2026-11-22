@@ -1,0 +1,319 @@
+defmodule Regents.Patchbay.Escrow do
+  @moduledoc """
+  Patchbay's relayer to the PatchbayEscrow contract on Base: the operator
+  account that records a paid priority report's money against its post and,
+  once the asker has accepted an answer, pays that answer's author out of it.
+  It also relays an asker's request to take a bounty back, though the contract
+  is what decides that: it refuses until thirty days after the money was
+  recorded, and then anybody at all may make the call, so Patchbay finds out
+  what happened by reading the chain rather than by having asked.
+
+  Each bounty that pays out or goes back to its asker leaves 10% in the
+  contract for REGENT staking, and Patchbay's operator pushes what it keeps
+  into the REGENT revenue staking contract after each one.
+
+  Every call here is one transaction, signed locally with the operator key
+  and handed to the chain. Its calldata ends with Regent's Base Builder
+  Code. It comes back with the transaction hash the moment
+  the chain has taken it; nothing waits for the receipt, so a caller records
+  the hash and moves on. What a call needs to have landed first, such as the
+  payment a credit records, is waited for with `await_landed/1`, and what
+  became of a transaction once it landed is read with `outcome/1`. The three values it needs, the contract address, the
+  operator key and the RPC endpoint, are read from `config :patchbay, :escrow`
+  and nowhere else. Nothing here ever writes the key anywhere: not into a
+  log, not into an error, not into a result.
+
+  A post on the contract is named by its report's id, as 32 bytes: the 16
+  raw bytes of the uuid, left-padded with 16 zero bytes. The credit, the
+  release and the refund all derive it here, so they cannot name a post
+  differently.
+  """
+
+  alias Regents.Patchbay.Escrow.{Contract, Signer}
+
+  @private_key ~r/\A(?:0x)?[0-9a-fA-F]{64}\z/
+
+  # The contract's Status enum, in its own order.
+  @post_statuses [:none, :funded, :released, :refunded]
+
+  # How often, and how many times, a transaction is looked for in Base's
+  # blocks: every half second for up to fifteen seconds.
+  @landing_interval_ms 500
+  @landing_tries 30
+
+  @doc """
+  The contract address paid-priority money is held at, or nil when this
+  Patchbay has none set.
+  """
+  @spec contract_address() :: String.t() | nil
+  def contract_address, do: present(settings()[:contract_address])
+
+  @doc """
+  Records `amount_atomic` of USDC from `payer_address` in escrow against the
+  report, and returns the hash of the transaction that does it.
+  """
+  @spec credit(Ash.UUID.t(), String.t(), pos_integer()) :: {:ok, String.t()} | {:error, term()}
+  def credit(report_id, payer_address, amount_atomic) do
+    report_id
+    |> post_id()
+    |> Contract.credit(payer_address, amount_atomic)
+    |> submit()
+  end
+
+  @doc """
+  Waits until Base has put the transaction `tx_hash` in a block, the first
+  block being enough, asking through the operator's endpoint every half
+  second for up to fifteen seconds. A credit is only sent once the payment
+  it records has landed, since the contract refuses to record more than it
+  holds.
+  """
+  @spec await_landed(String.t() | nil) ::
+          :ok | {:error, :no_transaction | :not_landed | :not_configured}
+  def await_landed(nil), do: {:error, :no_transaction}
+
+  def await_landed(tx_hash) do
+    with {:ok, operator} <- operator() do
+      await_landed(tx_hash, operator.rpc_url, @landing_tries)
+    end
+  end
+
+  defp await_landed(_tx_hash, _rpc_url, 0), do: {:error, :not_landed}
+
+  defp await_landed(tx_hash, rpc_url, tries) do
+    case Ethers.get_transaction_receipt(tx_hash, rpc_opts: [url: rpc_url]) do
+      {:ok, _receipt} ->
+        :ok
+
+      {:error, _not_yet} ->
+        Process.sleep(@landing_interval_ms)
+        await_landed(tx_hash, rpc_url, tries - 1)
+    end
+  end
+
+  @doc """
+  What became of the transaction `tx_hash` once Base put it in a block: it
+  did what it asked (`:succeeded`) or the contract refused it (`:reverted`).
+  A transaction not in a block yet is `{:error, :not_landed}`.
+  """
+  @spec outcome(String.t()) :: {:ok, :succeeded | :reverted} | {:error, term()}
+  def outcome(tx_hash) do
+    with {:ok, operator} <- operator() do
+      tx_hash
+      |> Ethers.get_transaction_receipt(rpc_opts: [url: operator.rpc_url])
+      |> read_outcome()
+    end
+  end
+
+  defp read_outcome({:ok, %{"status" => "0x1"}}), do: {:ok, :succeeded}
+  defp read_outcome({:ok, %{"status" => "0x0"}}), do: {:ok, :reverted}
+  defp read_outcome({:ok, _unreadable}), do: {:error, :unreadable_receipt}
+  defp read_outcome({:error, :transaction_receipt_not_found}), do: {:error, :not_landed}
+  defp read_outcome({:error, reason}), do: {:error, reason}
+
+  @doc """
+  Pays the money held against the report out to `winner_address`, and returns
+  the hash of the transaction that does it.
+  """
+  @spec release(Ash.UUID.t(), String.t()) :: {:ok, String.t()} | {:error, term()}
+  def release(report_id, winner_address) do
+    report_id
+    |> post_id()
+    |> Contract.release(winner_address)
+    |> submit()
+  end
+
+  @doc """
+  The contract's own record of a report's post: where it stands (`:none` when
+  it has never been credited, `:funded`, `:released` or `:refunded`), the
+  wallet it was credited from, the amount, and the chain's own time of the
+  credit, which is what its thirty-day refund delay counts from.
+  """
+  @spec post(Ash.UUID.t()) ::
+          {:ok,
+           %{
+             status: :none | :funded | :released | :refunded,
+             payer: String.t(),
+             amount: non_neg_integer(),
+             funded_at: DateTime.t() | nil
+           }}
+          | {:error, term()}
+  def post(report_id) do
+    with {:ok, operator} <- operator() do
+      report_id
+      |> post_id()
+      |> Contract.posts()
+      |> Ethers.call(to: operator.contract_address, rpc_opts: [url: operator.rpc_url])
+      |> read_post()
+    end
+  rescue
+    _exception -> {:error, :call_failed}
+  end
+
+  # The contract answers with the post's four fields in its own order;
+  # anything that is not that shape is a read that did not happen.
+  defp read_post({:ok, [payer, amount, status, funded_at]})
+       when is_binary(payer) and is_integer(amount) and is_integer(status) and
+              is_integer(funded_at) do
+    {:ok,
+     %{
+       status: Enum.at(@post_statuses, status, :none),
+       payer: String.downcase(payer),
+       amount: amount,
+       funded_at: if(funded_at > 0, do: DateTime.from_unix!(funded_at))
+     }}
+  end
+
+  defp read_post({:error, reason}), do: {:error, reason}
+  defp read_post(_unreadable), do: {:error, :unreadable_post}
+
+  @doc """
+  Asks the contract to take a report's bounty off the board, and returns the
+  hash of the transaction that asks.
+
+  Anybody may make this call and the contract refuses it until thirty days
+  after the money was recorded, so a transaction going through is not the same
+  as the money having moved.
+  """
+  @spec refund(Ash.UUID.t()) :: {:ok, String.t()} | {:error, term()}
+  def refund(report_id) do
+    report_id
+    |> post_id()
+    |> Contract.refund()
+    |> submit()
+  end
+
+  @doc """
+  The USDC the contract keeps for REGENT staking and has not yet pushed to
+  the staking contract, in USDC's six-decimal units.
+  """
+  @spec revenue_owed() :: {:ok, non_neg_integer()} | {:error, term()}
+  def revenue_owed do
+    with {:ok, operator} <- operator() do
+      Contract.revenue_owed()
+      |> Ethers.call(to: operator.contract_address, rpc_opts: [url: operator.rpc_url])
+      |> read_amount()
+    end
+  rescue
+    _exception -> {:error, :call_failed}
+  end
+
+  defp read_amount({:ok, amount}) when is_integer(amount), do: {:ok, amount}
+  defp read_amount({:error, reason}), do: {:error, reason}
+  defp read_amount(_unreadable), do: {:error, :unreadable_amount}
+
+  @doc """
+  Pushes everything the contract keeps for REGENT staking into the staking
+  contract, and returns the hash of the transaction that does it.
+
+  The push is tried against the chain before it is sent and only sent when
+  it would go through, so a paused staking contract costs no gas: the answer
+  is then `:push_refused`, and the money stays kept for a later push.
+  """
+  @spec push_revenue() :: {:ok, String.t()} | {:error, term()}
+  def push_revenue do
+    tx_data = Contract.push_revenue()
+
+    with {:ok, operator} <- operator(),
+         :ok <- would_go_through(tx_data, operator) do
+      submit(tx_data)
+    end
+  end
+
+  defp would_go_through(tx_data, operator) do
+    case Ethers.call(tx_data,
+           from: operator.address,
+           to: operator.contract_address,
+           rpc_opts: [url: operator.rpc_url]
+         ) do
+      {:ok, _pushed} -> :ok
+      {:error, _reason} -> {:error, :push_refused}
+    end
+  rescue
+    _exception -> {:error, :push_refused}
+  end
+
+  @doc """
+  The contract's name for a report: its uuid's 16 raw bytes, left-padded with
+  16 zero bytes to the 32 the contract keys posts by.
+  """
+  @spec post_id(Ash.UUID.t()) :: <<_::256>>
+  def post_id(report_id) do
+    {:ok, raw} = Ecto.UUID.dump(report_id)
+    <<0::size(128), raw::binary-size(16)>>
+  end
+
+  defp submit(tx_data) do
+    with {:ok, operator} <- operator() do
+      tx_data
+      |> with_builder_code()
+      |> Ethers.send_transaction(
+        from: operator.address,
+        to: operator.contract_address,
+        signer: Ethers.Signer.Local,
+        signer_opts: [private_key: operator.private_key],
+        rpc_opts: [url: operator.rpc_url]
+      )
+    end
+  rescue
+    # Whatever went wrong, the exception is raised from a call that was handed
+    # the operator key, so it is named and not carried.
+    _exception -> {:error, :submit_failed}
+  end
+
+  # Every transaction Patchbay sends ends with Regent's Base Builder Code, as
+  # the wallet buttons' do (`RegentChain.BuilderCode`); the contract ignores it.
+  defp with_builder_code(%Ethers.TxData{data: data} = tx_data) when is_binary(data) do
+    "0x" <> suffix = RegentChain.BuilderCode.suffix()
+    %{tx_data | data: data <> Base.decode16!(suffix, case: :lower)}
+  end
+
+  @doc """
+  The operator account that signs Patchbay's transactions on Base, or
+  `:not_configured` when either value is missing. The key is only ever
+  handed to a signer; nothing that receives this may write it anywhere.
+  """
+  @spec signer() :: {:ok, Signer.t()} | {:error, :not_configured}
+  def signer do
+    settings = settings()
+
+    with rpc_url when is_binary(rpc_url) <- present(settings[:rpc_url]),
+         private_key when is_binary(private_key) <- private_key(settings[:operator_private_key]),
+         {:ok, [address]} <- Ethers.Signer.Local.accounts(private_key: private_key) do
+      {:ok, %Signer{address: address, private_key: private_key, rpc_url: rpc_url}}
+    else
+      _missing -> {:error, :not_configured}
+    end
+  end
+
+  # The operator as configured for the escrow contract, or `:not_configured`
+  # when any of the three values is missing.
+  defp operator do
+    with contract_address when is_binary(contract_address) <-
+           present(settings()[:contract_address]),
+         {:ok, signer} <- signer() do
+      {:ok, %{signer | contract_address: contract_address}}
+    else
+      _missing -> {:error, :not_configured}
+    end
+  end
+
+  # A key that is not 32 bytes of hex is no key, so it is treated as unset
+  # rather than handed to the signer.
+  defp private_key(value) do
+    case present(value) do
+      key when is_binary(key) -> if Regex.match?(@private_key, key), do: key, else: nil
+      nil -> nil
+    end
+  end
+
+  defp settings, do: Application.get_env(:regents, :escrow, [])
+
+  defp present(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp present(_value), do: nil
+end

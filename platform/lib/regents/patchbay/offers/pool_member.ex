@@ -2,16 +2,16 @@ defmodule Regents.Patchbay.Offers.PoolMember do
   @moduledoc """
   One advertiser wallet on a pool's membership list
   (`Regents.Patchbay.Offers.Pool`). Adding a wallet already there leaves it as it is.
-
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  Only a moderator reads, adds or removes members; Patchbay's own serving
+  reads them as the system.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Offers,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
 
   @address ~r/\A0x[0-9a-f]{40}\z/
 
@@ -23,6 +23,13 @@ defmodule Regents.Patchbay.Offers.PoolMember do
     references do
       reference(:pool, on_delete: :delete)
     end
+  end
+
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(Regents.PubSub)
+    publish_all(:create, ["offers"], transform: fn _notification -> :offers_changed end)
+    publish_all(:destroy, ["offers"], transform: fn _notification -> :offers_changed end)
   end
 
   attributes do
@@ -42,11 +49,27 @@ defmodule Regents.Patchbay.Offers.PoolMember do
     identity(:unique_member, [:pool_id, :wallet])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read, :destroy])
+
+    create :add do
+      accept([:pool_id, :wallet])
+      upsert?(true)
+      upsert_identity(:unique_member)
+      upsert_fields([])
+      upsert_condition(expr(false))
+      return_skipped_upsert?(true)
+    end
+  end
+
   policies do
-    policy always() do
-      forbid_if(always())
+    policy action_type(:read) do
+      authorize_if(actor_attribute_equals(:role, :system))
+      authorize_if(Regents.Patchbay.Checks.Moderator)
+    end
+
+    policy action_type([:create, :destroy]) do
+      authorize_if(Regents.Patchbay.Checks.Moderator)
     end
   end
 end

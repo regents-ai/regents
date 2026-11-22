@@ -216,7 +216,9 @@ defmodule Regents.MixProject do
         # Keyfleet's AgentTools workspace read domain adds two (domain -> workspace -> read).
         # Autolaunch's full write/agent/stocks/covered-calls/earn/exposure domains add 54
         # (Ash domains reading resources and resources reading their policy checks/changes/validations).
-        "xref graph --label compile-connected --fail-above 297",
+        # Patchbay's full write/assist/offers/wallet-bench domains add 15 (7 WalletBench view resources
+        # plus 8 resource->check/notifier/action compile edges).
+        "xref graph --label compile-connected --fail-above 312",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

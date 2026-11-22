@@ -4,7 +4,8 @@ defmodule Regents.Patchbay.Forum.CveFacts do
   severe it is and its CVSS score, whether it is on CISA's list of actively
   exploited vulnerabilities, whether cve.now lists a fix, and the vendor and
   product line cve.now's list gives it. Taken from the record each time the
-  post is copied or brought in line, and replaced whole each time.
+  post is copied or brought in line (`Regents.Patchbay.Incidents.CveNow`), and
+  replaced whole each time.
   """
 
   use Ash.Resource, data_layer: :embedded
@@ -45,5 +46,15 @@ defmodule Regents.Patchbay.Forum.CveFacts do
       allow_nil?(true)
       public?(true)
     end
+  end
+
+  actions do
+    defaults([:read, create: [:severity, :score, :exploited, :fix_available, :product]])
+  end
+
+  changes do
+    change({Regents.Patchbay.Forum.Changes.StripControlCharacters, attributes: [:product]},
+      on: [:create]
+    )
   end
 end

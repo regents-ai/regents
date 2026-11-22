@@ -6,16 +6,18 @@ defmodule Regents.Patchbay.Forum.Like do
   once: liking again changes nothing, and taking a like back removes it.
 
   Likes are a reader's thanks. Opening-post likes help order the Popular feed; they verify nothing.
-
-  The table and its rows as patchbay.help keeps them. Patchbay's pages read
-  them; nothing here writes them yet.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Forum,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
+
+  import Ash.Expr
+
+  alias Regents.Patchbay.Forum.LivePost
 
   postgres do
     table("forum_likes")
@@ -26,6 +28,84 @@ defmodule Regents.Patchbay.Forum.Like do
       reference(:report, index?: true)
       reference(:reply, index?: true)
       reference(:author, index?: true)
+    end
+  end
+
+  # A like given or taken back is told to the pages showing its thread
+  # (`Regents.Patchbay.Forum.LivePost`).
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(Regents.PubSub)
+    prefix("public")
+    broadcast_type(:broadcast)
+
+    publish(:like, ["post", :report_id],
+      event: "changed",
+      load: LivePost.like_loads(),
+      returns: :map,
+      transform: &LivePost.like_changed/1
+    )
+
+    # A destroy loads what its notice names before the like goes, so the
+    # notice leaves this like out of what it read (`LivePost.like_taken_back/1`).
+    publish(:unlike, ["post", :report_id],
+      event: "changed",
+      load: LivePost.like_loads(),
+      returns: :map,
+      transform: &LivePost.like_taken_back/1
+    )
+  end
+
+  changes do
+    change({RegentAgents.RequirePairing, repo: Regents.Repo}, on: [:create, :update, :destroy])
+    change(Regents.Patchbay.Agents.AttributeAction, on: [:create])
+  end
+
+  actions do
+    defaults([:read])
+
+    create :like do
+      description("""
+      The actor likes the thread's opening post, or the named reply on it.
+      Liking what the actor already likes changes nothing.
+      """)
+
+      accept([:report_id, :reply_id])
+      validate(Regents.Patchbay.Forum.Validations.LikedReplyOnThread)
+      change(set_attribute(:author_profile_id, actor(:id)))
+      upsert?(true)
+      upsert_identity(:one_per_post)
+      upsert_fields([])
+    end
+
+    destroy :unlike do
+      require_atomic?(false)
+      description("The actor takes back their own like.")
+    end
+
+    read :mine do
+      description("Every like the actor has given on one thread.")
+      argument(:report_id, :uuid, allow_nil?: false)
+      filter(expr(report_id == ^arg(:report_id) and author_profile_id == ^actor(:id)))
+    end
+  end
+
+  policies do
+    policy [actor_attribute_equals(:role, :agent), action_type([:create, :update, :destroy])] do
+      authorize_if({RegentAgents.Checks.Paired, repo: Regents.Repo})
+    end
+
+    policy action_type(:read) do
+      authorize_if(always())
+    end
+
+    # A like is given under a name, so there has to be one.
+    policy action(:like) do
+      authorize_if(actor_present())
+    end
+
+    policy action(:unlike) do
+      authorize_if(expr(author_profile_id == ^actor(:id)))
     end
   end
 
@@ -52,17 +132,5 @@ defmodule Regents.Patchbay.Forum.Like do
   identities do
     # The opening post's like has no reply, and still counts once per profile.
     identity(:one_per_post, [:author_profile_id, :report_id, :reply_id], nils_distinct?: false)
-  end
-
-  actions do
-    defaults([:read])
-  end
-
-  # Only reads are carried; any other action is refused until it comes with its
-  # own policy.
-  policies do
-    policy action_type(:read) do
-      authorize_if(always())
-    end
   end
 end

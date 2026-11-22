@@ -17,24 +17,22 @@ defmodule Regents.Patchbay.Forum.Site do
   of the origin. v0 has no way to set them: proving ownership needs a DNS TXT
   or well-known-file check that does not exist yet, and until it does, no
   caller may mark a site as claimed. Every site therefore reads as `:none`.
-
-  The table and its rows as patchbay.help keeps them. Patchbay's pages read
-  them, the site directory at `/patchbay/sites` among them; nothing here
-  writes them yet.
   """
-
-  alias Regents.Patchbay.Forum.Origin
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Forum,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub],
+    extensions: [AshOban]
 
   import Ash.Expr
+  import Ecto.Query, only: [from: 2]
 
   require Ash.Query
 
+  alias Regents.Patchbay.Forum.Origin
   alias Regents.Patchbay.Forum.Types.ClaimKind
   alias Regents.Patchbay.Forum.Types.EntityType
   alias Regents.Patchbay.Forum.Types.SupportRelationship
@@ -47,7 +45,8 @@ defmodule Regents.Patchbay.Forum.Site do
     repo(Regents.Repo)
 
     custom_indexes do
-      # A search of the sites' addresses and names reads this instead of every site.
+      # A search reads this instead of every site: exactly `search_vector`'s
+      # expression, so the index answers it.
       index(
         [
           "to_tsvector('english'::regconfig, coalesce(origin, '') || ' ' || coalesce(display_name, ''))"
@@ -57,8 +56,8 @@ defmodule Regents.Patchbay.Forum.Site do
         concurrently: true
       )
 
-      # A site match reads these: an address or name containing the typed
-      # words, or nearly matching them.
+      # The site match (`:find`) reads these: an address or name containing the
+      # typed words, or nearly matching them.
       index(["origin public.gin_trgm_ops"],
         name: "forum_sites_origin_trgm_index",
         using: "GIN",
@@ -71,6 +70,77 @@ defmodule Regents.Patchbay.Forum.Site do
         concurrently: true
       )
     end
+  end
+
+  oban do
+    triggers do
+      # Once a day for every site: a fresh check of its tools and of its
+      # official source. Looked for every hour, so a new site, or every site
+      # right after a release, is refreshed within the hour.
+      trigger :refresh do
+        action(:refresh)
+        queue(:patchbay_site_checks)
+        where(expr(is_nil(refreshed_at) or refreshed_at < ago(1, :day)))
+        scheduler_cron("0 * * * *")
+        max_attempts(3)
+        lock_for_update?(false)
+        worker_module_name(Regents.Patchbay.Forum.Site.Workers.Refresh)
+        scheduler_module_name(Regents.Patchbay.Forum.Site.Schedulers.Refresh)
+      end
+
+      # A new picture of every site's page once a week, and as soon as a
+      # site's first post asks for one. A page that refuses the picture, or a
+      # picture that could not be taken after three tries, is tried again the
+      # next day.
+      trigger :take_picture do
+        action(:take_picture)
+        queue(:patchbay_site_pictures)
+
+        where(
+          expr(
+            (is_nil(screenshot_captured_at) or screenshot_captured_at < ago(7, :day)) and
+              (is_nil(picture_failed_at) or picture_failed_at < ago(1, :day))
+          )
+        )
+
+        scheduler_cron("0 * * * *")
+        max_attempts(3)
+        on_error(:picture_failed)
+        # TakeSitePicture logs each failure itself: a slow or failing site
+        # below error level, and why.
+        log_errors?(false)
+        log_final_error?(false)
+        lock_for_update?(false)
+        worker_module_name(Regents.Patchbay.Forum.Site.Workers.TakePicture)
+        scheduler_module_name(Regents.Patchbay.Forum.Site.Schedulers.TakePicture)
+      end
+
+      # "Refresh this site": a new picture as soon as a visitor asks, once
+      # the last picture, or the last failed try at one, is a day old. Run
+      # when asked for, never on a sweep.
+      trigger :refresh_picture do
+        action(:take_picture)
+        queue(:patchbay_site_pictures)
+        where(expr(refresh_due?))
+        scheduler_cron(false)
+        max_attempts(3)
+        on_error(:picture_failed)
+        log_errors?(false)
+        log_final_error?(false)
+        lock_for_update?(false)
+        worker_module_name(Regents.Patchbay.Forum.Site.Workers.RefreshPicture)
+      end
+    end
+  end
+
+  # A new or failed picture is told to the site's open page.
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(Regents.PubSub)
+
+    publish(:record_screenshot, ["site_picture", :origin])
+    publish(:forget_picture, ["site_picture", :origin])
+    publish(:picture_failed, ["site_picture", :origin])
   end
 
   attributes do
@@ -124,7 +194,7 @@ defmodule Regents.Patchbay.Forum.Site do
   end
 
   identities do
-    identity(:unique_origin, [:origin])
+    identity(:unique_origin, [:origin], eager_check?: true)
     # Catalog upserts target origin. A pre-write check on the other identity
     # mistakes the same row's slug for a conflict; the unique SQL index still
     # rejects different origins claiming that slug, including concurrent writes.
@@ -177,6 +247,17 @@ defmodule Regents.Patchbay.Forum.Site do
           origin,
           display_name
         )
+      )
+    )
+
+    # Whether a visitor may refresh the site: its last picture, and its last
+    # failed try at one, are both a day old or more.
+    calculate(
+      :refresh_due?,
+      :boolean,
+      expr(
+        (is_nil(screenshot_captured_at) or screenshot_captured_at <= ago(1, :day)) and
+          (is_nil(picture_failed_at) or picture_failed_at <= ago(1, :day))
       )
     )
   end
@@ -238,16 +319,195 @@ defmodule Regents.Patchbay.Forum.Site do
       pagination(offset?: true, default_limit: 30, max_page_size: 30)
       prepare(build(sort: [report_count: :desc, origin: :asc]))
     end
+
+    read :showcase do
+      description("""
+      The sites on which Patchbay's check found WebMCP tools, in directory
+      order: the search window's sites before anything is typed.
+      """)
+
+      filter(expr(exists(site_check, found_tools?)))
+      pagination(keyset?: true, default_limit: 50, max_page_size: 200)
+      prepare(build(sort: [featured_rank: :asc, display_name: :asc, origin: :asc]))
+    end
+
+    read :picture_states do
+      description("""
+      The sites among `domains`, each with when its picture was taken and
+      when the last try at one failed.
+      """)
+
+      argument(:domains, {:array, :string}, allow_nil?: false)
+      filter(expr(origin in ^arg(:domains)))
+      prepare(build(select: [:origin, :screenshot_captured_at, :picture_failed_at]))
+    end
+
+    read :kinds do
+      description("The sites among `origins`, each with its kind, in one read.")
+      argument(:origins, {:array, :string}, allow_nil?: false)
+      filter(expr(origin in ^arg(:origins)))
+      prepare(build(select: [:origin, :entity_type]))
+    end
+
+    create :register_site do
+      description("Records a site the first time an agent reports on it.")
+      accept([])
+      argument(:origin, :string, allow_nil?: false)
+
+      upsert?(true)
+      upsert_identity(:unique_origin)
+      # Re-registering an already known origin must change nothing about it,
+      # including any catalog fields the directory already wrote.
+      upsert_fields([:origin])
+
+      change(Regents.Patchbay.Forum.Changes.NormalizeOrigin)
+      change(Regents.Patchbay.Forum.Changes.AssignOriginSlug)
+      change(Regents.Patchbay.Forum.Changes.AssignCatalogDefaults)
+    end
+
+    update :refresh do
+      description("""
+      Checks the site's tools and its official source again. It reads other
+      sites, so nothing here holds a transaction open.
+      """)
+
+      accept([])
+      transaction?(false)
+      require_atomic?(false)
+      manual(Regents.Patchbay.Forum.RefreshSite)
+    end
+
+    update :record_refresh do
+      description("Keeps when the site was refreshed, and the day its source was last verified.")
+      accept([:refreshed_at, :last_verified_at])
+    end
+
+    update :take_picture do
+      description("""
+      Has the screenshot machine take a picture of the site's front page for
+      its card. It waits on that machine, so nothing here holds a
+      transaction open.
+      """)
+
+      accept([])
+      transaction?(false)
+      require_atomic?(false)
+      manual(Regents.Patchbay.Forum.TakeSitePicture)
+    end
+
+    update :record_screenshot do
+      description("Points the site's card at the picture Patchbay took of its page.")
+      accept([:screenshot_path, :screenshot_captured_at])
+    end
+
+    update :forget_picture do
+      description(
+        "The site's page answered with an error status, so its card shows no picture and the next try waits a day."
+      )
+
+      accept([])
+      change(set_attribute(:screenshot_path, nil))
+      change(set_attribute(:screenshot_captured_at, nil))
+      change(set_attribute(:picture_failed_at, &DateTime.utc_now/0))
+    end
+
+    update :picture_failed do
+      description(
+        "Three tries at a picture failed, or the site asked us to slow down: the next try waits a day."
+      )
+
+      accept([])
+      change(set_attribute(:picture_failed_at, &DateTime.utc_now/0))
+    end
+
+    create :upsert_catalog_entry do
+      description("Writes the researched WebMCP directory row for one origin.")
+
+      accept([
+        :slug,
+        :display_name,
+        :entity_type,
+        :organization_name,
+        :canonical_domain,
+        :support_relationship,
+        :support_status,
+        :support_evidence_url,
+        :support_evidence_label,
+        :last_verified_at,
+        :tool_inventory_status,
+        :logo_path,
+        :logo_source_url,
+        :logo_usage_note,
+        :screenshot_source_url,
+        :featured_rank
+      ])
+
+      argument(:origin, :string, allow_nil?: false)
+
+      upsert?(true)
+      upsert_identity(:unique_origin)
+
+      # The day the source was last verified is the catalog's only for a new
+      # entry; after that the daily refresh keeps it.
+      upsert_fields([
+        :slug,
+        :display_name,
+        :entity_type,
+        :organization_name,
+        :canonical_domain,
+        :support_relationship,
+        :support_status,
+        :support_evidence_url,
+        :support_evidence_label,
+        :tool_inventory_status,
+        :logo_path,
+        :logo_source_url,
+        :logo_usage_note,
+        :screenshot_source_url,
+        :featured_rank
+      ])
+
+      change(Regents.Patchbay.Forum.Changes.NormalizeOrigin)
+      change(Regents.Patchbay.Forum.Changes.AssignOriginSlug)
+      change(Regents.Patchbay.Forum.Changes.AssignCatalogDefaults)
+    end
   end
 
-  # Only reads are carried; any other action is refused until it comes with its
-  # own policy.
   policies do
-    # The directory is a public board: reads are open. No site is held out
-    # of sight and none names an account, so the plain read needs no
-    # published rule.
+    # The directory is a public board: reads and the named writes are open.
+    # Any action not named here stays forbidden.
     policy action_type(:read) do
       authorize_if(always())
     end
+
+    policy action(:register_site) do
+      authorize_if(always())
+    end
+
+    policy action(:upsert_catalog_entry) do
+      authorize_if(always())
+    end
+  end
+
+  @picture_workers [
+    "Regents.Patchbay.Forum.Site.Workers.TakePicture",
+    "Regents.Patchbay.Forum.Site.Workers.RefreshPicture"
+  ]
+
+  @doc """
+  Whether a picture of the site is on its way: one of its picture jobs is
+  queued, running or waiting to try again.
+  """
+  @spec picture_pending?(Ash.Resource.record()) :: boolean()
+  def picture_pending?(site) do
+    jobs =
+      from(job in Oban.Job,
+        where:
+          job.worker in @picture_workers and
+            job.state in ["available", "scheduled", "executing", "retryable"] and
+            fragment("? @> ?", job.args, ^%{"primary_key" => %{"id" => site.id}})
+      )
+
+    Oban.Repo.exists?(Oban.config(), jobs)
   end
 end

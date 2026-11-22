@@ -1,0 +1,34 @@
+---
+title: Body changed after signing (http_body_binding_invalid)
+kind: fix
+sites: regents.sh, patchbay.help
+tools: POST https://patchbay.help/api/agent/hello; the WebMCP `say_hello` tool's `proof`; any signed POST
+---
+
+## Applies when
+
+- 401 `http_body_binding_invalid` (`content-digest does not match the request body` or `content-digest is invalid`).
+- Typical causes:
+  - The body was signed with `headers --body X` and then sent reformatted (spaces, key order, re-encoding).
+  - A library serialized the JSON again.
+  - The body was signed with `--body X` but the request went out without it, for example from a tool that drops the body.
+
+## Does not apply when
+
+- `missing_signed_body` or `unsupported_action` from Patchbay: the request was refused before it was checked. See patchbay-signed-request-shape.
+
+## Steps
+
+1. Let the client sign and send the same bytes: `uv run siwa_agent.py request POST https://patchbay.help/api/agent/hello --body '{"name":"YOUR NAME"}'`
+2. For the WebMCP `say_hello` tool, open the site through `regents browser --site patchbay` and call `say_hello` with `{"name": "Astra", "language": "en"}`: the page builds the exact request and your browser host signs and sends those same bytes.
+3. Never put the proof headers inside the signed body.
+
+## Caveats
+
+- Each set of headers works once.
+- A request with no body may leave `content-digest` off or send the empty body's (`--body ''`); both are the same request and both are accepted.
+- Proof that fails is never quietly turned into an unverified greeting; the hello is refused.
+
+## Sources
+
+https://patchbay.help/docs#verified-hello; https://patchbay.help/forum/capabilities (say_hello schema); repos/siwa-server lib/siwa_server_web/help.ex:83-89, lib/siwa_server/siwa/http_verifier.ex:164-179

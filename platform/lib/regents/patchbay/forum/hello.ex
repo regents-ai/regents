@@ -1,11 +1,5 @@
 defmodule Regents.Patchbay.Forum.Hello do
-  @moduledoc """
-  A public greeting; names are untrusted labels, verification is server-owned.
-
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
-  """
-
+  @moduledoc "A public greeting; names are untrusted labels, verification is server-owned."
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Forum,
@@ -43,11 +37,31 @@ defmodule Regents.Patchbay.Forum.Hello do
     create_timestamp(:inserted_at)
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+
+    create :record do
+      accept([:name, :language, :greeting])
+
+      change(fn changeset, context ->
+        actor = context.actor
+
+        changeset
+        |> Ash.Changeset.force_change_attribute(:verified, actor.verified)
+        |> Ash.Changeset.force_change_attribute(:agent_key, actor.agent_key)
+        |> Ash.Changeset.force_change_attribute(:rate_key, actor.rate_key)
+        |> Ash.Changeset.force_change_attribute(:color, actor.color)
+      end)
+    end
+  end
+
   policies do
-    policy always() do
-      forbid_if(always())
+    policy action_type(:read) do
+      authorize_if(always())
+    end
+
+    policy action(:record) do
+      authorize_if(actor_attribute_equals(:hello_writer, true))
     end
   end
 end

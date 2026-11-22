@@ -23,7 +23,7 @@ defmodule RegentsWeb.Patchbay.Forum.ToolHistory do
   """
   @spec page(Forum.Site.t(), String.t(), String.t() | nil, pos_integer(), list()) ::
           {:ok, map()} | {:error, :invalid_cursor} | {:error, term()}
-  def page(site, name, cursor, limit, load) do
+  def page(site, name, cursor, limit, load \\ []) do
     with {:ok, opts} <- cursor_options(cursor, site.id, name),
          {:ok, page} <-
            Forum.tool_history(site.id, name,

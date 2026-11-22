@@ -43,11 +43,35 @@ defmodule Regents.Patchbay.Forum.SiteDirectory do
   @spec featured_surfaces() :: [map()]
   def featured_surfaces, do: @featured_surfaces
 
+  def domains, do: @domains
+
   def categories, do: @entries |> Enum.map(& &1["category"]) |> Enum.uniq() |> Enum.sort()
 
   @doc "How many listed pages one site's check reads at most, besides its front page."
   @spec most_pages() :: pos_integer()
   def most_pages, do: @most_pages
+
+  @doc """
+  The exact public pages to inspect for a domain: every listed row's own page
+  and the other pages it lists, in listing order, at most `most_pages/0`.
+  """
+  def pages(domain) do
+    @by_domain
+    |> Map.get(domain, [])
+    |> Enum.flat_map(&entry_pages/1)
+    |> Enum.uniq()
+    |> Enum.take(@most_pages)
+  end
+
+  @doc "The listed hosts whose last check read every page and found no WebMCP tool."
+  def read_hidden_hosts, do: hidden_hosts()
+
+  @doc "Every listed domain whose entries are all hidden."
+  def hidden_domains(hosts) do
+    for {domain, seeds} <- @by_domain,
+        Enum.all?(seeds, &MapSet.member?(hosts, &1["host"])),
+        do: domain
+  end
 
   @doc """
   One page of the listing with its checks and forum counts, or why `params`

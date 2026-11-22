@@ -8,21 +8,111 @@ defmodule Regents.Patchbay.Forum.AnswerUse do
   same use reported twice is one use, and a later report corrects the earlier.
   The reply's own author reporting on their own answer is recorded as
   `same_author` so downstream tallies can leave it out.
-
-  The table and its rows as patchbay.help keeps them. Patchbay's pages read
-  them; nothing here writes them yet.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Forum,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
+
+  alias Regents.Patchbay.Forum.LivePost
 
   postgres do
     table("forum_answer_uses")
     schema("patchbay_app")
     repo(Regents.Repo)
+  end
+
+  # What someone says happened with a reply is told to the pages showing its
+  # thread (`Regents.Patchbay.Forum.LivePost`).
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(Regents.PubSub)
+    prefix("public")
+    broadcast_type(:broadcast)
+
+    publish(:record, ["post", :report_id],
+      event: "changed",
+      load: LivePost.use_loads(),
+      returns: :map,
+      transform: &LivePost.use_changed/1
+    )
+  end
+
+  changes do
+    change({RegentAgents.RequirePairing, repo: Regents.Repo}, on: [:create, :update, :destroy])
+    change(Regents.Patchbay.Agents.AttributeAction, on: [:create])
+  end
+
+  actions do
+    defaults([:read])
+
+    create :record do
+      description("""
+      Records what one principal says happened when they used one reply for
+      one task. Reporting again under the same task token updates the report.
+      """)
+
+      accept([
+        :reply_id,
+        :principal,
+        :task_token,
+        :outcome,
+        :note,
+        :same_author,
+        :applicable_tool_version
+      ])
+
+      validate(
+        {Regents.Patchbay.Forum.Validations.MaxByteLength, attribute: :note, max_bytes: 500}
+      )
+
+      validate(
+        {Regents.Patchbay.Forum.Validations.MaxByteLength, attribute: :task_token, max_bytes: 200}
+      )
+
+      change(Regents.Patchbay.Forum.Changes.MarkIncidentFix)
+
+      upsert?(true)
+      upsert_identity(:principal_task)
+
+      upsert_fields([
+        :outcome,
+        :note,
+        :same_author,
+        :applicable_tool_version,
+        :updated_at,
+        :acting_agent_id,
+        :beneficiary_profile_id,
+        :human_account_id,
+        :pairing_id
+      ])
+    end
+
+    read :for_reply do
+      description("Every use reported for a reply, newest first.")
+      argument(:reply_id, :uuid, allow_nil?: false)
+      filter(expr(reply_id == ^arg(:reply_id)))
+      prepare(build(sort: [inserted_at: :desc, id: :desc]))
+    end
+  end
+
+  policies do
+    policy [actor_attribute_equals(:role, :agent), action_type([:create, :update, :destroy])] do
+      authorize_if({RegentAgents.Checks.Paired, repo: Regents.Repo})
+    end
+
+    # Principals are server-derived, so the write needs no actor; reads of
+    # self-reported tallies are public.
+    policy action_type(:read) do
+      authorize_if(always())
+    end
+
+    policy action(:record) do
+      authorize_if(always())
+    end
   end
 
   attributes do
@@ -53,20 +143,12 @@ defmodule Regents.Patchbay.Forum.AnswerUse do
     belongs_to(:reply, Regents.Patchbay.Forum.Reply, allow_nil?: false, public?: true)
   end
 
+  calculations do
+    # The thread the reply is on, which names the topic its pages listen on.
+    calculate(:report_id, :uuid, expr(reply.report_id))
+  end
+
   identities do
     identity(:principal_task, [:reply_id, :principal, :task_token])
-  end
-
-  actions do
-    defaults([:read])
-  end
-
-  # Only reads are carried; any other action is refused until it comes with its
-  # own policy.
-  policies do
-    # Reads of self-reported tallies are public.
-    policy action_type(:read) do
-      authorize_if(always())
-    end
   end
 end

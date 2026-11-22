@@ -10,11 +10,42 @@ defmodule RegentsWeb.Patchbay.Forum.SiteChecks do
   """
 
   alias Regents.Patchbay.Forum
-  alias Regents.Patchbay.Forum.SiteCheck
+  alias Regents.Patchbay.Forum.{Site, SiteCheck}
+  alias RegentsWeb.Patchbay.ReadLimit
+
+  @share 10
+  @window_seconds 3600
 
   @doc "The site's check as last kept, or nil before the first; a read that fails is its error."
   @spec current(String.t()) :: {:ok, Ash.Resource.record() | nil} | {:error, term()}
   def current(domain), do: Forum.get_site_check(domain, not_found_error?: false)
+
+  @doc "Asks for a new check and picture for `site` within the visitor's hourly share."
+  def refresh(site, check, visitor) do
+    with :ready <- refresh_state(site, check),
+         {:ok, _budget} <- ReadLimit.admit("site-check:" <> visitor, @share, @window_seconds) do
+      AshOban.run_trigger(site, :refresh_picture)
+      {:ok, Forum.refresh_site_check!(site.origin)}
+    else
+      {:error, :rate_limited, _budget} -> {:limited, check}
+      _not_ready -> {:not_ready, check}
+    end
+  end
+
+  @doc "Where a site's refresh stands: `:refreshing`, `:ready`, or `{:fresh, DateTime.t()}`."
+  def refresh_state(site, check) do
+    cond do
+      (check && SiteCheck.pending?(check)) || Site.picture_pending?(site) -> :refreshing
+      site.refresh_due? -> :ready
+      true -> {:fresh, last_picture_at(site)}
+    end
+  end
+
+  defp last_picture_at(site) do
+    [site.screenshot_captured_at, site.picture_failed_at]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.max(DateTime)
+  end
 
   @doc "Where a site's check stands, for the words beside it."
   @spec state(Ash.Resource.record() | nil) :: :none | :checking | :failed | :done

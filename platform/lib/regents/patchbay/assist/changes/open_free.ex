@@ -1,0 +1,23 @@
+defmodule Regents.Patchbay.Assist.Changes.OpenFree do
+  @moduledoc """
+  Fills a free run in from the request the door already checked, under the
+  grant the allowance gave. A free run has no fee to forward.
+  """
+
+  use Ash.Resource.Change
+
+  @impl true
+  def change(changeset, _opts, _context) do
+    request = Ash.Changeset.get_argument(changeset, :request)
+
+    Ash.Changeset.force_change_attributes(changeset, %{
+      grant: Ash.Changeset.get_argument(changeset, :grant),
+      deposit_status: :no_fee,
+      goal: request["goal"],
+      error: request["error"],
+      site_url: request["site_url"],
+      sign_in: request["sign_in"],
+      believed_calls: request["believed_calls"]
+    })
+  end
+end

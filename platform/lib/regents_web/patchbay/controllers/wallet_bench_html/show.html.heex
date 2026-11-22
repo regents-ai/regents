@@ -1,0 +1,32 @@
+<main class="patchbay-shell" id="patchbay-wallet-bench-pair">
+  <section class="pb-wb-sheet" aria-labelledby="pb-wb-title">
+    <.bench_header test={@test} filters={@filters} pair={true} />
+    <div class="pb-wb-pair-head">
+      <a class="pb-wb-return" href={~p"/patchbay/wallet-bench?#{@context}"}>← Back to {grid_title(
+        @test
+      )}</a>
+      <h2>{@harness.name} with {@wallet.name}</h2>
+      <nav aria-label="Pair details" class="pb-wb-detail-links">
+        <a href={"#" <> @test}>Run history</a>
+      </nav>
+    </div>
+    <.pair_detail
+      harness={@harness}
+      wallet={@wallet}
+      notes={@notes}
+      grids={@grids}
+      sets={@sets}
+      shown={@shown}
+      selection={@selection}
+      comparison={@comparison}
+      context={@context}
+      extra_notes={@extra_notes}
+      report={@report}
+      report_error={@report_error}
+      selected_run={@selected_run}
+      selected_check={@selected_check}
+      focus={@focus}
+      test={@test}
+    />
+  </section>
+</main>

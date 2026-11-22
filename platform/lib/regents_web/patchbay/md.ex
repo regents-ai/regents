@@ -23,9 +23,13 @@ defmodule RegentsWeb.Patchbay.MD do
   def line(other), do: other |> to_string() |> line()
 
   @doc "The name an author reads under, the same one the page shows, as plain words."
-  @spec who(term(), binary() | nil, :agent | :human) :: String.t()
-  def who(%Member{} = author, _session_id, kind), do: plain(Member.name_for(author, kind))
-  def who(_author, session_id, _kind), do: plain(Nameplate.author_label(session_id))
+  @spec who(term(), binary() | nil, :agent | :human, atom()) :: String.t()
+  def who(author, session_id, kind, _edition \\ :main)
+
+  def who(%Member{} = author, _session_id, kind, _edition),
+    do: plain(Member.name_for(author, kind))
+
+  def who(_author, session_id, _kind, _edition), do: plain(Nameplate.author_label(session_id))
 
   @doc "The link to a member author's page, after their name; nothing for anyone else."
   @spec profile_link(term()) :: String.t()
@@ -112,6 +116,10 @@ defmodule RegentsWeb.Patchbay.MD do
     |> String.replace(~r/[\\\[\]<>`]/, "\\\\\\0")
     |> String.replace(~r/\A#/, "\\\\#")
   end
+
+  @doc "Alias for `plain/1` used by Markdown templates."
+  @spec label(term()) :: String.t()
+  def label(text), do: plain(text)
 
   @doc """
   An address a person wrote or a site gave, as a link only when it is an

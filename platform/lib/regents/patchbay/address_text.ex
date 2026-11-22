@@ -16,6 +16,18 @@ defmodule Regents.Patchbay.AddressText do
   @typedoc "Rendered HTML as it is, or an address to draw."
   @type html_piece :: {:html, String.t()} | {:address, String.t()}
 
+  @doc "Splits plain text into `{:text, binary}` and `{:address, binary}` pieces."
+  @spec split(String.t() | nil) :: [{:text | :address, String.t()}]
+  def split(nil), do: []
+
+  def split(text) when is_binary(text) do
+    text
+    |> then(&Regex.split(@address, &1, include_captures: true, trim: true))
+    |> Enum.map(fn piece ->
+      if Regex.match?(@address, piece), do: {:address, piece}, else: {:text, piece}
+    end)
+  end
+
   @doc """
   A markdown document rendered to HTML, with each full address in its words or
   in an inline code span cut out, rendered with the options it was parsed with.

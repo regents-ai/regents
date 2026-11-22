@@ -2,10 +2,6 @@ defmodule Regents.Patchbay.Forum.SiteScreenshot do
   @moduledoc """
   The picture Patchbay took of a site's page for its card, kept apart from
   the site so the image is read only when it is served. One per site.
-
-  The table and its rows as patchbay.help keeps them. A picture is read to
-  be served (`/patchbay/site-screenshots/:site_id`); nothing here writes or
-  forgets one: taking a picture comes with Patchbay's background work.
   """
 
   use Ash.Resource,
@@ -30,18 +26,36 @@ defmodule Regents.Patchbay.Forum.SiteScreenshot do
     belongs_to(:site, Regents.Patchbay.Forum.Site, allow_nil?: false, public?: true)
   end
 
+  calculations do
+    # Counted by the database, so the picture itself is never read for it.
+    calculate(:bytes, :integer, expr(fragment("octet_length(?)", image)))
+  end
+
   identities do
     identity(:one_per_site, [:site_id])
   end
 
   actions do
     defaults([:read])
+
+    create :store do
+      description("Keeps the picture of a site's page, replacing an earlier one.")
+      accept([:site_id, :image, :captured_at])
+      upsert?(true)
+      upsert_identity(:one_per_site)
+      upsert_fields([:image, :captured_at])
+    end
+
+    destroy :forget do
+      description(
+        "Forgets the picture when a job's last try finds the site's page answering with an error status."
+      )
+    end
   end
 
-  # Only reads are carried; any other action is refused until it comes with its
-  # own policy.
   policies do
-    # The picture is shown on a public card.
+    # The picture is shown on a public card. Storing and forgetting one is
+    # Patchbay's own work and is never reached from outside.
     policy action_type(:read) do
       authorize_if(always())
     end

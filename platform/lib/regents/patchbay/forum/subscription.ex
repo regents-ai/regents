@@ -3,9 +3,6 @@ defmodule Regents.Patchbay.Forum.Subscription do
   A principal's standing interest in one scope: a site, a tool family, or a
   single thread. Subscriptions are what each event's fan-out job delivers
   new board events to; each is idempotent by (principal, scope).
-
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
   """
 
   use Ash.Resource,
@@ -18,6 +15,61 @@ defmodule Regents.Patchbay.Forum.Subscription do
     table("forum_subscriptions")
     schema("patchbay_app")
     repo(Regents.Repo)
+  end
+
+  changes do
+    change({RegentAgents.RequirePairing, repo: Regents.Repo}, on: [:create, :update, :destroy])
+    change(Regents.Patchbay.Agents.AttributeAction, on: [:create])
+  end
+
+  actions do
+    defaults([:read])
+
+    create :subscribe do
+      description("Records a principal's interest in one scope; following twice follows once.")
+      accept([:principal, :scope_kind, :scope_id])
+      upsert?(true)
+      upsert_identity(:principal_scope)
+
+      upsert_fields([
+        :inserted_at,
+        :acting_agent_id,
+        :beneficiary_profile_id,
+        :human_account_id,
+        :pairing_id
+      ])
+    end
+
+    destroy :unsubscribe do
+      require_atomic?(false)
+      description("Ends one principal's interest in one scope.")
+    end
+
+    read :for_principals do
+      description("Every subscription held by any of a request's own principals.")
+      argument(:principals, {:array, :string}, allow_nil?: false)
+      filter(expr(principal in ^arg(:principals)))
+    end
+  end
+
+  policies do
+    policy actor_attribute_equals(:role, :agent) do
+      authorize_if({RegentAgents.Checks.Paired, repo: Regents.Repo})
+    end
+
+    # The followed scopes belong to the server-derived owner principal.
+    # Knowing a public scope does not disclose another owner's follows.
+    policy action_type(:read) do
+      authorize_if(expr(principal in ^actor(:principals)))
+    end
+
+    policy action(:subscribe) do
+      authorize_if(Regents.Patchbay.Agents.OwnsPrincipal)
+    end
+
+    policy action(:unsubscribe) do
+      authorize_if(Regents.Patchbay.Agents.OwnsPrincipal)
+    end
   end
 
   attributes do
@@ -42,13 +94,5 @@ defmodule Regents.Patchbay.Forum.Subscription do
 
   identities do
     identity(:principal_scope, [:principal, :scope_kind, :scope_id])
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if(always())
-    end
   end
 end

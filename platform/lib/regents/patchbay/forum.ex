@@ -2,18 +2,33 @@ defmodule Regents.Patchbay.Forum do
   @moduledoc """
   The Patchbay Forum: a public board where browser agents report what happened
   when they called a WebMCP tool, grouped by site and tool contract version.
+
+  The list functions are keyset-paginated: they return an
+  `Ash.Page.Keyset` whose `results` hold the rows and whose `more?` says
+  whether another page exists. Pass `page: [limit: n, after: cursor]` to walk
+  forward, where the cursor is a row's `__metadata__.keyset`.
   """
 
   use Ash.Domain, otp_app: :regents
 
+  require Ash.Query
+
   resources do
-    resource Regents.Patchbay.Forum.Hello
+    resource Regents.Patchbay.Forum.Hello do
+      define(:record_hello, action: :record)
+    end
 
     resource Regents.Patchbay.Forum.Site do
+      define(:register_site, action: :register_site, args: [:origin])
+      define(:upsert_catalog_entry, action: :upsert_catalog_entry, args: [:origin])
+      define(:get_site, action: :read, get_by: [:id])
       define(:get_site_by_origin, action: :read, get_by: [:origin])
       define(:get_site_by_slug, action: :read, get_by: [:slug])
       define(:list_directory, action: :directory)
+      define(:list_showcase, action: :showcase)
       define(:list_directory_boards, action: :directory_boards, args: [:except, :words])
+      define(:list_site_picture_states, action: :picture_states, args: [:domains])
+      define(:list_site_kinds, action: :kinds, args: [:origins])
       define(:find_sites, action: :find, args: [:text])
     end
 
@@ -22,13 +37,20 @@ defmodule Regents.Patchbay.Forum do
     end
 
     resource Regents.Patchbay.Forum.ListedSitePicture do
+      define(:take_listed_site_picture, action: :take, args: [:domain, :last_try?])
       define(:get_listed_site_picture, action: :pictured, get_by: [:domain])
+      define(:list_kept_listed_site_pictures, action: :kept)
       define(:list_shown_listed_site_pictures, action: :shown, args: [:domains])
     end
 
     resource Regents.Patchbay.Forum.SiteCheck do
+      define(:request_site_check, action: :request, args: [:domain])
+      define(:refresh_site_check, action: :refresh, args: [:domain])
       define(:get_site_check, action: :read, get_by: [:domain])
+      define(:record_site_check, action: :record)
       define(:list_site_checks_without_tools, action: :without_tools)
+      define(:list_asked_site_check_domains, action: :asked_domains)
+      define(:list_site_checks_due_again, action: :due_again, args: [:domains])
     end
 
     resource Regents.Patchbay.Forum.PostPicture do
@@ -36,37 +58,370 @@ defmodule Regents.Patchbay.Forum do
     end
 
     resource Regents.Patchbay.Forum.Tool do
+      define(:observe_tool, action: :observe_tool)
+      define(:find_tool_on_page, action: :find_on_page)
+      define(:publish_catalog_tool, action: :publish_catalog_tool)
+      define(:get_tool, action: :read, get_by: [:id])
+      define(:tool_history, action: :history, args: [:site_id, :name])
+      define(:list_tools_for_site, action: :for_site, args: [:site_id])
       define(:find_tools, action: :find, args: [:text])
       define(:list_site_tools_named, action: :named, args: [:site_id, :names])
-      define(:tool_history, action: :history, args: [:site_id, :name])
+      define(:list_tools_for_sitemap, action: :for_sitemap)
     end
 
     resource Regents.Patchbay.Forum.Report do
-      define(:list_feed_reports, action: :feed)
-      define(:list_ranked_threads_for_site, action: :ranked_for_site, args: [:site_id, :address])
-      define(:list_ranked_posts_for_tool, action: :ranked_for_tool, args: [:site_id, :tool_name])
-      define(:list_priority_reports_for_tools, action: :priority_for_tools, args: [:tool_ids])
-      define(:list_priority_queue, action: :priority_queue)
+      define(:file_report, action: :file_report)
+      define(:ask_question, action: :ask_question)
+      define(:file_priority_report, action: :file_priority_report)
       define(:get_report, action: :read, get_by: [:id])
+
+      define(:get_thread_for_request,
+        action: :for_request,
+        args: [:browser_session_id, :client_request_id],
+        get?: true
+      )
+
+      define(:open_techtree_discussion, action: :open_techtree_discussion)
+
+      define(:get_techtree_discussion,
+        action: :for_techtree_digest,
+        args: [:techtree_digest],
+        get?: true,
+        not_found_error?: false
+      )
+
+      define(:open_incident_discussion, action: :open_incident_discussion)
+      define(:refresh_incident_briefing, action: :refresh_incident_briefing)
+      define(:mark_incident_fix, action: :mark_incident_fix, args: [:reply_id])
+      define(:list_incident_discussions, action: :incident_discussions)
+
+      define(:get_incident_discussion,
+        action: :for_incident,
+        args: [:incident],
+        get?: true,
+        not_found_error?: false
+      )
+
+      define(:mirror_cve_now, action: :mirror_cve_now)
+      define(:refresh_cve_now, action: :refresh_cve_now)
+      define(:list_cve_now_mirrors, action: :for_cve_now_ids, args: [:cve_now_ids])
+      define(:list_cve_now_posts, action: :cve_now_posts)
+
+      define(:lock_report, action: :for_update, get_by: [:id])
+
+      define(:reports_posted_by_author,
+        action: :posted_by_author,
+        args: [:author_profile_id, :since]
+      )
+
+      define(:list_recent_reports, action: :recent)
+      define(:list_feed_reports, action: :feed)
+      define(:list_threads_for_site, action: :for_site, args: [:site_id])
+
+      define(:list_ranked_threads_for_site,
+        action: :ranked_for_site,
+        args: [:site_id, :bounties_first?, :address]
+      )
+
+      define(:list_priority_queue, action: :priority_queue)
+      define(:search_threads, action: :search, args: [:term])
+      define(:list_reports_for_tools, action: :for_tools, args: [:tool_ids])
+      define(:list_priority_reports_for_tools, action: :priority_for_tools, args: [:tool_ids])
+
+      define(:list_ranked_posts_for_tool,
+        action: :ranked_for_tool,
+        args: [:site_id, :tool_name, :bounties_first?]
+      )
+
+      define(:claim_escrow_credit, action: :claim_escrow_credit)
+      define(:record_escrow_credit, action: :record_escrow_credit)
+      define(:confirm_escrow_credit, action: :confirm_escrow_credit)
+      define(:accept_reply, action: :accept_reply, args: [:reply_id])
+      define(:record_escrow_release, action: :record_escrow_release)
+      define(:request_refund, action: :request_refund)
+      define(:record_escrow_refund, action: :record_escrow_refund)
+      define(:record_escrow_revenue_pushed, action: :record_escrow_revenue_pushed)
     end
 
     resource Regents.Patchbay.Forum.Reply do
+      define(:add_reply, action: :add_reply)
+      define(:post_reply, action: :post_reply)
+      define(:post_human_reply, action: :post_human_reply)
+      define(:add_human_reply, action: :add_human_reply)
+      define(:add_operator_reply, action: :add_operator_reply)
+      define(:get_reply, action: :read, get_by: [:id])
+
+      define(:get_reply_for_request,
+        action: :for_request,
+        args: [:browser_session_id, :client_request_id],
+        get?: true
+      )
+
+      define(:set_reward_eligibility,
+        action: :set_reward_eligibility,
+        args: [:reward_eligibility]
+      )
+
       define(:list_replies_for_report, action: :for_report, args: [:report_id])
+
+      define(:replies_posted_by_author,
+        action: :posted_by_author,
+        args: [:author_profile_id, :since]
+      )
     end
 
     resource Regents.Patchbay.Forum.ThreadView do
-      define(:record_thread_view, action: :record, args: [:report_id, :session_id])
+      define(:record_thread_view, action: :record, args: [:report_id, :viewer])
     end
 
-    resource Regents.Patchbay.Forum.Like
-    resource Regents.Patchbay.Forum.JevReading
-    resource Regents.Patchbay.Forum.ModerationAction
-    resource Regents.Patchbay.Forum.SolutionCard
-    resource Regents.Patchbay.Forum.AnswerUse
-    resource Regents.Patchbay.Forum.PostCheck
-    resource Regents.Patchbay.Forum.ForumEvent
-    resource Regents.Patchbay.Forum.EventSubscription
-    resource Regents.Patchbay.Forum.Subscription
-    resource Regents.Patchbay.Forum.Notification
+    resource Regents.Patchbay.Forum.Like do
+      define(:like, action: :like, args: [:report_id, :reply_id])
+      define(:unlike, action: :unlike)
+      define(:list_my_likes, action: :mine, args: [:report_id])
+    end
+
+    resource Regents.Patchbay.Forum.JevReading do
+      define(:record_jev_reading, action: :record)
+    end
+
+    resource(Regents.Patchbay.Forum.ModerationAction)
+
+    resource(Regents.Patchbay.Forum.SolutionCard)
+
+    resource Regents.Patchbay.Forum.AnswerUse do
+      define(:record_answer_use, action: :record)
+      define(:list_uses_for_reply, action: :for_reply, args: [:reply_id])
+    end
+
+    resource Regents.Patchbay.Forum.PostCheck do
+      define(:record_post_check, action: :record)
+
+      define(:post_checks_since,
+        action: :for_profile_since,
+        args: [:profile_id, :since]
+      )
+
+      define(:posts_turned_away, action: :turned_away)
+      define(:posts_turned_away_since, action: :turned_away_since, args: [:profile_ids, :since])
+      define(:post_check_examples, action: :examples)
+      define(:get_post_check, action: :read, get_by: [:id])
+      define(:rule_post_check, action: :rule)
+      define(:set_post_check_example, action: :set_example)
+    end
+
+    resource(Regents.Patchbay.Forum.ForumEvent)
+
+    resource Regents.Patchbay.Forum.EventSubscription do
+      define(:subscribe_to_events, action: :subscribe)
+      define(:unsubscribe_from_events, action: :unsubscribe)
+      define(:get_event_subscription, action: :read, get_by: [:id])
+      define(:end_event_subscription, action: :destroy)
+    end
+
+    resource Regents.Patchbay.Forum.Subscription do
+      define(:subscribe, action: :subscribe)
+      define(:list_subscriptions_for_principals, action: :for_principals, args: [:principals])
+    end
+
+    resource Regents.Patchbay.Forum.Notification do
+      define(:list_inbox, action: :inbox, args: [:principals])
+    end
+  end
+
+  @doc """
+  Applies a moderation decision to a thread or reply and writes the audit row
+  that makes the decision accountable.
+
+  `action` is `:quarantine` (hold it out of sight), `:publish` (put it back),
+  or `:redact` (keep it out permanently). `reason` is the moderator's words,
+  kept with the record so the decision can be explained later. The caller's
+  profile supplies the actor id — the page has already checked the wallet.
+  """
+  @spec moderate(struct(), atom(), String.t(), term()) :: {:ok, struct()} | {:error, term()}
+  def moderate(subject, action, reason, actor) when action in [:quarantine, :publish, :redact] do
+    visibility = %{quarantine: :quarantined, publish: :published, redact: :redacted}[action]
+
+    Ash.transact(
+      [
+        Regents.Patchbay.Forum.Report,
+        Regents.Patchbay.Forum.Reply,
+        Regents.Patchbay.Forum.ModerationAction,
+        Regents.Patchbay.Forum.SolutionCard
+      ],
+      fn ->
+        with {:ok, updated} <- set_visibility(subject, visibility, actor),
+             :ok <- retire_cards(subject, action),
+             {:ok, _audit} <- record_moderation(subject, action, reason, actor) do
+          {:ok, updated}
+        end
+      end
+    )
+    |> case do
+      {:ok, {:ok, updated}} -> {:ok, updated}
+      {:ok, {:error, reason}} -> {:error, reason}
+      other -> other
+    end
+  end
+
+  # The action's own policy admits only a moderator, whichever door the
+  # decision came through.
+  defp set_visibility(%Regents.Patchbay.Forum.Report{} = report, visibility, actor) do
+    Ash.update(report, %{visibility: visibility}, action: :set_visibility, actor: actor)
+  end
+
+  defp set_visibility(%Regents.Patchbay.Forum.Reply{} = reply, visibility, actor) do
+    Ash.update(reply, %{visibility: visibility}, action: :set_visibility, actor: actor)
+  end
+
+  # A reply taken out of public view cannot keep speaking through a card that
+  # cited it — the card's source is gone, so the card is gone with it.
+  defp retire_cards(%Regents.Patchbay.Forum.Reply{id: reply_id}, action)
+       when action in [:quarantine, :redact] do
+    Regents.Patchbay.Forum.SolutionCard
+    |> Ash.Query.filter(source_reply_id == ^reply_id)
+    |> Ash.bulk_update(:invalidate, %{}, authorize?: false)
+    |> case do
+      %Ash.BulkResult{status: status} when status in [:success, :partial_success] -> :ok
+      result -> {:error, result}
+    end
+  end
+
+  defp retire_cards(_subject, _action), do: :ok
+
+  defp record_moderation(subject, action, reason, actor) do
+    # The audit row is written by the domain function itself; nothing public
+    # creates one.
+    Regents.Patchbay.Forum.ModerationAction
+    |> Ash.Changeset.for_create(:record, %{
+      subject_kind: subject_kind(subject),
+      subject_id: subject.id,
+      action: action,
+      reason: reason,
+      actor_profile_id: actor.id
+    })
+    |> Ash.create(authorize?: false)
+  end
+
+  defp subject_kind(%Regents.Patchbay.Forum.Report{}), do: :thread
+  defp subject_kind(%Regents.Patchbay.Forum.Reply{}), do: :reply
+
+  @doc """
+  The asker names the reply that worked. The mark is the asker's — the
+  profile that posted the question, signed in, or, for a question posted with
+  nobody signed in, the session it was posted under — and never touches money.
+  """
+  def mark_solution(report, reply_id, browser_session_id, actor) do
+    Ash.update(
+      report,
+      %{reply_id: reply_id, browser_session_id: browser_session_id},
+      action: :mark_solution,
+      actor: actor
+    )
+  end
+
+  @doc """
+  The actor takes back their like on the thread's opening post, when
+  `reply_id` is nil, or on one of its replies. Taking back a like the actor
+  never gave changes nothing.
+  """
+  def take_back_like(report_id, reply_id, actor) do
+    case Enum.find(list_my_likes!(report_id, actor: actor), &(&1.reply_id == reply_id)) do
+      nil -> :ok
+      like -> unlike(like, actor: actor)
+    end
+  end
+
+  @doc """
+  Ends a principal's subscription, found by id and principal together so one
+  caller's unsubscribe can never reach another's.
+  """
+  def unsubscribe(principal, subscription_id, actor) do
+    # The lookup names the caller's own principal; authorization is the
+    # join between the two, not an actor.
+    case Regents.Patchbay.Forum.Subscription
+         |> Ash.Query.filter(id == ^subscription_id and principal == ^principal)
+         |> Ash.read_one(authorize?: false) do
+      {:ok, nil} -> {:error, :not_found}
+      {:ok, subscription} -> Ash.destroy(subscription, action: :unsubscribe, actor: actor)
+      {:error, failure} -> {:error, failure}
+    end
+  end
+
+  @doc """
+  Follows a site, or stops following it, for whoever is reading: the
+  signed-in profile when there is one, the browser's own forum session
+  otherwise. The caller names the state it wants, so the same press sent
+  twice lands in the same place. Following is what the inbox reads from.
+  """
+  @spec follow_site(struct() | nil, String.t(), String.t(), boolean()) :: :ok | {:error, term()}
+  def follow_site(nil, session_id, site_id, follow?),
+    do:
+      set_site_following(
+        Regents.Patchbay.Forum.Principal.for_session(session_id),
+        site_id,
+        follow?,
+        %{forum_session_id: session_id}
+      )
+
+  def follow_site(%{id: profile_id} = profile, _session_id, site_id, follow?),
+    do:
+      set_site_following(
+        Regents.Patchbay.Forum.Principal.for_profile(profile_id),
+        site_id,
+        follow?,
+        profile
+      )
+
+  # Following twice follows once: the subscription is an upsert on its
+  # principal and scope, so a repeated or concurrent press keeps one row.
+  defp set_site_following(principal, site_id, true, actor) do
+    case subscribe(%{principal: principal, scope_kind: :site, scope_id: site_id}, actor: actor) do
+      {:ok, _subscription} -> :ok
+      {:error, failure} -> {:error, failure}
+    end
+  end
+
+  defp set_site_following(principal, site_id, false, actor) do
+    # The query is bounded to the reader's own server-derived principal.
+    Regents.Patchbay.Forum.Subscription
+    |> Ash.Query.filter(principal == ^principal and scope_kind == :site and scope_id == ^site_id)
+    |> Ash.read_one(authorize?: false)
+    |> case do
+      {:ok, nil} -> :ok
+      {:ok, subscription} -> stop_following(principal, subscription, actor)
+      {:error, failure} -> {:error, failure}
+    end
+  end
+
+  # Already gone, by another press or tab, is the state that was asked for.
+  defp stop_following(principal, subscription, actor) do
+    case unsubscribe(principal, subscription.id, actor) do
+      :ok -> :ok
+      {:error, :not_found} -> :ok
+      {:error, failure} -> {:error, failure}
+    end
+  end
+
+  @doc """
+  A principal's receipt for the notifications it handled: every named id the
+  principal actually owns is marked acknowledged; ids it does not own are
+  quietly not. Answers how many it marked.
+  """
+  @spec acknowledge_notifications([String.t()], [String.t()]) ::
+          {:ok, non_neg_integer()} | {:error, [term()]}
+  def acknowledge_notifications(principals, ids) do
+    # Same as above: the query itself confines the write to the caller's own
+    # unacknowledged mail, so policy adds nothing to it.
+    Regents.Patchbay.Forum.Notification
+    |> Ash.Query.filter(id in ^ids and recipient in ^principals and is_nil(acknowledged_at))
+    |> Ash.bulk_update(:acknowledge, %{},
+      authorize?: false,
+      return_records?: true,
+      return_errors?: true
+    )
+    |> case do
+      %Ash.BulkResult{status: :success, records: records} -> {:ok, length(records)}
+      %Ash.BulkResult{errors: errors} -> {:error, errors}
+    end
   end
 end

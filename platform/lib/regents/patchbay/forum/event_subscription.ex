@@ -4,29 +4,107 @@ defmodule Regents.Patchbay.Forum.EventSubscription do
   board event posted to its callback address as it happens.
 
   The id is derived from the owner, the event name, the filter and the
-  callback address, so subscribing again with the same four is a refresh of
-  this row, never a second one, and nobody can name another owner's
-  subscription.
+  callback address (`Regent.MCPEvents.subscription_id/4`), so subscribing
+  again with the same four is a refresh of this row, never a second one, and
+  nobody can name another owner's subscription.
+
+  `:subscribe` (`Regents.Patchbay.Forum.subscribe_to_events/2`) holds every rule
+  for starting one: its callback answers a signed challenge before anything
+  is stored; an account holds at most `per_account/0` live ones, whichever of
+  its connections made them, counted before the challenge and again under
+  the account's lock; refreshing a live one is never refused. `:unsubscribe`
+  (`Regents.Patchbay.Forum.unsubscribe_from_events/2`) ends the actor's own.
 
   Delivery reads the committed event stream (`ForumEvent`) forward from
-  `delivered_seq`, the last event the callback acknowledged; it moves only
-  when the callback acknowledges.
+  `delivered_seq`, the last event the callback acknowledged. The `:deliver`
+  trigger runs one Oban job per subscription at a time, queued when a board
+  event lands, when the subscription starts or is refreshed, and by a sweep
+  every minute. A failed event is retried by Oban with backoff and never
+  stepped over: `delivered_seq` moves only when the callback acknowledges.
+  When the attempts run out, the subscription stops where it was, and a
+  refresh resumes it from the same event. A refresh that lands while the last
+  attempt is running wins: the stop is not written, and the sweep queues a
+  new job for the refreshed subscription.
 
-  The signing secrets are stored encrypted and never leave the server except
-  as webhook signatures.
+  A subscription that has run out is removed by the `:forget_lapsed`
+  trigger, looked for every hour; subscribing again starts a new one.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  The signing secrets are stored encrypted (`Regents.Patchbay.Forum.EventSecret`)
+  and never leave the server except as webhook signatures.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Forum,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    extensions: [AshOban]
+
+  require Ash.Expr
+
+  oban do
+    triggers do
+      trigger :deliver do
+        action(:deliver)
+        queue(:patchbay_webhooks)
+        max_attempts(8)
+        on_error(:halt_after_retries)
+        # A callback that is down for a while is normal; Oban keeps each
+        # attempt's error on the job, and only the last one is logged.
+        log_errors?(false)
+        # One job per subscription at a time is the lock; nothing else is held.
+        lock_for_update?(false)
+
+        # Active, unexpired, and behind an event of the kind it asked for.
+        where(
+          expr(
+            active and expires_at > now() and
+              exists(
+                events,
+                seq > parent(delivered_seq) and
+                  ((parent(name) == "reply_created" and kind == :reply_posted) or
+                     (parent(name) == "solution_marked" and kind == :solution_marked))
+              )
+          )
+        )
+
+        worker_module_name(Regents.Patchbay.Forum.EventSubscription.Workers.Deliver)
+        scheduler_module_name(Regents.Patchbay.Forum.EventSubscription.Schedulers.Deliver)
+      end
+
+      # A subscription that has run out is removed, so it no longer holds a
+      # row; looked for every hour.
+      trigger :forget_lapsed do
+        action(:forget)
+        queue(:patchbay_lapsed_subscriptions)
+        where(expr(expires_at <= now()))
+        scheduler_cron("0 * * * *")
+        max_attempts(3)
+        lock_for_update?(false)
+        worker_module_name(Regents.Patchbay.Forum.EventSubscription.Workers.ForgetLapsed)
+        scheduler_module_name(Regents.Patchbay.Forum.EventSubscription.Schedulers.ForgetLapsed)
+      end
+    end
+  end
+
+  # Who challenges a callback and posts its webhooks
+  # (`Regents.Patchbay.Forum.EventWebhooks`): `Regent.MCPEvents`.
+  @webhooks Application.compile_env!(:regents, [__MODULE__, :webhooks])
+
+  @doc "The sender of every callback challenge and webhook."
+  @spec webhooks() :: module()
+  def webhooks, do: @webhooks
+
+  @doc "The events a subscription can ask for."
+  @spec names() :: [String.t()]
+  def names, do: ~w(reply_created solution_marked)
+
+  @doc "The most live subscriptions one account holds."
+  @spec per_account() :: pos_integer()
+  def per_account, do: 20
 
   relationships do
-    # The whole board event stream, read forward from `delivered_seq`.
+    # The whole board event stream; the trigger's filter picks what is owed.
     has_many :events, Regents.Patchbay.Forum.ForumEvent do
       no_attributes?(true)
     end
@@ -40,6 +118,133 @@ defmodule Regents.Patchbay.Forum.EventSubscription do
     custom_indexes do
       # The account's live subscriptions, counted before each new one.
       index([:owner_id, :expires_at])
+    end
+  end
+
+  actions do
+    defaults([:read])
+
+    destroy :destroy do
+      primary?(true)
+      require_atomic?(false)
+      change(Regents.Patchbay.OAuth.AttributeEventAuthority)
+    end
+
+    create :subscribe do
+      description("""
+      Starts a subscription, or refreshes the one with the same event, filter
+      and callback, once its callback has answered a challenge.
+      """)
+
+      # The id is derived from the actor, the event, the filter and the
+      # callback, so a second subscribe with the same four refreshes this
+      # row, keeping its place in the stream.
+      upsert?(true)
+
+      upsert_fields([
+        :expires_at,
+        :verified_at,
+        :active,
+        :last_error,
+        :secret_ciphertext,
+        :previous_secret_ciphertext,
+        :secret_rotation_expires_at,
+        :acting_agent_id,
+        :beneficiary_profile_id,
+        :human_account_id,
+        :pairing_id,
+        :oauth_token_id,
+        :oauth_client_id
+      ])
+
+      accept([:name, :arguments, :url])
+      argument(:secret, :string, allow_nil?: false, sensitive?: true)
+      # At most a day; a day when left out.
+      argument(:ttl_ms, :integer, constraints: [min: 1])
+      argument(:cursor, :string)
+      metadata(:truncated, :boolean, allow_nil?: false)
+
+      validate(Regents.Patchbay.Forum.Validations.EventSubscriptionFilter)
+      validate(Regents.Patchbay.Forum.Validations.EventSigningSecret)
+      change(Regents.Patchbay.Forum.Changes.DeriveEventSubscription)
+      # Looked at before the callback is sent anything ...
+      validate(Regents.Patchbay.Forum.Validations.EventSubscriptionRoom)
+      change(Regents.Patchbay.Forum.Changes.ChallengeCallback)
+      # ... and again under the account's lock, just before the save.
+      change(Regents.Patchbay.Forum.Changes.LockEventOwner)
+      validate(Regents.Patchbay.Forum.Validations.EventSubscriptionRoom, before_action?: true)
+      change(Regents.Patchbay.Forum.Changes.ResumeEventStream)
+      change(Regents.Patchbay.OAuth.AttributeEventAuthority)
+      change(run_oban_trigger(:deliver))
+    end
+
+    action :unsubscribe do
+      description("Ends the actor's own subscription to one event, filter and callback.")
+      transaction?(true)
+      argument(:name, :string, allow_nil?: false)
+      argument(:arguments, :map, allow_nil?: false)
+      argument(:url, :string, allow_nil?: false)
+      validate(Regents.Patchbay.Forum.Validations.EventSubscriptionFilter)
+      run(&Regents.Patchbay.Forum.Actions.UnsubscribeFromEvents.run/2)
+    end
+
+    update :deliver do
+      description("""
+      Posts the events the subscriber is owed, in order, each outside any
+      transaction. Run by the `:deliver` trigger; see `Regents.Patchbay.Forum.EventDelivery`.
+      """)
+
+      transaction?(false)
+      require_atomic?(false)
+      manual(Regents.Patchbay.Forum.EventDelivery)
+    end
+
+    destroy :forget do
+      description("Removes a subscription that has run out. Run by the `:forget_lapsed` trigger.")
+    end
+
+    update :advance do
+      description("Moves the subscription's place to an event it was sent or need not receive.")
+      accept([:delivered_seq])
+      change(set_attribute(:last_error, nil))
+    end
+
+    update :halt do
+      description("Delivery stopped; the owed event stays owed until a refresh.")
+      require_atomic?(false)
+      argument(:error, :term, allow_nil?: false)
+      change(set_attribute(:active, false))
+      change(Regents.Patchbay.Forum.Changes.RecordDeliveryError)
+    end
+
+    update :halt_after_retries do
+      description("""
+      The `:deliver` trigger's last attempt failed: delivery stops as `:halt`
+      does, unless a refresh verified the callback again after that attempt
+      began. Then the write is stale, AshOban cancels the job, and the
+      trigger's sweep queues a new one for the refreshed subscription.
+      """)
+
+      require_atomic?(false)
+      argument(:error, :term, allow_nil?: false)
+      change(set_attribute(:active, false))
+      change(Regents.Patchbay.Forum.Changes.RecordDeliveryError)
+
+      change(fn changeset, _context ->
+        attempted_at = changeset.context.ash_oban.job.attempted_at
+        Ash.Changeset.filter(changeset, Ash.Expr.expr(verified_at < ^attempted_at))
+      end)
+    end
+  end
+
+  policies do
+    policy action([:subscribe, :destroy]) do
+      authorize_if(Regents.Patchbay.OAuth.EventAccess)
+    end
+
+    # Ending one is authorized again on the subscription itself (`:destroy`).
+    policy action(:unsubscribe) do
+      authorize_if(actor_present())
     end
   end
 
@@ -58,7 +263,7 @@ defmodule Regents.Patchbay.Forum.EventSubscription do
     attribute(:oauth_client_id, :uuid)
     attribute(:owner_id, :string, allow_nil?: false)
 
-    # The kind of board event it asks for.
+    # One of `names/0` (`Validations.EventSubscriptionFilter`).
     attribute(:name, :string, allow_nil?: false)
 
     attribute(:arguments, :map, allow_nil?: false)
@@ -77,13 +282,5 @@ defmodule Regents.Patchbay.Forum.EventSubscription do
     attribute(:last_error, :string, allow_nil?: true)
 
     timestamps()
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if(always())
-    end
   end
 end

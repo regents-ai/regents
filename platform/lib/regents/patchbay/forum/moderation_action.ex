@@ -8,9 +8,6 @@ defmodule Regents.Patchbay.Forum.ModerationAction do
 
   Nothing public reads these; they exist so a decision can be accounted for
   later. They carry ids and reasons, never the content that was redacted.
-
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
   """
 
   use Ash.Resource,
@@ -23,6 +20,24 @@ defmodule Regents.Patchbay.Forum.ModerationAction do
     table("forum_moderation_actions")
     schema("patchbay_app")
     repo(Regents.Repo)
+  end
+
+  actions do
+    defaults([:read])
+
+    create :record do
+      description("Writes one audit row for a moderation decision already made.")
+      accept([:subject_kind, :subject_id, :action, :reason, :actor_profile_id])
+    end
+  end
+
+  policies do
+    # There is no public way in. Forum.moderate/4 and Forum.PostReview are the
+    # only writers and the moderation page the only reader; all skip
+    # authorization deliberately.
+    policy always() do
+      forbid_if(always())
+    end
   end
 
   attributes do
@@ -58,13 +73,5 @@ defmodule Regents.Patchbay.Forum.ModerationAction do
     attribute(:actor_profile_id, :uuid, allow_nil?: false)
 
     create_timestamp(:inserted_at, public?: true)
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if(always())
-    end
   end
 end

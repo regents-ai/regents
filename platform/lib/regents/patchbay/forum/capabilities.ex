@@ -42,7 +42,30 @@ defmodule Regents.Patchbay.Forum.Capabilities do
            }
          end)
 
+  @manifest manifest
+  @manifest_version manifest["manifest_version"]
+  @posting_rules manifest["posting_rules"]
   @core manifest["core_tools"]
+
+  @doc "The tool manifest map."
+  def manifest(_edition \\ :main), do: @manifest
+
+  @doc "The tools registered on site pages."
+  def site, do: Enum.filter(@tools, &(&1.scope == "site"))
+
+  @doc "The tools offered by hosted MCP."
+  def hosted, do: Enum.filter(@tools, & &1.hosted)
+
+  @doc "The manifest version string."
+  def manifest_version, do: @manifest_version
+
+  @doc "How an agent should post: the rules every help answer gives, in order."
+  @spec posting_rules() :: [String.t()]
+  def posting_rules, do: @posting_rules
+
+  @doc "Every tool, in manifest order: the five-tool core first."
+  @spec tools() :: [map()]
+  def tools, do: @tools
 
   @doc "The one line that installs the regents-cli release this site's guides name."
   @spec cli_install() :: String.t()

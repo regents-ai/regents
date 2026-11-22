@@ -1,14 +1,12 @@
 defmodule RegentsWeb.Patchbay.Forum.Discussions do
-  @moduledoc """
-  The home page's question lists, read from the stored threads
-  (`Regents.Patchbay.Forum.Feed`): the filters a list is read with, one page
-  of it, and how many threads it holds. Reading a list writes nothing.
-  """
+  @moduledoc "Read-only discussion workbench over existing reports; no second thread store."
+
+  require Ash.Query
 
   alias Regents.Patchbay.Forum
-  alias Regents.Patchbay.Forum.Feed
   alias Regents.Patchbay.Forum.FeedCount
   alias Regents.Patchbay.Forum.Origin
+  alias Regents.Patchbay.Forum.Report
   alias RegentsWeb.Endpoint
 
   @salt "discussion-pages-v1"
@@ -39,7 +37,7 @@ defmodule RegentsWeb.Patchbay.Forum.Discussions do
   The filters a question list is read with. `site` narrows the list to one
   site, named exactly by the domain Patchbay files it under; any other value
   is refused as `{:error, :unknown_site}`. Whether Patchbay has a record of
-  that site is read with the list itself (`page/2`).
+  that site is read with the list itself (`page/3`).
   """
   @spec filters(map()) :: {:ok, map()} | {:error, :unknown_site}
   def filters(params) do
@@ -52,7 +50,13 @@ defmodule RegentsWeb.Patchbay.Forum.Discussions do
          tag: text(params["tag"], 64),
          scope: if(params["scope"] in @scopes, do: params["scope"], else: "newest"),
          sort: if(params["sort"] == "popular", do: "popular", else: "recent"),
-         source_kind: source_kind(params["source_kind"])
+         source_kind: source_kind(params["source_kind"]),
+         # The page has no time, package, version or needs-answer filter;
+         # the search endpoint reads the same feed with them.
+         since: nil,
+         package: nil,
+         version: nil,
+         needs_answer: nil
        }}
     end
   end
@@ -75,33 +79,67 @@ defmodule RegentsWeb.Patchbay.Forum.Discussions do
   defp site(_not_text), do: {:error, :unknown_site}
 
   @doc """
-  One page of the question list, after the page `token` names (nil for the
-  first). A list narrowed to a site Patchbay has no record of is
-  `{:error, :unknown_site}`, a token signed for other filters
-  `{:error, :invalid_cursor}`; a list that could not be read is the read's
-  own error.
+  The same follow list with what each subscription follows: the site, the
+  tool with its site, or the thread. A follow whose target is gone is left out.
   """
-  @spec page(map(), String.t() | nil) ::
-          {:ok, [Forum.Report.t()], String.t() | nil} | {:error, term()}
-  def page(filters, token) do
+  def following(principals) do
+    subscriptions =
+      Forum.list_subscriptions_for_principals!(principals, actor: %{principals: principals})
+
+    targets = %{
+      site: by_id(Regents.Patchbay.Forum.Site, ids(subscriptions, :site)),
+      tool: by_id(Regents.Patchbay.Forum.Tool, ids(subscriptions, :tool), load: [:site]),
+      thread: by_id(Report, ids(subscriptions, :thread), load: [:site, :tool])
+    }
+
+    for subscription <- subscriptions,
+        target = targets[subscription.scope_kind][subscription.scope_id],
+        do: {subscription, target}
+  end
+
+  defp ids(subscriptions, kind),
+    do: for(%{scope_kind: ^kind, scope_id: id} <- subscriptions, do: id)
+
+  defp by_id(_resource, [], _opts), do: %{}
+
+  defp by_id(resource, ids, opts) do
+    resource
+    |> Ash.Query.filter(id in ^ids)
+    |> Ash.read!(opts)
+    |> Map.new(&{&1.id, &1})
+  end
+
+  defp by_id(resource, ids), do: by_id(resource, ids, [])
+
+  @doc """
+  One page of the question list. A list narrowed to a site Patchbay has no
+  record of is `{:error, :unknown_site}`; a list that could not be read is
+  the read's own error.
+  """
+  def page(filters, token), do: page(filters, [], token)
+
+  def page(filters, subscriptions, token) do
+    context = {filters, FeedCount.followed(filters, subscriptions)}
+
     with :ok <- on_record(filters.site),
-         {:ok, keyset} <- verify(token, filters),
+         {:ok, keyset} <- verify(token, context),
          {:ok, page} <-
            Forum.list_feed_reports(
-             query: Feed.query(filters),
+             query: Regents.Patchbay.Forum.Feed.query(filters, subscriptions),
              page: if(keyset, do: [limit: @page_size, after: keyset], else: [limit: @page_size])
            ),
          {:ok, page} <- Ash.load(page, @loads) do
-      {:ok, page.results, continuation(page, filters)}
+      {:ok, page.results, continuation(page, context)}
     end
   end
 
   @doc """
   How many threads a question list holds, across all its pages, kept a minute
-  (`Regents.Patchbay.Forum.FeedCount`).
+  (`Regents.Patchbay.Forum.FeedCount`). The Following list counts the follows it is
+  given.
   """
-  @spec count(map()) :: {:ok, non_neg_integer()} | {:error, term()}
-  def count(filters), do: FeedCount.count(filters)
+  @spec count(map(), list()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def count(filters, subscriptions \\ []), do: FeedCount.count(filters, subscriptions)
 
   defp on_record(""), do: :ok
 
@@ -113,22 +151,22 @@ defmodule RegentsWeb.Patchbay.Forum.Discussions do
     end
   end
 
-  defp continuation(%{more?: true, results: results}, filters) do
-    Phoenix.Token.sign(Endpoint, @salt, {filters, List.last(results).__metadata__.keyset})
+  defp continuation(%{more?: true, results: results}, context) do
+    Phoenix.Token.sign(Endpoint, @salt, {context, List.last(results).__metadata__.keyset})
   end
 
-  defp continuation(_page, _filters), do: nil
+  defp continuation(_page, _context), do: nil
 
-  defp verify(nil, _filters), do: {:ok, nil}
+  defp verify(nil, _context), do: {:ok, nil}
 
-  defp verify(token, filters) when is_binary(token) and byte_size(token) <= 8192 do
+  defp verify(token, context) when is_binary(token) and byte_size(token) <= 8192 do
     case Phoenix.Token.verify(Endpoint, @salt, token, max_age: :infinity) do
-      {:ok, {^filters, keyset}} when is_binary(keyset) -> {:ok, keyset}
+      {:ok, {^context, keyset}} when is_binary(keyset) -> {:ok, keyset}
       _ -> {:error, :invalid_cursor}
     end
   end
 
-  defp verify(_token, _filters), do: {:error, :invalid_cursor}
+  defp verify(_token, _context), do: {:error, :invalid_cursor}
 
   defp text(value, limit) when is_binary(value),
     do: value |> String.trim() |> String.slice(0, limit)

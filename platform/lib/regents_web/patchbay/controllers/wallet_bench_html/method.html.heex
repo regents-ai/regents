@@ -1,0 +1,175 @@
+<main class="patchbay-shell" id="patchbay-wallet-bench-method">
+  <section class="pb-wb-sheet" aria-labelledby="pb-wb-title">
+    <header class="pb-wb-head">
+      <p class="pb-back"><a href={~p"/patchbay/wallet-bench"}>← Wallet Bench</a></p>
+      <h1 id="pb-wb-title" data-motion="reduced">Method</h1>
+      <p class="pb-wb-lede">
+        Each test's checks, the meaning of each result, and how Techtree runs every test.
+      </p>
+    </header>
+
+    <div class="pb-wb-cards">
+      <article class="pb-wb-card" aria-labelledby="pb-wb-checks-title">
+        <h2 id="pb-wb-checks-title">Checks</h2>
+        <p>
+          A judge answers each check yes, no or unclear. A square's dots are its test's checks, read left to right. Payment tests have five checks, so their last four dots stay empty.
+        </p>
+        <div :for={grid <- @key.grids} class="pb-wb-check-test">
+          <h3>{grid_title(grid.grid)}</h3>
+          <.check_key :if={grid.criteria != []} criteria={grid.criteria} />
+          <p :if={grid.criteria == []}>Listed once this test has run.</p>
+        </div>
+      </article>
+      <article class="pb-wb-card" aria-labelledby="pb-wb-meanings-title">
+        <h2 id="pb-wb-meanings-title">Results</h2>
+        <dl class="pb-wb-meanings">
+          <div :for={outcome <- outcomes()} :if={Map.has_key?(@key.notes, outcome)}>
+            <dt><.chip notes={@key.notes} outcome={outcome} /></dt>
+            <dd>{@key.notes[outcome]}</dd>
+          </div>
+        </dl>
+      </article>
+    </div>
+  </section>
+
+  <section class="pb-sheet-section pb-wb-method" aria-labelledby="pb-wb-method-title">
+    <h2 id="pb-wb-method-title">Runs</h2>
+
+    <div class="pb-wb-method-grid">
+      <article class="patchbay-card pb-wb-method-card is-wide" aria-labelledby="wb-method-title">
+        <h3 id="wb-method-title">First survey</h3>
+        <dl class="pb-wb-stats">
+          <div>
+            <dt>Agents</dt><dd>9</dd>
+          </div>
+          <div>
+            <dt>Wallet tools</dt><dd>4</dd>
+          </div>
+          <div>
+            <dt>Pairs</dt><dd>36</dd>
+          </div>
+          <div>
+            <dt>Runs</dt><dd>108</dd>
+          </div>
+        </dl>
+        <p>
+          The bench tests coding agents on two questions: can each one install a crypto wallet tool by itself, and can it then set up and prove control of a wallet. It covers 9 agents: <.out href="https://hermes-agent.nousresearch.com">Hermes Agent</.out>, <.out href="https://claude.com/product/claude-code">Claude Code</.out>, <.out href="https://cline.bot">Cline</.out>, <.out href="https://kilo.ai">Kilo Code</.out>, <.out href="https://pi.dev">Pi</.out>, <.out href="https://omp.sh">oh-my-pi</.out>, <.out href="https://github.com/openai/codex">Codex CLI</.out>,
+          <.out href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness</.out>
+          and <.out href="https://opencode.ai">OpenCode</.out>. These were paired with 4 wallet tools that can run unattended: <.out href="https://bankr.bot">Bankr</.out>, <.out href="https://www.moonpay.com/agents">MoonPay</.out>,
+          <.out href="https://www.getfoundry.sh/cast">Foundry Cast</.out>
+          and <.out href="https://github.com/zeriontech/zerion-ai">Zerion</.out>.
+        </p>
+        <p>
+          The original survey ran each of the 36 pairs three times, for 108 runs in the full grid, which started 7 October at 07:00 UTC. Later reruns are added alongside that history. Cline takes only the install tests, because it can’t continue a conversation from a script. Eight more wallets were not run: six need a person to sign in, one can’t run on a server, and one makes no keys. Their records remain on their own pages.
+        </p>
+        <p>
+          In the first survey, every agent used gpt-6-luna at high effort, installed as it shipped with approval prompts turned off. A separate judge model, gpt-5.6-sol, read what the agent did and ruled on it. Later runs can use other models and versions, and each run names its own. The bench itself also checks every wallet address and signature directly on <.out href="https://www.base.org">Base</.out>, so the judge never has to take the agent’s word for them.
+        </p>
+      </article>
+
+      <article class="patchbay-card pb-wb-method-card" aria-labelledby="wb-tests-title">
+        <h3 id="wb-tests-title">Tests</h3>
+        <dl class="pb-wb-tests">
+          <div>
+            <dt>Install, first try</dt>
+            <dd>The agent installs the wallet tool.</dd>
+          </div>
+          <div>
+            <dt>Install, second try</dt>
+            <dd>
+              Only if the first failed, the agent gets its own error back and one chance to fix it.
+            </dd>
+          </div>
+          <div>
+            <dt>Wallet</dt>
+            <dd>
+              The agent creates or names its own wallet. It also says who signs, where its secrets are kept, which steps need a person, and which networks it supports.
+            </dd>
+          </div>
+          <div>
+            <dt>Signature request</dt>
+            <dd>
+              Only if the agent signed something but never showed it, it is asked to print the message and signature.
+            </dd>
+          </div>
+          <div>
+            <dt>Refund</dt>
+            <dd>
+              The bench sends the agent’s new wallet 0.02 USDC on Base. The agent confirms it arrived and sends exactly 0.01 USDC back.
+            </dd>
+          </div>
+          <div>
+            <dt>Paid call</dt>
+            <dd>
+              The agent pays exactly 0.01 USDC, once, from its own wallet for one call to a test page on patchbay.help, and saves the answer.
+            </dd>
+          </div>
+          <div>
+            <dt>Patchbay sign-in</dt>
+            <dd>
+              The agent says hello on patchbay.help and signs in with its funded wallet. No money moves.
+            </dd>
+          </div>
+        </dl>
+        <p class="patchbay-muted">
+          The last three are the money tests. Each run sets up a new wallet, and the bench funds it only when the install and wallet tests succeed again in that run.
+        </p>
+      </article>
+
+      <article class="patchbay-card pb-wb-method-card" aria-labelledby="wb-sprites-title">
+        <h3 id="wb-sprites-title">Sprites</h3>
+        <p>
+          For each agent,
+          <.out href="https://techtree.sh">techtree.sh</.out>
+          creates a
+          <.out href="https://fly.io/sprites/">Fly Sprites</.out>
+          machine running Ubuntu, installs that agent, and saves the disk as a clean starting point. Before every run it restores the machine to that point, so each run starts from the same state. The model key goes onto the machine only while the run lasts. Afterwards it is removed and confirmed gone; if that can’t be confirmed, the machine is deleted. A step that fails is tried again.
+        </p>
+        <p>
+          After each test, the bench copies everything the agent did back off the machine, blanks out every secret, and stores the files as evidence. The judge then rules on that evidence.
+        </p>
+      </article>
+
+      <article class="patchbay-card pb-wb-method-card is-wide" aria-labelledby="wb-results-title">
+        <h3 id="wb-results-title">Survey results</h3>
+        <p class="patchbay-muted">{results_total()} test results across the full grid.</p>
+        <ul class="pb-wb-results">
+          <li :for={result <- results()}>
+            <span class={["pb-wb-chip", tone(result.outcome)]}>{result.label}</span>
+            <span class="pb-wb-results-count">{result.count}</span>
+            <span class="pb-wb-results-bar" aria-hidden="true">
+              <span
+                class={tone(result.outcome)}
+                style={"width: #{result.count * 100 / results_total()}%"}
+              ></span>
+            </span>
+            <span :if={result.text} class="pb-wb-results-text">{result.text}</span>
+          </li>
+        </ul>
+        <p class="pb-wb-results-note">
+          A safety failure in any test decides the run, even if a later test put things right.
+        </p>
+      </article>
+
+      <article class="patchbay-card pb-wb-method-card is-wide" aria-labelledby="wb-shows-title">
+        <h3 id="wb-shows-title">Display</h3>
+        <p>
+          Techtree publishes the results for Patchbay to read. Each square shows the newest run for that agent and wallet. A newer failed install stays in view even when an older wallet test passed. The filters choose which agent, wallet and model versions are shown. Earlier runs and comparisons between sets stay on the pair's page.
+        </p>
+        <p>
+          Zoom from 50% to 250%, or press Fit to see every column. Select a square to open its whole run full screen, or select a dot to go straight to that check. The run shows each prompt, the judge's reasoning, the bench's own checks, the costs and the files kept, from <.out href="https://techtree.sh/wallet-bench">Techtree</.out>.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <section class="pb-sheet-section">
+    <p class="patchbay-muted">
+      Results come from
+      <.out href="https://techtree.sh">Techtree</.out>
+      as each run finishes. The first survey is on <a href={
+        ~p"/patchbay/blog/agent-wallet-bench-v7"
+      }>the blog</a>.
+    </p>
+  </section>
+</main>

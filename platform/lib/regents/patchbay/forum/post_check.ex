@@ -7,16 +7,18 @@ defmodule Regents.Patchbay.Forum.PostCheck do
   The reading is kept under the person the post would have gone out for, so
   every agent a person has paired is counted with them. It keeps a digest of
   the words. A post that was turned away also keeps the words Jev was shown,
-  so a moderator can read what was refused and say whether it was right to;
-  they are published nowhere, and are forgotten after a month. A moderator
+  so a moderator can read what was refused and say whether it was right to
+  (`Regents.Patchbay.Forum.PostReview`); they are published nowhere, and
+  `Regents.Patchbay.Forum.PostCheckPruner` forgets them after a month. A moderator
   may keep a short cut of them as one of Jev's examples, which stays until a
   moderator takes it out.
 
   A post turned away counts toward its person's pause unless a moderator
-  ruled it wrong to block or lifted the pause it led to.
+  ruled it wrong to block or lifted the pause it led to (`counts?/1`).
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  Every write is Patchbay's own and says so by skipping authorization:
+  `Regents.Patchbay.Forum.PostingCheck` records the reading, and the moderators'
+  page rules on it through `Regents.Patchbay.Forum.PostReview`.
   """
 
   use Ash.Resource,
@@ -26,6 +28,9 @@ defmodule Regents.Patchbay.Forum.PostCheck do
     authorizers: [Ash.Policy.Authorizer]
 
   alias Regents.Patchbay.Forum.Types.PostFinding
+
+  # What counting toward a pause reads of a reading (`counts?/1`).
+  @counted [:profile_id, :rejected, :ruling, :lifted_at, :inserted_at]
 
   postgres do
     table("forum_post_checks")
@@ -90,11 +95,106 @@ defmodule Regents.Patchbay.Forum.PostCheck do
     create_timestamp(:inserted_at)
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+
+    create :record do
+      description("What Jev found in one post, written once it has answered.")
+
+      accept([
+        :profile_id,
+        :acting_agent_id,
+        :kind,
+        :finding,
+        :confidence,
+        :rejected,
+        :code_caution,
+        :model,
+        :input_sha256,
+        :shown
+      ])
+    end
+
+    update :rule do
+      description("""
+      A moderator's word on a post turned away, or none to take it back. An
+      example stands for the ruling it was chosen under, so it goes with it.
+      """)
+
+      accept([:ruling])
+      change(set_attribute(:example, nil))
+    end
+
+    update :set_example do
+      description("Makes a cut of the words one of Jev's examples, or takes it out.")
+      accept([:example])
+    end
+
+    update :lift do
+      description("Stops a post turned away counting toward its person's pause.")
+      change(set_attribute(:lifted_at, &DateTime.utc_now/0))
+    end
+
+    update :forget do
+      description("Forgets the words of a post turned away.")
+      change(set_attribute(:shown, nil))
+    end
+
+    read :for_profile_since do
+      description("One person's readings after a moment, oldest first.")
+      argument(:profile_id, :uuid, allow_nil?: false)
+      argument(:since, :utc_datetime_usec, allow_nil?: false)
+      filter(expr(profile_id == ^arg(:profile_id) and inserted_at > ^arg(:since)))
+      # Read to count toward a pause, so without the kept words.
+      prepare(build(select: @counted, sort: [inserted_at: :asc, id: :asc]))
+    end
+
+    read :turned_away do
+      description("The newest posts turned away, for the moderators' page.")
+      filter(expr(rejected))
+      prepare(build(sort: [inserted_at: :desc, id: :desc]))
+    end
+
+    read :turned_away_since do
+      description("Posts turned away for these people after a moment, oldest first.")
+      argument(:profile_ids, {:array, :uuid}, allow_nil?: false)
+      argument(:since, :utc_datetime_usec, allow_nil?: false)
+      filter(expr(rejected and profile_id in ^arg(:profile_ids) and inserted_at > ^arg(:since)))
+      # Read to count toward a pause, so without the kept words.
+      prepare(build(select: @counted, sort: [inserted_at: :asc, id: :asc]))
+    end
+
+    read :examples do
+      description("Jev's examples, newest first.")
+      filter(expr(rejected and not is_nil(ruling) and not is_nil(example)))
+      prepare(build(sort: [inserted_at: :desc, id: :desc]))
+    end
+
+    read :words_kept_since do
+      description("Posts turned away after a moment whose words are kept.")
+      argument(:since, :utc_datetime_usec, allow_nil?: false)
+      filter(expr(rejected and not is_nil(shown) and inserted_at > ^arg(:since)))
+    end
+
+    read :forgettable do
+      description("Posts turned away before a moment whose words are still kept.")
+      argument(:before, :utc_datetime_usec, allow_nil?: false)
+      filter(expr(rejected and not is_nil(shown) and inserted_at < ^arg(:before)))
+    end
+  end
+
   policies do
+    # No visitor reads or writes these; Patchbay's own work skips this.
     policy always() do
       forbid_if(always())
     end
   end
+
+  @doc """
+  Whether a reading counts toward its person's pause: the post was turned
+  away, and no moderator ruled that wrong or lifted the pause since.
+  """
+  @spec counts?(t()) :: boolean()
+  def counts?(%{rejected: true, ruling: ruling, lifted_at: nil}) when ruling != :wrong, do: true
+  def counts?(_check), do: false
 end

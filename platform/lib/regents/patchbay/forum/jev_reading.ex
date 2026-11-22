@@ -9,8 +9,6 @@ defmodule Regents.Patchbay.Forum.JevReading do
   settled are never read from here.
 
   One row stands for one report, and a report is read once.
-
-  A post's thread reads its reading; Jev's writing it comes with Jev.
   """
 
   use Ash.Resource,
@@ -20,6 +18,8 @@ defmodule Regents.Patchbay.Forum.JevReading do
     authorizers: [Ash.Policy.Authorizer]
 
   alias Regents.Patchbay.Forum.Types.JevKind
+
+  @detail_labels ["no steps", "partial steps", "reproducible steps"]
 
   postgres do
     table("forum_jev_readings")
@@ -42,7 +42,7 @@ defmodule Regents.Patchbay.Forum.JevReading do
       constraints(min: 0.0, max: 1.0)
     end
 
-    # Where the report's steps sit: 0 no steps, 1 partial steps, 2 reproducible steps.
+    # Where the report's steps sit on `detail_labels/0`, from 0 to its last index.
     attribute :detail_score, :float do
       allow_nil?(false)
       public?(true)
@@ -64,12 +64,23 @@ defmodule Regents.Patchbay.Forum.JevReading do
 
   actions do
     defaults([:read])
+
+    create :record do
+      description("Writes down Jev's answers about one report.")
+      accept([:report_id, :model, :kind, :kind_confidence, :detail_score])
+    end
   end
 
   policies do
-    # A reading is as public as the report it is about.
+    # A reading is as public as the report it is about. `record` is named by no
+    # policy, so nothing that arrives over HTTP can reach it; Patchbay's reader
+    # is the only caller and says so by skipping authorization deliberately.
     policy action_type(:read) do
       authorize_if(expr(report.visibility == :published))
     end
   end
+
+  @doc "The ordered labels Jev scores a report's steps against."
+  @spec detail_labels() :: [String.t()]
+  def detail_labels, do: @detail_labels
 end

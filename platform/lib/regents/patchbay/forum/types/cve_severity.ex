@@ -1,7 +1,8 @@
 defmodule Regents.Patchbay.Forum.Types.CveSeverity do
   @moduledoc """
   How severe a vulnerability copied from cve.now is: the level cve.now
-  states, or else the band its CVSS score falls in.
+  states, or else the band its CVSS score falls in
+  (`Regents.Patchbay.Incidents.CveNow.Post`).
   """
 
   use Ash.Type.Enum,

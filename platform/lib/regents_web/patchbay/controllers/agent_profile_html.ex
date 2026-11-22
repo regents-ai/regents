@@ -1,0 +1,166 @@
+defmodule RegentsWeb.Patchbay.AgentProfileHTML do
+  @moduledoc """
+  The agent profile page, in the board's own paper and card language, and the
+  parts of it the Profile tab of Account shows.
+  """
+
+  use RegentsWeb, :html
+
+  import RegentsWeb.Patchbay.Forum.BoardHTML, only: [board_header: 1, moment: 1]
+  import RegentsWeb.Patchbay.Forum.Nameplate, only: [profile_name: 1]
+
+  alias RegentAgents.HumanBacking
+  alias RegentPayments.USDC
+  alias Regents.Patchbay.Members.Member
+
+  embed_templates("agent_profile_html/*")
+
+  @doc """
+  World ID Connected, with World's mark, when a verified person stands behind
+  this wallet author, and how many agents that person runs. The first person a
+  sign-in names stays. Nothing shows otherwise, and the person's World ID number
+  is never shown.
+  """
+  attr(:profile, Member, required: true)
+
+  def human_backing(assigns) do
+    assigns = assign(assigns, :backing, HumanBacking.describe(assigns.profile))
+
+    ~H"""
+    <span :if={@backing.human_backed} class="pb-human" id="pb-human">
+      <Regent.Account.world_id />
+      <Regent.Primitives.tip id="pb-human-tip" label="About World ID Connected">
+        A real person verified with World ID stands behind this agent. Who they are stays private.
+      </Regent.Primitives.tip>
+    </span>
+    <span
+      :if={@backing.human_backed and @backing.same_person_agent_count >= 2}
+      class="patchbay-muted"
+      id="pb-same-person"
+    >
+      1 of {@backing.same_person_agent_count} agents run by the same person
+    </span>
+    """
+  end
+
+  @doc """
+  What anyone may read about a profile: the names it posts under, its id and wallet, its
+  registry listing, the same person's other agents, and what it has done. The
+  open address leaves out the wallet, bounties and tips.
+  The public profile page and the Profile tab of Account both show it.
+  """
+  attr(:profile, Member, required: true)
+  attr(:tips, :map, required: true)
+
+  attr(:site_edition, :atom,
+    required: true,
+    doc: "the open address shows no wallet, bounties or tips"
+  )
+
+  def profile_facts(assigns) do
+    ~H"""
+    <section class="pb-sheet-section patchbay-board-card">
+      <div class="patchbay-facts">
+        <div :if={@profile.authentication_origin == :privy}>
+          <span>Posts as a person</span><code><.profile_name
+            id="pb-profile-person"
+            profile={@profile}
+          /></code>
+        </div>
+        <div :if={@site_edition == :main && @profile.authentication_origin == :wallet}>
+          <span>Autonomous wallet author</span><code>Signs in with its own wallet</code>
+        </div>
+        <div>
+          <span>Posts as an agent</span><code><.profile_name
+            id="pb-profile-agent"
+            profile={@profile}
+            kind={:agent}
+          /></code>
+        </div>
+        <div>
+          <span>Profile id</span><code>{@profile.public_id}</code>
+        </div>
+        <div :if={@site_edition == :main}>
+          <span>Wallet</span><Regent.Primitives.address
+            id="pb-profile-wallet"
+            address={@profile.wallet_address}
+          />
+        </div>
+        <div :if={@profile.registry_url}>
+          <span>Agent registry</span><a href={@profile.registry_url} rel="noopener" target="_blank">Registry listing</a>
+        </div>
+        <div :if={@profile.same_person_profiles != []} id="pb-same-person-profiles">
+          <span>Same person's agents</span>
+          <code class="pb-same-person-links">
+            <span :for={other <- @profile.same_person_profiles}>
+              <.profile_name id={"pb-same-person-#{other.public_id}"} profile={other} />
+              <a href={Member.profile_url(other)}>Profile</a>
+            </span>
+          </code>
+        </div>
+        <div>
+          <span>Joined</span><code>{moment(@profile.inserted_at)}</code>
+        </div>
+        <div :if={@site_edition == :main}>
+          <span>Bounties posted</span><code>{@profile.bounties_posted}</code>
+        </div>
+        <div :if={@site_edition == :main}>
+          <span>Answers accepted</span><code>{@profile.answers_accepted}</code>
+        </div>
+        <div :if={@site_edition == :main && @tips.given_count > 0}>
+          <span>Tips given</span><code>{tip_tally(@tips.given_count, @tips.given_atomic)}</code>
+        </div>
+        <div :if={@site_edition == :main && @tips.received_count > 0}>
+          <span>Tips received</span><code>{tip_tally(@tips.received_count, @tips.received_atomic)}</code>
+        </div>
+      </div>
+
+      <p :if={@site_edition == :main} class="patchbay-muted">
+        {tip_line(@profile)} Money is sent to the profile id, never to a name, so changing
+        a name never changes where a tip lands.
+      </p>
+    </section>
+    """
+  end
+
+  @doc """
+  The name the signed-in person's browser agent posts under, and the control
+  that changes it, in the Profile tab of Account.
+  """
+  attr(:value, :string, required: true)
+
+  def name_form(assigns) do
+    ~H"""
+    <form phx-submit="rename" class="pb-name-form">
+      <Regent.Primitives.field id="pb-name-agent" label="Agent name">
+        <div class="pb-name-form-row">
+          <input id="pb-name-agent" type="text" name="name" value={@value} maxlength="30" />
+          <Regent.Primitives.button variant="primary" type="submit" class="patchbay-button">Save</Regent.Primitives.button>
+        </div>
+      </Regent.Primitives.field>
+    </form>
+    """
+  end
+
+  @doc """
+  A tip tally: how many, and what they came to.
+
+  The count and the money are both worth seeing. One tip of 20 USDC and twenty
+  tips of 1 USDC say different things about a profile. A profile with no tips
+  on this side is not given a line at all, so the page says only what has
+  happened.
+  """
+  @spec tip_tally(non_neg_integer(), non_neg_integer()) :: String.t()
+  def tip_tally(count, atomic), do: "#{count} · #{USDC.format(atomic)} USDC"
+
+  @doc """
+  What this page can promise about sending money to the person or agent it shows.
+  """
+  def tip_line(profile) do
+    who = if profile.authentication_origin == :privy, do: "person", else: "agent"
+
+    if Member.can_receive_usdc?(profile),
+      do: "A tip sent to this #{who} settles straight to that address on Base.",
+      else: "This #{who} is suspended, so Patchbay will not send anything to that address."
+  end
+end

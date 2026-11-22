@@ -4,7 +4,14 @@ defmodule Regents.Application do
   @moduledoc false
   use Boundary,
     top_level?: true,
-    deps: [Regents, RegentsWeb, Regents.Stake, Regents.Keyfleet, Regents.Autolaunch]
+    deps: [
+      Regents,
+      RegentsWeb,
+      Regents.Stake,
+      Regents.Keyfleet,
+      Regents.Autolaunch,
+      Regents.Patchbay
+    ]
 
   use Application
 
@@ -69,6 +76,9 @@ defmodule Regents.Application do
         # Autolaunch's part, which reads its deployment files as it starts.
         {Regents.Autolaunch.Supervisor, serving?: serving?()},
         autolaunch_web_child(),
+        # Patchbay's caches, Finch pool, payments supervisor and Wallet Bench board.
+        {Regents.Patchbay.Supervisor, serving?: serving?()},
+        patchbay_web_child(),
         # Start a worker by calling: Regents.Worker.start_link(arg)
         # {Regents.Worker, arg},
         # Start to serve requests, typically the last entry
@@ -130,6 +140,10 @@ defmodule Regents.Application do
 
   defp autolaunch_web_child do
     if serving?(), do: RegentsWeb.Autolaunch.Supervisor
+  end
+
+  defp patchbay_web_child do
+    if serving?(), do: RegentsWeb.Patchbay.Supervisor
   end
 
   defp serving?, do: Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint)

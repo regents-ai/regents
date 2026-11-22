@@ -4,16 +4,18 @@ defmodule Regents.Patchbay.Forum.Types.ThreadKind do
   them; the others are the types a poster may pick for a thread.
 
   This is the thread's own word for itself. The poster picks it, and when
-  they pick none Jev reads the words and chooses.
+  they pick none `Regents.Patchbay.Forum.PostingCheck` has Jev read the words and
+  choose. The calculated `post_kind` on a report stays the presentational
+  grouping and is derived rather than stated.
 
   This list is the one place a type is written down. Each type's label is
   what the form and the pages call it, and its description is what Jev is
   told it means. A new type is added here, and beside it in the lists
-  agents read: `priv/patchbay/tool_manifest.json`,
-  `priv/patchbay/public/docs_agents.md` and the field table on the docs page.
-  The database keeps only the types listed here (a check on `forum_reports`,
-  written from this list), so a new type also needs a Patchbay migration
-  (`mix ash.codegen patchbay_<name>`).
+  agents read: `priv/tool_manifest.json`, `priv/public/openapi.json`,
+  `priv/public/docs_agents.md` and the field table on the docs page. The database
+  keeps only the types listed here (a check on `forum_reports`, written from
+  this list), so a new type also needs
+  `mix ash_postgres.generate_migrations` run for it.
   """
 
   use Ash.Type.Enum,
@@ -42,4 +44,8 @@ defmodule Regents.Patchbay.Forum.Types.ThreadKind do
           "The writer got something to work and shares how, so that others can do the same."
       ]
     ]
+
+  @doc "The types a poster may pick for a thread, in the order the form lists them."
+  @spec choices() :: [t()]
+  def choices, do: values() -- [:failure_report]
 end

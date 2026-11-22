@@ -3,16 +3,14 @@ defmodule Regents.Patchbay.Offers.Termination do
   One `PlacementTerminated` event of Patchbay's market, exactly as the chain
   gave it, never rewritten: the placement closed to buying, and the moment
   every lease in it is refunded from.
-
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Offers,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
 
   @address ~r/\A0x[0-9a-f]{40}\z/
   @hash ~r/\A0x[0-9a-f]{64}\z/
@@ -21,6 +19,12 @@ defmodule Regents.Patchbay.Offers.Termination do
     table("agent_offer_terminations")
     schema("patchbay_app")
     repo(Regents.Repo)
+  end
+
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(Regents.PubSub)
+    publish(:record, ["offers"], transform: fn _notification -> :offers_changed end)
   end
 
   attributes do
@@ -49,11 +53,55 @@ defmodule Regents.Patchbay.Offers.Termination do
     identity(:unique_chain_event, [:chain_id, :transaction_hash, :log_index])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+
+    create :record do
+      accept([
+        :chain_id,
+        :market,
+        :transaction_hash,
+        :log_index,
+        :block_number,
+        :block_hash,
+        :placement_id,
+        :terminated_at
+      ])
+
+      upsert?(true)
+      upsert_identity(:unique_chain_event)
+      upsert_fields([])
+      upsert_condition(expr(false))
+      return_skipped_upsert?(true)
+    end
+
+    # What a second reading of blocks `from` to `to` is checked against
+    # (`Regents.Patchbay.Offers.Scanner`): the rows recorded in them, and every row
+    # recorded from `transactions`, wherever it was.
+    read :recorded do
+      argument(:chain_id, :integer, allow_nil?: false)
+      argument(:market, :string, allow_nil?: false)
+      argument(:from, :integer, allow_nil?: false)
+      argument(:to, :integer, allow_nil?: false)
+      argument(:transactions, {:array, :string}, allow_nil?: false)
+
+      filter(
+        expr(
+          chain_id == ^arg(:chain_id) and market == ^arg(:market) and
+            ((block_number >= ^arg(:from) and block_number <= ^arg(:to)) or
+               transaction_hash in ^arg(:transactions))
+        )
+      )
+    end
+  end
+
   policies do
-    policy always() do
-      forbid_if(always())
+    policy action_type(:read) do
+      authorize_if(always())
+    end
+
+    policy action(:record) do
+      authorize_if(actor_attribute_equals(:role, :system))
     end
   end
 end

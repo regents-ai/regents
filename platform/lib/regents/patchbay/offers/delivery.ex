@@ -7,7 +7,7 @@ defmodule Regents.Patchbay.Offers.Delivery do
 
   A reader is a signed agent (`:agent`, its profile), a signed-in person
   (`:person`, their profile) or anyone else (`:visitor`, the keyed hash of
-  their address). The same lease
+  their address, `RegentsWeb.Patchbay.ClientAddress.visitor_key/1`). The same lease
   shown to the same reader with the same page on the same day is one
   delivery, so a page read again, refreshed or retried is not a second one.
   Deliveries are how a campaign's daily limit is kept.
@@ -15,8 +15,9 @@ defmodule Regents.Patchbay.Offers.Delivery do
   A delivery is Patchbay's own record that it served the offer, not proof the
   reader paid it any attention. Its id is what a signed receipt would name.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  Only Patchbay records one, as the system. A moderator reads them all; an
+  advertiser reads them only as counts for their own campaigns' leases
+  (`Regents.Patchbay.Offers.Lease`'s `delivery_count`), never who they went to.
   """
 
   use Ash.Resource,
@@ -80,11 +81,44 @@ defmodule Regents.Patchbay.Offers.Delivery do
     identity(:once_a_day, [:lease_id, :viewer_kind, :viewer, :context, :delivered_on])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+
+    # The same delivery again keeps the one already written.
+    create :record do
+      accept([:lease_id, :campaign_id, :surface, :viewer_kind, :viewer, :context])
+      change(set_attribute(:delivered_on, &Date.utc_today/0))
+      upsert?(true)
+      upsert_identity(:once_a_day)
+      upsert_fields([])
+      upsert_condition(expr(false))
+      return_skipped_upsert?(true)
+    end
+
+    read :today do
+      description("One reader's deliveries of these campaigns today.")
+      argument(:viewer_kind, :atom, allow_nil?: false)
+      argument(:viewer, :string, allow_nil?: false)
+      argument(:campaign_ids, {:array, :string}, allow_nil?: false)
+
+      filter(
+        expr(
+          viewer_kind == ^arg(:viewer_kind) and viewer == ^arg(:viewer) and
+            campaign_id in ^arg(:campaign_ids) and delivered_on == today()
+        )
+      )
+    end
+  end
+
   policies do
-    policy always() do
-      forbid_if(always())
+    policy action_type(:read) do
+      authorize_if(actor_attribute_equals(:role, :system))
+      authorize_if(Regents.Patchbay.Checks.Moderator)
+      authorize_if(expr(exists(campaign, agent_profile_id == ^actor(:id))))
+    end
+
+    policy action(:record) do
+      authorize_if(actor_attribute_equals(:role, :system))
     end
   end
 end

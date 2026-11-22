@@ -1,27 +1,70 @@
 defmodule Regents.Patchbay.Forum.SearchWords do
   @moduledoc """
   The threads a search's words find, read from indexes rather than every
-  post: the questions list with words in it (`Regents.Patchbay.Forum.Report`'s
-  `:feed`, `Regents.Patchbay.Forum.Feed`).
+  post: the word search (`Regents.Patchbay.Forum.Report`'s `:search`) and the questions
+  list with words in it (`:feed`, `Regents.Patchbay.Forum.Feed`) find the same threads.
 
   A thread is found by its own words, its title spelled a little wrong (when
   one word is typed) or an exact tool name; by its site's address or name; by
   its own words and its site's together, each holding some of the words typed;
   by a published reply's words and fix; or by a published card. Each place's
   words (`search_vector`) are written exactly as the index built for them, and
-  the words typed are read as quoted words
-  (`Regents.Patchbay.Forum.SearchTerms`). PostgreSQL cannot use an index for
-  each place when they are joined by "or", even within one table (a common
-  word then reads every thread and rebuilds its words), so each is its own
-  query, each reading its index, and the search keeps the threads any of them
-  found.
+  the words typed are read as quoted words (`Regents.Patchbay.Forum.SearchTerms`).
+  PostgreSQL cannot use an index for each place when they are joined by "or",
+  even within one table (a common word then reads every thread and rebuilds
+  its words), so each is its own query, each reading its index, and the search
+  keeps the threads any of them found.
+
+  A common word finds most threads, and the search's order counts what others
+  say worked on each one, which is slow to count for thousands. Only a thread
+  with a reply at least `Report.worked_by_at_least/0` people say worked can have
+  such a count; every other thread counts none, so among those the order is
+  rank, then last activity, then id, read from the thread's own columns. The
+  search therefore counts only the threads that can have one, plus the first
+  page's worth of the rest in that order: the same page, in the same order, as
+  counting every thread found.
   """
 
   require Ash.Query
 
-  import Ecto.Query, only: [exclude: 2, select: 3, union: 2, where: 3]
+  import Ecto.Query,
+    only: [
+      exclude: 2,
+      from: 2,
+      group_by: 3,
+      having: 3,
+      select: 3,
+      subquery: 1,
+      union: 2,
+      where: 3
+    ]
 
-  alias Regents.Patchbay.Forum.Report
+  alias Regents.Patchbay.Forum.{AnswerUse, Reply, Report}
+
+  @doc "Narrows the search's own query to the threads its words find; no words, no change."
+  def modify(%Ash.Query{arguments: %{term: term}} = ash_query, query) when is_binary(term) do
+    with {:ok, found} <- found(term),
+         {:ok, threads} <- threads(ash_query),
+         {:ok, ranked} <- first_by_rank(ash_query, term),
+         {:ok, worked} <- worked() do
+      first_unworked =
+        ranked
+        |> where([t], t.id in subquery(found) and t.id not in subquery(worked))
+        |> exclude(:select)
+        |> select([t], t.id)
+
+      candidates =
+        from(t in threads,
+          where: t.id in subquery(found) and t.id in subquery(worked),
+          select: t.id
+        )
+        |> union(^from(t in subquery(first_unworked), select: t.id))
+
+      {:ok, where(query, [thread], thread.id in subquery(candidates))}
+    end
+  end
+
+  def modify(_ash_query, query), do: {:ok, query}
 
   @doc "Narrows a questions list to the threads its words find, in its own order; no words, no change."
   def narrow(%Ash.Query{arguments: %{term: term}}, query) when is_binary(term) do
@@ -97,6 +140,43 @@ defmodule Regents.Patchbay.Forum.SearchWords do
 
   defp either(nil, ids), do: ids
   defp either(found, ids), do: union(found, ^ids)
+
+  # The threads the search may show at all: its own filters and those of who is
+  # asking, without its order, page or counts.
+  defp threads(ash_query) do
+    ash_query
+    |> Ash.Query.unset([:sort, :load, :limit, :offset])
+    |> Ash.Query.data_layer_query(no_modify?: true)
+    |> case do
+      {:ok, query} -> {:ok, exclude(query, :select)}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  # The same threads in the order of those nobody says worked yet (rank, last
+  # activity, id), as many as reach the end of the page asked for.
+  defp first_by_rank(ash_query, term) do
+    ash_query
+    |> Ash.Query.unset([:sort, :load, :limit, :offset])
+    |> Ash.Query.sort(search_rank: {%{term: term}, :desc}, last_activity_at: :desc, id: :desc)
+    |> Ash.Query.limit(ash_query.offset + ash_query.limit)
+    |> Ash.Query.data_layer_query(no_modify?: true)
+  end
+
+  # Every thread with a published reply that enough people may say worked:
+  # each such reply has at least that many "worked" words, from anyone, so
+  # this holds every thread `:worked_count` or `:last_worked_at` can count.
+  defp worked do
+    with {:ok, replies} <- ids(Ash.Query.filter(AnswerUse, outcome == :worked), :reply_id),
+         {:ok, threads} <- ids(Ash.Query.filter(Reply, visibility == :published), :report_id) do
+      worked_replies =
+        replies
+        |> group_by([use], use.reply_id)
+        |> having([_use], count() >= ^Report.worked_by_at_least())
+
+      {:ok, where(threads, [reply], reply.id in subquery(worked_replies))}
+    end
+  end
 
   defp ids(ash_query, field) do
     case Ash.Query.data_layer_query(ash_query) do

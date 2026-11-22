@@ -696,6 +696,120 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
     |> send_resp(200, PublicDocuments.document(TroubleshootingPages.path(harness)).markdown)
   end
 
+  @doc "An incident's discussion page."
+  def incident(%{private: %{incident: name}} = conn, params) do
+    case Regents.Patchbay.Incidents.Discussion.open(name) do
+      {:ok, thread} ->
+        report = fetch_report!(thread.id)
+        show_report(conn, report, params)
+
+      {:error, failure} ->
+        raise failure
+    end
+  end
+
+  @doc "An incident's page as Markdown, at its own address ending in .md."
+  def incident_md(conn, params) do
+    conn
+    |> put_format("md")
+    |> put_resp_content_type("text/markdown")
+    |> incident(params)
+  end
+
+  @doc "An agent page's setup guide as Markdown."
+  def agent_guide(%{private: %{home_page: id}} = conn, _params) do
+    conn
+    |> put_format("md")
+    |> put_resp_content_type("text/markdown")
+    |> render(:agent_page, agent: RegentsWeb.Patchbay.Forum.AgentPages.fetch!(id), reports: nil)
+  end
+
+  @doc "Human reply to a conversation thread."
+  def reply_thread(conn, %{"id" => id} = params) do
+    report = fetch_report!(id)
+    body = get_in(params, ["reply", "body_markdown"]) || ""
+
+    with %{} = profile <- conn.assigns[:current_profile],
+         {:ok, _reply} <-
+           Regents.Patchbay.Forum.post_human_reply(
+             %{report_id: report.id, body_markdown: body},
+             actor: profile
+           ) do
+      redirect(conn, to: PostAddress.path(report))
+    else
+      nil ->
+        conn
+        |> put_flash(:error, "Sign in to reply here.")
+        |> redirect(to: PostAddress.path(report))
+
+      {:error, _reason} ->
+        conn
+        |> put_flash(:error, "Reply could not be posted.")
+        |> redirect(to: PostAddress.path(report))
+    end
+  end
+
+  @doc "Human reply to a failure report."
+  def create_reply(conn, %{"id" => id} = params) do
+    report = fetch_report!(id)
+    reply_params = params["reply"] || %{}
+
+    with %{} = profile <- conn.assigns[:current_profile],
+         {:ok, _reply} <-
+           Regents.Patchbay.Forum.add_human_reply(
+             %{
+               report_id: report.id,
+               verdict: reply_params["verdict"],
+               note: reply_params["note"]
+             },
+             actor: profile
+           ) do
+      redirect(conn, to: PostAddress.path(report))
+    else
+      nil ->
+        conn
+        |> put_flash(:error, "Sign in to reply here.")
+        |> redirect(to: PostAddress.path(report))
+
+      {:error, _reason} ->
+        conn
+        |> put_flash(:error, "Reply could not be posted.")
+        |> redirect(to: PostAddress.path(report))
+    end
+  end
+
+  @doc "Asker takes back a funded bounty once Base permits."
+  def refund(conn, %{"id" => id}) do
+    report = fetch_report!(id)
+
+    case Regents.Patchbay.Forum.PriorityRefund.run(id, conn.assigns[:current_profile]) do
+      {:ok, %{escrow_refund_tx_hash: hash}} when is_binary(hash) ->
+        conn
+        |> put_flash(:info, "Refund sent to Base (#{hash}).")
+        |> redirect(to: PostAddress.path(report))
+
+      _other ->
+        conn
+        |> put_flash(:error, "Refund could not be submitted right now.")
+        |> redirect(to: PostAddress.path(report))
+    end
+  end
+
+  @doc "Asker accepts a reply as the answer to a paid report."
+  def accept(conn, %{"id" => id, "reply_id" => reply_id}) do
+    case Regents.Patchbay.Forum.SolutionAccept.run(id, reply_id, conn.assigns[:current_profile]) do
+      {:ok, accepted} ->
+        redirect(conn, to: PostAddress.path(accepted) <> "#reply-" <> reply_id)
+
+      {:error, _reason} ->
+        report = fetch_report!(id)
+
+        conn
+        |> put_flash(:error, "That answer could not be accepted right now.")
+        |> redirect(to: PostAddress.path(report))
+    end
+  end
+
   defp page(conn, key),
     do: merge_assigns(conn, PublicDocuments.page(key) ++ Layouts.frame(conn, []))
 end

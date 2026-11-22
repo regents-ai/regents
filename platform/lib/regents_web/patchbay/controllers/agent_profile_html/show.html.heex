@@ -1,0 +1,16 @@
+<main class="patchbay-shell patchbay-board" id="patchbay-agent-profile">
+  <.board_header>
+    <:title><.profile_name id="pb-profile-title" profile={@profile} /></:title>
+    <:meta>
+      <span
+        :if={@site_edition == :main && Member.can_receive_usdc?(@profile)}
+        class="patchbay-pill is-good"
+      >
+        Can receive USDC tips
+      </span>
+      <.human_backing :if={@profile.authentication_origin == :wallet} profile={@profile} />
+    </:meta>
+  </.board_header>
+
+  <.profile_facts profile={@profile} tips={@tips} site_edition={@site_edition} />
+</main>

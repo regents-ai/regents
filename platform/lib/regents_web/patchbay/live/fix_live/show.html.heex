@@ -1,0 +1,108 @@
+<main class="patchbay-shell pb-fix-page" id="pb-fix-page" data-status={@run.status}>
+  <p
+    id="patchbay-connection-lost"
+    class="patchbay-connection-lost"
+    role="status"
+    hidden
+    phx-disconnected={JS.remove_attribute("hidden")}
+    phx-connected={JS.set_attribute({"hidden", ""})}
+  >
+    Connection lost, reconnecting
+  </p>
+
+  <header class="pb-fix-head">
+    <h1 id="pb-fix-headline">{@headline}</h1>
+    <p class="pb-fix-request">
+      {@run.goal} · <a href={@run.site_url} rel="noopener noreferrer nofollow">{@host}</a>
+    </p>
+  </header>
+
+  <section class="pb-fix-panel" aria-labelledby="pb-fix-panel-title">
+    <div class="pb-fix-panel-head">
+      <h2 id="pb-fix-panel-title">Progress</h2>
+      <span :if={@working?} class="pb-fix-working" role="status">Working · this page updates itself</span>
+    </div>
+    <div
+      id="pb-fix-log"
+      class="pb-fix-log"
+      role="log"
+      aria-live="polite"
+      phx-hook="MotionList"
+      data-layout-id="pb-fix-log"
+      data-children="[data-line]"
+      data-variant={Motion.standard("list")}
+    >
+      <div
+        :for={{line, index} <- Enum.with_index(@lines)}
+        data-line
+        data-layout-id={"pb-fix-line-#{index}"}
+        class={"pb-fix-line pb-fix-line--#{line.kind}"}
+      >
+        <span class="pb-fix-at">{line.at}</span><span class="pb-fix-text">{line.text}</span>
+      </div>
+    </div>
+  </section>
+
+  <section
+    :if={@known_fix && @known_fix.answer in [:known_fix, :needs_detail]}
+    id="pb-fix-known"
+    class="pb-fix-answer pb-fix-known"
+    aria-labelledby="pb-fix-known-title"
+  >
+    <div class="pb-fix-answer-head">
+      <h2 id="pb-fix-known-title">
+        {KnownFixAnswer.heading(@known_fix)}: {@known_fix.fix.title}
+      </h2>
+    </div>
+    <div class="pb-fix-known-body">
+      <p class="pb-fix-known-match">
+        Jev's match: {KnownFixAnswer.match(@known_fix)}. {KnownFixAnswer.evidence(@known_fix)}
+      </p>
+      <h3>Scope</h3>
+      {markdown_html(@known_fix.fix.applies_when)}
+      <h3>Not when</h3>
+      {markdown_html(@known_fix.fix.does_not_apply_when)}
+      <h3>Steps</h3>
+      {markdown_html(@known_fix.fix.steps)}
+      <h3>Caveats</h3>
+      {markdown_html(@known_fix.fix.caveats)}
+    </div>
+    <div :if={@known_fix.answer == :known_fix} class="pb-fix-known-report">
+      <p :if={is_nil(@reported)}>
+        Tried it? Say whether it worked, for the next agent stuck the same way.
+      </p>
+      <p :if={@reported} role="status">
+        {if @reported == "worked", do: "You said it worked.", else: "You said it did not work."} Thank you.
+      </p>
+      <div :if={is_nil(@reported)} class="pb-fix-known-buttons">
+        <Regent.Primitives.button
+          id="pb-fix-known-worked"
+          variant="secondary"
+          phx-click="report_known_fix"
+          phx-value-result="worked"
+        >
+          It worked
+        </Regent.Primitives.button>
+        <Regent.Primitives.button
+          id="pb-fix-known-did-not-work"
+          variant="secondary"
+          phx-click="report_known_fix"
+          phx-value-result="did_not_work"
+        >
+          It didn't work
+        </Regent.Primitives.button>
+      </div>
+    </div>
+  </section>
+
+  <section :if={@answer} class="pb-fix-answer" aria-labelledby="pb-fix-answer-title">
+    <div class="pb-fix-answer-head">
+      <h2 id="pb-fix-answer-title">Answer</h2>
+      <Regent.Primitives.copy_button id="pb-fix-copy" target="pb-fix-answer-text">
+        Copy
+      </Regent.Primitives.copy_button>
+    </div>
+    <pre id="pb-fix-answer-text" class="pb-fix-answer-text">{@answer}</pre>
+    <p class="pb-fix-again">Another one? <a href={~p"/"}>Ask Patchbay for the next fix</a>.</p>
+  </section>
+</main>

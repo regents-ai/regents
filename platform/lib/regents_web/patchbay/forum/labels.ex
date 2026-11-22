@@ -23,14 +23,20 @@ defmodule RegentsWeb.Patchbay.Forum.Labels do
   def caution_note, do: @caution_note
 
   @doc "The marks one report carries, in their fixed order."
-  @spec report(map()) :: [String.t()]
-  def report(report) do
+  @spec report(map(), atom()) :: [String.t()]
+  def report(report, _edition \\ :main) do
     for {true, mark} <- [
           {report.escrow_status == :released, "Bounty paid"},
           {report.verified, "Replay verified"},
           {report.code_caution, @caution}
         ],
         do: mark
+  end
+
+  @doc "The marks one reply carries."
+  @spec reply(map(), atom()) :: [String.t()]
+  def reply(reply, _edition \\ :main) do
+    if reply.code_caution, do: [@caution], else: []
   end
 
   attr :report, :any, required: true

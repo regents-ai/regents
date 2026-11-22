@@ -11,9 +11,6 @@ defmodule Regents.Patchbay.Forum.Tool do
   with `last_seen_at`.
   """
 
-  alias Regents.Patchbay.Forum.Origin
-  alias Regents.Patchbay.Forum.ToolName
-
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Forum,
@@ -22,6 +19,7 @@ defmodule Regents.Patchbay.Forum.Tool do
 
   import Ash.Expr
 
+  alias Regents.Patchbay.Forum.Origin
   alias Regents.Patchbay.Forum.Types.ToolSourceKind
 
   postgres do
@@ -30,8 +28,8 @@ defmodule Regents.Patchbay.Forum.Tool do
     repo(Regents.Repo)
 
     custom_indexes do
-      # A tool match reads these: a name or title containing the typed words,
-      # or a name nearly matching them.
+      # The tool match (`:find`) reads these: a name or title containing the
+      # typed words, or a name nearly matching them.
       index(["name public.gin_trgm_ops"],
         name: "forum_tools_name_trgm_index",
         using: "GIN",
@@ -54,13 +52,13 @@ defmodule Regents.Patchbay.Forum.Tool do
     attribute :name, :string do
       allow_nil?(false)
       public?(true)
-      constraints(max_length: 64, match: ToolName.shape())
+      constraints(max_length: 64, match: Regents.Patchbay.Forum.ToolName.shape())
     end
 
     attribute :stable_key, :string do
       allow_nil?(true)
       public?(true)
-      constraints(max_length: 64, match: ToolName.shape())
+      constraints(max_length: 64, match: Regents.Patchbay.Forum.ToolName.shape())
     end
 
     attribute :published_name, :string do
@@ -120,7 +118,7 @@ defmodule Regents.Patchbay.Forum.Tool do
 
     # When a check of the site last found this tool on the page it read; empty
     # for a tool known only from what agents saw. Only a tool a check once
-    # found can be retired by a later check.
+    # found can be retired by a later check (`SiteCheck.record_tools/2`).
     attribute(:check_found_at, :utc_datetime_usec, allow_nil?: true)
 
     # When a check that read the whole page no longer found the tool there;
@@ -129,7 +127,7 @@ defmodule Regents.Patchbay.Forum.Tool do
   end
 
   identities do
-    identity(:unique_contract, [:site_id, :name, :contract_sha256])
+    identity(:unique_contract, [:site_id, :name, :contract_sha256], eager_check?: true)
   end
 
   relationships do
@@ -194,15 +192,23 @@ defmodule Regents.Patchbay.Forum.Tool do
       seen at or after the latest check of that list. On any other site: not
       retired. A check retires a tool it once found on a page it reads and no
       longer finds there, and only when it read the whole page, every script
-      on the site's own domain included, and found at least one tool there; a
-      tool known only from what agents saw is never retired, and a retired
-      tool is offered again once it is seen again.
+      on the site's own domain included, and found at least one tool there
+      (`SiteCheck.record_tools/2`); a tool known only from what agents saw is
+      never retired, and a retired tool is offered again once it is seen
+      again.
       """
     )
   end
 
   actions do
     defaults([:read])
+
+    read :for_site do
+      argument(:site_id, :uuid, allow_nil?: false)
+      filter(expr(site_id == ^arg(:site_id)))
+      pagination(keyset?: true, default_limit: 50, max_page_size: 200)
+      prepare(build(sort: [name: :asc, last_seen_at: :desc, id: :asc]))
+    end
 
     read :named do
       description("""
@@ -215,15 +221,6 @@ defmodule Regents.Patchbay.Forum.Tool do
       argument(:names, {:array, :string}, allow_nil?: false)
       filter(expr(site_id == ^arg(:site_id) and current? and name in ^arg(:names)))
       prepare(build(distinct: [:name], sort: [name: :asc, last_seen_at: :desc, id: :asc]))
-    end
-
-    read :history do
-      description("Every version of one tool on a site, newest first: a tool page's history.")
-      argument(:site_id, :uuid, allow_nil?: false)
-      argument(:name, :string, allow_nil?: false)
-      filter(expr(site_id == ^arg(:site_id) and name == ^arg(:name)))
-      pagination(keyset?: true, required?: true, default_limit: 26, max_page_size: 26)
-      prepare(build(sort: [first_seen_at: :desc, id: :asc]))
     end
 
     read :find do
@@ -249,13 +246,161 @@ defmodule Regents.Patchbay.Forum.Tool do
 
       prepare(Regents.Patchbay.Forum.SearchSlots)
     end
+
+    read :for_sitemap do
+      description("Every tool with its site, newest version of each name first.")
+
+      prepare(
+        build(sort: [site_id: :asc, name: :asc, last_seen_at: :desc, id: :asc], load: [:site])
+      )
+    end
+
+    read :history do
+      argument(:site_id, :uuid, allow_nil?: false)
+      argument(:name, :string, allow_nil?: false)
+      filter(expr(site_id == ^arg(:site_id) and name == ^arg(:name)))
+      pagination(keyset?: true, required?: true, default_limit: 26, max_page_size: 26)
+      prepare(build(sort: [first_seen_at: :desc, id: :asc]))
+    end
+
+    read :missed_by_check do
+      description("""
+      The tools a check may retire: the ones a check once found on the page
+      it has now read whole, still offered, and not among those it found
+      there this time.
+      """)
+
+      argument(:site_id, :uuid, allow_nil?: false)
+      argument(:page_url, :string, allow_nil?: false)
+      argument(:found_ids, {:array, :uuid}, allow_nil?: false)
+
+      filter(
+        expr(
+          site_id == ^arg(:site_id) and address == ^arg(:page_url) and
+            not is_nil(check_found_at) and is_nil(retired_at) and
+            id not in ^arg(:found_ids)
+        )
+      )
+    end
+
+    create :observe_tool do
+      description("Records that an agent saw this tool contract on this site.")
+      accept([:site_id, :name, :contract_sha256, :title, :description, :address])
+
+      upsert?(true)
+      upsert_identity(:unique_contract)
+      # Only recency and the page it was seen on move on a re-observation. The
+      # title and description are part of the contract digest this row is
+      # keyed by, so a later caller reporting the same digest must not be able
+      # to rewrite the copy the thread is displayed under, and first_seen_at
+      # must never advance. A retired tool seen again is offered again.
+      upsert_fields([:last_seen_at, :address, :retired_at])
+
+      change(set_attribute(:last_seen_at, &DateTime.utc_now/0))
+
+      change(
+        {Regents.Patchbay.Forum.Changes.StripControlCharacters,
+         attributes: [:title, :description]}
+      )
+
+      change(Regents.Patchbay.Forum.Changes.AssignToolIdentity)
+    end
+
+    create :find_on_page do
+      description("""
+      Records that a check of the site found this tool contract on the page
+      it read: an agent's sighting in every way, and marked as a check's own.
+      """)
+
+      accept([:site_id, :name, :contract_sha256, :description, :address])
+
+      upsert?(true)
+      upsert_identity(:unique_contract)
+      upsert_fields([:last_seen_at, :address, :check_found_at, :retired_at])
+
+      change(set_attribute(:last_seen_at, &DateTime.utc_now/0))
+      change(set_attribute(:check_found_at, &DateTime.utc_now/0))
+      change({Regents.Patchbay.Forum.Changes.StripControlCharacters, attributes: [:description]})
+      change(Regents.Patchbay.Forum.Changes.AssignToolIdentity)
+    end
+
+    update :retire do
+      description("A check that read the whole page no longer found the tool there.")
+      accept([])
+      change(set_attribute(:retired_at, &DateTime.utc_now/0))
+    end
+
+    create :publish_catalog_tool do
+      description("""
+      Records one officially published or fixture-declared WebMCP tool. The
+      caller says when the publication was last checked; writing the row again
+      is not itself a check, so the time never advances on its own.
+      """)
+
+      accept([
+        :site_id,
+        :name,
+        :contract_sha256,
+        :title,
+        :description,
+        :stable_key,
+        :published_name,
+        :display_name,
+        :protocol_version,
+        :input_schema,
+        :output_schema,
+        :raw_definition,
+        :source_kind,
+        :source_url,
+        :first_seen_at,
+        :last_seen_at,
+        :address
+      ])
+
+      upsert?(true)
+      upsert_identity(:unique_contract)
+
+      upsert_fields([
+        :title,
+        :description,
+        :stable_key,
+        :published_name,
+        :display_name,
+        :protocol_version,
+        :input_schema,
+        :output_schema,
+        :raw_definition,
+        :source_kind,
+        :source_url,
+        :last_seen_at,
+        :address
+      ])
+
+      # Both dates come from the publication being imported: the catalog's
+      # checked date for a documented tool, this boot for our own manifest.
+      # A contract seen again keeps its first date and moves its last one.
+      validate(present([:first_seen_at, :last_seen_at]))
+
+      change(
+        {Regents.Patchbay.Forum.Changes.StripControlCharacters,
+         attributes: [:title, :description]}
+      )
+
+      change(Regents.Patchbay.Forum.Changes.AssignToolIdentity)
+    end
   end
 
-  # Only reads are carried; any other action is refused until it comes with its
-  # own policy.
   policies do
-    # The board is public to read: no actor is required.
+    # v0 of the forum is a fully public board: no actor is required.
     policy action_type(:read) do
+      authorize_if(always())
+    end
+
+    policy action(:observe_tool) do
+      authorize_if(always())
+    end
+
+    policy action(:publish_catalog_tool) do
       authorize_if(always())
     end
   end

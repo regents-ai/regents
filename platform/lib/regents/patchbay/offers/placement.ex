@@ -6,20 +6,18 @@ defmodule Regents.Patchbay.Offers.Placement do
   floor price, and the admission policy every purchase in it is signed under.
 
   `source_origin` is what the placement is for: a listed site, or General or
-  CVE incidents. Patchbay's own placements name
+  CVE incidents (`Regents.Patchbay.Offers.Source`). Patchbay's own placements name
   its page as their address (`metadata_uri`, ending in the site's address or
   the name), and it counts only when its hash is the placement's `source_id`,
   so the address cannot name a different one.
-
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Offers,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
 
   @address ~r/\A0x[0-9a-f]{40}\z/
   @hash ~r/\A0x[0-9a-f]{64}\z/
@@ -28,6 +26,12 @@ defmodule Regents.Patchbay.Offers.Placement do
     table("agent_offer_placements")
     schema("patchbay_app")
     repo(Regents.Repo)
+  end
+
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(Regents.PubSub)
+    publish(:record, ["offers"], transform: fn _notification -> :offers_changed end)
   end
 
   attributes do
@@ -95,11 +99,94 @@ defmodule Regents.Patchbay.Offers.Placement do
     identity(:unique_chain_event, [:chain_id, :transaction_hash, :log_index])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+
+    create :record do
+      accept([
+        :chain_id,
+        :market,
+        :transaction_hash,
+        :log_index,
+        :block_number,
+        :block_hash,
+        :placement_id,
+        :source_id,
+        :capacity,
+        :duration_seconds,
+        :min_bump_bps,
+        :floor_usdc,
+        :policy_hash,
+        :metadata_uri,
+        :source_origin
+      ])
+
+      upsert?(true)
+      upsert_identity(:unique_chain_event)
+      upsert_fields([])
+      upsert_condition(expr(false))
+      return_skipped_upsert?(true)
+    end
+
+    read :open do
+      description("The market's placements still open to buying, oldest first.")
+      argument(:chain_id, :integer, allow_nil?: false)
+      argument(:market, :string, allow_nil?: false)
+
+      filter(
+        expr(
+          chain_id == ^arg(:chain_id) and market == ^arg(:market) and
+            not exists(terminations, true)
+        )
+      )
+
+      prepare(build(sort: [placement_id: :asc]))
+    end
+
+    read :open_for do
+      description("The market's open placements for these sources, oldest first.")
+      argument(:chain_id, :integer, allow_nil?: false)
+      argument(:market, :string, allow_nil?: false)
+      argument(:origins, {:array, :string}, allow_nil?: false)
+
+      filter(
+        expr(
+          chain_id == ^arg(:chain_id) and market == ^arg(:market) and
+            source_origin in ^arg(:origins) and not exists(terminations, true)
+        )
+      )
+
+      prepare(build(sort: [placement_id: :asc]))
+    end
+
+    # What a second reading of blocks `from` to `to` is checked against
+    # (`Regents.Patchbay.Offers.Scanner`): the rows recorded in them, and every row
+    # recorded from `transactions`, wherever it was.
+    read :recorded do
+      argument(:chain_id, :integer, allow_nil?: false)
+      argument(:market, :string, allow_nil?: false)
+      argument(:from, :integer, allow_nil?: false)
+      argument(:to, :integer, allow_nil?: false)
+      argument(:transactions, {:array, :string}, allow_nil?: false)
+
+      filter(
+        expr(
+          chain_id == ^arg(:chain_id) and market == ^arg(:market) and
+            ((block_number >= ^arg(:from) and block_number <= ^arg(:to)) or
+               transaction_hash in ^arg(:transactions))
+        )
+      )
+    end
+  end
+
   policies do
-    policy always() do
-      forbid_if(always())
+    # What the chain said is public.
+    policy action_type(:read) do
+      authorize_if(always())
+    end
+
+    policy action(:record) do
+      authorize_if(actor_attribute_equals(:role, :system))
     end
   end
 end

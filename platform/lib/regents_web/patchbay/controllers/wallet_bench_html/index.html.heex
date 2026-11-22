@@ -1,0 +1,183 @@
+<main class="patchbay-shell" id="patchbay-wallet-bench">
+  <section class="pb-wb-sheet" aria-labelledby="pb-wb-title">
+    <.bench_header test={@test.grid} filters={@matrix.filters} />
+
+    <div class="pb-wb-board-head">
+      <div>
+        <h2>{grid_title(@test.grid)}</h2>
+        <p :if={@test.total > 0}>
+          {@test.tested} of {@test.total} squares have results · {@test.never_run} never run
+        </p>
+        <p id="pb-wb-read">{read_line(@read, DateTime.utc_now())}</p>
+      </div>
+      <details class="rg-pill-select pb-wb-filter" id="pb-wb-filter">
+        <summary>{filter_label(@matrix.filters)}</summary>
+        <form
+          method="get"
+          action={~p"/patchbay/wallet-bench"}
+          autocomplete="off"
+          aria-label="Filter recorded versions"
+        >
+          <input type="hidden" name="test" value={@test.grid} />
+          <div
+            :for={
+              {key, title} <- [
+                {"harness", "Agent version"},
+                {"wallet", "Wallet version"},
+                {"model", "Model"},
+                {"protocol", "Protocol"}
+              ]
+            }
+            class="rg-field"
+          >
+            <label for={"pb-wb-filter-" <> key}>{title}</label>
+            <select id={"pb-wb-filter-" <> key} name={key}>
+              <option value="">Any recorded version</option>
+              <option
+                :for={option <- @matrix.options[key]}
+                value={option.id}
+                selected={@matrix.filters[key] == option.id}
+              >
+                {option.label}
+              </option>
+            </select>
+          </div>
+          <p>Each square shows the newest run matching these choices.</p>
+          <div class="pb-wb-filter-actions">
+            <button class="rg-button rg-button--secondary" type="submit">
+              <span class="rg-button__label">Show</span>
+            </button>
+            <a href={~p"/patchbay/wallet-bench?test=#{@test.grid}"}>Reset</a>
+          </div>
+        </form>
+      </details>
+    </div>
+
+    <div :if={@test.total > 0} class="pb-wb-toolbar">
+      <p>
+        {if @test.grid in ["install", "wallet"],
+          do: "Nine checks in each square",
+          else: "Five checks in each square"}
+      </p>
+    </div>
+    <div
+      :if={@test.total > 0}
+      class="pb-wb-scroll"
+      data-wb-viewport
+      role="region"
+      tabindex="0"
+      aria-label={grid_title(@test.grid) <> " board, scrolls sideways"}
+    >
+      <table class="pb-wb-board" style={"--pb-wb-columns: #{length(@matrix.wallets)}"}>
+        <thead>
+          <tr>
+            <th scope="col" class="pb-wb-corner">
+              <span>Agent ↓ / Wallet →</span>
+            </th>
+            <th :for={wallet <- @matrix.wallets} scope="col">
+              <.entry
+                entry={wallet}
+                notes={@matrix.notes}
+                never_run={never_run(column(@test, @test.harnesses, wallet))}
+              />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={harness <- @test.harnesses}>
+            <th scope="row">
+              <.entry
+                entry={harness}
+                notes={@matrix.notes}
+                never_run={never_run(row(@test, @matrix.wallets, harness))}
+              />
+            </th>
+            <td :for={wallet <- @matrix.wallets}>
+              <.square
+                notes={@matrix.notes}
+                square={@test.squares[{harness.id, wallet.id}]}
+                harness={harness}
+                wallet={wallet}
+                grid={@test.grid}
+                filters={@matrix.filters}
+                said={
+                  List.wrap(never_run(column(@test, @test.harnesses, wallet))) ++
+                    List.wrap(never_run(row(@test, @matrix.wallets, harness)))
+                }
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <Regent.Primitives.empty_state
+      :if={@test.total == 0 and filtered?(@matrix.filters)}
+      title="No matches"
+    >
+      <:action>
+        <a
+          class="rg-button rg-button--secondary"
+          href={~p"/patchbay/wallet-bench?test=#{@test.grid}"}
+        >
+          <span class="rg-button__label">Clear filter</span>
+        </a>
+      </:action>
+    </Regent.Primitives.empty_state>
+    <Regent.Primitives.empty_state
+      :if={@test.total == 0 and !filtered?(@matrix.filters)}
+      title="No results"
+    >
+      <:action>
+        <a class="rg-button rg-button--secondary" href={~p"/patchbay/wallet-bench/how-it-works"}>
+          <span class="rg-button__label">How the bench works</span>
+        </a>
+      </:action>
+    </Regent.Primitives.empty_state>
+
+    <p :if={@test.total > 0} class="pb-wb-hover" data-wb-hover aria-live="polite">
+      Select a square to see its run.
+    </p>
+    <p :if={@test.total > 0} class="pb-wb-legend">
+      <span :for={{result, label} <- latest_dot_key()}>
+        <span class={["pb-wb-dot", "is-" <> result]} aria-hidden="true">{dot_mark(result)}</span>{label}
+      </span>
+      <span><span class="pb-wb-warning-mark" aria-hidden="true">!</span>Finding</span>
+    </p>
+    <Regent.Primitives.disclosure
+      :if={@test.total > 0}
+      id="pb-wb-nine-checks"
+      summary="Legend"
+    >
+      <p>
+        Each dot is one check, read left to right. Payment tests have five checks, so their last four dots stay empty. “Yes” is the judge’s answer to that check. A “Yes” on how a wallet stores its key does not prove the key is safe.
+      </p>
+      <.check_key criteria={@test.criteria} />
+    </Regent.Primitives.disclosure>
+    <p :if={@test.total > 0} class="pb-wb-more">
+      <a href={~p"/patchbay/wallet-bench/how-it-works"}>How the bench works</a>
+    </p>
+  </section>
+
+  <Regent.Structure.dialog
+    id="pb-wb-dialog"
+    class="pb-wb-dialog"
+    aria-labelledby="pb-wb-dialog-title"
+  >
+    <div class="pb-wb-dialog-bar">
+      <h2 id="pb-wb-dialog-title"></h2>
+      <a data-wb-page href="" target="_blank" rel="noopener">Open page ↗</a>
+      <form method="dialog">
+        <Regent.Primitives.button type="submit" variant="secondary" arrow={false}>
+          Close
+        </Regent.Primitives.button>
+      </form>
+    </div>
+    <p class="pb-wb-dialog-loading" data-wb-loading role="status" hidden>
+      Loading the run…
+    </p>
+    <div class="pb-wb-dialog-body" data-wb-body></div>
+    <p class="pb-wb-dialog-error" data-wb-error hidden>
+      This run did not load. Use “Open page” above to read it on its own page.
+    </p>
+  </Regent.Structure.dialog>
+</main>

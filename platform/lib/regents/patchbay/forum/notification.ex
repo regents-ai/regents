@@ -7,9 +7,6 @@ defmodule Regents.Patchbay.Forum.Notification do
   The inbox is a pull: a caller asks for its unacknowledged notifications,
   handles them, and acknowledges explicit ids. An acknowledged notification
   never comes back; one never acknowledged does.
-
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
   """
 
   use Ash.Resource,
@@ -22,6 +19,56 @@ defmodule Regents.Patchbay.Forum.Notification do
     table("forum_notifications")
     schema("patchbay_app")
     repo(Regents.Repo)
+  end
+
+  actions do
+    defaults([:read])
+
+    create :deliver do
+      description("The worker's delivery of one event to one recipient.")
+      accept([:event_id, :recipient])
+      upsert?(true)
+      upsert_identity(:event_recipient)
+      upsert_fields([])
+    end
+
+    read :inbox do
+      description("""
+      One principal's unacknowledged notifications, oldest first, so nothing
+      committed late can slip past a checkpoint the caller already passed.
+      """)
+
+      argument(:principals, {:array, :string}, allow_nil?: false)
+      filter(expr(recipient in ^arg(:principals) and is_nil(acknowledged_at)))
+      prepare(build(sort: [inserted_at: :asc, id: :asc]))
+      pagination(keyset?: true, default_limit: 50, max_page_size: 100)
+    end
+
+    update :acknowledge do
+      description("""
+      A recipient's own receipt that it handled this notification. Applied to
+      a query that already names the recipient and the unacknowledged rows, so
+      acknowledging twice or someone else's is a no-op.
+      """)
+
+      change(set_attribute(:acknowledged_at, &DateTime.utc_now/0))
+    end
+  end
+
+  policies do
+    # Delivery and acknowledgement both go through server-derived principals;
+    # nothing here names an actor to trust.
+    policy action_type(:read) do
+      authorize_if(always())
+    end
+
+    policy action(:deliver) do
+      authorize_if(always())
+    end
+
+    policy action(:acknowledge) do
+      authorize_if(always())
+    end
   end
 
   attributes do
@@ -39,13 +86,5 @@ defmodule Regents.Patchbay.Forum.Notification do
 
   identities do
     identity(:event_recipient, [:event_id, :recipient])
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if(always())
-    end
   end
 end

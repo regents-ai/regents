@@ -1,6 +1,203 @@
 @scope (:root[data-product="patchbay"]) to (.regents-frame) {
-/* The agents page's list of agents (patchbay.help's agent pages come later). */
-.pb-agents-list a {
-  color: var(--pb-text); text-decoration: underline; text-underline-offset: 2px;
+/* The agent pages (/dots, /muse, /grokbot, /hermes, /claude): one page in the
+   site's own look, in either theme. Only the crowd of figures takes each
+   agent's colours. */
+
+/* The faces take each agent's own colours. */
+.pb-agent--hermes {
+  --pb-face-purple: #1f4fd8;
+  --pb-face-orange: #6f9bff;
+  --pb-face-green: #bcd2ff;
+  --pb-face-blue: #0b2a7a;
+  --pb-face-graphite: #0b1f4d;
+  --pb-face-silver: #e3ecff;
 }
+.pb-agent--claude {
+  --pb-face-purple: #c6613f;
+  --pb-face-orange: #d97757;
+  --pb-face-green: #ebcfb2;
+  --pb-face-blue: #8e8b82;
+  --pb-face-graphite: #141413;
+  --pb-face-silver: #e6e1d4;
+}
+.pb-agent--dots, .pb-agent--muse, .pb-agent--grokbot {
+  --pb-face-purple: #8b5cf6;
+  --pb-face-orange: #f26a1b;
+  --pb-face-green: #1db36b;
+  --pb-face-blue: #2f7ff5;
+  --pb-face-graphite: #2b2b2b;
+  --pb-face-silver: #f5a524;
+}
+.pb-agent--hermes .pb-face--orange, .pb-agent--hermes .pb-face--green, .pb-agent--hermes .pb-face--silver { --ink: #0b1f4d; }
+.pb-agent--hermes .pb-face--purple { --ink: #fff; }
+.pb-agent--claude .pb-face--purple, .pb-agent--claude .pb-face--blue { --ink: #faf9f5; }
+
+.pb-agent { padding-top: var(--space-4); }
+
+/* The hero: words and the form on the left, the crowd of figures on the
+   right, every figure inside the page's frame. */
+.pb-agent-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: center;
+}
+.pb-agent-copy { grid-column: 1; grid-row: 1; min-width: 0; }
+.pb-agent-crowd {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  aspect-ratio: 1;
+}
+.pb-agent-figure {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--size);
+  height: auto;
+  /* A hard 1px edge in the text colour, so a face near the page's own colour
+     (graphite in dark, silver or pale green in light) still shows. */
+  --edge: var(--pb-text);
+  filter: drop-shadow(1px 0 0 var(--edge)) drop-shadow(-1px 0 0 var(--edge)) drop-shadow(0 1px 0 var(--edge)) drop-shadow(0 -1px 0 var(--edge));
+  transition: transform var(--duration-slow) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pb-agent-figure:hover { transform: rotate(-10deg) scale(1.03); }
+}
+.pb-agent-hero h1 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-family-title);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -.03em;
+  text-wrap: balance;
+}
+.pb-agent .pb-fix-form { max-width: 40rem; }
+.pb-agent-start { margin: var(--space-2) 0 0; color: var(--pb-text-muted); font-size: .8125rem; overflow-wrap: anywhere; }
+
+/* Links in running text read as links in both themes. */
+:is(.pb-agent-start, .pb-agent-step, .pb-agent-section-head) a {
+  color: var(--pb-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* The quickstart: five steps, a rule between each. */
+.pb-agent-quickstart, .pb-agent-posts { margin-top: var(--space-6); }
+.pb-agent-section-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--pb-line);
+}
+.pb-agent-section-head h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: clamp(1.375rem, 2.4vw, 1.75rem);
+  font-weight: 400;
+  letter-spacing: -.02em;
+}
+.pb-agent-section-head a { display: inline-flex; align-items: center; min-height: 2.75rem; font-size: .9375rem; white-space: nowrap; }
+.pb-agent-steps { margin: 0; padding: 0; list-style: none; counter-reset: agent-step; }
+.pb-agent-step {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  column-gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--pb-line);
+  font-size: .9375rem;
+  counter-increment: agent-step;
+}
+.pb-agent-step::before {
+  content: counter(agent-step);
+  grid-row: 1 / span 99;
+  padding-top: .2rem;
+  color: var(--pb-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.pb-agent-step > * { grid-column: 2; min-width: 0; }
+.pb-agent-step h3 { margin: 0 0 .25rem; font-size: 1.125rem; line-height: 1.4; }
+.pb-agent-step-why { margin: 0 0 .5rem; color: var(--pb-text-muted); line-height: 1.5; }
+.pb-agent-step p:not(.pb-agent-step-why) { margin: .5rem 0 0; line-height: 1.55; overflow-wrap: anywhere; }
+.pb-agent-step pre {
+  margin: .5rem 0 0;
+  padding: .75rem 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--pb-line);
+  background: var(--pb-card-sunk);
+  font-size: .875rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-agent-figure { transition: none; }
+  .pb-agent-figure:hover { transform: none; }
+}
+
+/* On a phone the figures make a band above the words. */
+@container pb-page (max-width: 899px) {
+  .pb-agent { padding-top: var(--space-2); }
+  .pb-agent-hero { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+  .pb-agent-crowd { grid-column: 1; grid-row: 1; aspect-ratio: 1.7; }
+  .pb-agent-copy { grid-row: 2; }
+  .pb-agent-figure { left: var(--px); top: var(--py); width: var(--ps); }
+  /* On a short phone the band is smaller, so the name and the form start on
+     the first screen. */
+  @media (max-height: 700px) {
+    .pb-agent-crowd { width: 55%; justify-self: center; }
+  }
+}
+
+/* The Agents page (/agents): its links read as links in both themes. */
+.pb-agents-list a { color: var(--pb-text); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Agent Message (`PatchbayWeb.AgentMessage`): the button under the list, and
+   its window. Each text keeps its title and copy press on one line and wraps
+   its lines, so nothing scrolls sideways on a phone. */
+.pb-agent-message-button { justify-self: start; margin-top: var(--space-3); }
+.pb-agent-message-button .rg-icon { font-size: 1rem; }
+.pb-agent-message { --rg-dialog-size: 40rem; }
+.pb-agent-message .rg-dialog__body { display: grid; gap: var(--space-2); padding: var(--space-3); }
+html:has(.pb-agent-message[open]) { overflow: hidden; }
+.pb-agent-message-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.pb-agent-message-top h2 { margin: 0; font-family: var(--font-family-title); font-size: var(--pb-fs-lg); font-weight: 400; }
+.pb-agent-message-top form { margin: 0 calc(-1 * var(--space-1)) 0 0; }
+.pb-agent-message-top button {
+  display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0;
+  border: 0; background: transparent; color: var(--pb-text); cursor: pointer;
+}
+.pb-agent-message-top .rg-icon { font-size: 1.5rem; }
+@media (hover: hover) { .pb-agent-message-top button:hover { background: var(--pb-surface-sunk); } }
+.pb-agent-message-top button:focus-visible { outline: 2px solid var(--pb-accent-deep); outline-offset: -2px; }
+.pb-agent-message h3 { margin: 0; font-size: .875rem; font-weight: 600; }
+.pb-agent-message .rg-dialog__body > p { margin: 0; font-size: .875rem; }
+.pb-agent-message-texts { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.pb-agent-message-texts > li { display: grid; gap: var(--space-1); min-width: 0; }
+.pb-agent-message-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+/* A small press beside each title, still a full finger tall. */
+.pb-agent-message-head .rg-button { min-height: 2.75rem; padding: 0 var(--space-2); font-size: .8125rem; }
+.pb-agent-message-texts pre {
+  margin: 0; padding: var(--space-2); border: 1px solid var(--pb-line); background: var(--pb-surface-sunk);
+  font-size: .8125rem; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+/* The person's own message, under the three texts. */
+.pb-agent-message-form { display: grid; gap: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--pb-line); }
+.pb-agent-message-form p { margin: 0; font-size: .875rem; }
+.pb-agent-message-form form { display: grid; gap: var(--space-1); justify-items: start; }
+.pb-agent-message-form .rg-field { width: 100%; }
+.pb-agent-message-form .rg-field label,
+.pb-agent-message-form .rg-field .rg-muted,
+.pb-agent-message-form .rg-field-errors { font-size: .875rem; }
+.pb-agent-message-form :is(textarea, input) { width: 100%; }
+.pb-agent-message-form .rg-notice code { overflow-wrap: anywhere; }
+@media (max-width: 479px) {
+  .pb-agent-message { max-block-size: calc(100dvh - 1rem); }
+  .pb-agent-message .rg-dialog__body { padding: var(--space-2); }
+}
+
 }

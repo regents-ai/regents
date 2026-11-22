@@ -1,10 +1,10 @@
 defmodule Regents.Patchbay.Forum.SearchUnavailable do
   @moduledoc """
   A text search that did not answer because the site is busy
-  (`Regents.Patchbay.Forum.SearchSlots`): no place free in time
-  (`cause: :no_slot`), no database connection free in time (`:no_connection`),
-  or out of time (`:timeout`). The home page answers it with `words/0` and
-  asks to try again shortly.
+  (`Regents.Patchbay.Forum.SearchSlots`): no place free in time (`cause: :no_slot`), no
+  database connection free in time (`:no_connection`), or out of time
+  (`:timeout`). The home page, the search window, the forum endpoint and the
+  MCP tools all answer it with `words/0` and ask to try again shortly.
   """
 
   use Splode.Error, fields: [:cause], class: :unknown

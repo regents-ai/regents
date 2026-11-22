@@ -1,0 +1,77 @@
+# <%= line(@harness.name) %> with <%= line(@wallet.name) %>
+
+Roster versions are last seen; each run records the versions actually tested. Unknown means not recorded.
+
+<%= if @selected_run do %>
+## Selected run
+
+Run ID: `<%= @selected_run.attempt_id %>`; test: `<%= @test %>`; outcome: `<%= @selected_run.outcome %>`.
+
+<%= if @report do %>
+The whole run, as Techtree published it: <%= Regents.Patchbay.WalletBench.PublicRun.source_url(@report["id"]) %>. Its results are in this page's JSON as `report`, with each step's prompt, the judge's reasoning and the files kept.
+
+<%= for step <- @report["tests"] do %>
+### <%= line(step["test"]) %> — <%= line((step["ruling"] && step["ruling"]["outcome"]) || step["state"]) %>
+
+<%= line((step["ruling"] && step["ruling"]["summary"]) || "No summary recorded.") %>
+<%= if step["storage_finding"], do: "How the wallet keeps its key: " <> line(step["storage_finding"]) <> "\n" %><%= if step["base_check"], do: "The bench's own check: " <> line(step["base_check"]) <> "\n" %>
+- Time taken: <%= step["seconds"] || "not recorded" %> seconds
+- Model cost, USD: <%= step["model_cost_usd"] || "not recorded" %>
+- Judge cost, USD: <%= step["judge_cost_usd"] || "not recorded" %>
+<%= for {check, number} <- Enum.with_index((step["ruling"] && step["ruling"]["checks"]) || [], 1) do %>
+- C<%= number %>: <%= line(check["check"]) %> — <%= dot_answer(RegentsWeb.Patchbay.WalletBenchRunHTML.answer_result(check["answer"])) %>. <%= line(check["why"] || "No reason recorded.") %><% end %>
+<% end %>
+<% else %>
+The whole run did not load from Techtree just now; the results below are unchanged. [Read it on Techtree](<%= Regents.Patchbay.WalletBench.PublicRun.source_url(@selected_run.attempt_id) %>).
+<% end %><% end %>
+
+<%= if @harness.version, do: "- " <> line(@harness.name) <> ": " <> line(@harness.version) <> "\n" %><%= if @wallet.version, do: "- " <> line(@wallet.name) <> ": " <> line(@wallet.version) <> "\n" %>- [Threads about this pair](<%= threads_path(@harness, @wallet) %>)
+- [Ask about this](<%= ask_about_path(@harness, @wallet) %>)
+<%= for {name, domain} <- forums(@harness, @wallet) do %>- [<%= line(name) %> forum](/<%= domain %>)
+<% end %><%= if @shown do %>
+Selected set: <%= line(Sets.label(@shown)) %>
+<%= for {label, value} <- set_facts(@shown.summary) do %>
+- <%= label %>: <%= value %><% end %>
+<% end %>
+<%= if @comparison do %>
+## Version comparison
+
+<%= line(@comparison.verdict) %>
+<%= if @comparison.missing != [], do: "Not recorded: " <> Enum.join(@comparison.missing, ", ") <> ".\n" %>
+<%= for change <- @comparison.differences do %>
+- <%= change.key %>: <%= line(Sets.display(change.before)) %> → <%= line(Sets.display(change.after)) %><% end %>
+<%= for {title, group} <- [{"Baseline", @comparison.baseline}, {"Compared", @comparison.compared}] do %>
+### <%= title %>
+
+<%= line(Sets.label(group)) %>
+<%= for {label, value} <- set_facts(group.summary) do %>
+- <%= label %>: <%= value %><% end %>
+<%= for outcome <- outcomes(), Map.has_key?(group.outcomes, outcome) do %>
+- <%= outcome %>: <%= group.outcomes[outcome] %> of <%= length(group.runs) %><% end %>
+<%= for criterion <- group.criteria do %>
+- <%= line(criterion.name) %>: <%= criterion.held %> of <%= criterion.runs %> held; <%= criterion.checked %> checked<% end %>
+<% end %><% end %>
+
+<%= for grid <- @grids do %>
+## <%= grid_title(grid.grid) %>
+<%= for fixed <- grid.fixed do %>
+<%= word(@notes, fixed.fixed_outcome) %> (`<%= fixed.fixed_outcome %>`): <%= line(fixed.fixed_reason) %>
+<% end %><%= if grid.runs == [] and grid.fixed == [], do: "\n" <> empty_grid(grid) <> "\n" %><%= for %{result: run, checks: checks} <- grid.runs do %>
+### Run <%= run.run %>: <%= word(@notes, run.outcome) %> (`<%= run.outcome %>`)
+
+<%= if !steps?(run) && plain_file(run.plain_file), do: "- " <> line(run.plain_file) <> "\n" %>- Finished: <%= stamp(run.finished_at) %>
+- Run on techtree.sh: <%= run.run_url %>
+<%= for {label, value} <- versions(run) do %>- <%= label %>: <%= line(value) %>
+<% end %><%= if steps?(run) do %>
+Steps, in order; the result is <%= line(deciding_step(run).name) %>'s:
+<%= for step <- run.turns do %>
+- <%= line(step.name) %>: <%= word(@notes, step.outcome) %> (`<%= step.outcome %>`)<%= if plain_file(step.plain_file), do: ", " <> line(step.plain_file) %>. <%= line(step.outcome_detail) %><% end %>
+
+Checks, <%= line(deciding_step(run).name) %>:
+<% else %>
+<%= line(run.outcome_detail) %>
+<% end %>
+<%= for check <- checks do %>- <%= line(check.criterion) %>: <%= check_said(check.result) %>. <%= line(check.reason) %>
+<% end %><% end %><% end %>
+<%= extra_notes(%{releases: @extra_notes, said: @notes["extra_notes"]}) %>
+<%= trailer() %>

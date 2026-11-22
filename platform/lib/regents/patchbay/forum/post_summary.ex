@@ -401,7 +401,7 @@ defmodule Regents.Patchbay.Forum.PostSummary do
 
   # The site's name, read when the post was read without its site.
   defp site_name(%{site: %Ash.NotLoaded{}} = report),
-    do: report |> Ash.load!(:site) |> site_name()
+    do: report |> Ash.load!(:site, authorize?: false) |> site_name()
 
   defp site_name(%{site: site}), do: site.display_name || site.origin
 

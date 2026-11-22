@@ -4,8 +4,8 @@ defmodule Regents.Patchbay.Offers.Campaign do
   a link), where it may run, and notes on who it is for.
 
   A campaign is written once and never changed. Its `campaign_id`, the id a
-  lease names on the chain, is the keccak256 hash of its manifest:
-  a JSON document anyone can hash again to check that a
+  lease names on the chain, is the keccak256 hash of its manifest
+  (`manifest/1`): a JSON document anyone can hash again to check that a
   lease's offer is the one bought. A changed offer is a new campaign with a
   new id, so nothing a lease names can change after it was paid for.
 
@@ -26,10 +26,10 @@ defmodule Regents.Patchbay.Offers.Campaign do
 
   Patchbay approves a campaign before any of its leases is shown and before
   it admits a purchase of it, and may pull it at any moment
-  (`Regents.Patchbay.Offers.Review`).
+  (`Regents.Patchbay.Offers.Review`); `review` says where it stands.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  The account reads its own campaigns, and a moderator reads them all. Anyone
+  reads a campaign a lease has shown.
   """
 
   use Ash.Resource,
@@ -159,15 +159,130 @@ defmodule Regents.Patchbay.Offers.Campaign do
     end
   end
 
+  calculations do
+    # Pulled is final: a pulled campaign is never shown again, approved or not.
+    calculate(
+      :review,
+      :atom,
+      expr(
+        cond do
+          exists(reviews, decision == :pulled) -> :pulled
+          exists(reviews, decision == :approved) -> :approved
+          true -> :waiting
+        end
+      ),
+      constraints: [one_of: [:waiting, :approved, :pulled]],
+      public?: true
+    )
+  end
+
   identities do
     identity(:unique_campaign, [:campaign_id], message: "You saved this campaign already.")
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if(always())
+  actions do
+    defaults([:read])
+
+    create :write do
+      description("Writes a campaign for one of the signed-in account's own wallets.")
+
+      accept([
+        :advertiser,
+        :title,
+        :body,
+        :link,
+        :audience,
+        :sites,
+        :group,
+        :notes,
+        :tags,
+        :kinds,
+        :requires,
+        :excluded_wallets,
+        :daily_limit
+      ])
+
+      change(relate_actor(:agent_profile))
+      change(Regents.Patchbay.Offers.Campaign.Seal)
+    end
+
+    read :mine do
+      description("The signed-in account's campaigns, newest first.")
+      filter(expr(agent_profile_id == ^actor(:id)))
+      prepare(build(sort: [inserted_at: :desc]))
+    end
+
+    read :by_campaign_ids do
+      argument(:campaign_ids, {:array, :string}, allow_nil?: false)
+      filter(expr(campaign_id in ^arg(:campaign_ids)))
+    end
+
+    read :catalog do
+      description("Every campaign, newest first, for Patchbay's review.")
+      prepare(build(sort: [inserted_at: :desc]))
     end
   end
+
+  policies do
+    policy action(:write) do
+      authorize_if(Regents.Patchbay.Offers.Campaign.OwnWallet)
+    end
+
+    policy action(:catalog) do
+      authorize_if(Regents.Patchbay.Checks.Moderator)
+    end
+
+    policy action_type(:read) do
+      authorize_if(Regents.Patchbay.Checks.Moderator)
+      authorize_if(expr(agent_profile_id == ^actor(:id)))
+      authorize_if(expr(exists(leases, true)))
+    end
+  end
+
+  @doc "The fields a campaign's manifest holds."
+  @spec manifest_fields() :: [atom()]
+  def manifest_fields,
+    do:
+      [:advertiser, :title, :body, :link, :audience, :sites, :group, :notes] ++
+        targeting_fields()
+
+  @doc "The optional fields that narrow who a campaign is shown to."
+  @spec targeting_fields() :: [atom()]
+  def targeting_fields, do: [:tags, :kinds, :requires, :excluded_wallets, :daily_limit]
+
+  @doc """
+  The manifest a campaign's id is the hash of: JSON with its fields in this
+  fixed order, and no spaces. Who it is shown to follows as `targeting`, with
+  only the parts it sets, in the same fixed order; a campaign that sets none
+  has no `targeting`.
+  """
+  @spec manifest(map()) :: String.t()
+  def manifest(campaign) do
+    [
+      {"version", 1},
+      {"advertiser", campaign.advertiser},
+      {"title", campaign.title},
+      {"body", campaign.body},
+      {"link", campaign.link},
+      {"audience", to_string(campaign.audience)},
+      {"sites", campaign.sites},
+      {"group", campaign.group && to_string(campaign.group)},
+      {"notes", campaign.notes}
+    ]
+    |> Kernel.++(targeting(campaign))
+    |> Jason.OrderedObject.new()
+    |> Jason.encode!()
+  end
+
+  defp targeting(campaign) do
+    parts =
+      for field <- targeting_fields(),
+          Map.get(campaign, field) not in [nil, []],
+          do: {Atom.to_string(field), sealed(Map.fetch!(campaign, field))}
+
+    if parts == [], do: [], else: [{"targeting", Jason.OrderedObject.new(parts)}]
+  end
+
+  defp sealed(values) when is_list(values), do: Enum.map(values, &to_string/1)
+  defp sealed(limit) when is_integer(limit), do: limit
 end

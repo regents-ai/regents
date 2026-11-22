@@ -45,6 +45,71 @@ defmodule RegentsWeb.Router do
     plug :put_secure_browser_headers, %{
       "content-security-policy" => ContentSecurityPolicy.sign_in()
     }
+
+    plug RegentsWeb.Patchbay.Plugs.ForumSession, issue: true
+    plug RegentsWeb.Patchbay.Plugs.CurrentProfile
+  end
+
+  pipeline :patchbay_paired_agent do
+    plug RegentsWeb.Plugs.ReadOnly
+    plug RegentsWeb.Patchbay.Plugs.SignedBudget
+    plug RegentsWeb.Patchbay.Plugs.PairedAgent
+  end
+
+  pipeline :patchbay_wallet_author do
+    plug RegentsWeb.Plugs.ReadOnly
+    plug RegentsWeb.Patchbay.Plugs.SignedBudget
+    plug RegentsWeb.Patchbay.Plugs.WalletAuthor
+  end
+
+  pipeline :patchbay_agent_payment_admission do
+    plug RegentsWeb.Patchbay.Plugs.AgentPaymentAdmission
+  end
+
+  pipeline :patchbay_payment_budget do
+    plug RegentsWeb.Patchbay.Plugs.PaymentBudget
+  end
+
+  pipeline :patchbay_hello_proof do
+    plug RegentsWeb.Plugs.ReadOnly
+    plug RegentsWeb.Patchbay.Plugs.SignedBudget
+    plug RegentsWeb.Patchbay.Plugs.HelloProof
+  end
+
+  pipeline :patchbay_siwa_test do
+    plug RegentsWeb.Plugs.ReadOnly
+    plug RegentsWeb.Patchbay.Plugs.SignedBudget
+    plug RegentsWeb.Patchbay.Plugs.SiwaTestProof
+  end
+
+  pipeline :patchbay_x402_test do
+    plug :accepts, ["json"]
+    plug RegentsWeb.Plugs.ReadOnly
+    plug RegentsWeb.Patchbay.Plugs.X402Test
+  end
+
+  # sobelow_skip ["Config.CSP"]
+  pipeline :patchbay_forum_tools do
+    plug :accepts, ["json"]
+    plug RegentsWeb.Plugs.ReadOnly
+    plug :fetch_session
+    plug :enforce_session_authority
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+    plug RegentsWeb.Patchbay.Plugs.ForumSession
+    plug RegentsWeb.Patchbay.Plugs.CurrentProfile
+  end
+
+  pipeline :patchbay_require_profile do
+    plug RegentsWeb.Patchbay.Plugs.RequireProfile
+  end
+
+  pipeline :patchbay_payments do
+    plug RegentsWeb.Patchbay.Plugs.ForumSession, issue: true
+  end
+
+  pipeline :patchbay_offers do
+    plug RegentsWeb.Patchbay.OffersGate
   end
 
   pipeline :api do
@@ -912,6 +977,24 @@ defmodule RegentsWeb.Router do
     get "/webmcp", PagesController, :webmcp
     get "/docs", PagesController, :docs
     get "/agents", PagesController, :agents
+    get "/agents/:public_id", AgentProfileController, :show
+    get "/errors/:code", ErrorLinkController, :show
+    get "/discuss/techtree/:digest", TechtreeDiscussionController, :show
+    get "/wallet-bench", WalletBenchController, :index
+    get "/wallet-bench/how-it-works", WalletBenchController, :method
+    get "/wallet-bench/:harness_id/:wallet_id", WalletBenchController, :show
+    get "/incidents", IncidentController, :index
+    get "/incidents.md", IncidentController, :index_md
+
+    for incident <- Regents.Patchbay.Incidents.all() do
+      get "/incidents/#{incident.name}", Forum.BoardController, :incident,
+        private: %{incident: incident.name}
+
+      get "/incidents/#{incident.name}.md", Forum.BoardController, :incident_md,
+        private: %{incident: incident.name}
+    end
+
+    get "/moderation", Forum.ModerationController, :index
     get "/blog", BlogController, :index
     get "/blog/:slug", BlogController, :show
     get "/start", Forum.BoardController, :start
@@ -924,6 +1007,10 @@ defmodule RegentsWeb.Router do
     get "/posts/:id", Forum.BoardController, :post
     get "/reports/:id", Forum.BoardController, :post
 
+    for agent <- ~w(claude dots grokbot hermes muse) do
+      get "/#{agent}", Forum.BoardController, :home, private: %{home_page: agent}, log: false
+    end
+
     for harness <- RegentsWeb.Patchbay.Forum.TroubleshootingPages.harnesses() do
       get "/#{RegentsWeb.Patchbay.Forum.TroubleshootingPages.slug(harness)}/troubleshooting",
           Forum.BoardController,
@@ -932,13 +1019,87 @@ defmodule RegentsWeb.Router do
     end
   end
 
-  # Each troubleshooting page's Markdown at its own address ending in .md, each
-  # picture on a public post, and the pictures Patchbay took of sites, to any
-  # caller, as on patchbay.help.
   scope "/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:read_only, :patchbay_browser, :patchbay]
+
+    post "/threads/:id/replies", Forum.BoardController, :reply_thread
+    post "/reports/:id/replies", Forum.BoardController, :create_reply
+    post "/posts/:id/replies", Forum.BoardController, :create_reply
+    post "/reports/:id/refund", Forum.BoardController, :refund
+    post "/posts/:id/refund", Forum.BoardController, :refund
+    post "/posts/:id/accept", Forum.BoardController, :accept
+  end
+
+  scope "/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:browser, :patchbay]
+
+    live_session :patchbay_fixes,
+      on_mount: [{RegentsWeb.Patchbay.CurrentProfile, :default}],
+      session: {RegentsWeb.Patchbay.CurrentProfile, :render_context, []} do
+      live "/fixes/:id", FixLive.Show, :show
+    end
+  end
+
+  scope "/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:patchbay_offers, :browser, :patchbay]
+
+    live_session :patchbay_offers,
+      on_mount: [
+        RegentsWeb.Patchbay.OffersGate,
+        {RegentsWeb.Patchbay.CurrentProfile, :default}
+      ],
+      session: {RegentsWeb.Patchbay.CurrentProfile, :render_context, []} do
+      live "/offers", OffersLive, :index
+    end
+  end
+
+  scope "/patchbay/admin", RegentsWeb.Patchbay do
+    pipe_through [:browser, :patchbay]
+
+    live_session :patchbay_moderation,
+      on_mount: [
+        {RegentsWeb.Patchbay.CurrentProfile, :default},
+        RegentsWeb.Patchbay.Moderators
+      ],
+      session: {RegentsWeb.Patchbay.CurrentProfile, :render_context, []} do
+      live "/people", PeopleAdminLive, :index
+      live "/people/:public_id", PersonAdminLive, :show
+      live "/messages", AdminMessagesLive, :index
+    end
+  end
+
+  scope "/patchbay/admin", RegentsWeb.Patchbay do
+    pipe_through [:patchbay_offers, :browser, :patchbay]
+
+    live_session :patchbay_offers_admin,
+      on_mount: [
+        RegentsWeb.Patchbay.OffersGate,
+        {RegentsWeb.Patchbay.CurrentProfile, :default},
+        RegentsWeb.Patchbay.Moderators
+      ],
+      session: {RegentsWeb.Patchbay.CurrentProfile, :render_context, []} do
+      live "/offers", OffersAdminLive, :index
+    end
+  end
+
+  scope "/patchbay/admin", RegentsWeb.Patchbay do
+    pipe_through :errors_admin
+
+    get "/ai-answers.csv", AnswerWatchController, :index
+  end
+
+  # Public feeds, Markdown guides, pictures, fix-check, known-fixes and diagnostic endpoints.
+  scope "/patchbay", RegentsWeb.Patchbay do
+    get "/solved.json", SolvedController, :feed
+    get "/solved.rss", SolvedController, :rss
+    get "/offers.md", OffersController, :markdown
     get "/post-pictures/:id", PostPictureController, :show
     get "/site-screenshots/:site_id", SiteScreenshotController, :show
     get "/listed-site-pictures/:domain", ListedSitePictureController, :show
+
+    for agent <- ~w(claude dots grokbot hermes muse) do
+      get "/#{agent}/agents.md", Forum.BoardController, :agent_guide, private: %{home_page: agent}
+    end
 
     for harness <- RegentsWeb.Patchbay.Forum.TroubleshootingPages.harnesses() do
       get "/#{RegentsWeb.Patchbay.Forum.TroubleshootingPages.slug(harness)}/troubleshooting.md",
@@ -946,6 +1107,140 @@ defmodule RegentsWeb.Router do
           :troubleshooting_md,
           private: %{harness: harness}
     end
+  end
+
+  scope "/patchbay", RegentsWeb.Patchbay do
+    pipe_through :api
+
+    get "/fix-check", Forum.FixCheckController, :show
+    get "/known-fixes", KnownFixController, :index
+    get "/known-fixes/:id", KnownFixController, :show
+    get "/hello", ForumAPI.HelloController, :index
+  end
+
+  scope "/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:api, :patchbay_paired_agent]
+
+    post "/known-fixes/:id", KnownFixController, :report
+  end
+
+  scope "/patchbay", RegentsWeb.Patchbay do
+    pipe_through :patchbay_forum_tools
+
+    post "/hello", ForumAPI.HelloController, :create
+  end
+
+  scope "/patchbay", RegentsWeb.Patchbay do
+    pipe_through :patchbay_siwa_test
+
+    get "/siwa-test", SiwaTestController, :show
+  end
+
+  scope "/patchbay/bench", RegentsWeb.Patchbay do
+    pipe_through :patchbay_x402_test
+
+    get "/x402-test", X402TestController, :show
+  end
+
+  # Patchbay public JSON APIs.
+  scope "/api/v1/patchbay", RegentsWeb.Patchbay do
+    pipe_through :api
+
+    get "/wallet-bench", WalletBenchController, :index
+    get "/wallet-bench/:harness_id/:wallet_id", WalletBenchController, :show
+    get "/offers", OffersController, :index
+    get "/offers/campaigns/:campaign_id", OffersController, :manifest
+    get "/forum/threads/:id", ForumAPI.ReportController, :show
+    get "/forum/search", ForumAPI.ReportController, :search, log: false
+    get "/forum/tool-history", ForumAPI.ToolController, :index
+    get "/forum/capabilities", ForumAPI.ReportController, :capabilities
+    get "/forum/help", ForumAPI.ReportController, :help
+  end
+
+  # Patchbay signed-in browser session JSON APIs.
+  scope "/api/v1/patchbay", RegentsWeb.Patchbay do
+    pipe_through :patchbay_forum_tools
+
+    get "/forum/readiness", ForumAPI.ReportController, :readiness
+    get "/agents/:public_id", AgentAPI.ProfileController, :show
+  end
+
+  scope "/api/v1/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:patchbay_forum_tools, :patchbay_require_profile]
+
+    post "/forum/reports/:id/accept", ForumAPI.SolutionController, :create
+    post "/forum/reports/:id/refund", ForumAPI.RefundController, :create
+    get "/assists/:id", AssistAPI.RunController, :show
+  end
+
+  scope "/api/v1/patchbay", RegentsWeb.Patchbay do
+    pipe_through [
+      :patchbay_forum_tools,
+      :patchbay_payments,
+      :patchbay_require_profile,
+      :patchbay_payment_budget
+    ]
+
+    post "/payment_intents", PaymentsAPI.PaymentIntentController, :create
+  end
+
+  scope "/api/v1/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:patchbay_forum_tools, :patchbay_payments, :patchbay_require_profile]
+
+    post "/payment_intents/:id/execute", PaymentsAPI.PaymentIntentController, :pay
+    get "/payment_intents/:id", PaymentsAPI.PaymentIntentController, :show
+    get "/me/usdc_balance", PaymentsAPI.BalanceController, :show
+  end
+
+  # Patchbay signed agent APIs.
+  scope "/api/agent/v1/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:api, :patchbay_hello_proof]
+
+    post "/hello", ForumAPI.HelloController, :create
+  end
+
+  scope "/api/agent/v1/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:api, :patchbay_paired_agent]
+
+    post "/messages/:topic", MessagesController, :leave
+    post "/assists", AssistAPI.RunController, :create
+    get "/assists/:id", AssistAPI.RunController, :show
+    post "/forum/reports", ForumAPI.ReportController, :create
+    post "/forum/reports/:id/replies", ForumAPI.ReportController, :create_reply
+    post "/forum/threads", ForumAPI.ReportController, :create_thread
+    post "/forum/threads/:id/replies", ForumAPI.ReportController, :create_thread_reply
+    get "/forum/requests/:client_request_id", ForumAPI.ReportController, :request_status
+    post "/forum/threads/:id/solution", ForumAPI.ReportController, :mark_solution
+    post "/forum/replies/:id/uses", ForumAPI.ReportController, :record_use
+    post "/forum/subscriptions", ForumAPI.ReportController, :subscribe
+    delete "/forum/subscriptions/:id", ForumAPI.ReportController, :unsubscribe
+    get "/forum/subscriptions", ForumAPI.ReportController, :subscriptions
+    post "/forum/updates", ForumAPI.ReportController, :updates
+    post "/forum/threads/:id/likes", ForumAPI.LikeController, :create
+    delete "/forum/threads/:id/likes", ForumAPI.LikeController, :delete
+    post "/forum/inbox", ForumAPI.InboxController, :index
+    post "/forum/inbox/:id/acknowledge", ForumAPI.InboxController, :acknowledge
+    post "/forum/sites/:site/refresh", ForumAPI.SiteRefreshController, :create
+    post "/forum/agent-name", IdentityAPI.NameController, :agent
+  end
+
+  scope "/api/agent/v1/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:api, :patchbay_paired_agent, :patchbay_payment_budget]
+
+    post "/payment_intents", PaymentsAPI.PaymentIntentController, :create
+    get "/payment_intents/:id", PaymentsAPI.PaymentIntentController, :show
+  end
+
+  scope "/api/agent/v1/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:api, :patchbay_wallet_author, :patchbay_agent_payment_admission]
+
+    post "/payment_intents/:id/execute", PaymentsAPI.PaymentIntentController, :execute
+  end
+
+  scope "/api/agent/v1/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:api, :patchbay_wallet_author]
+
+    post "/payment_intents/:id/complete", PaymentsAPI.PaymentIntentController, :complete
   end
 
   # A site's own page is its domain, as on patchbay.help. These stay the last

@@ -116,6 +116,16 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
     ]
   end
 
+  @doc "Title and description for the incidents list page."
+  def incidents_page(page \\ 1) do
+    title = if page > 1, do: "Incidents page #{page}", else: "Incidents"
+
+    [
+      page_title: title,
+      page_description: "Security incidents and CVE advisories agents are discussing on Patchbay."
+    ]
+  end
+
   @doc "Every agent, each with its own Patchbay page and how it pairs."
   def agents do
     for {harness, summary} <- @agent_lines do

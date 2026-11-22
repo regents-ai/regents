@@ -2,14 +2,15 @@ defmodule Regents.Patchbay.Messages.Message do
   @moduledoc """
   One message left for Patchbay's team under a `topic` the site names, such as
   `agents`: its text, where the sender wants an answer (`reply_to`) and who
-  left it. A signed-in person or their paired agent leaves one; the sender
+  left it. A signed-in person or their paired agent leaves one, a few an hour
+  at most from each person and from each network (`:message` and
+  `:message_address` in `Regents.Limits`). The sender is the actor, never an
+  input (`SetSender`). Only Patchbay's moderators read messages
+  (`Regents.Patchbay.Checks.Moderator`); the sender gets a receipt, `receipt/1`, and
   never reads them back.
 
   An agent's message carries the `operation_id` the agent made for it, and one
-  agent uses an `operation_id` once.
-
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  agent uses an `operation_id` once (`AgentLeave`).
   """
 
   use Ash.Resource,
@@ -18,7 +19,12 @@ defmodule Regents.Patchbay.Messages.Message do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
+  alias Regents.Patchbay.Limits.LimitWrites
+  alias Regents.Patchbay.Messages.Message.{AgentLeave, SetSender}
+
   @topic [max_length: 40, match: ~r/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/]
+  @shown_text "Use letters, numbers and marks you can see."
+  @quickly "You've left a lot of messages this hour. Try again later."
 
   postgres do
     table("left_messages")
@@ -31,6 +37,74 @@ defmodule Regents.Patchbay.Messages.Message do
 
     references do
       reference(:person, index?: true)
+    end
+  end
+
+  actions do
+    defaults([:read])
+
+    read :newest do
+      description("The team's inbox, newest first, a page at a time.")
+      prepare(build(sort: [inserted_at: :desc, id: :desc], load: [:person, :agent]))
+      pagination(keyset?: true, default_limit: 50)
+    end
+
+    read :by_operation do
+      description("The message an agent left under one of its operation_ids, if it left one.")
+      get?(true)
+      argument(:agent_profile_id, :uuid, allow_nil?: false)
+      argument(:operation_id, :uuid, allow_nil?: false)
+
+      filter(
+        expr(agent_profile_id == ^arg(:agent_profile_id) and operation_id == ^arg(:operation_id))
+      )
+    end
+
+    create :leave do
+      description("The actor leaves a message for the team.")
+      accept([:topic, :body, :reply_to])
+      # An agent's own key for this message, set by `AgentLeave` alone.
+      argument(:operation_id, :uuid, public?: false)
+      change(set_attribute(:operation_id, arg(:operation_id)))
+      change(SetSender)
+      validate(match(:body, RegentFormat.Text.pattern()), message: @shown_text)
+      validate(match(:reply_to, RegentFormat.Name.pattern()), message: @shown_text)
+
+      change(
+        {LimitWrites,
+         allowance: :message, address_allowance: :message_address, field: :body, message: @quickly}
+      )
+    end
+
+    action :agent_leave, :map do
+      description("An agent's message, its operation_id used once, as every surface answers it.")
+
+      argument(:topic, :string, allow_nil?: false, constraints: @topic)
+      argument(:body, :string, allow_nil?: false, constraints: [max_length: 2000])
+      argument(:reply_to, :string, constraints: [max_length: 200])
+      argument(:operation_id, :uuid, allow_nil?: false)
+
+      run(AgentLeave)
+    end
+  end
+
+  policies do
+    # A paired agent, or a person signed in here whose profile is active.
+    policy action(:leave) do
+      authorize_if(actor_attribute_equals(:role, :agent))
+      forbid_unless(actor_attribute_equals(:status, :active))
+      authorize_if(actor_attribute_equals(:authentication_origin, :privy))
+    end
+
+    policy action(:agent_leave) do
+      authorize_if(actor_attribute_equals(:role, :agent))
+    end
+
+    # Patchbay's moderators on their team page; the site itself when it answers
+    # a retried message with its receipt (`AgentLeave`).
+    policy action_type(:read) do
+      authorize_if(Regents.Patchbay.Checks.Moderator)
+      authorize_if(actor_attribute_equals(:role, :system))
     end
   end
 
@@ -72,11 +146,8 @@ defmodule Regents.Patchbay.Messages.Message do
     identity(:agent_operation, [:agent_profile_id, :operation_id])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if(always())
-    end
-  end
+  @doc "What the sender is told once a message is left: its id, topic and time."
+  @spec receipt(t()) :: %{id: Ecto.UUID.t(), topic: String.t(), inserted_at: DateTime.t()}
+  def receipt(message),
+    do: %{id: message.id, topic: message.topic, inserted_at: message.inserted_at}
 end

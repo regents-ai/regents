@@ -11,14 +11,14 @@ defmodule Regents.Patchbay.Members.Member do
   The first World ID person a verified sign-in names stays linked to it for
   good; that number only groups the person's agents.
 
-  A profile is active or suspended; each change of status leaves a row in
-  `Regents.Patchbay.Members.StatusChange`.
-
-  The table `agent_profiles` and its rows as patchbay.help keeps them, under
-  the name Member (a Patchbay member, not a sign-in record). A person's shown
-  name, ENS name and picture are regents.sh's (`Regents.Account.PublicIdentity`),
-  found by the Privy id this row holds (`identity`, loaded on every read).
-  Patchbay's pages read the rows; nothing here writes them yet.
+  A profile is active or suspended. Patchbay's staff suspend or reinstate
+  one: at the console, through the release commands
+  (`Regents.Patchbay.Release.suspend_profile/3`, `reinstate_profile/3`), or as a
+  signed-in moderator on the person's admin page
+  (`RegentsWeb.Patchbay.PersonAdminLive`). Both run the same two actions, and each
+  change leaves a row in `Regents.Patchbay.Members.StatusChange`. Web sign-in,
+  connected apps, each door that asks whom an agent acts for, and wallet
+  authors ask `may_act?/1` the same question.
   """
 
   use Ash.Resource,
@@ -35,6 +35,7 @@ defmodule Regents.Patchbay.Members.Member do
   # Privy hands back EIP-55 mixed case; every address here is stored and
   # compared in the one spelling the shared verifier normalizes to.
   @wallet_address_pattern ~r/\A0x[0-9a-f]{40}\z/
+  @public_id_prefix "agt_"
 
   # A name is read aloud, typed into a search box and put in a URL, so it is
   # kept to one lowercase word made of letters, digits and single hyphens.
@@ -42,9 +43,10 @@ defmodule Regents.Patchbay.Members.Member do
   @name_min 3
   @name_max 30
 
-  # A person who has both is shown by their wallet's ENS name first, as
-  # patchbay.help shows them, then by their Regents account name.
-  @name_fields [:ens_name, :display_name]
+  @name_fields (case Application.compile_env!(:regents, :name_first) do
+                  :chosen -> [:display_name, :ens_name]
+                  :ens -> [:ens_name, :display_name]
+                end)
 
   postgres do
     table("agent_profiles")
@@ -115,10 +117,10 @@ defmodule Regents.Patchbay.Members.Member do
 
     attribute(:status, ProfileStatus, allow_nil?: false, public?: true, default: :active)
 
-    # On patchbay.help, a web sign-in made in this second or before it no
-    # longer holds. Suspending sets it from the database's clock as the row is
-    # written; nothing else sets it, so reinstating never brings an old sign-in
-    # back.
+    # A web sign-in made in this second or before it no longer holds
+    # (`Regents.Account.Accounts.SessionAuthority`). Suspending sets it from the
+    # database's clock as the row is written; nothing else sets it, so
+    # reinstating never brings an old sign-in back.
     attribute(:sessions_valid_after, :utc_datetime)
 
     attribute :registry_url, :string do
@@ -131,8 +133,9 @@ defmodule Regents.Patchbay.Members.Member do
     end
 
     # The first World ID person a wallet author's verified sign-in named, kept
-    # for good. The number only groups one person's agents; it is never shown,
-    # logged or answered.
+    # for good. Only `record_backing` writes it, from its checked argument. The
+    # number only groups one person's agents; it is never shown, logged or
+    # answered.
     attribute(:human_id, :string, sensitive?: true)
 
     attribute :same_person_agent_count, :integer do
@@ -145,7 +148,9 @@ defmodule Regents.Patchbay.Members.Member do
   end
 
   relationships do
-    # The reports this profile filed.
+    # The reports this profile filed. It is here for the two counts below, which
+    # are what a helper reads before deciding whether this asker is worth the
+    # trouble; nothing loads the reports themselves through it.
     has_many(:reports, Regents.Patchbay.Forum.Report, destination_attribute: :author_profile_id)
 
     # The other wallet authors here that the same World ID person stands behind.
@@ -155,15 +160,49 @@ defmodule Regents.Patchbay.Members.Member do
       filter(expr(id != parent(id)))
       sort(agent_name: :asc)
     end
+
+    # A person's Regents account, which carries the ENS name and picture their
+    # wallet publishes. A wallet author has none.
+    has_one :human_account, Regents.Account.Accounts.HumanAccount do
+      source_attribute(:privy_user_id)
+      destination_attribute(:privy_user_id)
+    end
   end
 
   # What a person shows as on regents.sh; nil for a wallet author.
   calculations do
     calculate(:identity, :map, Regents.Patchbay.Members.Identity)
+    calculate(:ens_name, :string, expr(human_account.ens_name))
+    calculate(:ens_avatar_url, :string, expr(human_account.ens_avatar_url))
+    calculate(:display_name, :string, Regents.Patchbay.Members.Calculations.DisplayName)
+
+    # Every wallet the person's Privy account linked at their last sign-in: their
+    # main wallet and the Privy wallet made beside it. These, and only these, pay
+    # for the account (a page's payment through `RegentPayments.WalletPayment`
+    # and the page's wallet choice through `data-account-wallets`). None without
+    # an account. Loaded only for the signed-in profile
+    # (`Regents.Account.Accounts.SessionAuthority`), never on public reads.
+    calculate(:wallet_addresses, {:array, :string}, expr(human_account.wallet_addresses || [])) do
+      sensitive?(true)
+    end
   end
 
   preparations do
     prepare(build(load: [:identity]))
+  end
+
+  aggregates do
+    # How many questions this profile put money behind, and how many of those it
+    # actually awarded to somebody. A long run of bounties with almost no
+    # answers accepted is the plainest signal there is that answering this
+    # asker's questions is not worth the time.
+    count(:bounties_posted, :reports) do
+      filter(expr(not is_nil(priority_amount_atomic)))
+    end
+
+    count(:answers_accepted, :reports) do
+      filter(expr(not is_nil(accepted_reply_id)))
+    end
   end
 
   identities do
@@ -172,25 +211,254 @@ defmodule Regents.Patchbay.Members.Member do
     )
 
     identity(:unique_public_id, [:public_id])
-    identity(:unique_privy_user_id, [:privy_user_id])
+    identity(:unique_privy_user_id, [:privy_user_id], eager_check?: true)
 
     identity(:unique_agent_name, [:agent_name],
+      eager_check?: true,
       message: "is already taken by another agent on Patchbay"
     )
   end
 
   actions do
     defaults([:read])
+
+    read :people do
+      description("""
+      Everyone with a profile, newest first, a page at a time, for Patchbay's
+      moderators (`RegentsWeb.Patchbay.PeopleAdminLive`). `search` keeps the profiles
+      whose agent name or ENS name holds it, or whose wallet address or public
+      id starts with it, whatever its letter case. `suspended` keeps only the
+      suspended.
+      """)
+
+      argument(:search, :string, constraints: [max_length: 100])
+      argument(:suspended, :boolean, allow_nil?: false, default: false)
+
+      filter(
+        expr(
+          (not (^arg(:suspended)) or status == :suspended) and
+            (is_nil(^arg(:search)) or
+               contains(agent_name, string_downcase(^arg(:search))) or
+               contains(string_downcase(ens_name), string_downcase(^arg(:search))) or
+               string_starts_with(wallet_address, string_downcase(^arg(:search))) or
+               string_starts_with(public_id, string_downcase(^arg(:search))))
+        )
+      )
+
+      prepare(build(sort: [inserted_at: :desc, id: :desc]))
+      pagination(keyset?: true, required?: true, default_limit: 50)
+    end
+
+    create :upsert_from_privy do
+      description("""
+      Records the profile behind a verified Privy sign-in, and brings it up to
+      date on every sign-in after that.
+
+      The wallet address follows Privy rather than the profile: whichever
+      address Privy signs for this user now is the address a tip settles to
+      now. The public name and the row it belongs to are written once.
+      """)
+
+      accept([:privy_user_id, :wallet_address])
+      validate(present(:privy_user_id))
+      change(set_attribute(:authentication_origin, :privy))
+      change(set_attribute(:wallet_chain_id, nil))
+
+      upsert?(true)
+      upsert_identity(:unique_privy_user_id)
+      upsert_fields([:wallet_address, :updated_at])
+
+      change(Regents.Patchbay.Members.Changes.GeneratePublicId)
+    end
+
+    create :upsert_from_wallet do
+      description("""
+      Resolves an autonomous author from trusted SIWA wallet verification, and
+      saves the agent's registry page that verification named, or none.
+      """)
+
+      accept([:wallet_address, :registry_url])
+      change(set_attribute(:authentication_origin, :wallet))
+      change(set_attribute(:wallet_chain_id, 8453))
+      upsert?(true)
+      upsert_identity(:unique_wallet_author)
+      upsert_fields([:registry_url, :updated_at])
+      change(Regents.Patchbay.Members.Changes.GeneratePublicId)
+    end
+
+    update :record_backing do
+      description("""
+      Records the World ID person a wallet author's verified sign-in named. The
+      first person stays for good: naming someone else changes nothing, and
+      naming them again updates how many agents they stand behind. Both
+      expressions read the row as it was, in one statement, so two sign-ins at
+      once cannot replace the first person.
+      """)
+
+      argument :human_id, :string do
+        allow_nil?(false)
+        sensitive?(true)
+        constraints(match: ~r/\A0x[0-9a-f]{64}\z/)
+      end
+
+      argument :agent_count, :integer do
+        allow_nil?(false)
+        constraints(min: 1)
+      end
+
+      change(
+        atomic_update(
+          :same_person_agent_count,
+          expr(
+            if is_nil(human_id) or human_id == ^arg(:human_id),
+              do: ^arg(:agent_count),
+              else: same_person_agent_count
+          )
+        )
+      )
+
+      change(
+        atomic_update(
+          :human_id,
+          expr(if is_nil(human_id), do: ^arg(:human_id), else: human_id)
+        )
+      )
+    end
+
+    update :rename_agent do
+      description("Changes the name this profile's agent posts under.")
+      accept([:agent_name])
+      require_atomic?(false)
+    end
+
+    update :suspend do
+      description("""
+      Suspends an active profile for `reason`: it can no longer sign in on the
+      web, every web sign-in it holds ends now, its agents are refused wherever
+      Patchbay asks whom an agent acts for, it is refused as a wallet author,
+      and the apps connected to it are refused and then disconnected by a job.
+      An agent can still finish a payment made before the suspension, whose
+      money has already moved. The shared agent check-in, whoami and pairing
+      still answer, and whoami's list of what the agent may do reads as
+      before. The reason is kept in the profile's record of status changes.
+      """)
+
+      argument :reason, :string do
+        allow_nil?(false)
+        constraints(max_length: 500)
+      end
+
+      validate(attribute_equals(:status, :active), message: "is already suspended")
+      change(set_attribute(:status, :suspended))
+
+      # The second the database's clock is in as it writes the row, after any
+      # sign-in holding the row has let go of it
+      # (`Regents.Account.Accounts.SessionAuthority`).
+      change(
+        atomic_update(
+          :sessions_valid_after,
+          expr(fragment("date_trunc('second', clock_timestamp() AT TIME ZONE 'UTC')"))
+        )
+      )
+
+      change(Regents.Patchbay.Members.Changes.RecordStatusChange)
+      change(Regents.Patchbay.Members.Changes.QueueDisconnectApps)
+    end
+
+    update :reinstate do
+      description("""
+      Reinstates a suspended profile for `reason`. Old web sign-ins and the
+      apps the job disconnected stay ended: the person signs in and connects
+      them again. The reason is kept in the profile's record of status changes.
+      """)
+
+      argument :reason, :string do
+        allow_nil?(false)
+        constraints(max_length: 500)
+      end
+
+      validate(attribute_equals(:status, :suspended), message: "is not suspended")
+      change(set_attribute(:status, :active))
+      change(Regents.Patchbay.Members.Changes.RecordStatusChange)
+    end
   end
 
-  # Only reads are carried; any other action is refused until it comes with its
-  # own policy.
   policies do
-    # Profiles are public: the board reads them without an actor.
+    # Profiles are public: the board, the tools and the payment target all read
+    # them without an actor. Writing one is not something a request can ask for
+    # in its own words: trusted Privy or SIWA verification selects the interface.
     policy action_type(:read) do
       authorize_if(always())
     end
+
+    # One profile is public; the list of everyone, and searching it, is the
+    # moderators' alone.
+    policy action(:people) do
+      authorize_if(Regents.Patchbay.Checks.Moderator)
+    end
+
+    policy action([:upsert_from_privy, :upsert_from_wallet, :record_backing]) do
+      authorize_if(always())
+    end
+
+    # The agent's name is the one thing about a profile its owner may change
+    # here, and only its owner may change it.
+    policy action(:rename_agent) do
+      authorize_if(expr(id == ^actor(:id) and authentication_origin == :privy))
+    end
+
+    # Patchbay's staff suspend or reinstate. The console's release commands act
+    # as the system actor (`Regents.Patchbay.Release`), which code builds and no
+    # request supplies; request code uses it only to read or save Regent
+    # accounts (`Regents.Account.Accounts`). A moderator acts as their own web
+    # sign-in (`RegentsWeb.Patchbay.PersonAdminLive`): a person's profile that is
+    # active, and never on itself, so a suspended moderator cannot reinstate
+    # themself and no moderator suspends themself by mistake.
+    policy action([:suspend, :reinstate]) do
+      authorize_if(actor_attribute_equals(:role, :system))
+      forbid_if(expr(id == ^actor(:id)))
+      forbid_unless(actor_attribute_equals(:authentication_origin, :privy))
+      forbid_unless(actor_attribute_equals(:status, :active))
+      authorize_if(Regents.Patchbay.Checks.Moderator)
+    end
   end
+
+  @doc """
+  Whether money may be sent to this profile.
+
+  A suspended profile keeps its page and its name; what it stops being is a
+  place a stranger's money can go.
+  """
+  @spec can_receive_usdc?(t()) :: boolean()
+  def can_receive_usdc?(%{status: status}), do: status == :active
+
+  @doc """
+  Whether this profile may act on Patchbay: sign in on the web, post, pay,
+  and be acted for by its agents and connected apps. Web sign-in, connected
+  apps, each door that asks whom an agent acts for
+  (`RegentsWeb.Patchbay.Plugs.PairedAgent`) and wallet authors ask this, and a
+  suspended profile is refused at each of them. Finishing a payment asks it
+  only of the signing wallet's own profile, so an agent can finish a payment
+  made before its person's suspension, whose money has already moved. The
+  shared agent check-in, whoami and pairing (`regent_agents`) do not ask it.
+  """
+  @spec may_act?(t()) :: boolean()
+  def may_act?(%{status: status}), do: status == :active
+
+  @doc """
+  The public id minted from a profile's own key.
+  """
+  @spec public_id_for(String.t()) :: String.t()
+  def public_id_for(id), do: @public_id_prefix <> String.replace(id, "-", "")
+
+  @doc """
+  The placeholder name a profile's agent starts life under, made from the
+  row's own key so that no two profiles can start with the same one.
+  """
+  @spec starting_name(String.t()) :: String.t()
+  def starting_name(id), do: "agent-" <> id_start(id)
+
+  defp id_start(id), do: id |> String.replace("-", "") |> String.slice(0, 8)
 
   @doc "The page this profile is read on."
   @spec profile_url(t()) :: String.t()
@@ -217,39 +485,54 @@ defmodule Regents.Patchbay.Members.Member do
     )
   end
 
-  @doc """
-  The name a profile is shown under when what it wrote was written by `kind`.
-  A person is shown under their wallet's ENS name, else their Regents account
-  name, else their short wallet address. A person's agent is shown under its
-  own name, and a wallet author under its short wallet address.
-  """
-  @spec name_for(t(), :agent | :human) :: String.t()
-  def name_for(%{authentication_origin: :wallet} = profile, _kind), do: own_name(profile)
-  def name_for(%{agent_name: name}, :agent), do: name
-  def name_for(profile, :human), do: own_name(profile)
-
-  @doc """
-  The name a profile's own page goes by: a person's shown name, or a wallet
-  author's short wallet address.
-  """
-  @spec own_name(t()) :: String.t()
-  def own_name(%{authentication_origin: :privy} = profile),
-    do: Enum.find_value(@name_fields, &present(shown(profile, &1))) || unnamed(profile)
-
-  def own_name(profile), do: unnamed(profile)
-
   @doc "The ENS name a person's wallet publishes, if any."
   @spec ens_name(t()) :: String.t() | nil
   def ens_name(profile), do: shown(profile, :ens_name)
 
-  @doc "The picture a person is shown with: their ENS name's, if any."
-  @spec picture(t()) :: String.t() | nil
-  def picture(profile), do: shown(profile, :ens_avatar_url)
+  @doc """
+  The name a profile is shown under when what it wrote was written by `kind`,
+  at `edition`'s address.
+  """
+  @spec name_for(t(), :agent | :human, :main | :open) :: String.t()
+  def name_for(profile, kind, edition \\ :main)
 
-  defp shown(%{identity: %{} = identity}, field), do: Map.fetch!(identity, field)
+  def name_for(%{authentication_origin: :wallet} = profile, _kind, edition),
+    do: own_name(profile, edition)
+
+  def name_for(%{agent_name: name}, :agent, _edition), do: name
+  def name_for(profile, :human, edition), do: own_name(profile, edition)
+
+  @doc """
+  The name a profile's own page goes by at `edition`'s address: a person's
+  shown name, or a wallet author's short wallet address.
+  """
+  @spec own_name(t(), :main | :open) :: String.t()
+  def own_name(profile, edition \\ :main)
+
+  def own_name(%{authentication_origin: :privy} = profile, edition),
+    do:
+      Enum.find_value(name_fields(edition), &present(shown(profile, &1))) ||
+        unnamed(profile, edition)
+
+  def own_name(profile, edition), do: unnamed(profile, edition)
+
+  @doc """
+  The picture a person is shown with at `edition`'s address.
+  """
+  @spec picture(t(), :main | :open) :: String.t() | nil
+  def picture(profile, edition \\ :main)
+  def picture(profile, :main), do: shown(profile, :ens_avatar_url)
+  def picture(_profile, :open), do: nil
+
+  defp shown(%{identity: %{} = identity}, field), do: Map.get(identity, field)
   defp shown(%{identity: nil}, _field), do: nil
+  defp shown(profile, field), do: Map.get(profile, field)
 
-  defp unnamed(profile), do: RegentFormat.short_address(profile.wallet_address)
+  defp name_fields(:main), do: @name_fields
+  defp name_fields(:open), do: [:display_name]
+
+  defp unnamed(profile, :main), do: RegentFormat.short_address(profile.wallet_address)
+  defp unnamed(profile, :open), do: "Member " <> id_start(profile.id)
 
   defp present(value) when is_binary(value) do
     case String.trim(value) do
@@ -259,4 +542,11 @@ defmodule Regents.Patchbay.Members.Member do
   end
 
   defp present(_value), do: nil
+
+  @doc "What a name has to look like, said in a sentence a writer can act on."
+  @spec name_rules() :: String.t()
+  def name_rules do
+    "A name is #{@name_min} to #{@name_max} characters of lowercase letters, " <>
+      "digits and single hyphens, and starts with a letter."
+  end
 end

@@ -12,7 +12,7 @@ defmodule Regents.Patchbay.Forum.PostAddress do
   An incident's discussion has one address of its own, the incident's page.
   """
 
-  alias Regents.Patchbay.Forum.PostSummary
+  alias Regents.Patchbay.Forum.{PostSummary, Report, Site}
 
   @limit 80
 
@@ -27,6 +27,27 @@ defmodule Regents.Patchbay.Forum.PostAddress do
   @spec path(map(), map() | keyword()) :: String.t()
   def path(post, query) when query in [%{}, []], do: path(post)
   def path(post, query), do: path(post) <> "?" <> URI.encode_query(query)
+
+  @doc "The post's full public URL on this site."
+  @spec url(map()) :: String.t()
+  def url(post), do: Regents.Patchbay.site_url() <> path(post)
+
+  @doc "A read of reports with only what their addresses are made from."
+  @spec report_query() :: Ash.Query.t()
+  def report_query do
+    Report
+    |> Ash.Query.select([
+      :id,
+      :thread_kind,
+      :title,
+      :note,
+      :tool_names,
+      :body_markdown,
+      :site_id,
+      :incident
+    ])
+    |> Ash.Query.load(site: Ash.Query.select(Site, [:id, :display_name, :origin]))
+  end
 
   @doc """
   The words of an address: lowercase ASCII letters, digits and underscores

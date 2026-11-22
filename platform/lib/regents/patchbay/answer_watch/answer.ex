@@ -6,7 +6,8 @@ defmodule Regents.Patchbay.AnswerWatch.Answer do
   topic are copied in when the answer is written, so later edits to the
   question list never change what an earlier week recorded.
 
-  The table and its rows as patchbay.help keeps them; no page here reads them.
+  Every write is Patchbay's own and says so by skipping authorization; no
+  visitor reads these rows except through the admin download.
   """
 
   use Ash.Resource,
@@ -14,6 +15,8 @@ defmodule Regents.Patchbay.AnswerWatch.Answer do
     domain: Regents.Patchbay.AnswerWatch,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
+
+  alias Regents.Patchbay.AnswerWatch.Questions
 
   postgres do
     table("answer_watch_answers")
@@ -38,21 +41,19 @@ defmodule Regents.Patchbay.AnswerWatch.Answer do
     attribute(:persona, :atom,
       allow_nil?: false,
       public?: true,
-      constraints: [
-        one_of: [:agent_builders, :site_teams, :wallet_teams, :agents, :security, :marketers]
-      ]
+      constraints: [one_of: Questions.personas()]
     )
 
     attribute(:stage, :atom,
       allow_nil?: false,
       public?: true,
-      constraints: [one_of: [:stuck, :looking, :comparing, :choosing]]
+      constraints: [one_of: Questions.stages()]
     )
 
     attribute(:topic, :atom,
       allow_nil?: false,
       public?: true,
-      constraints: [one_of: [:agent_help, :webmcp, :wallets, :incidents, :offers, :patchbay]]
+      constraints: [one_of: Questions.topics()]
     )
 
     # The model that answered, as the provider named it.
@@ -69,9 +70,30 @@ defmodule Regents.Patchbay.AnswerWatch.Answer do
     identity(:once_a_week, [:week, :engine, :question])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+
+    create :record do
+      description("One engine's answer to one tracked question, for the week it was asked in.")
+
+      accept([
+        :week,
+        :engine,
+        :question,
+        :persona,
+        :stage,
+        :topic,
+        :model,
+        :answer,
+        :cited_urls,
+        :patchbay_cited,
+        :patchbay_mentioned
+      ])
+    end
+  end
+
   policies do
+    # No visitor reads or writes these; Patchbay's own work skips this.
     policy always() do
       forbid_if(always())
     end

@@ -5,27 +5,34 @@ defmodule Regents.Patchbay.Forum.Reply do
   reason reports are; the one thing that changes afterwards is moderation's
   reward mark on it.
 
-  Every reply records which of those wrote it (`author_kind`), set by the way
-  it came in rather than by anything the writer sent.
+  Every reply records which of those wrote it, and it is the action that
+  records it rather than the writer: `add_reply` is the door the page's tools
+  come through and is always an agent's, `add_human_reply` is the door the form
+  on the page comes through and is always a person's. Nothing a caller sends
+  can change the answer.
 
-  The table and its rows as patchbay.help keeps them. Patchbay's pages read
-  them; nothing here writes them yet.
+  Each reply a person or their agent writes is told to the rest of the site
+  as `:reply_posted` (`Regents.Patchbay.Forum.Signals`); Patchbay's own answers are
+  not. Each word moderation gives on a reply is told as `:reply_moderated`.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Forum,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
 
   import Ash.Expr
 
+  alias Regents.Patchbay.Forum.LivePost
   alias Regents.Patchbay.Forum.Types.AuthorKind
   alias Regents.Patchbay.Forum.Types.RewardEligibility
   alias Regents.Patchbay.Forum.Types.Verdict
   alias Regents.Patchbay.Forum.Types.Visibility
 
   @max_note_bytes 500
+  @max_body_bytes 16 * 1024
   @max_client_request_id_bytes 128
 
   postgres do
@@ -39,7 +46,8 @@ defmodule Regents.Patchbay.Forum.Reply do
     end
 
     custom_indexes do
-      # A search of the replies' words and fixes reads this instead of every reply.
+      # A search reads this instead of every reply: exactly `search_vector`'s
+      # expression, so the index answers it.
       index(
         [
           "(to_tsvector('english'::regconfig, coalesce(body_markdown, '') || ' ' || coalesce(note, '') || ' ' || coalesce(fix->>'software', '') || ' ' || coalesce(fix->>'affected_versions', '') || ' ' || coalesce(fix->>'change', '') || ' ' || coalesce(fix->>'test', '') || ' ' || coalesce(fix->>'result', '') || ' ' || coalesce(fix->>'not_covered', '')) || coalesce(jsonb_to_tsvector('english'::regconfig, fix->'versions', '[\"string\"]'), ''::tsvector) || coalesce(jsonb_to_tsvector('english'::regconfig, fix->'sources', '[\"string\"]'), ''::tsvector) || coalesce(jsonb_to_tsvector('english'::regconfig, jsonb_path_query_array(fix, '$.updates[*].text'), '[\"string\"]'), ''::tsvector))"
@@ -51,12 +59,35 @@ defmodule Regents.Patchbay.Forum.Reply do
     end
   end
 
+  # Every reply written, and every reply moderation hides or shows again, is
+  # told to the pages showing its thread (`Regents.Patchbay.Forum.LivePost`).
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(Regents.PubSub)
+    prefix("public")
+    broadcast_type(:broadcast)
+
+    publish_all(:create, ["post", :report_id],
+      event: "changed",
+      load: LivePost.reply_loads(),
+      returns: :map,
+      transform: &LivePost.reply_changed/1
+    )
+
+    publish(:set_visibility, ["post", :report_id],
+      event: "changed",
+      load: LivePost.reply_loads(),
+      returns: :map,
+      transform: &LivePost.reply_changed/1
+    )
+  end
+
   attributes do
     attribute(:acting_agent_id, :uuid)
     attribute(:beneficiary_profile_id, :uuid)
     attribute(:human_account_id, :integer)
     attribute(:pairing_id, :uuid)
-    # Who wrote it, kept as it stood then: the
+    # Who wrote it, kept as it stood then (`Changes.RecordWriter`): the
     # person's Privy account, and the agent's pairing name, harness and
     # pairing date, which stay after the agent is unpaired.
     attribute(:privy_user_id, :string, sensitive?: true)
@@ -68,7 +99,7 @@ defmodule Regents.Patchbay.Forum.Reply do
     attribute(:browser_session_id, :uuid, allow_nil?: false, public?: true)
 
     # The verdict a tool report asked for. An ordinary conversational reply
-    # carries none.
+    # carries none; only the report-reply actions require one.
     attribute(:verdict, Verdict, allow_nil?: true, public?: true)
 
     # The reply's words when it is an ordinary conversation reply rather than
@@ -78,13 +109,14 @@ defmodule Regents.Patchbay.Forum.Reply do
     # The fix a reply gives, as fields an agent can search and read without
     # parsing the words: software, versions, status, change, test, result,
     # what it does not cover, sources and dated updates. Only an agent's
-    # conversational reply carries one.
+    # conversational reply carries one (`post_reply`).
     attribute(:fix, Regents.Patchbay.Forum.Fix, allow_nil?: true, public?: true)
 
-    # Moderation's word on whether this reply may be shown.
+    # Moderation's word on whether this reply may be shown. No public action
+    # accepts it.
     attribute(:visibility, Visibility, allow_nil?: false, public?: true, default: :published)
 
-    # Set by the way the reply came in, never by what its writer sent.
+    # Set by whichever action wrote the reply and accepted by none of them.
     attribute(:author_kind, AuthorKind, allow_nil?: false, public?: true, default: :agent)
 
     attribute :note, :string do
@@ -93,13 +125,16 @@ defmodule Regents.Patchbay.Forum.Reply do
       constraints(max_length: @max_note_bytes, trim?: false)
     end
 
-    # Marks a reply as coming from the site's own operator: only ever set on
-    # Patchbay's own board, since a browser cannot prove ownership of a site.
+    # Marks a reply as coming from the site's own operator. `add_reply` does not
+    # accept it, because a browser cannot prove ownership of a site; only
+    # `add_operator_reply`, which no public endpoint reaches, may set it, and it
+    # only ever sets it on Patchbay's own board.
     attribute(:owner_response, :boolean, allow_nil?: false, public?: true, default: false)
 
     # Whether the reading before it was published was sure that code or
     # commands in it could harm whoever runs them. It is published either
-    # way, with a caution. Only that reading sets it.
+    # way, with a caution. No action accepts it: only that reading sets it
+    # (`Regents.Patchbay.Forum.PostingCheck.with_code_caution/2`).
     attribute(:code_caution, :boolean,
       allow_nil?: false,
       public?: true,
@@ -115,7 +150,7 @@ defmodule Regents.Patchbay.Forum.Reply do
 
     # The key a caller chose for its reply, and a digest of what it sent, so
     # the same reply sent twice is answered with this row and the same key
-    # sent with different words is refused.
+    # sent with different words is refused. Only `post_reply` carries them.
     attribute :client_request_id, :string do
       allow_nil?(true)
       public?(true)
@@ -141,9 +176,9 @@ defmodule Regents.Patchbay.Forum.Reply do
   relationships do
     belongs_to(:report, Regents.Patchbay.Forum.Report, allow_nil?: false, public?: true)
 
-    # The signed-in profile that replied, when there was one, taken from who
-    # was signed in and never from what a caller sent. A reply Patchbay wrote
-    # itself has none.
+    # The signed-in profile that replied, when there was one. It is never
+    # accepted from a caller: `add_reply` reads it from the actor. A reply
+    # Patchbay wrote itself has none.
     belongs_to(:author, Regents.Patchbay.Members.Member,
       source_attribute: :author_profile_id,
       allow_nil?: true,
@@ -222,9 +257,9 @@ defmodule Regents.Patchbay.Forum.Reply do
 
   calculations do
     # The words a search finds a reply by: what it says and every word of its
-    # fix, its versions, sources and update texts too
-    # (`Regents.Patchbay.Forum.Fix`). Written exactly as
-    # `forum_replies_search_words_index` is built, so a search reads the index.
+    # fix, its versions, sources and update texts too (`Regents.Patchbay.Forum.Fix`).
+    # Written exactly as `forum_replies_search_words_index` is built, so a
+    # search reads the index.
     calculate(
       :search_vector,
       AshPostgres.Tsvector,
@@ -273,9 +308,8 @@ defmodule Regents.Patchbay.Forum.Reply do
       )
     )
 
-    # Who replied, in the same form `Regents.Patchbay.Forum.Report`'s
-    # `principal` names the asker: the person an agent acts for, else the
-    # signed-in profile, else the session.
+    # Who replied, in the form `Regents.Patchbay.Forum.Principal.for/1` gives: the
+    # person an agent acts for, else the signed-in profile, else the session.
     calculate(
       :principal,
       :string,
@@ -294,26 +328,45 @@ defmodule Regents.Patchbay.Forum.Reply do
     )
   end
 
+  changes do
+    change(Regents.Patchbay.Agents.AttributeAction, on: [:create])
+    change(Regents.Patchbay.Forum.Changes.RecordWriter, on: [:create])
+  end
+
+  # What is written here is public for good, so a wallet's secret in it is
+  # refused whichever way the post is written.
+  validations do
+    validate(
+      {Regents.Patchbay.Forum.Validations.NoWalletSecret, attributes: [:body_markdown, :note]},
+      on: [:create]
+    )
+  end
+
   actions do
     defaults([:read])
 
+    read :posted_by_author do
+      description("""
+      What one signed-in account posted after a moment, from any session,
+      oldest first: the rows its hourly share is counted from.
+      """)
+
+      argument(:author_profile_id, :uuid, allow_nil?: false)
+      argument(:since, :utc_datetime_usec, allow_nil?: false)
+      filter(expr(author_profile_id == ^arg(:author_profile_id) and inserted_at > ^arg(:since)))
+      prepare(build(sort: [inserted_at: :asc, id: :asc], select: [:id, :inserted_at]))
+    end
+
     read :for_report do
       description("""
-      A published thread's published replies, most helpful first: the reply
-      the asker marked as solving their problem, then the rest by
-      `helpfulness`, a tie going to the newer reply, then the replies nobody
-      has marked, newest first. A thread held out of sight has none here.
+      A thread's published replies, most helpful first: the reply the asker
+      marked as solving their problem, then the rest by `helpfulness`, a tie
+      going to the newer reply, then the replies nobody has marked, newest
+      first.
       """)
 
       argument(:report_id, :uuid, allow_nil?: false)
-
-      filter(
-        expr(
-          report_id == ^arg(:report_id) and visibility == :published and
-            report.visibility == :published
-        )
-      )
-
+      filter(expr(report_id == ^arg(:report_id) and visibility == :published))
       pagination(keyset?: true, default_limit: 50, max_page_size: 200)
 
       prepare(
@@ -327,22 +380,225 @@ defmodule Regents.Patchbay.Forum.Reply do
         )
       )
     end
-  end
 
-  # Only reads are carried; any other action is refused until it comes with its
-  # own policy.
-  policies do
-    # The board is public to read: no actor is required. A reply is public
-    # exactly while it is published: one held out of sight, which still names
-    # who wrote it, is absent from the plain read, from every load of a reply
-    # and from every count through one.
-    policy action(:read) do
-      authorize_if(expr(visibility == :published))
+    read :for_request do
+      description("The reply a session's request key already added, if one did.")
+      argument(:browser_session_id, :uuid, allow_nil?: false)
+      argument(:client_request_id, :string, allow_nil?: false)
+
+      filter(
+        expr(
+          browser_session_id == ^arg(:browser_session_id) and
+            client_request_id == ^arg(:client_request_id)
+        )
+      )
     end
 
-    # The named read keeps to published replies on published threads itself.
-    policy action(:for_report) do
+    create :add_reply do
+      change({RegentAgents.RequirePairing, repo: Regents.Repo})
+      description("Adds one agent's response to a report, through the page's tools.")
+
+      accept([
+        :report_id,
+        :browser_session_id,
+        :verdict,
+        :note,
+        :client_request_id,
+        :request_digest
+      ])
+
+      validate(present(:verdict))
+
+      change(set_attribute(:author_kind, :agent))
+      change(set_attribute(:author_profile_id, actor(:id)))
+      change({Regents.Patchbay.Forum.Changes.StripControlCharacters, attributes: [:note]})
+      change(Regents.Patchbay.Forum.Changes.TouchThread)
+
+      validate(
+        {Regents.Patchbay.Forum.Validations.MaxByteLength,
+         attribute: :note, max_bytes: @max_note_bytes}
+      )
+
+      emit(Regents.Patchbay.Forum.Signals, :reply_posted, fields: [reply_id: :id])
+    end
+
+    create :add_human_reply do
+      description("""
+      Adds one person's response to a report, through the form on the page.
+
+      A person replies under their own name or not at all, so this action wants
+      an actor where `add_reply` merely takes one if there is one.
+      """)
+
+      accept([:report_id, :browser_session_id, :verdict, :note])
+
+      validate(present(:verdict))
+      change(set_attribute(:author_kind, :human))
+      change(set_attribute(:author_profile_id, actor(:id)))
+      change({Regents.Patchbay.Forum.Changes.StripControlCharacters, attributes: [:note]})
+      change(Regents.Patchbay.Forum.Changes.TouchThread)
+
+      validate(
+        {Regents.Patchbay.Forum.Validations.MaxByteLength,
+         attribute: :note, max_bytes: @max_note_bytes}
+      )
+
+      emit(Regents.Patchbay.Forum.Signals, :reply_posted, fields: [reply_id: :id])
+    end
+
+    create :add_operator_reply do
+      description("""
+      Patchbay's own answer on its own board, written by the worker that acted
+      on a report. The identity and the owner mark are fixed here rather than
+      accepted, so nothing a caller sends can post as Regents.Patchbay.
+      """)
+
+      accept([:report_id, :verdict, :note])
+
+      validate(present(:verdict))
+      change(set_attribute(:owner_response, true))
+      change(set_attribute(:author_kind, :agent))
+      change(set_attribute(:browser_session_id, &Regents.Patchbay.Config.agent_session_id/0))
+      change({Regents.Patchbay.Forum.Changes.StripControlCharacters, attributes: [:note]})
+      change(Regents.Patchbay.Forum.Changes.TouchThread)
+
+      validate(
+        {Regents.Patchbay.Forum.Validations.MaxByteLength,
+         attribute: :note, max_bytes: @max_note_bytes}
+      )
+    end
+
+    create :post_reply do
+      change({RegentAgents.RequirePairing, repo: Regents.Repo})
+
+      description("""
+      Adds an agent's conversational reply to a thread, through the page's
+      tools. Any reply can be an answer or discussion: words, never a verdict.
+      """)
+
+      accept([
+        :report_id,
+        :browser_session_id,
+        :body_markdown,
+        :fix,
+        :client_request_id,
+        :request_digest
+      ])
+
+      validate(present(:body_markdown))
+
+      # A request key and its digest travel together or not at all.
+      validate(present(:request_digest), where: [present(:client_request_id)])
+      validate(absent(:request_digest), where: [absent(:client_request_id)])
+
+      validate(
+        {Regents.Patchbay.Forum.Validations.MaxByteLength,
+         attribute: :body_markdown, max_bytes: @max_body_bytes}
+      )
+
+      change(set_attribute(:author_kind, :agent))
+      change(set_attribute(:author_profile_id, actor(:id)))
+
+      change(
+        {Regents.Patchbay.Forum.Changes.StripControlCharacters, attributes: [:body_markdown]}
+      )
+
+      change(Regents.Patchbay.Forum.Changes.TouchThread)
+      emit(Regents.Patchbay.Forum.Signals, :reply_posted, fields: [reply_id: :id])
+    end
+
+    create :post_human_reply do
+      description("""
+      Adds a person's conversational reply to a thread, through the form on
+      the page. As with every human write it wants an actor: a person replies
+      under their own name or not at all.
+      """)
+
+      accept([:report_id, :browser_session_id, :body_markdown])
+
+      validate(present(:body_markdown))
+
+      validate(
+        {Regents.Patchbay.Forum.Validations.MaxByteLength,
+         attribute: :body_markdown, max_bytes: @max_body_bytes}
+      )
+
+      change(set_attribute(:author_kind, :human))
+      change(set_attribute(:author_profile_id, actor(:id)))
+
+      change(
+        {Regents.Patchbay.Forum.Changes.StripControlCharacters, attributes: [:body_markdown]}
+      )
+
+      change(Regents.Patchbay.Forum.Changes.TouchThread)
+      emit(Regents.Patchbay.Forum.Signals, :reply_posted, fields: [reply_id: :id])
+    end
+
+    update :set_visibility do
+      description("""
+      Moderation's word on whether this reply may be shown. Only a moderator
+      may give it, through the moderation door, which writes the audit row
+      alongside.
+      """)
+
+      accept([:visibility])
+      require_atomic?(true)
+
+      emit(Regents.Patchbay.Forum.Signals, :reply_moderated,
+        fields: [reply_id: :id, visibility: :visibility, reward_eligibility: :reward_eligibility]
+      )
+    end
+
+    update :set_reward_eligibility do
+      description("Moderation's word on whether this reply can earn its author a reward.")
+      accept([:reward_eligibility])
+
+      emit(Regents.Patchbay.Forum.Signals, :reply_moderated,
+        fields: [reply_id: :id, visibility: :visibility, reward_eligibility: :reward_eligibility]
+      )
+    end
+  end
+
+  policies do
+    policy [actor_attribute_equals(:role, :agent), action_type([:create, :update, :destroy])] do
+      authorize_if({RegentAgents.Checks.Paired, repo: Regents.Repo})
+    end
+
+    # The board is public to read: no actor is required.
+    policy action_type(:read) do
       authorize_if(always())
     end
+
+    # Holding a reply out of view, or bringing it back, is a moderator's.
+    policy action(:set_visibility) do
+      authorize_if(Regents.Patchbay.Checks.Moderator)
+    end
+
+    # Only a signed-in caller replies.
+    policy action(:add_reply) do
+      authorize_if(actor_present())
+    end
+
+    policy action(:post_reply) do
+      authorize_if(actor_present())
+    end
+
+    # A person replies under their own name, so there has to be one.
+    policy action(:post_human_reply) do
+      authorize_if(actor_present())
+    end
+
+    # A person replies under their own name, so there has to be one.
+    policy action(:add_human_reply) do
+      authorize_if(actor_present())
+    end
+
+    # `add_operator_reply` and `set_reward_eligibility` are named by no policy,
+    # so nothing that arrives over HTTP can reach them. Patchbay's own worker
+    # and moderation skip authorization to use them.
   end
+
+  @doc "The most bytes each of a reply's written fields may hold."
+  @spec byte_limits() :: %{atom() => pos_integer()}
+  def byte_limits, do: %{body_markdown: @max_body_bytes, note: @max_note_bytes}
 end

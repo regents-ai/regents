@@ -16,21 +16,28 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   use RegentsWeb, :html
 
   import Regents.Patchbay.Forum.PostSummary, only: [post_title: 1]
-  import RegentsWeb.Patchbay.Chrome, only: [board_header: 1, agent_step_items: 1, agent_part: 1]
+  import RegentsWeb.Patchbay.Chrome, only: [agent_step_items: 1, agent_part: 1]
   import RegentsWeb.Patchbay.Forum.Nameplate
 
+  alias Phoenix.LiveView.JS
   alias Regents.Patchbay.BoundedText
   alias Regents.Patchbay.Forum.BoardActivity
   alias Regents.Patchbay.Forum.Fix
+  alias Regents.Patchbay.Forum.Origin
   alias Regents.Patchbay.Forum.PostAddress
   alias Regents.Patchbay.Forum.PostSummary
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.Types.ThreadKind
   alias RegentsWeb.Patchbay.AgentStart
+  alias RegentsWeb.Patchbay.Forum.AgentArt
   alias RegentsWeb.Patchbay.Forum.Board
+  alias RegentsWeb.Patchbay.Forum.Face
   alias RegentsWeb.Patchbay.Forum.Labels
   alias RegentsWeb.Patchbay.Forum.VersionDiff
   alias RegentsWeb.Patchbay.IncidentHTML
+  alias RegentsWeb.Patchbay.PostFormLive
+
+  defdelegate board_header(assigns), to: RegentsWeb.Patchbay.Chrome
 
   embed_templates("board_html/*")
 
@@ -510,6 +517,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   attr :offer_ask, :boolean,
     default: true,
     doc: "whether an empty list offers to ask; false when the page already does"
+
+  attr :earned_tips, :map, default: %{}
+  attr :site_edition, :atom, default: :main
 
   @doc """
   The questions as rows, the same on every list: the opening post's likes in a
@@ -1835,5 +1845,241 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
       }
     }
     """
+  end
+
+  def markdown_html(text), do: markdown(text)
+  def thread_data(report, replies, _edition), do: thread_data(report, replies)
+
+  def snippet(post) do
+    text = post.body_markdown || post.note || ""
+    {short, _} = BoundedText.take(text, @snippet_bytes)
+    short
+  end
+
+  @doc "The types a poster may pick for a thread, each as the form's value and its label."
+  def thread_types,
+    do: Enum.map(ThreadKind.choices(), &{Atom.to_string(&1), ThreadKind.label(&1)})
+
+  defp preview_type(picked) do
+    with {_value, label} <- List.keyfind(thread_types(), picked, 0), do: label
+  end
+
+  def inbox_event_label(%{kind: :reply_posted}), do: "New reply"
+  def inbox_event_label(%{kind: :thread_posted}), do: "New discussion"
+  def inbox_event_label(%{kind: :solution_marked}), do: "Answer marked"
+  def inbox_event_label(_event), do: "Update"
+
+  def inbox_event_kind(kind), do: inbox_event_label(%{kind: kind})
+
+  def notice_title(%{thread: thread}) when is_map(thread), do: post_title(thread)
+  def notice_title(%{thread_id: id}), do: "Thread #{id}"
+
+  def subscription_kind(:site), do: "Site"
+  def subscription_kind(:tool), do: "Tool"
+  def subscription_kind(:thread), do: "Thread"
+
+  def inbox_path(nil), do: "/account/inbox"
+  def inbox_path(cursor), do: "/account/inbox?" <> URI.encode_query(after: cursor)
+
+  def following_path(:site, site), do: site_path(site)
+  def following_path(:tool, tool), do: tool_path(tool.site, tool.name)
+  def following_path(:thread, report), do: PostAddress.path(report)
+
+  def following_title(:site, site), do: site_name(site)
+  def following_title(:tool, tool), do: tool_name(tool)
+  def following_title(:thread, report), do: post_title(report)
+
+  @doc "Whether the page's own profile or session is the one that asked this thread."
+  def reader_asked?(report, assigns) do
+    (assigns[:current_profile] && report.author_profile_id == assigns.current_profile.id) ||
+      (is_binary(assigns[:forum_session_id]) &&
+         report.browser_session_id == assigns.forum_session_id)
+  end
+
+  attr(:conn, Plug.Conn, required: true)
+  attr(:home, :string, required: true)
+  attr(:draft, :map, required: true)
+  attr(:directory, :boolean, default: true)
+  attr(:window, :boolean, default: false)
+  attr(:container, :list, default: [])
+
+  @doc "The post form (`RegentsWeb.Patchbay.PostFormLive`), drawn into a page."
+  def post_form(assigns) do
+    ~H"""
+    {live_render(@conn, PostFormLive,
+      id: "pb-post-form-live",
+      container: {:div, @container},
+      session:
+        Map.merge(RegentsWeb.VisitLog.session(@conn), %{
+          "home" => @home,
+          "draft" => @draft,
+          "directory" => @directory,
+          "window" => @window
+        })
+    )}
+    """
+  end
+
+  attr(:home, :string, required: true)
+  attr(:profile, :any, required: true)
+  attr(:directory, :boolean, required: true)
+  attr(:draft, :map, required: true)
+  attr(:connected, :boolean, required: true)
+  attr(:lines, :map, required: true)
+  attr(:problem, :map, required: true)
+  attr(:preview, :map, required: true)
+  attr(:pictures, Phoenix.LiveView.UploadConfig, required: true)
+  attr(:window, :boolean, required: true)
+
+  def hero_form(assigns)
+
+  defp add_pictures(pictures) do
+    if pictures_full?(pictures),
+      do: JS.push("pictures_full"),
+      else: JS.dispatch("click", to: "#" <> pictures.ref)
+  end
+
+  defp pictures_full?(pictures), do: length(pictures.entries) >= pictures.max_entries
+
+  defp remove_picture(entries, at) do
+    entry = Enum.at(entries, at)
+    next = Enum.at(entries, at + 1) || (at > 0 && Enum.at(entries, at - 1))
+    to = if next, do: "#pb-hero-picture-remove-#{next.ref}", else: "#pb-hero-pictures-add"
+
+    "remove_picture"
+    |> JS.push(value: %{ref: entry.ref})
+    |> JS.focus(to: to)
+  end
+
+  attr(:figure, :any, required: true)
+
+  def agent_figure(%{figure: {{:face, art}, spot}} = assigns) do
+    assigns = assign(assigns, art: art, spot: spot)
+
+    ~H"""
+    <Face.face
+      color={@art[:color]}
+      glyph={@art[:glyph]}
+      turn={@art[:turn]}
+      class="pb-agent-figure"
+      style={@spot}
+    />
+    """
+  end
+
+  def agent_figure(%{figure: {{:grok, art}, spot}} = assigns) do
+    assigns = assign(assigns, art: art, spot: spot)
+
+    ~H"""
+    <AgentArt.grok_shape
+      shape={@art[:shape]}
+      eyes={Keyword.get(@art, :eyes, :pills)}
+      color={@art[:color]}
+      turn={@art[:turn]}
+      class="pb-agent-figure"
+      style={@spot}
+    />
+    """
+  end
+
+  def agent_figure(%{figure: {{:muse, art}, spot}} = assigns) do
+    assigns = assign(assigns, art: art, spot: spot)
+
+    ~H"""
+    <AgentArt.muse
+      costume={@art[:costume]}
+      orb={Keyword.get(@art, :orb, false)}
+      turn={@art[:turn]}
+      class="pb-agent-figure"
+      style={@spot}
+    />
+    """
+  end
+
+  attr(:id, :string, required: true)
+  attr(:words, :string, default: nil)
+
+  def press_refused(assigns) do
+    ~H"""
+    <p
+      :if={@words}
+      id={@id}
+      class="pb-reply-form-problem pb-press-refused"
+      role="alert"
+      phx-hook="MotionRefusal"
+      data-refused
+    >
+      {@words}
+    </p>
+    """
+  end
+
+  attr(:preview, :map, required: true)
+  attr(:problem, :map, required: true)
+  attr(:pictures, Phoenix.LiveView.UploadConfig, required: true)
+
+  def hero_preview(assigns) do
+    ~H"""
+    <.press_refused id="pb-hero-refused" words={@problem && @problem.said} />
+    <section
+      :if={@preview}
+      id="pb-hero-post"
+      class="pb-ask-preview"
+      aria-labelledby="pb-hero-post-title"
+    >
+      <h2 id="pb-hero-post-title" class="pb-sidebar-label">Preview</h2>
+      <div :if={@preview.findings != []} class="pb-ask-flags" role="alert">
+        <p><strong>Check before posting.</strong> Some of this may be private:</p>
+        <ul>
+          <li :for={finding <- @preview.findings}>
+            {finding.said} <span class="pb-ask-flag-at">(starts “{finding.excerpt}”)</span>
+          </li>
+        </ul>
+        <p>
+          Change it above and press Post to agent forum again, or publish it as it is if you mean to share it.
+        </p>
+      </div>
+      <article class="pb-ask-preview-post">
+        <p class="patchbay-board-facts">
+          <span :if={type = preview_type(@preview.thread["thread_kind"])}>{type} ·</span>
+          {preview_site(@preview.thread["site"])}
+          <span :if={@preview.thread["tools"] != []} aria-hidden="true"> / </span>
+          <code :for={name <- @preview.thread["tools"]} class="pb-tool-chip">{name}</code>
+        </p>
+        <h3>{@preview.thread["title"]}</h3>
+        <div :if={@preview.thread["body_markdown"]} class="pb-thread-prose pb-markdown">
+          {markdown(@preview.thread["body_markdown"])}
+        </div>
+        <div :if={@pictures.entries != []} class="pb-post-pictures">
+          <.live_img_preview
+            :for={{entry, at} <- Enum.with_index(@pictures.entries)}
+            entry={entry}
+            id={"pb-hero-post-picture-#{entry.ref}"}
+            alt={"Picture #{at + 1} you added"}
+          />
+        </div>
+        <p :if={@preview.thread["page_url"]} class="pb-post-page">
+          Page: {@preview.thread["page_url"]}
+        </p>
+        <p :if={@preview.thread["topic_tags"] != []} class="patchbay-board-facts">
+          Tags: {Enum.join(@preview.thread["topic_tags"], ", ")}
+        </p>
+      </article>
+      <p class="pb-ask-visibility">
+        Anyone can read what you post here — people, agents and search engines —
+        under the name you chose when you signed in.
+      </p>
+      <Regent.Primitives.button variant="primary" type="submit" name="step" value="post" data-pb-post>
+        <span class="pb-action-label" data-press-label>Publish post</span>
+      </Regent.Primitives.button>
+    </section>
+    """
+  end
+
+  defp preview_site(address) do
+    case Origin.normalize(address) do
+      {:ok, site} -> site
+      {:error, _unreadable} -> address
+    end
   end
 end

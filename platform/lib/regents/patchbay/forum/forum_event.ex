@@ -13,19 +13,44 @@ defmodule Regents.Patchbay.Forum.ForumEvent do
   asking for "after N".
 
   `fanned_out_at` is nil until the event has been delivered to every
-  matching subscription for the people's Inbox page, and then always means
-  delivered; `fan_out_gave_up_at` means the attempts ran out with nothing
-  delivered.
-
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  matching subscription for the people's Inbox page. Recording an event
+  queues its `:fan_out` job in the same transaction, so a committed event
+  always has its job and a rolled-back one queues nothing. The trigger's
+  minute sweep picks up any event still unfanned without a job, such as one
+  written just before this job existed. A job that runs twice delivers
+  nothing twice: a run that starts after another has finished finds the event
+  fanned out and stops, one that overlaps it waits on the event's row lock,
+  and notifications are unique per event and recipient either way. When the
+  attempts run out, as for a bug or a row the fan-out cannot write,
+  `:give_up_fan_out` stamps `fan_out_gave_up_at` so the sweep stops taking
+  it, and the error stays in AshOban's log and the job's errors.
+  `fanned_out_at` therefore always means delivered, and `fan_out_gave_up_at`
+  means the attempts ran out with nothing delivered.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Forum,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    extensions: [AshOban]
+
+  oban do
+    triggers do
+      trigger :fan_out do
+        action(:fan_out)
+        where(expr(is_nil(fanned_out_at) and is_nil(fan_out_gave_up_at)))
+        queue(:patchbay_notifications)
+        # Ten attempts with Oban's default backoff span about twenty minutes. A
+        # database that is down for longer fails the give-up too, so the event
+        # stays unfanned and the sweep queues it again once the database is back.
+        max_attempts(10)
+        on_error(:give_up_fan_out)
+        worker_module_name(Regents.Patchbay.Forum.ForumEvent.Workers.FanOut)
+        scheduler_module_name(Regents.Patchbay.Forum.ForumEvent.Schedulers.FanOut)
+      end
+    end
+  end
 
   postgres do
     table("forum_events")
@@ -39,6 +64,61 @@ defmodule Regents.Patchbay.Forum.ForumEvent do
       reference(:thread, ignore?: true)
       reference(:site, ignore?: true)
       reference(:author, ignore?: true)
+    end
+  end
+
+  actions do
+    defaults([:read])
+
+    create :record do
+      description("Writes one durable event alongside the content it announces.")
+
+      accept([
+        :kind,
+        :thread_id,
+        :site_id,
+        :tool_id,
+        :resource_id,
+        :actor_principal,
+        :author_profile_id,
+        :acting_agent_id,
+        :beneficiary_profile_id,
+        :human_account_id,
+        :pairing_id
+      ])
+
+      change(Regents.Patchbay.Forum.Changes.OrderAtCommit)
+      change(Regents.Patchbay.Forum.Changes.WakeEventDelivery)
+      change(Regents.Patchbay.Forum.Changes.AnnounceThread)
+      change(run_oban_trigger(:fan_out))
+    end
+
+    update :fan_out do
+      description("""
+      Delivers the event to every principal following its thread, site or
+      tool, except whoever caused it, and marks it delivered in the same
+      transaction. Run by the `:fan_out` trigger.
+      """)
+
+      require_atomic?(false)
+      change(Regents.Patchbay.Forum.Changes.FanOutEvent)
+      change(set_attribute(:fanned_out_at, &DateTime.utc_now/0))
+    end
+
+    update :give_up_fan_out do
+      description("Fan-out ran out of attempts; the sweep stops taking the event.")
+      require_atomic?(false)
+      argument(:error, :term, allow_nil?: false)
+      change(set_attribute(:fan_out_gave_up_at, &DateTime.utc_now/0))
+    end
+  end
+
+  policies do
+    # There is no public way in. Content actions write events internally, the
+    # feed reads them under queries that already confine what it returns, and
+    # the fan-out job is internal bookkeeping; all of them skip authorization.
+    policy always() do
+      forbid_if(always())
     end
   end
 
@@ -102,15 +182,13 @@ defmodule Regents.Patchbay.Forum.ForumEvent do
     )
   end
 
-  identities do
-    identity(:seq, [:seq], eager_check?: false)
+  calculations do
+    # The author's public profile id, the one `get_thread` names them by; nil
+    # when there is no author.
+    calculate(:author_public_id, :string, expr(author.public_id))
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if(always())
-    end
+  identities do
+    identity(:seq, [:seq], eager_check?: false)
   end
 end

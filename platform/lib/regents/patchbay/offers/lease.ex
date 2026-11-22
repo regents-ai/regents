@@ -5,26 +5,33 @@ defmodule Regents.Patchbay.Offers.Lease do
   campaign and for how much. A slot's lease with the highest nonce whose term
   has not run out is the one it shows, unless its placement was terminated.
 
-  Its deliveries (`Regents.Patchbay.Offers.Delivery`) are the times Patchbay
-  showed it.
-
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  `delivery_count` counts the times Patchbay showed it
+  (`Regents.Patchbay.Offers.Delivery`): all of them for a moderator, and for an
+  advertiser only on their own campaigns' leases.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Offers,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
 
   @address ~r/\A0x[0-9a-f]{40}\z/
   @hash ~r/\A0x[0-9a-f]{64}\z/
+  # The most purchases a list of them reads (`Regents.Patchbay.Offers.Ticker`).
+  @window 40
 
   postgres do
     table("agent_offer_leases")
     schema("patchbay_app")
     repo(Regents.Repo)
+  end
+
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(Regents.PubSub)
+    publish(:record, ["offers"], transform: fn _notification -> :offers_changed end)
   end
 
   attributes do
@@ -66,15 +73,130 @@ defmodule Regents.Patchbay.Offers.Lease do
     has_many :deliveries, Regents.Patchbay.Offers.Delivery
   end
 
+  aggregates do
+    count(:delivery_count, :deliveries, public?: true)
+  end
+
   identities do
     identity(:unique_chain_event, [:chain_id, :transaction_hash, :log_index])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+
+    create :record do
+      accept([
+        :chain_id,
+        :market,
+        :transaction_hash,
+        :log_index,
+        :block_number,
+        :block_hash,
+        :placement_id,
+        :slot,
+        :buyer,
+        :campaign_id,
+        :paid_usdc,
+        :starts_at,
+        :ends_at,
+        :nonce
+      ])
+
+      upsert?(true)
+      upsert_identity(:unique_chain_event)
+      upsert_fields([])
+      upsert_condition(expr(false))
+      return_skipped_upsert?(true)
+    end
+
+    read :live do
+      description("The market's leases whose term has not run out, newest first in each slot.")
+      argument(:chain_id, :integer, allow_nil?: false)
+      argument(:market, :string, allow_nil?: false)
+
+      filter(expr(chain_id == ^arg(:chain_id) and market == ^arg(:market) and ends_at > now()))
+
+      prepare(build(sort: [placement_id: :asc, slot: :asc, nonce: :desc]))
+    end
+
+    read :live_in do
+      description("The live leases of these placements, newest first in each slot.")
+      argument(:chain_id, :integer, allow_nil?: false)
+      argument(:market, :string, allow_nil?: false)
+      argument(:placement_ids, {:array, :integer}, allow_nil?: false)
+
+      filter(
+        expr(
+          chain_id == ^arg(:chain_id) and market == ^arg(:market) and
+            placement_id in ^arg(:placement_ids) and ends_at > now()
+        )
+      )
+
+      prepare(build(sort: [placement_id: :asc, slot: :asc, nonce: :desc]))
+    end
+
+    read :bought_since do
+      description("Purchases in these placements since a moment, the largest first.")
+      argument(:chain_id, :integer, allow_nil?: false)
+      argument(:market, :string, allow_nil?: false)
+      argument(:placement_ids, {:array, :integer}, allow_nil?: false)
+      argument(:since, :utc_datetime, allow_nil?: false)
+
+      filter(
+        expr(
+          chain_id == ^arg(:chain_id) and market == ^arg(:market) and
+            placement_id in ^arg(:placement_ids) and starts_at >= ^arg(:since)
+        )
+      )
+
+      prepare(
+        build(sort: [paid_usdc: :desc, block_number: :asc, log_index: :asc], limit: @window)
+      )
+    end
+
+    read :latest_in do
+      description("The newest purchases in these placements, newest first.")
+      argument(:chain_id, :integer, allow_nil?: false)
+      argument(:market, :string, allow_nil?: false)
+      argument(:placement_ids, {:array, :integer}, allow_nil?: false)
+
+      filter(
+        expr(
+          chain_id == ^arg(:chain_id) and market == ^arg(:market) and
+            placement_id in ^arg(:placement_ids)
+        )
+      )
+
+      prepare(build(sort: [block_number: :desc, log_index: :desc], limit: @window))
+    end
+
+    # What a second reading of blocks `from` to `to` is checked against
+    # (`Regents.Patchbay.Offers.Scanner`): the rows recorded in them, and every row
+    # recorded from `transactions`, wherever it was.
+    read :recorded do
+      argument(:chain_id, :integer, allow_nil?: false)
+      argument(:market, :string, allow_nil?: false)
+      argument(:from, :integer, allow_nil?: false)
+      argument(:to, :integer, allow_nil?: false)
+      argument(:transactions, {:array, :string}, allow_nil?: false)
+
+      filter(
+        expr(
+          chain_id == ^arg(:chain_id) and market == ^arg(:market) and
+            ((block_number >= ^arg(:from) and block_number <= ^arg(:to)) or
+               transaction_hash in ^arg(:transactions))
+        )
+      )
+    end
+  end
+
   policies do
-    policy always() do
-      forbid_if(always())
+    policy action_type(:read) do
+      authorize_if(always())
+    end
+
+    policy action(:record) do
+      authorize_if(actor_attribute_equals(:role, :system))
     end
   end
 end

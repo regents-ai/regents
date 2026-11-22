@@ -1,0 +1,396 @@
+defmodule RegentsWeb.Patchbay.PaymentsAPI.Purchase do
+  @moduledoc """
+  One way to buy a paid action, whichever door the buyer came through: the
+  HTTP payment endpoints and the wallet-signed agent endpoints behind the
+  command-line client both run this and nothing else.
+
+  The payment itself is the Regents payments library's
+  (`RegentPayments.Purchase`): it freezes the terms, checks a signed payment
+  against them, settles it once and has Patchbay's offer carry out what it
+  bought. What is here is Patchbay's side of it: reading what the caller asked
+  for into an offer's input, refusing a purchase that cannot go ahead before
+  anyone is asked to pay, following up once the payment has committed, and
+  the words and addresses every door answers with.
+
+  The money never passes through Regents.Patchbay. The payer's wallet pays the wallet
+  the terms name, a profile's own for a tip and the escrow contract for a
+  paid priority report.
+  """
+
+  use RegentsWeb, :verified_routes
+
+  alias RegentPayments.PaymentIntent
+  alias RegentPayments.USDC
+  alias RegentPayments.WalletPayment
+  alias Regents.Patchbay.Assist
+  alias Regents.Patchbay.Escrow
+  alias Regents.Patchbay.Forum
+  alias Regents.Patchbay.Forum.OtherSiteReport
+  alias Regents.Patchbay.Forum.PostingCheck
+  alias Regents.Patchbay.Forum.Site
+  alias Regents.Patchbay.Forum.Tool
+  alias Regents.Patchbay.Members
+  alias Regents.Patchbay.Payments
+  alias Regents.Patchbay.Payments.AgentTip
+  alias Regents.Patchbay.Payments.SpecialPost
+  alias RegentsWeb.Patchbay.AuthorJSON
+  alias RegentsWeb.Patchbay.ForumAPI.Refusal
+
+  @generic_failure "That could not be done. Check the values you sent and try again."
+
+  @amount_shape "amount_usdc: must be an amount of dollars written as text, " <>
+                  "such as \"2.00\", with at most six decimal places"
+
+  @profile_shape "profile_id: must be the public id of the profile being paid, such as \"agt_2f9c1d\""
+
+  @unknown_profile "profile_id: there is no profile with that id"
+
+  # Preparing a payment
+
+  @doc "The amount an action names, in USDC's atomic units."
+  @spec amount(map()) :: {:ok, pos_integer()} | {:error, {:invalid, [String.t()]}}
+  def amount(%{"amount_usdc" => written}) when is_binary(written) do
+    case USDC.parse(written) do
+      {:ok, amount_atomic} -> {:ok, amount_atomic}
+      :error -> {:error, {:invalid, [@amount_shape]}}
+    end
+  end
+
+  def amount(_args), do: {:error, {:invalid, [@amount_shape]}}
+
+  @doc "Freezes the terms of a tip from `actor` to the profile the args name."
+  @spec prepare_agent_tip(struct(), map()) :: {:ok, PaymentIntent.t()} | {:error, term()}
+  def prepare_agent_tip(actor, args) do
+    with {:ok, amount_atomic} <- amount(args),
+         {:ok, recipient} <- tip_recipient(args) do
+      prepare_for_actor(
+        AgentTip,
+        %{recipient: recipient, amount_atomic: amount_atomic},
+        actor
+      )
+    end
+  end
+
+  defp tip_recipient(%{"profile_id" => public_id}) when is_binary(public_id) do
+    case Members.get_profile_by_public_id(public_id) do
+      {:ok, %{} = recipient} ->
+        {:ok, recipient}
+
+      {:ok, nil} ->
+        {:error, {:invalid, [@unknown_profile]}}
+
+      {:error, failure} ->
+        if RegentPayments.Purchase.missing?(failure),
+          do: {:error, {:invalid, [@unknown_profile]}},
+          else: {:error, failure}
+    end
+  end
+
+  defp tip_recipient(_args), do: {:error, {:invalid, [@profile_shape]}}
+
+  @doc """
+  Freezes the terms of a paid priority report drafted by `actor` from the
+  report's fields and its `amount_usdc`. The draft is read like any other
+  post first, and refused before it is read when the forum would refuse it,
+  so nobody is asked to pay for a report that would be turned away. The
+  caution the reading gives the report's code is frozen with the terms.
+  """
+  @spec prepare_special_post(struct(), map()) :: {:ok, PaymentIntent.t()} | {:error, term()}
+  def prepare_special_post(actor, args) do
+    with {:ok, draft, amount_atomic} <- special_post_terms(args),
+         {:ok, %{code_caution: caution?}} <-
+           PostingCheck.admit(actor, PostingCheck.tool_report(draft), fn ->
+             filing(actor, draft, amount_atomic)
+           end) do
+      prepare(actor, draft, amount_atomic, caution?)
+    end
+  end
+
+  defp filing(actor, draft, amount_atomic) do
+    with {:ok, tool} <- OtherSiteReport.resolve_tool(draft),
+         do: {:ok, SpecialPost.filing(draft, tool, amount_atomic, actor)}
+  end
+
+  defp special_post_terms(args) do
+    with :ok <- escrow_set_up(),
+         {:ok, amount_atomic} <- amount(args),
+         {:ok, draft} <- OtherSiteReport.draft(Map.delete(args, "amount_usdc")) do
+      {:ok, draft, amount_atomic}
+    end
+  end
+
+  defp escrow_set_up do
+    if Escrow.contract_address(), do: :ok, else: {:error, :not_configured}
+  end
+
+  # The site and the tool the draft names are registered alongside the terms,
+  # so a draft that is refused leaves no empty board behind it. The draft
+  # itself is checked by the offer, against the forum's rules, before
+  # anything is written.
+  defp prepare(actor, draft, amount_atomic, caution?) do
+    case Ash.transact([Site, Tool, PaymentIntent], fn ->
+           frozen(actor, draft, amount_atomic, caution?)
+         end) do
+      {:ok, {:ok, intent}} -> {:ok, intent}
+      {:error, failure} -> {:error, failure}
+    end
+  end
+
+  defp frozen(actor, draft, amount_atomic, caution?) do
+    with {:ok, tool} <- OtherSiteReport.resolve_tool(draft) do
+      prepare_for_actor(
+        SpecialPost,
+        %{tool: tool, draft: draft, amount_atomic: amount_atomic, code_caution: caution?},
+        actor
+      )
+    end
+  end
+
+  # The shared library freezes and locks current delegated authority.
+  defp prepare_for_actor(offer, input, actor),
+    do: RegentPayments.Purchase.prepare(offer, input, actor)
+
+  # Paying
+
+  @doc """
+  Moves `actor`'s intent `id` one step on through the payments library, then
+  follows up on what it bought (`Regents.Patchbay.Payments.follow_up/1`). `request`
+  carries the signed payment, if any, the wallet it must come from, and the
+  browser the purchase was made from as `context.browser_session_id`.
+  """
+  @spec execute(struct(), String.t(), RegentPayments.Purchase.request()) ::
+          RegentPayments.Purchase.answer()
+  def execute(actor, id, request) do
+    actor
+    |> RegentPayments.Purchase.execute(id, request)
+    |> Payments.follow_up()
+  end
+
+  @doc "Finish an already authorized payment without starting or retrying settlement."
+  def complete(actor, id) do
+    actor
+    |> RegentPayments.Purchase.complete(id, %{browser_session_id: nil})
+    |> Payments.follow_up()
+  end
+
+  @doc "Only the original payment's status and receipt, without private product details."
+  def completion_payload(intent, receipt) do
+    %{
+      payment_intent_id: intent.id,
+      status: intent.status,
+      receipt: if(receipt, do: RegentPayments.Purchase.receipt_payload(receipt))
+    }
+  end
+
+  @doc """
+  A page's payment for `actor`'s intent `id` with a wallet its person's
+  account links (`RegentPayments.WalletPayment.pay/4`), made from the
+  browser `browser_session_id` names, then followed up like `execute/3`.
+  """
+  @spec pay(struct(), String.t(), map(), Ash.UUID.t() | nil) ::
+          RegentPayments.WalletPayment.answer()
+  def pay(actor, id, params, browser_session_id) do
+    actor
+    |> WalletPayment.pay(id, params, %{browser_session_id: browser_session_id})
+    |> Payments.follow_up()
+  end
+
+  @doc """
+  A refusal in the caller's words: it names the field the caller sent, never
+  the field the resource stores. A field of the report a paid priority payment
+  drafts is refused in the forum's own words.
+  """
+  @spec refusal_messages(term()) :: [String.t()]
+  def refusal_messages(error) do
+    error
+    |> Ash.Error.to_error_class()
+    |> Map.get(:errors, [])
+    |> Enum.map(&describe/1)
+    |> Enum.uniq()
+    |> case do
+      [] -> [@generic_failure]
+      described -> described
+    end
+  end
+
+  defp describe(error) do
+    case Refusal.field_of(error) do
+      :amount_atomic -> "amount_usdc: #{Refusal.field_message(:amount_atomic, error)}"
+      :recipient -> "profile_id: #{Refusal.field_message(:recipient, error)}"
+      nil -> @generic_failure
+      _draft_field -> Refusal.describe(error)
+    end
+  end
+
+  @doc "The x402 terms for an intent, with `error` as the sentence asking for payment."
+  @spec terms(PaymentIntent.t(), String.t()) :: map()
+  def terms(found, error), do: RegentPayments.Purchase.terms(found, error, execute_url(found))
+
+  # What a door tells the buyer
+
+  @doc "The fields every payment answer carries: the protocol and where to read about it."
+  @spec payment_help(map()) :: map()
+  def payment_help(fields) do
+    Map.merge(
+      %{
+        payment_help_url: url(~p"/patchbay/agent-setup") <> "#x402",
+        protocol: "x402",
+        x402_version: 2
+      },
+      fields
+    )
+  end
+
+  @doc "The intent as prepared: what it costs, what it does, where to pay."
+  @spec intent_payload(PaymentIntent.t()) :: map()
+  def intent_payload(found) do
+    %{
+      id: found.id,
+      status: found.status,
+      kind: found.kind,
+      amount_usdc: USDC.format(found.amount_atomic),
+      effect_summary: found.effect_summary,
+      irreversible_after_settlement: true,
+      execute_url: execute_url(found),
+      expires_at: found.expires_at
+    }
+    |> Map.merge(intent_target(found))
+  end
+
+  @doc """
+  What a settled or uncertain intent's buyer needs to know when reading it
+  back: the receipt, the effect, and whether anything is left for a person.
+  """
+  @spec recovery_payload(PaymentIntent.t()) :: map()
+  def recovery_payload(%{status: :applied} = found) do
+    result = applied_effect(found)
+
+    %{
+      receipt: RegentPayments.Purchase.receipt_payload(found.receipt),
+      result: result,
+      recovery_required: Map.get(result, :result_available) == false
+    }
+  end
+
+  def recovery_payload(%{status: :settled} = found) do
+    %{
+      receipt: RegentPayments.Purchase.receipt_payload(found.receipt),
+      result: applied_effect(found),
+      recovery_required: found.kind != :agent_tip,
+      next_action: settled_next_action(found.kind)
+    }
+  end
+
+  def recovery_payload(%{status: :settlement_pending}) do
+    %{
+      recovery_required: true,
+      next_action: "Do not pay again. Settlement is uncertain and requires reconciliation."
+    }
+  end
+
+  def recovery_payload(_found), do: %{}
+
+  defp settled_next_action(:agent_tip),
+    do: "Payment settled. The tip is complete; do not pay again."
+
+  defp settled_next_action(:special_post),
+    do: "Payment settled. Do not pay again. Check the report and reconcile any incomplete effect."
+
+  @doc """
+  What the settled money did, per kind: the profile a tip reached, or the
+  report a paid priority payment published and where its money stands.
+  Payment received and bounty confirmed are two facts: the second is what the
+  chain has said, read back by the escrow watch, never assumed.
+  """
+  @spec applied_effect(PaymentIntent.t()) :: map()
+  def applied_effect(%{kind: :agent_tip} = found), do: %{recipient: recipient_author(found)}
+
+  def applied_effect(%{kind: :special_post} = found) do
+    case Forum.get_report(found.target_id) do
+      {:ok, %{} = report} ->
+        confirmation = SpecialPost.confirmation(report)
+
+        %{
+          report_id: report.id,
+          url: Regents.Patchbay.Forum.PostAddress.url(report),
+          escrowed_usdc: USDC.format(report.priority_amount_atomic),
+          escrow_status: report.escrow_status,
+          escrow_funded_at: report.escrow_funded_at,
+          credit_confirmation: to_string(confirmation),
+          status_url: show_url(found),
+          next_action: confirmation_next_action(confirmation),
+          result_available: true
+        }
+
+      _unavailable ->
+        %{
+          report_id: found.target_id,
+          result_available: false,
+          credit_confirmation: "needs_attention",
+          status_url: show_url(found),
+          next_action: confirmation_next_action(:needs_attention)
+        }
+    end
+  end
+
+  defp confirmation_next_action(:pending),
+    do:
+      "Payment received. The bounty is being confirmed on Base; read status_url again after a short wait. Do not pay again."
+
+  defp confirmation_next_action(:confirmed),
+    do: "Payment received and the bounty is confirmed on Base. Do not pay again."
+
+  defp confirmation_next_action(:needs_attention),
+    do:
+      "Payment received. The bounty's record on Base needs a person at Patchbay; keep reading status_url. Do not pay again."
+
+  # Whom or what the terms are for: the profile a tip pays, or the report a
+  # paid priority payment will publish and the escrow that holds its money.
+  defp intent_target(%{kind: :agent_tip} = found), do: %{recipient: recipient_author(found)}
+
+  defp intent_target(%{kind: :special_post} = found) do
+    %{report_id: found.target_id, escrow_address: Map.fetch!(found.payload, "pay_to_address")}
+  end
+
+  # The profile as it stands now. The words shown to a reader are current; the
+  # wallet the money goes to is the frozen one, and only the terms decide that.
+  defp recipient_author(found) do
+    public_id = Map.fetch!(found.payload, "recipient_public_id")
+
+    case Members.get_profile_by_public_id(public_id) do
+      {:ok, %{} = recipient} ->
+        AuthorJSON.author(recipient)
+
+      _unavailable ->
+        %{
+          profile_id: public_id,
+          agent_name: found.payload["recipient_agent_name"],
+          display_name: nil,
+          profile_url: nil,
+          can_receive_usdc: false,
+          profile_available: false
+        }
+    end
+  end
+
+  @doc "Where this intent is paid: the wallet-signed address for a wallet author, the page's otherwise."
+  @spec execute_url(PaymentIntent.t()) :: String.t()
+  def execute_url(%{payload: %{"author_origin" => "wallet"}} = found),
+    do: url(~p"/api/agent/v1/patchbay/payment_intents/#{found.id}/execute")
+
+  def execute_url(found), do: url(~p"/api/v1/patchbay/payment_intents/#{found.id}/execute")
+
+  @doc "Where this intent is read back, likewise."
+  @spec show_url(PaymentIntent.t()) :: String.t()
+  def show_url(%{payload: %{"author_origin" => "wallet"}} = found),
+    do: url(~p"/api/agent/v1/patchbay/payment_intents/#{found.id}")
+
+  def show_url(found), do: url(~p"/api/v1/patchbay/payment_intents/#{found.id}")
+
+  @doc "Where `actor` reads the run `run` back, through the door the actor came in by."
+  @spec run_url(struct(), Assist.Run.t()) :: String.t()
+  def run_url(%{authentication_origin: :wallet}, run),
+    do: url(~p"/api/agent/v1/patchbay/assists/#{run.id}")
+
+  def run_url(_actor, run), do: url(~p"/api/v1/patchbay/assists/#{run.id}")
+end

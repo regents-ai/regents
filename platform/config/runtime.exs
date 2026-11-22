@@ -246,6 +246,33 @@ if System.get_env("AUTOLAUNCH_FINISHER_ON") == "true" and not migrating_check? d
   config :regents, Oban, queues: [autolaunch_auction_finishing: [limit: 1, paused: false]]
 end
 
+# Patchbay optional runtime configuration (OpenRouter, OpenAI, Offers, IndexNow, Moderators, Escrow).
+if key = System.get_env("OPENROUTER_API_KEY") do
+  config :regents, :openrouter, api_key: key
+end
+
+if key = System.get_env("OPENAI_API_KEY") do
+  config :regents, :answer_watch, openai_api_key: key
+end
+
+if key = System.get_env("PATCHBAY_INDEXNOW_KEY") do
+  config :regents, :indexnow_key, key
+end
+
+if shots = System.get_env("PATCHBAY_SHOTS_URL") do
+  config :regents, :shots_url, shots
+end
+
+if market = System.get_env("PATCHBAY_OFFERS_MARKET") do
+  config :regents, Regents.Patchbay.Offers,
+    market_address: market,
+    publisher_private_key: System.get_env("PATCHBAY_OFFERS_PUBLISHER_KEY")
+end
+
+if broker = System.get_env("PATCHBAY_SIWA_URL") do
+  config :regents, :wallet_author, broker_url: broker
+end
+
 # The Privy accounts that run this site, comma separated (config/config.exs).
 if admins = System.get_env("REGENTS_ADMINS") do
   admins = admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)

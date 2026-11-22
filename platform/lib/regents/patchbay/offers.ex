@@ -1,28 +1,178 @@
 defmodule Regents.Patchbay.Offers do
   @moduledoc """
   Agent offers: businesses pay to reach the agents that read a site's page on
-  Patchbay, and Patchbay, the publisher, earns USDC for showing them. Money,
-  leases, refunds and payouts live in Patchbay's `AgentOfferMarket` on Base;
-  these are the records kept off the chain: campaigns and their reviews, the
-  advertisers accepted or blocked, pools of campaigns and the placements that
-  show from them, the market's own events as the chain gave them, how far they
-  have been read, and each offer shown.
+  Patchbay, and Patchbay, the publisher, earns USDC for showing them.
+
+  Money, leases, refunds and payouts live in Patchbay's `AgentOfferMarket` on
+  Base (`contracts/src/AgentOfferMarket.sol`). What lives here is everything
+  off the chain:
+
+    * `Regents.Patchbay.Offers.Campaign`: an advertiser's offer, written once and
+      named on the chain by its content hash.
+    * `Regents.Patchbay.Offers.Review`: Patchbay's approval of a campaign, or its
+      pull.
+    * `Regents.Patchbay.Offers.AdvertiserRule`: the advertisers Patchbay accepts and
+      the ones it blocks.
+    * `Regents.Patchbay.Offers.Pool`, `PoolMember` and `PlacementPool`: Patchbay's
+      saved choices of campaigns, and the ones each placement shows from.
+    * `Regents.Patchbay.Offers.Placement`, `Termination`, `Lease` and `Settlement`:
+      the market's own events, each written once as the chain gave it
+      (`Regents.Patchbay.Offers.Scanner`), and `Regents.Patchbay.Offers.Cursor`, how far
+      they have been read.
+    * `Regents.Patchbay.Offers.Admission`: Patchbay's signature admitting one
+      purchase, once the campaign is eligible for the slot
+      (`Regents.Patchbay.Offers.Eligibility`).
+    * `Regents.Patchbay.Offers.Source`: what a placement is for, a listed site,
+      General or CVE incidents, and which go with a page.
+    * `Regents.Patchbay.Offers.Serving`: the paid offers that go with a page or an
+      answer, and `Regents.Patchbay.Offers.Delivery`, each one shown.
+
+  The whole feature is off while no market address is set
+  (`config :patchbay, Regents.Patchbay.Offers, market_address: nil`, until
+  PATCHBAY_OFFERS_MARKET sets one in `config/runtime.exs`): no page, no
+  navigation, no reading job, no offer shown.
   """
 
   use Ash.Domain, otp_app: :regents
 
   resources do
-    resource Regents.Patchbay.Offers.Campaign
-    resource Regents.Patchbay.Offers.Review
-    resource Regents.Patchbay.Offers.AdvertiserRule
-    resource Regents.Patchbay.Offers.Pool
-    resource Regents.Patchbay.Offers.PoolMember
-    resource Regents.Patchbay.Offers.PlacementPool
-    resource Regents.Patchbay.Offers.Placement
-    resource Regents.Patchbay.Offers.Termination
-    resource Regents.Patchbay.Offers.Lease
-    resource Regents.Patchbay.Offers.Settlement
-    resource Regents.Patchbay.Offers.Cursor
-    resource Regents.Patchbay.Offers.Delivery
+    resource Regents.Patchbay.Offers.Campaign do
+      define(:write_campaign, action: :write)
+      define(:my_campaigns, action: :mine)
+      define(:get_campaign, action: :read, get_by: [:id])
+      define(:campaigns_by_ids, action: :by_campaign_ids, args: [:campaign_ids])
+      define(:campaign_catalog, action: :catalog)
+    end
+
+    resource Regents.Patchbay.Offers.Review do
+      define(:approve_campaign, action: :approve, args: [:campaign_id])
+      define(:pull_campaign, action: :pull, args: [:campaign_id])
+      define(:list_reviews, action: :read)
+    end
+
+    resource Regents.Patchbay.Offers.AdvertiserRule do
+      define(:set_advertiser_rule, action: :set, args: [:wallet, :verdict])
+      define(:remove_advertiser_rule, action: :destroy)
+      define(:advertiser_rules, action: :for_wallets, args: [:wallets])
+      define(:list_advertiser_rules, action: :read)
+      define(:get_advertiser_rule, action: :read, get_by: [:id])
+    end
+
+    resource Regents.Patchbay.Offers.Pool do
+      define(:create_pool, action: :create)
+      define(:delete_pool, action: :destroy)
+      define(:list_pools, action: :read)
+      define(:get_pool, action: :read, get_by: [:id])
+    end
+
+    resource Regents.Patchbay.Offers.PoolMember do
+      define(:add_pool_member, action: :add, args: [:pool_id, :wallet])
+      define(:remove_pool_member, action: :destroy)
+      define(:get_pool_member, action: :read, get_by: [:id])
+    end
+
+    resource Regents.Patchbay.Offers.PlacementPool do
+      define(:choose_pool, action: :choose)
+      define(:drop_pool, action: :destroy)
+
+      define(:placement_pools,
+        action: :for_placements,
+        args: [:chain_id, :market, :placement_ids]
+      )
+
+      define(:get_placement_pool, action: :read, get_by: [:id])
+    end
+
+    resource Regents.Patchbay.Offers.Placement do
+      define(:record_placement, action: :record)
+      define(:open_placements, action: :open, args: [:chain_id, :market])
+      define(:source_placements, action: :open_for, args: [:chain_id, :market, :origins])
+      define(:get_placement, action: :read, get_by: [:chain_id, :market, :placement_id])
+    end
+
+    resource Regents.Patchbay.Offers.Termination do
+      define(:record_termination, action: :record)
+    end
+
+    resource Regents.Patchbay.Offers.Lease do
+      define(:record_lease, action: :record)
+      define(:live_leases, action: :live, args: [:chain_id, :market])
+      define(:placement_leases, action: :live_in, args: [:chain_id, :market, :placement_ids])
+
+      define(:bought_since,
+        action: :bought_since,
+        args: [:chain_id, :market, :placement_ids, :since]
+      )
+
+      define(:latest_purchases, action: :latest_in, args: [:chain_id, :market, :placement_ids])
+    end
+
+    resource Regents.Patchbay.Offers.Delivery do
+      define(:record_delivery, action: :record)
+      define(:deliveries_today, action: :today, args: [:viewer_kind, :viewer, :campaign_ids])
+    end
+
+    resource Regents.Patchbay.Offers.Settlement do
+      define(:record_settlement, action: :record)
+    end
+
+    resource Regents.Patchbay.Offers.Cursor do
+      define(:get_cursor, action: :read, get_by: [:chain_id, :market], not_found_error?: false)
+      define(:open_cursor, action: :open)
+      define(:advance_cursor, action: :advance)
+    end
   end
+
+  @doc "The market's settings (`config :patchbay, Regents.Patchbay.Offers`)."
+  @spec settings() :: keyword()
+  def settings, do: Application.fetch_env!(:regents, __MODULE__)
+
+  @doc "True when a market is set, which turns the whole feature on."
+  @spec enabled?() :: boolean()
+  def enabled?, do: market() != nil
+
+  @doc "The market's address, lowercase, or nil when none is set."
+  @spec market() :: String.t() | nil
+  def market, do: settings()[:market_address]
+
+  @doc """
+  The chain the market is on, as a wallet step names it: its id, its name and
+  its public address. Every page names its id as the wallet chain, the only
+  network Privy connects wallets on (`wallet-chain-id` in the root layout);
+  a wallet switches to it through Privy, which takes the network's details
+  from its own list, so no wallet reads the public address.
+  """
+  @spec chain() :: %{chain_id: pos_integer(), name: String.t(), rpc_url: String.t()}
+  def chain do
+    settings = settings()
+
+    %{
+      chain_id: settings[:chain_id],
+      name: settings[:chain_name],
+      rpc_url: settings[:wallet_rpc_url]
+    }
+  end
+
+  @doc "The USDC token the market is paid in."
+  @spec usdc() :: String.t()
+  def usdc, do: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+
+  @doc "The block the market was created in; nothing before it is read."
+  @spec from_block() :: non_neg_integer()
+  def from_block, do: settings()[:from_block]
+
+  @doc """
+  The hash of Patchbay's admission policy as the market names it. A
+  placement created under any other policy is never admitted.
+  """
+  @spec policy_hash() :: String.t()
+  def policy_hash, do: hash(settings()[:policy])
+
+  @doc "keccak256 of `text`, as lowercase `0x` hex."
+  @spec hash(binary()) :: String.t()
+  def hash(text), do: "0x" <> Base.encode16(ExKeccak.hash_256(text), case: :lower)
+
+  @doc "The PubSub topic a page hears on when the market's record changes."
+  @spec topic() :: String.t()
+  def topic, do: "offers"
 end

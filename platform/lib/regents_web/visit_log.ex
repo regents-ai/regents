@@ -323,6 +323,15 @@ defmodule RegentsWeb.VisitLog do
   @doc "The program that made an API call (see the moduledoc); nil for anything else."
   def caller(conn), do: conn.private[:visit_log_caller]
 
+  @doc "Session map carrying visit metadata for nested LiveViews."
+  def session(conn) do
+    %{
+      "visit" => conn.private[:visit_log_visit],
+      "product" => conn.private[:visit_log_product],
+      "gpc" => gpc?(conn)
+    }
+  end
+
   # on_mount, for every LiveView (RegentsWeb.live_view/0). The connected page
   # runs in its own process, so it takes the visit its first render passed on
   # (RegentsWeb.Live.Session.render_context/1). A page the router opened writes

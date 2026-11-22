@@ -11,8 +11,8 @@ defmodule Regents.Patchbay.Forum.Fix do
   test without parsing anyone's prose.
 
   It is the writer's own account, the same as the reply's words: Patchbay
-  does not run the test. Whether it worked for others is what they say of it
-  (`Regents.Patchbay.Forum.AnswerUse`).
+  does not run the test. Whether it worked for others is what they say with
+  `record_answer_use`.
   """
 
   use Ash.Resource, data_layer: :embedded
@@ -26,6 +26,10 @@ defmodule Regents.Patchbay.Forum.Fix do
   @max_versions 10
   @max_updates 20
   @statuses [:confirmed_fix, :interim_mitigation, :not_proven]
+  @texts [:software, :affected_versions, :change, :test, :result, :not_covered]
+  # Every field the reading is shown (`words/1`), lists included: each is
+  # cleaned and checked for a wallet's secret the same way.
+  @written @texts ++ [:versions, :sources, :updates]
 
   attributes do
     attribute :software, :string do
@@ -97,7 +101,8 @@ defmodule Regents.Patchbay.Forum.Fix do
       constraints(max_length: @max_text, trim?: false)
     end
 
-    # Each a link a reader can open as it is.
+    # Each a link a reader can open as it is
+    # (`Regents.Patchbay.Forum.Validations.SourceLinks`).
     attribute :sources, {:array, :string} do
       description("""
       Links to what the fix rests on: each https or http with a host, no
@@ -132,8 +137,98 @@ defmodule Regents.Patchbay.Forum.Fix do
     end
   end
 
+  actions do
+    defaults([
+      :read,
+      create: [
+        :software,
+        :versions,
+        :affected_versions,
+        :status,
+        :change,
+        :test,
+        :result,
+        :not_covered,
+        :sources,
+        :updates
+      ]
+    ])
+  end
+
+  changes do
+    change({Regents.Patchbay.Forum.Changes.StripControlCharacters, attributes: @written},
+      on: [:create]
+    )
+  end
+
+  # Public for good, like the reply around it.
+  validations do
+    validate({Regents.Patchbay.Forum.Validations.NoWalletSecret, attributes: @written},
+      on: [:create]
+    )
+
+    validate({Regents.Patchbay.Forum.Validations.SourceLinks, attribute: :sources}, on: [:create])
+
+    validate({Regents.Patchbay.Forum.Validations.NoFutureUpdates, attribute: :updates},
+      on: [:create]
+    )
+  end
+
+  @text_fields Enum.map(@texts, &Atom.to_string/1) ++ ["status"]
+
+  @doc """
+  Whether a fix as sent has the shape it is read in: text under the text
+  fields and `status`, a list of versions under `versions`, a list of links
+  under `sources`, and a list of
+  `{at, text}` under `updates`. What each value may be is the resource's to
+  say when the reply is written.
+  """
+  @spec shape?(term()) :: boolean()
+  def shape?(fix) when is_map(fix) do
+    Enum.all?(fix, fn
+      {field, value} when field in @text_fields ->
+        is_binary(value)
+
+      {field, texts} when field in ["versions", "sources"] ->
+        is_list(texts) and Enum.all?(texts, &is_binary/1)
+
+      {"updates", updates} ->
+        is_list(updates) and Enum.all?(updates, &update?/1)
+
+      _other ->
+        false
+    end)
+  end
+
+  def shape?(_other), do: false
+
+  defp update?(%{"at" => at, "text" => text} = update) when map_size(update) == 2,
+    do: is_binary(at) and is_binary(text)
+
+  defp update?(_other), do: false
+
+  @doc """
+  A fix as it was sent, as one block of words, for the reading every post
+  gets before it is published. Fields left out say nothing.
+  """
+  @spec words(map() | nil) :: String.t()
+  def words(nil), do: ""
+
+  def words(fix) do
+    texts =
+      @text_fields
+      |> Enum.reject(&(fix[&1] in [nil, ""]))
+      |> Enum.map(&(String.capitalize(&1) <> ": " <> fix[&1]))
+
+    versions = Enum.map(fix["versions"] || [], &("Version: " <> &1))
+    sources = Enum.map(fix["sources"] || [], &("Source: " <> &1))
+    updates = Enum.map(fix["updates"] || [], &("Update " <> &1["at"] <> ": " <> &1["text"]))
+
+    Enum.join(texts ++ versions ++ sources ++ updates, "\n")
+  end
+
   @doc "What a fix is for, as the page names it: the software and its versions."
-  @spec named_for(map()) :: String.t()
+  @spec named_for(t()) :: String.t()
   def named_for(%{software: software, versions: []}), do: software
 
   def named_for(%{software: software, versions: versions}),

@@ -1,24 +1,68 @@
 defmodule RegentsWeb.Patchbay do
   @moduledoc """
-  Patchbay's pages under `/patchbay/...`, in one scope of the router. The scope
-  marks the page `data-product="patchbay"`, which selects Patchbay's stylesheets
-  (`assets/css/patchbay`), and every page is read under the site's bar inside
-  Patchbay's frame (`RegentsWeb.Patchbay.Layouts`).
-  `/patchbay` is Patchbay's home page, its first page of Recent kept current by
-  `RegentsWeb.Patchbay.PostListLive`. Each page also answers as Markdown at its
-  own address (`RegentsWeb.Patchbay.PublicDocuments`).
+  Patchbay's pages and APIs under `/patchbay/...`, `/api/v1/patchbay/...`, and
+  `/api/agent/v1/patchbay/...`.
   """
   use Boundary,
     deps: [RegentsWeb, Regents.Patchbay],
     exports: [
+      AdminMessagesLive,
+      AgentAPI.ProfileController,
+      AgentProfileController,
+      AnswerWatchController,
+      AssistAPI.RunController,
       BlogController,
+      CurrentProfile,
+      ErrorLinkController,
+      FixLive.Show,
       Forum.BoardController,
+      Forum.FixCheckController,
+      Forum.ModerationController,
       Forum.TroubleshootingPages,
+      ForumAPI.HelloController,
+      ForumAPI.InboxController,
+      ForumAPI.LikeController,
+      ForumAPI.RefundController,
+      ForumAPI.ReportController,
+      ForumAPI.SiteRefreshController,
+      ForumAPI.SolutionController,
+      ForumAPI.ToolController,
+      IdentityAPI.NameController,
+      IncidentController,
+      KnownFixController,
       Layouts,
       ListedSitePictureController,
+      MessagesController,
+      Moderators,
+      OffersAdminLive,
+      OffersController,
+      OffersGate,
+      OffersLive,
       PagesController,
+      PaymentsAPI.BalanceController,
+      PaymentsAPI.PaymentIntentController,
+      PeopleAdminLive,
+      PersonAdminLive,
+      Plugs.AgentPaymentAdmission,
+      Plugs.CurrentProfile,
+      Plugs.ForumSession,
+      Plugs.HelloProof,
+      Plugs.PairedAgent,
+      Plugs.PaymentBudget,
+      Plugs.RequireProfile,
+      Plugs.SignedBudget,
+      Plugs.SiwaTestProof,
+      Plugs.WalletAuthor,
+      Plugs.X402Test,
       PostPictureController,
       PublicDocuments,
-      SiteScreenshotController
+      SiteEdition,
+      SiteScreenshotController,
+      SiwaTestController,
+      SolvedController,
+      Supervisor,
+      TechtreeDiscussionController,
+      WalletBenchController,
+      X402TestController
     ]
 end

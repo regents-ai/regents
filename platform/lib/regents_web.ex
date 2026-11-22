@@ -43,6 +43,7 @@ defmodule RegentsWeb do
       Components.ValueCards,
       ContentSecurityPolicy,
       Endpoint,
+      ErrorJSON,
       ErrorHTML,
       EventInput,
       FormErrors,

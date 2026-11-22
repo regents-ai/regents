@@ -6,15 +6,16 @@ defmodule Regents.Patchbay.Offers.PlacementPool do
   market names it, by chain, market and placement id. Choosing a pool already
   chosen leaves it as it is.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  Only a moderator reads, chooses or drops pools for a placement; Patchbay's
+  own serving and admission read them as the system.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Offers,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
 
   @address ~r/\A0x[0-9a-f]{40}\z/
 
@@ -26,6 +27,13 @@ defmodule Regents.Patchbay.Offers.PlacementPool do
     references do
       reference(:pool, on_delete: :delete)
     end
+  end
+
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(Regents.PubSub)
+    publish_all(:create, ["offers"], transform: fn _notification -> :offers_changed end)
+    publish_all(:destroy, ["offers"], transform: fn _notification -> :offers_changed end)
   end
 
   attributes do
@@ -47,11 +55,40 @@ defmodule Regents.Patchbay.Offers.PlacementPool do
     identity(:unique_choice, [:chain_id, :market, :placement_id, :pool_id])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read, :destroy])
+
+    create :choose do
+      accept([:chain_id, :market, :placement_id, :pool_id])
+      upsert?(true)
+      upsert_identity(:unique_choice)
+      upsert_fields([])
+      upsert_condition(expr(false))
+      return_skipped_upsert?(true)
+    end
+
+    read :for_placements do
+      argument(:chain_id, :integer, allow_nil?: false)
+      argument(:market, :string, allow_nil?: false)
+      argument(:placement_ids, {:array, :integer}, allow_nil?: false)
+
+      filter(
+        expr(
+          chain_id == ^arg(:chain_id) and market == ^arg(:market) and
+            placement_id in ^arg(:placement_ids)
+        )
+      )
+    end
+  end
+
   policies do
-    policy always() do
-      forbid_if(always())
+    policy action_type(:read) do
+      authorize_if(actor_attribute_equals(:role, :system))
+      authorize_if(Regents.Patchbay.Checks.Moderator)
+    end
+
+    policy action_type([:create, :destroy]) do
+      authorize_if(Regents.Patchbay.Checks.Moderator)
     end
   end
 end

@@ -3,10 +3,6 @@ defmodule Regents.Patchbay.Forum.PostPicture do
   A picture a person added to their forum post: a PNG, JPEG or WebP of up to
   3 MB, at most four to a post. Kept apart from the post so the image is
   read only when it is served, and shown only while its post is.
-
-  The table and its rows as patchbay.help keeps them. A thread's page shows
-  them (`RegentsWeb.Patchbay.PostPictureController`); nothing here writes
-  them yet.
   """
 
   use Ash.Resource,
@@ -15,6 +11,7 @@ defmodule Regents.Patchbay.Forum.PostPicture do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
+  @max_bytes 3 * 1024 * 1024
   @max_per_post 4
 
   postgres do
@@ -59,14 +56,54 @@ defmodule Regents.Patchbay.Forum.PostPicture do
 
   actions do
     defaults([:read])
+
+    create :attach do
+      description("Keeps one picture of a post, as its author sent it with the post.")
+      accept([:report_id, :position, :image])
+
+      change(fn changeset, _context ->
+        case changeset |> Ash.Changeset.get_attribute(:image) |> detect_format() do
+          {:ok, format} ->
+            Ash.Changeset.force_change_attribute(changeset, :format, format)
+
+          :error ->
+            Ash.Changeset.add_error(changeset,
+              field: :image,
+              message: "must be a PNG, JPEG or WebP picture"
+            )
+        end
+      end)
+
+      validate(
+        {Regents.Patchbay.Forum.Validations.MaxByteLength,
+         attribute: :image, max_bytes: @max_bytes}
+      )
+    end
   end
 
-  # Only reads are carried; any other action is refused until it comes with its
-  # own policy.
   policies do
-    # A picture is public exactly while its post is.
+    # A picture is public exactly while its post is. Keeping one is part of
+    # posting and is never reached from outside.
     policy action_type(:read) do
       authorize_if(expr(report.visibility == :published))
     end
   end
+
+  @doc "The most bytes one picture may hold."
+  @spec max_bytes() :: pos_integer()
+  def max_bytes, do: @max_bytes
+
+  @doc "The most pictures one post may carry."
+  @spec max_per_post() :: pos_integer()
+  def max_per_post, do: @max_per_post
+
+  @doc "The media type a picture is served as."
+  @spec content_type(%{format: atom()}) :: String.t()
+  def content_type(%{format: format}), do: "image/#{format}"
+
+  # Which kind of picture these bytes are, read from their first bytes.
+  defp detect_format(<<0x89, "PNG", 0x0D, 0x0A, 0x1A, 0x0A, _rest::binary>>), do: {:ok, :png}
+  defp detect_format(<<0xFF, 0xD8, 0xFF, _rest::binary>>), do: {:ok, :jpeg}
+  defp detect_format(<<"RIFF", _size::binary-size(4), "WEBP", _rest::binary>>), do: {:ok, :webp}
+  defp detect_format(_other), do: :error
 end

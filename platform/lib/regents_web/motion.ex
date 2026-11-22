@@ -53,4 +53,7 @@ defmodule RegentsWeb.Motion do
     </svg>
     """
   end
+
+  @doc "Fade-out leave transition for dismissed Patchbay notices."
+  def leave, do: JS.hide(transition: {"pb-leave", "", "pb-leave-to"}, time: 120)
 end

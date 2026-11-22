@@ -5,8 +5,9 @@ defmodule Regents.Patchbay.Assist.ModelCall do
   the limits count questions still in flight as well as answered ones, and
   closed with the tokens and cost the provider said the answer took.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  Every write is Patchbay's own and says so by skipping authorization;
+  `Regents.Patchbay.Assist.ModelCalls` holds the readings of posts to their limits
+  before it opens one.
   """
 
   use Ash.Resource,
@@ -63,9 +64,34 @@ defmodule Regents.Patchbay.Assist.ModelCall do
     belongs_to(:assist_run, Regents.Patchbay.Assist.Run, allow_nil?: true, public?: true)
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+
+    create :ask do
+      description("A question about to be sent, for a fix's run or a priority report.")
+      accept([:purpose, :model, :assist_run_id])
+    end
+
+    create :ask_to_check_post do
+      description("The reading of a post before it is published, for the person it goes out for.")
+      accept([:model, :visitor_key])
+      validate(present(:visitor_key))
+      change(set_attribute(:purpose, :check_post))
+    end
+
+    update :answered do
+      accept([:prompt_tokens, :completion_tokens, :cost_usd])
+      change(set_attribute(:outcome, :answered))
+    end
+
+    update :failed do
+      accept([])
+      change(set_attribute(:outcome, :failed))
+    end
+  end
+
   policies do
+    # No visitor reads or writes these; Patchbay's own work skips this.
     policy always() do
       forbid_if(always())
     end

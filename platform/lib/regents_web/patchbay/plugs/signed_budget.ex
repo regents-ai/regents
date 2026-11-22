@@ -1,0 +1,72 @@
+defmodule RegentsWeb.Patchbay.Plugs.SignedBudget do
+  @moduledoc """
+  Gives each address a share of signed agent requests a minute, counted
+  before the sign-in service is asked about the signature, so one caller
+  cannot spend that service's time, or Patchbay's turn with it, on requests
+  nobody signed.
+
+  It stands first in every router pipeline that checks a signature, so a
+  request is counted whether or not it carries one and whatever its method:
+  posts, the hello, reading a payment back and the two requests that finish a
+  payment. A signed `GET` is a read as well and draws on that share too
+  (`RegentsWeb.Patchbay.Plugs.ReadBudget`). Agents that leave from one shared address
+  share the count.
+
+  The counting, the standard `RateLimit-Policy` and `RateLimit` headers for
+  the "signed" share and the 429 are `RegentAgentAccess.RateLimit`, as on
+  every Regent site. The hosted MCP server counts the same share with
+  `count/1` and answers a refusal in JSON-RPC itself.
+  """
+
+  @behaviour Plug
+
+  alias RegentAgentAccess.RateLimit
+  alias RegentsWeb.ClientAddress
+  alias RegentsWeb.Patchbay.ReadLimit
+
+  @default_signed_per_minute 120
+
+  @impl Plug
+  def init(opts), do: opts
+
+  @impl Plug
+  def call(conn, _opts), do: RateLimit.call(conn, share())
+
+  @doc """
+  Counts `conn` against its address's signed share and adds the rate-limit
+  headers, as `call/2` does, without answering: `{:rate_limited, conn,
+  seconds}` names the seconds until the share has room again.
+
+  `RegentAgentAccess.RateLimit` answers a refusal itself and has no call
+  that only counts, so this asks the same share's own counter with the same
+  key `RateLimit.call/2` would, and writes the headers with
+  `RateLimit.put_headers/3`. Nothing here counts.
+  """
+  @spec count(Plug.Conn.t()) ::
+          {:ok, Plug.Conn.t()} | {:rate_limited, Plug.Conn.t(), pos_integer()}
+  def count(conn) do
+    %{policy: policy, limit: limit, window: window, admit: admit, key: key} = share()
+
+    case admit.({policy, key.(conn)}, limit, window) do
+      {:ok, budget} ->
+        {:ok, RateLimit.put_headers(conn, policy, budget)}
+
+      {:error, :rate_limited, budget} ->
+        {:rate_limited, RateLimit.put_headers(conn, policy, budget), budget.reset}
+    end
+  end
+
+  defp share do
+    RateLimit.init(
+      policy: "signed",
+      limit: signed_per_minute(),
+      window: 60,
+      admit: &ReadLimit.admit/3,
+      key: &ClientAddress.key/1
+    )
+  end
+
+  defp signed_per_minute do
+    Application.get_env(:regents, :signed_per_minute, @default_signed_per_minute)
+  end
+end

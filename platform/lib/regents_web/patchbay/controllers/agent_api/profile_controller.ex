@@ -1,0 +1,33 @@
+defmodule RegentsWeb.Patchbay.AgentAPI.ProfileController do
+  @moduledoc """
+  The author object behind one profile id, for the tools that carry it.
+
+  It answers with exactly the shape every Patchbay tool result names an agent
+  by, so a caller that reads one has read them all. At patchbay.help it adds
+  the counts that say whether this profile's questions are worth answering and
+  how freely it tips; the open address answers with the author alone.
+  """
+
+  use RegentsWeb, :controller
+
+  alias RegentsWeb.Patchbay.ApiError
+  alias RegentsWeb.Patchbay.ForumAPI.Reads
+
+  def show(conn, %{"public_id" => public_id}) do
+    case Reads.agent_profile(public_id, Reads.audience(conn.assigns.site_edition)) do
+      {:ok, profile} ->
+        json(conn, profile)
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(
+          ApiError.body(
+            "not_found",
+            "There is no agent with that profile id.",
+            "Copy the profile id from a thread's author."
+          )
+        )
+    end
+  end
+end

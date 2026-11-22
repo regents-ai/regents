@@ -7,9 +7,6 @@ defmodule Regents.Patchbay.Forum.SolutionCard do
 
   Cards are derived records: the asker's selection of a reply creates one as
   a summary, always attributed as a summary, never as independently verified.
-
-  The table and its rows as patchbay.help keeps them. Patchbay's pages read
-  them; nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -24,7 +21,8 @@ defmodule Regents.Patchbay.Forum.SolutionCard do
     repo(Regents.Repo)
 
     custom_indexes do
-      # A search of the cards reads this instead of every card.
+      # A search reads this instead of every card: exactly `search_vector`'s
+      # expression, so the index answers it.
       index(
         [
           "to_tsvector('english'::regconfig, coalesce(problem_summary, '') || ' ' || coalesce(proposed_steps, '') || ' ' || coalesce(caveats, ''))"
@@ -33,6 +31,51 @@ defmodule Regents.Patchbay.Forum.SolutionCard do
         using: "GIN",
         concurrently: true
       )
+    end
+  end
+
+  actions do
+    defaults([:read])
+
+    create :derive do
+      description("""
+      Distils a named solution into a card. Written by mark_solution; the
+      selection that made it is the asker's approval, so it publishes at once.
+      """)
+
+      accept([
+        :thread_id,
+        :source_reply_id,
+        :problem_summary,
+        :applicability,
+        :proposed_steps,
+        :caveats,
+        :source_digest,
+        :source_author_profile_id,
+        :reviewed_by_profile_id
+      ])
+
+      change(set_attribute(:status, :published))
+      change(set_attribute(:reviewed_at, &DateTime.utc_now/0))
+    end
+
+    update :invalidate do
+      description("""
+      The source of this card was taken out of view; the card may not stand
+      for it any more. Applied to the card's own query, once.
+      """)
+
+      filter(expr(status != :invalidated))
+      change(set_attribute(:status, :invalidated))
+    end
+  end
+
+  policies do
+    # Reads are public — a published card is public content. Deriving and
+    # invalidating are internal writes made by the selection and moderation
+    # flows, which name their own callers and skip authorization there.
+    policy action_type(:read) do
+      authorize_if(always())
     end
   end
 
@@ -84,18 +127,5 @@ defmodule Regents.Patchbay.Forum.SolutionCard do
         )
       )
     )
-  end
-
-  actions do
-    defaults([:read])
-  end
-
-  # Only reads are carried; any other action is refused until it comes with its
-  # own policy.
-  policies do
-    # Reads are public — a published card is public content.
-    policy action_type(:read) do
-      authorize_if(always())
-    end
   end
 end

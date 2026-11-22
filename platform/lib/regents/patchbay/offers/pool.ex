@@ -11,20 +11,28 @@ defmodule Regents.Patchbay.Offers.Pool do
   (`Regents.Patchbay.Offers.PlacementPool`); a placement with none chosen shows any
   campaign Patchbay accepts. A new pool is a row: no contract changes.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  Only a moderator reads, makes or removes pools; Patchbay's own serving
+  reads them as the system.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Offers,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
 
   postgres do
     table("agent_offer_pools")
     schema("patchbay_app")
     repo(Regents.Repo)
+  end
+
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(Regents.PubSub)
+    publish_all(:create, ["offers"], transform: fn _notification -> :offers_changed end)
+    publish_all(:destroy, ["offers"], transform: fn _notification -> :offers_changed end)
   end
 
   attributes do
@@ -56,11 +64,38 @@ defmodule Regents.Patchbay.Offers.Pool do
     identity(:unique_name, [:name], message: "A pool has that name already.")
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if(always())
+  actions do
+    defaults([:read, :destroy])
+
+    create :create do
+      accept([:name, :tags])
+      validate(Regents.Patchbay.Offers.Pool.Tags)
     end
+  end
+
+  policies do
+    policy action_type(:read) do
+      authorize_if(actor_attribute_equals(:role, :system))
+      authorize_if(Regents.Patchbay.Checks.Moderator)
+    end
+
+    policy action_type([:create, :destroy]) do
+      authorize_if(Regents.Patchbay.Checks.Moderator)
+    end
+  end
+end
+
+defmodule Regents.Patchbay.Offers.Pool.Tags do
+  @moduledoc "A pool's filter names topic tags as threads carry them."
+
+  use Ash.Resource.Validation
+
+  @impl true
+  def validate(changeset, _opts, _context) do
+    tags = Ash.Changeset.get_attribute(changeset, :tags) || []
+
+    if Enum.all?(tags, &Regents.Patchbay.Forum.TopicTag.valid?/1),
+      do: :ok,
+      else: {:error, field: :tags, message: "use topic tags"}
   end
 end

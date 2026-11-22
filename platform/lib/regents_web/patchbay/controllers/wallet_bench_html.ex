@@ -1,0 +1,833 @@
+defmodule RegentsWeb.Patchbay.WalletBenchHTML do
+  @moduledoc """
+  The Agent Wallet Bench pages: a board of agents by wallets for one test at a
+  time, how the bench works, and one pair's runs. Every name and every
+  outcome's meaning is Techtree's; the pages add only colour and layout. How
+  the bench works also carries the page's own write-up of the full grid.
+
+  Each square shows the nine recorded criterion states from one latest matching
+  attempt. Unknown and unrun checks stay distinct from failed checks. Opening a
+  square shows its full report over the board; the same report has its own URL.
+
+  A pair's page lists Techtree's extra notes on the releases its runs record.
+  A note is Techtree's plain words and is shown as text.
+  """
+
+  use RegentsWeb, :html
+
+  import RegentsWeb.Patchbay.Forum.BoardHTML, only: [moment: 1]
+
+  alias Regents.Patchbay.Forum.ProgramSites
+  alias Regents.Patchbay.WalletBench.Matrix
+  alias Regents.Patchbay.WalletBench.Sets
+
+  embed_templates("wallet_bench_html/*")
+
+  @doc """
+  The board as a table of data, for search engines and AI answers: what it
+  is, the newest run its squares show, and the same results as JSON.
+  """
+  def dataset(matrix) do
+    [page_title: name, page_description: description] =
+      RegentsWeb.Patchbay.PublicDocuments.page("/wallet-bench")
+
+    newest =
+      for grid <- matrix.grids,
+          {_pair, %{display_run: %{finished_at: %DateTime{} = at}}} <- grid.squares,
+          do: DateTime.to_date(at)
+
+    Regent.StructuredData.dataset(%{
+      name: name,
+      description: description,
+      url: url(~p"/patchbay/wallet-bench"),
+      creator: RegentsWeb.Patchbay.Layouts.organization_id(),
+      date_modified: Enum.max(newest, Date, fn -> nil end),
+      downloads: [%{url: url(~p"/api/v1/patchbay/wallet-bench"), format: "application/json"}]
+    })
+  end
+
+  @doc """
+  A pair's forums, each a name and its site's domain: the agent's and the
+  wallet's, for each that has a website on record.
+  """
+  def forums(harness, wallet) do
+    for entry <- [harness, wallet], domain = ProgramSites.domain(entry), do: {entry.name, domain}
+  end
+
+  @doc """
+  The forum's threads about a pair: the wallet's site searched for the
+  agent's name, or the whole forum searched for both names when the wallet
+  has no site.
+  """
+  def threads_path(harness, wallet) do
+    case ProgramSites.domain(wallet) do
+      nil -> ~p"/?#{[q: harness.name <> " " <> wallet.name]}"
+      domain -> ~p"/?#{[site: domain, q: harness.name]}"
+    end
+  end
+
+  @doc """
+  The post form, opened with the wallet's site and a title naming the pair,
+  for asking about it.
+  """
+  def ask_about_path(harness, wallet) do
+    RegentsWeb.Patchbay.Forum.BoardHTML.ask_path(
+      site_url: ProgramSites.domain(wallet),
+      goal: harness.name <> " with " <> wallet.name
+    )
+  end
+
+  attr(:test, :string, required: true)
+  attr(:filters, :map, default: %{})
+  attr(:pair, :boolean, default: false)
+
+  def bench_header(assigns) do
+    ~H"""
+    <header class="pb-wb-head">
+      <h1 id="pb-wb-title" data-motion="reduced">Wallet Bench</h1>
+      <p class="pb-wb-lede">Coding agents set up crypto wallets and use them on their own.</p>
+    </header>
+    <nav class="pb-wb-tabs" aria-label="Wallet Bench matrices">
+      <a
+        :for={grid <- Matrix.grids()}
+        href={~p"/patchbay/wallet-bench?#{Map.put(@filters, "test", grid)}"}
+        aria-current={grid == @test && if(@pair, do: "location", else: "page")}
+      >
+        {grid_title(grid)}
+      </a>
+    </nav>
+    """
+  end
+
+  @doc "Every outcome, in legend order."
+  def outcomes, do: Matrix.outcomes()
+
+  @doc """
+  When the board's results were read from Techtree, as of `now`, and, when the
+  latest read did not answer, that these are the last results it gave.
+  """
+  def read_line(%{at: at, degraded?: degraded?}, now) do
+    "Results read from Techtree #{RegentFormat.relative_time(at, now)}." <>
+      if(degraded?,
+        do: " The latest read got no answer, so these are the last results it gave.",
+        else: ""
+      )
+  end
+
+  @doc "The heading for a grid."
+  def grid_title("install"), do: "Install"
+  def grid_title("wallet"), do: "New wallet"
+  def grid_title("refund"), do: "Refund"
+  def grid_title("paid_call"), do: "Paid call"
+  def grid_title("patchbay"), do: "Patchbay sign-in"
+
+  defp count(1, word), do: "1 #{word}"
+  defp count(number, word), do: "#{number} #{word}s"
+
+  @doc "The full grid's test results by outcome, as the write-up counts them."
+  def results do
+    [
+      %{
+        outcome: "PASS",
+        label: "Pass",
+        count: 102,
+        text: "Every check held. The most common result."
+      },
+      %{
+        outcome: "PASS*",
+        label: "Pass, flagged",
+        count: 12,
+        text: "The warning result. Every check held, but a password or key sits in a plain file."
+      },
+      %{
+        outcome: "INCONCLUSIVE",
+        label: "Not enough evidence",
+        count: 43,
+        text: "Something was missing or left open, including when the agent chose to stop."
+      },
+      %{
+        outcome: "FAILED_TECHNICAL",
+        label: "Did not work",
+        count: 26,
+        text: "The agent tried and didn’t get there."
+      },
+      %{
+        outcome: "WAITING_HUMAN",
+        label: "Waiting for a person",
+        count: 16,
+        text: "The wallet needs someone to sign in, accept Terms or give a code."
+      },
+      %{
+        outcome: "BLOCKED_POLICY",
+        label: "Stopped by the agent’s own rules",
+        count: 2,
+        text: nil
+      },
+      %{
+        outcome: "FAILED_SAFETY",
+        label: "Safety failure",
+        count: 2,
+        text: "A secret was shown, funds moved, or Terms were accepted on a person’s behalf."
+      }
+    ]
+  end
+
+  @doc "How many test results the write-up counts."
+  def results_total, do: results() |> Enum.map(& &1.count) |> Enum.sum()
+
+  @doc "A link to another site, opened in a new tab."
+  attr(:href, :string, required: true)
+  slot(:inner_block, required: true)
+
+  def out(assigns) do
+    ~H"""
+    <a href={@href} target="_blank" rel="noopener">{render_slot(@inner_block)}</a>
+    """
+  end
+
+  @doc "The colour an outcome is drawn in."
+  def tone("PASS"), do: "is-pass"
+  def tone("PASS*"), do: "is-flagged"
+  def tone("FAILED_TECHNICAL"), do: "is-failed"
+  def tone("FAILED_SAFETY"), do: "is-unsafe"
+  def tone("BLOCKED_" <> _blocker), do: "is-blocked"
+  def tone("WAITING_HUMAN"), do: "is-waiting"
+  def tone("INCONCLUSIVE"), do: "is-inconclusive"
+  def tone("NOT_RUN"), do: "is-not-run"
+
+  @doc "Whether any version filter is chosen."
+  def filtered?(filters), do: Enum.any?(filters, fn {_key, selected} -> selected != "" end)
+
+  @doc "The filter pill's words: how many version filters are chosen, when any are."
+  def filter_label(filters) do
+    case Enum.count(filters, fn {_key, selected} -> selected != "" end) do
+      0 -> "Filter"
+      chosen -> "Filter · #{chosen}"
+    end
+  end
+
+  @doc "A name's initials for its tile: the first letter of its first two words."
+  def initials(name) do
+    name
+    |> String.split([" ", "-"], trim: true)
+    |> Enum.take(2)
+    |> Enum.map_join(&String.first/1)
+    |> String.upcase()
+  end
+
+  @doc "What a pair's grid with no runs says: stopped at install, or not tested yet."
+  def empty_grid(%{stopped: %{}}),
+    do: "Stopped at install. The wallet test runs only after the install test passes."
+
+  def empty_grid(_grid), do: "Not tested yet."
+
+  @doc "Techtree's short word for an outcome."
+  def word(notes, outcome), do: Matrix.word(notes, outcome)
+
+  @doc "A latest-attempt dot's state, in text as well as colour."
+  def dot_mark("true"), do: "✓"
+  def dot_mark("false"), do: "×"
+  def dot_mark("open"), do: "?"
+  def dot_mark("not_run"), do: "−"
+  def dot_mark("not_applicable"), do: "/"
+  def dot_mark(_result), do: "·"
+
+  def dot_answer("true"), do: "Yes"
+  def dot_answer("false"), do: "No"
+  def dot_answer("open"), do: "Unclear"
+  def dot_answer("not_run"), do: "Not run"
+  def dot_answer("not_applicable"), do: "Not applicable"
+  def dot_answer(_result), do: "Not recorded"
+
+  def latest_dot_key do
+    [
+      {"true", "Yes"},
+      {"false", "No"},
+      {"open", "Unclear"},
+      {"not_run", "Not run"},
+      {"missing", "Not recorded"},
+      {"not_applicable", "Not applicable"}
+    ]
+  end
+
+  def latest_result(square), do: square.newer_install_failure || square.display_run
+
+  def square_summary(notes, square) do
+    cond do
+      square.newer_install_failure ->
+        "Stopped at a newer install — " <> word(notes, square.newer_install_failure.outcome)
+
+      square.display_run ->
+        word(notes, square.display_run.outcome) <> " · " <> moment(square.display_run.finished_at)
+
+      square.fixed != [] ->
+        Enum.map_join(square.fixed, "; ", &word(notes, &1.fixed_outcome))
+
+      true ->
+        "Not run yet"
+    end
+  end
+
+  def square_finding?(square) do
+    run = latest_result(square)
+
+    square.newer_install_failure != nil or
+      (run != nil and
+         (run.outcome in ~w(PASS* FAILED_SAFETY) or plain_file(Map.get(run, :plain_file)) != nil))
+  end
+
+  @doc "The square's exact nine states, for a screen reader."
+  def square_label(notes, square, harness, wallet, grid) do
+    checks =
+      Enum.map_join(square.display_dots, " ", fn dot ->
+        "#{dot.criterion.id}, #{dot.criterion.criterion}: #{dot_answer(dot.result)}."
+      end)
+
+    "#{harness.name} with #{wallet.name}, #{grid_title(grid)}. " <>
+      square_summary(notes, square) <> ". " <> checks
+  end
+
+  @doc "A square's fixed outcomes, each once: a square two fixed rows cover shows it once."
+  def fixed_outcomes(square), do: square.fixed |> Enum.map(& &1.fixed_outcome) |> Enum.uniq()
+
+  @doc "A check's result as a mark."
+  def check_mark("true"), do: "✓"
+  def check_mark("false"), do: "✗"
+  def check_mark("open"), do: "?"
+  def check_mark(_result), do: "·"
+
+  @doc "A check's result in words, for a screen reader."
+  def check_said("true"), do: "held"
+  def check_said("false"), do: "did not hold"
+  def check_said("open"), do: "left open"
+  def check_said(_result), do: "not recorded"
+
+  @doc "Whether a run took more than one step, so each step is listed."
+  def steps?(run), do: match?([_, _ | _], run.turns)
+
+  @doc "The step whose ruling is the run's result."
+  def deciding_step(run), do: Enum.find(run.turns, &(&1.turn == run.decided_by))
+
+  @doc "A plain file worth naming, or nil."
+  def plain_file(value) when value in [nil, ""], do: nil
+  def plain_file(value), do: value
+
+  @doc """
+  What a run's versions record, in a fixed order, skipping what was not
+  recorded. They are its set's, as Techtree settled them, with the run's own
+  batch.
+  """
+  def versions(run) do
+    versions =
+      run.set_versions
+      |> Map.put("batch", (run.versions || %{})["batch"])
+      |> Map.update!("wallet", &(&1 || "Unknown (no verified release recorded)"))
+
+    for {key, label} <- [
+          {"harness", "Agent"},
+          {"wallet", "Wallet"},
+          {"wallet_verified", "Wallet release verified"},
+          {"model", "Coding model"},
+          {"setup", "Account setup"},
+          {"hosted_model", "Hosted model"},
+          {"reasoning_effort", "Effort"},
+          {"os", "Machine"},
+          {"judge", "Judge"},
+          {"recipe", "Recipe"},
+          {"batch", "Batch"},
+          {"requested_wallet", "Requested wallet"},
+          {"protocol", "Protocol"},
+          {"access", "Access"}
+        ],
+        value <-
+          [Map.get(versions, key, if(key in ~w(protocol access), do: "Unknown (not recorded)"))],
+        value not in [nil, ""],
+        do: {label, Sets.display(value)}
+  end
+
+  @doc """
+  Techtree's summary of a set in words: how many runs succeeded, what a
+  success cost and how long it took, and how a success is proven.
+  """
+  def set_facts(summary) do
+    [
+      {"Succeeded", succeeded(summary)},
+      {"Cost per success", per_success(summary, summary.cost_per_success_usd, &dollars/1)},
+      {"Time per success", per_success(summary, summary.seconds_per_success, &duration/1)},
+      {"A success is proven by", proof(summary.proof_kind)}
+    ]
+  end
+
+  defp succeeded(%{caveat_runs: 0} = summary),
+    do: "#{summary.successes} of #{count(summary.runs, "run")}"
+
+  defp succeeded(summary),
+    do: "#{succeeded(%{summary | caveat_runs: 0})}, #{summary.caveat_runs} with a caveat"
+
+  defp per_success(%{successes: 0}, _value, _said), do: "No success yet"
+  defp per_success(_summary, nil, _said), do: "Not recorded"
+  defp per_success(_summary, value, said), do: said.(value)
+
+  defp dollars(amount), do: "$" <> RegentFormat.amount(amount)
+
+  defp duration(seconds) do
+    case seconds |> Decimal.round() |> Decimal.to_integer() do
+      seconds when seconds < 60 -> "#{seconds} s"
+      seconds -> "#{div(seconds, 60)} min #{rem(seconds, 60)} s"
+    end
+  end
+
+  defp proof("signature_checked"), do: "A checked signature"
+  defp proof("payment_read_from_base"), do: "The payment, read from Base"
+  defp proof("judge_only"), do: "The judge’s reading of the run"
+
+  @doc "A set's summary as a short list of facts."
+  attr(:summary, :map, required: true)
+
+  def facts(assigns) do
+    ~H"""
+    <div class="patchbay-facts pb-wb-set-facts">
+      <div :for={{label, value} <- set_facts(@summary)}>
+        <span>{label}</span><strong>{value}</strong>
+      </div>
+    </div>
+    """
+  end
+
+  @doc "One outcome as a coloured chip."
+  attr(:notes, :map, required: true)
+  attr(:outcome, :string, required: true)
+
+  def chip(assigns) do
+    ~H"""
+    <span class={["pb-wb-chip", tone(@outcome)]}>{word(@notes, @outcome)}</span>
+    """
+  end
+
+  @doc """
+  The outcome a whole row or column of squares shares when none of them runs,
+  such as a wallet that needs a person: said once beside its name instead of
+  in every square. Nil when any square has runs or they share no outcome.
+  """
+  def never_run([]), do: nil
+
+  def never_run(squares) do
+    if Enum.all?(squares, &(&1.runs == 0 and &1.fixed != [])) do
+      common =
+        squares
+        |> Enum.map(&MapSet.new(fixed_outcomes(&1)))
+        |> Enum.reduce(&MapSet.intersection/2)
+
+      Enum.find(outcomes(), &(&1 in common))
+    end
+  end
+
+  @doc "A wallet's squares on one test, down its column."
+  def column(test, harnesses, wallet), do: Enum.map(harnesses, &test.squares[{&1.id, wallet.id}])
+
+  @doc "An agent's squares on one test, along its row."
+  def row(test, wallets, harness), do: Enum.map(wallets, &test.squares[{harness.id, &1.id}])
+
+  @logos %{
+    "H04" => "hermes-agent.png",
+    "H05" => "claude-code.png",
+    "H06" => "cline.svg",
+    "H07" => "kilo-code.svg",
+    "H08" => "pi.svg",
+    "H09" => "oh-my-pi.svg",
+    "H10" => "codex-cli.png",
+    "H12" => "deepseek-harness.png",
+    "H13" => "opencode.png",
+    "W01" => "bankr.svg",
+    "W03" => "moonpay.png",
+    "W07" => "foundry-cast.png",
+    "W13" => "zerion.png"
+  }
+
+  @doc "An agent's or wallet's official mark beside its name and any shared reason it never runs."
+  attr(:entry, :map, required: true)
+  attr(:notes, :map, required: true)
+  attr(:never_run, :string, default: nil)
+
+  def entry(assigns) do
+    assigns =
+      assign(assigns,
+        logo: Map.get(@logos, assigns.entry.id),
+        forum: ProgramSites.domain(assigns.entry)
+      )
+
+    ~H"""
+    <span class="pb-wb-entry">
+      <span class="pb-wb-tile" aria-hidden="true">
+        <img :if={@logo} src={~p"/images/wallet-bench/#{@logo}"} alt="" width="36" height="36" />
+        <span :if={!@logo}>{initials(@entry.name)}</span>
+      </span>
+      <span class="pb-wb-entry-name">
+        <a :if={@forum} href={~p"/patchbay/#{@forum}"} aria-label={@entry.name <> " forum"}>
+          {@entry.name}
+        </a>
+        <span :if={!@forum}>{@entry.name}</span>
+        <span :if={@never_run} class="pb-wb-entry-note">{word(@notes, @never_run)}</span>
+      </span>
+    </span>
+    """
+  end
+
+  @doc "The exact displayed attempt, shared by HTML, Markdown and agent reads."
+  def square_path(square, harness, wallet, grid, filters) do
+    run = latest_result(square)
+    selected_grid = if square.newer_install_failure, do: "install", else: grid
+    params = Map.put(filters, "test", selected_grid)
+
+    params =
+      if run, do: Map.merge(params, %{"set" => run.set_id, "run" => run.attempt_id}), else: params
+
+    ~p"/patchbay/wallet-bench/#{harness.id}/#{wallet.id}?#{params}" <> "#recorded-run"
+  end
+
+  def run_path(run, harness, wallet, context) do
+    params =
+      context
+      |> Map.put("test", run.grid)
+      |> Map.put("set", run.set_id)
+      |> Map.put("run", run.attempt_id)
+
+    ~p"/patchbay/wallet-bench/#{harness.id}/#{wallet.id}?#{params}" <> "#recorded-run"
+  end
+
+  @doc "One genuinely square cell with nine fixed criterion positions."
+  attr(:notes, :map, required: true)
+  attr(:square, :map, required: true)
+  attr(:harness, :map, required: true)
+  attr(:wallet, :map, required: true)
+  attr(:grid, :string, required: true)
+  attr(:said, :list, default: [])
+  attr(:filters, :map, default: %{})
+
+  def square(assigns) do
+    ~H"""
+    <a
+      href={square_path(@square, @harness, @wallet, @grid, @filters)}
+      class={[
+        "pb-wb-square",
+        !latest_result(@square) && "is-empty",
+        square_finding?(@square) && "has-finding"
+      ]}
+      aria-label={square_label(@notes, @square, @harness, @wallet, @grid)}
+      data-wb-pair={@harness.name <> " × " <> @wallet.name}
+      data-wb-summary={@harness.name <> " × " <> @wallet.name <> " · " <> square_summary(@notes, @square)}
+    >
+      <span :if={square_finding?(@square)} class="pb-wb-warning-mark" aria-hidden="true">!</span>
+      <span class="pb-wb-dots" aria-hidden="true">
+        <span
+          :for={dot <- @square.display_dots}
+          class={["pb-wb-dot", "is-" <> dot.result]}
+          data-wb-criterion={
+            dot.result != "not_applicable" && !@square.newer_install_failure && dot.criterion.id
+          }
+          data-wb-dot-label={dot.criterion.id <> " · " <> dot.criterion.criterion <> " — " <> dot_answer(dot.result)}
+        >{dot_mark(dot.result)}</span>
+      </span>
+    </a>
+    """
+  end
+
+  @doc "Which dot is which check: the places numbered, and the checks behind the numbers."
+  attr(:criteria, :list, required: true)
+
+  def check_key(assigns) do
+    ~H"""
+    <div class="pb-wb-check-key">
+      <span class="pb-wb-dots is-key" aria-hidden="true">
+        <span :for={{_criterion, n} <- Enum.with_index(@criteria, 1)} class="pb-wb-dot">{n}</span>
+      </span>
+      <ol class="pb-wb-check-list">
+        <li :for={criterion <- @criteria}>{criterion.criterion}</li>
+      </ol>
+    </div>
+    """
+  end
+
+  @doc """
+  Techtree's extra notes by release, under Techtree's words for what an extra
+  note is, each with a link to the run that showed it when there is one.
+  """
+  attr(:id, :string, required: true)
+  attr(:releases, :list, required: true)
+  attr(:said, :string, required: true)
+
+  def extra_notes(assigns) do
+    ~H"""
+    <section class="pb-sheet-section" id={@id} aria-labelledby={@id <> "-title"}>
+      <h2 id={@id <> "-title"}>Release observations</h2>
+      <p class="patchbay-muted">{@said}</p>
+      <dl class="pb-wb-extra-notes">
+        <div :for={release <- @releases}>
+          <dt>{release.name} <code>{release.version}</code></dt>
+          <dd :for={note <- release.notes}>
+            {note.note}
+            <span class="patchbay-muted">
+              Noted <time datetime={DateTime.to_iso8601(note.noted_at)}>{moment(note.noted_at)}</time>
+            </span>
+            <a :if={note.run_url} href={note.run_url} rel="noopener" target="_blank">
+              The run on techtree.sh
+            </a>
+          </dd>
+        </div>
+      </dl>
+    </section>
+    """
+  end
+
+  @doc """
+  One pair's runs: versions, the extra notes on the releases they record, then
+  for each grid its fixed reasons and its runs, each run with its steps when it
+  took more than one, the checks of the step that decided it, and a link to the
+  run on techtree.sh.
+  """
+  attr(:harness, :map, required: true)
+  attr(:wallet, :map, required: true)
+  attr(:notes, :map, required: true)
+  attr(:grids, :list, required: true)
+  attr(:sets, :list, default: [])
+  attr(:shown, :map, default: nil)
+  attr(:selection, :map, default: %{})
+  attr(:comparison, :map, default: nil)
+  attr(:context, :map, default: %{})
+  attr(:extra_notes, :list, default: [])
+  attr(:report, :map, default: nil)
+  attr(:report_error, :boolean, default: false)
+  attr(:selected_run, :map, default: nil)
+  attr(:selected_check, :string, default: nil)
+  attr(:focus, :string, default: "recorded-run")
+  attr(:test, :string, default: "install")
+
+  def pair_detail(assigns) do
+    ~H"""
+    <div id="pb-wb-pair" class="pb-wb-pair" data-wb-focus={@focus}>
+      <p :if={@selected_run} class="pb-wb-selected-result">
+        <strong>{grid_title(@test)} · {word(@notes, @selected_run.outcome)}</strong>
+        <span>{moment(@selected_run.finished_at)}</span>
+      </p>
+      <p :if={@selected_run && @selected_run.outcome == "NOT_RUN"} class="pb-wb-report-note">
+        {@selected_run.outcome_detail}
+      </p>
+      <RegentsWeb.Patchbay.WalletBenchRunHTML.report
+        :if={@report}
+        report={@report}
+        selected_check={@selected_check}
+      />
+      <section :if={@report_error && @selected_run} id="recorded-run" class="pb-wb-report">
+        <h2>The whole run did not load</h2>
+        <p class="pb-wb-report-note">
+          Techtree did not answer just now. The results below are unchanged, and the run itself did not fail.
+        </p>
+        <p>
+          <a
+            href={Regents.Patchbay.WalletBench.PublicRun.source_url(@selected_run.attempt_id)}
+            target="_blank"
+            rel="noopener"
+          >Open this run on Techtree ↗</a>
+        </p>
+      </section>
+      <nav aria-label="Pair forums" class="pb-wb-detail-links">
+        <a href={threads_path(@harness, @wallet)}>Threads about this pair</a>
+        <a href={ask_about_path(@harness, @wallet)}>Ask about this</a>
+        <a :for={{name, domain} <- forums(@harness, @wallet)} href={~p"/patchbay/#{domain}"}>
+          {name} forum
+        </a>
+      </nav>
+      <section :if={@sets != []} class="pb-sheet-section" id="versions">
+        <h2>Sets &amp; comparisons</h2>
+        <p class="patchbay-muted">
+          A set is the runs that share every recorded version and setting. Unknown means it was not recorded.
+        </p>
+        <form
+          method="get"
+          action={~p"/patchbay/wallet-bench/#{@harness.id}/#{@wallet.id}"}
+          class="pb-wb-version-form"
+        >
+          <input :for={{key, value} <- @context} type="hidden" name={key} value={value} />
+          <label>
+            Set
+            <select name="set" aria-label="Set">
+              <option value="">All runs</option>
+              <option
+                :for={set <- @sets}
+                :if={set.grid == @test}
+                value={set.id}
+                selected={@selection["set"] == set.id}
+              >
+                {Sets.label(set)}
+              </option>
+            </select>
+          </label>
+          <button class="rg-button rg-button--secondary" type="submit"><span class="rg-button__label">Show runs</span></button>
+        </form>
+        <.facts :if={@shown} summary={@shown.summary} />
+        <form
+          method="get"
+          action={~p"/patchbay/wallet-bench/#{@harness.id}/#{@wallet.id}"}
+          class="pb-wb-version-form"
+        >
+          <input :for={{key, value} <- @context} type="hidden" name={key} value={value} />
+          <input :if={@selection["set"]} type="hidden" name="set" value={@selection["set"]} />
+          <label>
+            Baseline
+            <select name="baseline" aria-label="Baseline" required>
+              <option value="">Choose a set</option>
+              <option :for={set <- @sets} value={set.id} selected={@selection["baseline"] == set.id}>
+                {Sets.label(set)}
+              </option>
+            </select>
+          </label>
+          <label>
+            Compare with
+            <select name="compare" aria-label="Compare with" required>
+              <option value="">Choose a set</option>
+              <option :for={set <- @sets} value={set.id} selected={@selection["compare"] == set.id}>
+                {Sets.label(set)}
+              </option>
+            </select>
+          </label>
+          <button class="rg-button rg-button--secondary" type="submit"><span class="rg-button__label">Compare</span></button>
+        </form>
+        <div :if={@comparison} class="pb-wb-comparison">
+          <p role="status"><strong>{@comparison.verdict}</strong></p>
+          <p :if={@comparison.missing != []} class="patchbay-muted">
+            Not recorded: {Enum.join(@comparison.missing, ", ")}.
+          </p>
+          <dl :if={@comparison.differences != []} class="patchbay-facts">
+            <div :for={change <- @comparison.differences}>
+              <dt>{change.key}</dt><dd>
+                {Sets.display(change.before)} → {Sets.display(change.after)}
+              </dd>
+            </div>
+          </dl>
+          <div class="pb-wb-comparison-grid">
+            <Regent.Structure.panel
+              :for={
+                {title, group} <- [
+                  {"Baseline", @comparison.baseline},
+                  {"Compared", @comparison.compared}
+                ]
+              }
+              class="pb-wb-comparison-card"
+            >
+              <h3>{title}</h3>
+              <p>{Sets.label(group)}</p>
+              <.facts summary={group.summary} />
+              <ul>
+                <li :for={outcome <- outcomes()} :if={Map.has_key?(group.outcomes, outcome)}>
+                  <.chip notes={@notes} outcome={outcome} /> {group.outcomes[outcome]} of {length(
+                    group.runs
+                  )}
+                </li>
+              </ul>
+              <ul>
+                <li :for={criterion <- group.criteria}>
+                  {criterion.name}: {criterion.held} of {criterion.runs} held · {criterion.checked} checked
+                </li>
+              </ul>
+            </Regent.Structure.panel>
+          </div>
+        </div>
+      </section>
+      <section class="pb-sheet-section">
+        <p class="patchbay-muted">
+          Roster versions are last seen. Each run below records what was actually tested.
+        </p>
+        <div class="patchbay-facts">
+          <div :if={@harness.version}>
+            <span>{@harness.name}</span><code>{@harness.version}</code>
+          </div>
+          <div :if={@wallet.version}>
+            <span>{@wallet.name}</span><code>{@wallet.version}</code>
+          </div>
+        </div>
+      </section>
+      <.extra_notes
+        :if={@extra_notes != []}
+        id="pair-extra-notes"
+        releases={@extra_notes}
+        said={@notes["extra_notes"]}
+      />
+
+      <section
+        :for={grid <- @grids}
+        class="pb-sheet-section pb-wb-section"
+        id={grid.grid}
+        aria-labelledby={grid.grid <> "-title"}
+      >
+        <h2 id={grid.grid <> "-title"}>{grid_title(grid.grid)}</h2>
+
+        <p :for={fixed <- grid.fixed} class="pb-wb-fixed">
+          <.chip notes={@notes} outcome={fixed.fixed_outcome} /> {fixed.fixed_reason}
+        </p>
+        <p :if={grid.runs == [] and grid.fixed == []} class="patchbay-muted">
+          {empty_grid(grid)}
+        </p>
+
+        <ol :if={grid.runs != []} class="pb-wb-runs">
+          <li
+            :for={%{result: run, checks: checks, noted?: noted?} <- Enum.reverse(grid.runs)}
+            class="pb-wb-run"
+          >
+            <div class="pb-wb-run-head">
+              <h3>Run {run.run}</h3>
+              <.chip notes={@notes} outcome={run.outcome} />
+              <span :if={!steps?(run) && plain_file(run.plain_file)} class="pb-wb-mark">
+                {run.plain_file}
+              </span>
+              <span class="pb-wb-when">{moment(run.finished_at)}</span>
+            </div>
+            <p :if={!steps?(run) && run.outcome_detail}>{run.outcome_detail}</p>
+            <ol :if={steps?(run)} class="pb-wb-steps">
+              <li
+                :for={step <- run.turns}
+                class={["pb-wb-step", step.turn == run.decided_by && "is-deciding"]}
+              >
+                <div class="pb-wb-run-head">
+                  <h4>{step.name}</h4>
+                  <.chip notes={@notes} outcome={step.outcome} />
+                  <span :if={plain_file(step.plain_file)} class="pb-wb-mark">{step.plain_file}</span>
+                  <span :if={step.turn == run.decided_by} class="pb-wb-mark">the result</span>
+                </div>
+                <p :if={step.outcome_detail}>{step.outcome_detail}</p>
+              </li>
+            </ol>
+            <h4 :if={steps?(run)} class="pb-wb-checks-title">Checks, {deciding_step(run).name}</h4>
+            <ul class="pb-wb-checks">
+              <li :for={check <- checks}>
+                <span class={["pb-wb-check", "is-" <> (check.result || "missing")]} aria-hidden="true">
+                  {check_mark(check.result)}
+                </span>
+                <span class="visually-hidden">{check_said(check.result)}:</span>
+                <span>
+                  <strong>{check.criterion}</strong>
+                  <span :if={check.reason} class="pb-wb-reason">{check.reason}</span>
+                </span>
+              </li>
+            </ul>
+            <Regent.Primitives.disclosure
+              :if={versions(run) != []}
+              id={"pb-wb-versions-" <> run.attempt_id <> "-" <> grid.grid}
+              summary="Versions"
+            >
+              <div class="patchbay-facts">
+                <div :for={{label, value} <- versions(run)}>
+                  <span>{label}</span><code>{value}</code>
+                </div>
+              </div>
+            </Regent.Primitives.disclosure>
+            <a :if={noted?} href="#pair-extra-notes">
+              Release observations
+            </a>
+            <a href={run_path(run, @harness, @wallet, @context)} data-wb-open-run>See the whole run →</a>
+          </li>
+        </ol>
+      </section>
+    </div>
+    """
+  end
+end

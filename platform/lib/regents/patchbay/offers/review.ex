@@ -4,22 +4,25 @@ defmodule Regents.Patchbay.Offers.Review do
   shown and its purchases admitted, or pulled, so it is shown nowhere from
   that moment and never admitted again. Each decision is made at most once
   for a campaign and never changed or removed; pulled outweighs approved, so
-  a pulled campaign stays pulled.
+  a pulled campaign stays pulled (`Regents.Patchbay.Offers.Campaign`'s `review`).
 
   Pulling stops the showing at once. The money of a lease already paid for
   follows the market's own path, which only the publisher's wallet can take:
   terminate the placement, then settle each of its slots, which refunds every
-  live lease for the time it had left. Nothing here signs them.
+  live lease for the time it had left (`contracts/README.md`). The operator
+  page names those steps; nothing here signs them.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  Only a moderator decides (`Regents.Patchbay.Checks.Moderator`). Whether a campaign
+  is approved is no secret, so anyone reads the decisions; the operator page
+  alone shows their reasons.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Offers,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
 
   @hash ~r/\A0x[0-9a-f]{64}\z/
 
@@ -27,6 +30,12 @@ defmodule Regents.Patchbay.Offers.Review do
     table("agent_offer_reviews")
     schema("patchbay_app")
     repo(Regents.Repo)
+  end
+
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(Regents.PubSub)
+    publish_all(:create, ["offers"], transform: fn _notification -> :offers_changed end)
   end
 
   attributes do
@@ -59,11 +68,42 @@ defmodule Regents.Patchbay.Offers.Review do
     identity(:once_each, [:campaign_id, :decision])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  # Deciding the same again keeps the decision already made, as it stands.
+  actions do
+    defaults([:read])
+
+    create :approve do
+      description("Approves a campaign, so its leases are shown and its purchases admitted.")
+      accept([:campaign_id, :reason])
+      change(set_attribute(:decision, :approved))
+      change(set_attribute(:moderator_id, actor(:id)))
+      upsert?(true)
+      upsert_identity(:once_each)
+      upsert_fields([])
+      upsert_condition(expr(false))
+      return_skipped_upsert?(true)
+    end
+
+    create :pull do
+      description("Pulls a campaign: it is shown nowhere from now on.")
+      accept([:campaign_id, :reason])
+      change(set_attribute(:decision, :pulled))
+      change(set_attribute(:moderator_id, actor(:id)))
+      upsert?(true)
+      upsert_identity(:once_each)
+      upsert_fields([])
+      upsert_condition(expr(false))
+      return_skipped_upsert?(true)
+    end
+  end
+
   policies do
-    policy always() do
-      forbid_if(always())
+    policy action_type(:read) do
+      authorize_if(always())
+    end
+
+    policy action_type(:create) do
+      authorize_if(Regents.Patchbay.Checks.Moderator)
     end
   end
 end

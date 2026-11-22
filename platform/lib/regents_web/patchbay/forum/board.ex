@@ -432,7 +432,7 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
   """
   @spec thread_page(Forum.Report.t(), String.t() | nil, String.t()) ::
           {:ok, map()} | {:error, term()}
-  def thread_page(report, cursor, filter) do
+  def thread_page(report, cursor, filter, profile \\ nil, _edition \\ :main) do
     with {:ok, keyset} <- ReplyCursor.verify(report.id, cursor),
          {:ok, replies, next_cursor} <- replies(report, keyset, filter) do
       {:ok,
@@ -441,8 +441,52 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
          reply_filter: filter,
          replies: replies,
          replies_cursor: cursor,
-         next_cursor: next_cursor
+         next_cursor: next_cursor,
+         liked: liked(report, replies, profile)
        }}
+    end
+  end
+
+  @doc "Whether Patchbay payments are enabled."
+  def payments_enabled?, do: Regents.Patchbay.payments_enabled?()
+
+  @doc "Showcase sites for the search dialog."
+  def list_showcase(limit \\ 12) do
+    with {:ok, page} <- Forum.list_showcase(load: @card_loads, page: [limit: limit]) do
+      {:ok, page.results, page.more?}
+    end
+  end
+
+  @doc "Solved threads with their solution reply, newest first."
+  def solved_fixes(limit) do
+    {:ok, filters} = RegentsWeb.Patchbay.Forum.Discussions.filters(%{"scope" => "solved"})
+
+    with {:ok, page} <-
+           Forum.list_feed_reports(
+             query: Regents.Patchbay.Forum.Feed.query(filters),
+             page: [limit: limit],
+             load: [:site, solution_reply: [:author, :worked_for_others, :last_worked_at]]
+           ) do
+      {:ok, page.results}
+    end
+  end
+
+  @doc "Site IDs currently followed by this profile or browser session."
+  def followed_sites(profile, session_id) do
+    principals = Regents.Patchbay.Forum.Principal.for_request(profile, session_id)
+
+    principals
+    |> Forum.list_subscriptions_for_principals!(actor: %{principals: principals})
+    |> Enum.filter(&(&1.scope_kind == :site))
+    |> Enum.map(& &1.scope_id)
+  end
+
+  defp liked(_report, _replies, nil), do: MapSet.new()
+
+  defp liked(report, _replies, profile) do
+    case Forum.list_my_likes(report.id, actor: profile) do
+      {:ok, likes} -> MapSet.new(likes, & &1.reply_id)
+      _error -> MapSet.new()
     end
   end
 

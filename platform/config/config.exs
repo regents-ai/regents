@@ -8,7 +8,17 @@
 import Config
 
 config :regent_identity, repo: Regents.Repo, ash_domains: [RegentIdentity]
-config :regent_payments, repo: Regents.Repo, ash_domains: [RegentPayments]
+
+config :regent_payments,
+  repo: Regents.Repo,
+  site: "patchbay",
+  ash_domains: [RegentPayments],
+  offers: [
+    Regents.Patchbay.Payments.AgentTip,
+    Regents.Patchbay.Payments.SpecialPost
+  ],
+  payment_chain: %{name: "Base", rpc_url: "https://mainnet.base.org"},
+  wallet_proof: [name: "Regents", version: "1", endpoint: RegentsWeb.Endpoint]
 
 # Agents pair with a person's account through the agent pairing every Regent site
 # shares (RegentAgents). `allowed` is what an agent may do here in each status,
@@ -110,6 +120,7 @@ config :regents,
     Regents.Patchbay.AnswerWatch,
     Regents.Patchbay.Messages,
     Regents.Patchbay.Offers,
+    Regents.Patchbay.WalletBench,
     Regents.Autolaunch,
     Regents.Autolaunch.CoveredCalls,
     Regents.Autolaunch.Exposure,
@@ -214,7 +225,23 @@ config :regents, Oban,
     autolaunch_stock_volume: 1,
     autolaunch_stock_admissions: 1,
     autolaunch_share_videos: 1,
-    autolaunch_auction_finishing: [limit: 1, paused: true]
+    autolaunch_auction_finishing: [limit: 1, paused: true],
+    patchbay_assist: 4,
+    patchbay_fees: 1,
+    patchbay_jev: 2,
+    patchbay_webhooks: 10,
+    patchbay_lapsed_subscriptions: 1,
+    patchbay_site_checks: 2,
+    patchbay_site_pictures: 1,
+    patchbay_post_checks: 1,
+    patchbay_notifications: 5,
+    patchbay_answer_watch: 2,
+    patchbay_outside_calls: 2,
+    patchbay_escrow_reads: 2,
+    patchbay_offer_reads: 1,
+    patchbay_escrow_records: 1,
+    patchbay_connected_apps: [limit: 1, paused: true],
+    patchbay_default: 1
   ],
   cron: [
     crontab: [
@@ -228,6 +255,13 @@ config :regents, Oban,
       {"@hourly", RegentPoints.StartAwards},
       # Autolaunch chain watch.
       {"* * * * *", Regents.Autolaunch.ChainWatch},
+      # Patchbay maintenance, sweeps, CVE watch and AnswerWatch.
+      {"47 4 * * *", Regents.Patchbay.Forum.PostCheckPruner},
+      {"*/5 * * * *", Regents.Patchbay.Forum.SiteCheckSweep},
+      {"*/5 * * * *", Regents.Patchbay.Forum.ListedSitePictureSweep},
+      {"0 6 * * 1", Regents.Patchbay.AnswerWatch.Ask},
+      {"@hourly", Regents.Patchbay.IndexNow},
+      {"0 * * * *", Regents.Patchbay.Incidents.CveNow},
       # Keyfleet's scheduled maintenance, chain watchers, notebooks, seasons and Atlas.
       {"*/10 * * * *", Regents.Keyfleet.Notebooks.Reconcile},
       {"31 3 * * *", Regents.Keyfleet.Notebooks.DailyBackup},
@@ -248,7 +282,9 @@ config :regents, Oban,
       {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_treasury"}},
       {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_share_card"}},
       {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_project_cards"}},
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_proposal"}}
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_proposal"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "wallet_bench"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "hidden_sites"}}
     ]
   ],
   pruner: [max_age: {7, :days}],
@@ -352,6 +388,10 @@ config :regents, :limits,
   # every three seconds at most. Past them the page is served and only its
   # count misses the view.
   patchbay_thread_views: [limit: 20, window_seconds: 60],
+  patchbay_message: [limit: 10, window_seconds: 3600],
+  patchbay_message_address: [limit: 30, window_seconds: 3600],
+  patchbay_search_address: [limit: 300, window_seconds: 60],
+  patchbay_wallet_read: [limit: 30, window_seconds: 60],
   # Reads one address's open Techtree Projects pages make as they connect and
   # move between the list and a project: as many a minute as the address has
   # reads of the site.
@@ -359,6 +399,73 @@ config :regents, :limits,
   # Contact form enquiries on Techtree's home and service pages: five an hour
   # per client address.
   techtree_enquiries: [limit: 5, window_seconds: 3600]
+
+# Patchbay domain configuration (OpenRouter, AnswerWatch, Offers, Incidents, WalletBench, Assist).
+config :regents, :openrouter,
+  jev_url: "https://openrouter.ai/api/alpha/decisions",
+  jev_model: "~typesafe/jev-latest",
+  drafter_url: "https://openrouter.ai/api/v1/chat/completions",
+  drafter_model: "openai/gpt-5.6-terra"
+
+config :regents, :answer_watch,
+  chatgpt_url: "https://api.openai.com/v1/responses",
+  chatgpt_model: "gpt-5.6-terra",
+  perplexity_url: "https://openrouter.ai/api/v1/chat/completions",
+  perplexity_model: "perplexity/sonar"
+
+config :regents, Regents.Patchbay.Agents.HostedAddress,
+  gc_interval: :timer.hours(12),
+  max_size: 100_000
+
+config :regents, Regents.Patchbay.WalletBench.RunRecords,
+  gc_interval: :timer.minutes(10),
+  max_size: 1_000,
+  allocated_memory: 100_000_000,
+  gc_memory_check_interval: :timer.seconds(10)
+
+config :regents, Regents.Patchbay.WalletBench.Board, statement_timeout: 5_000
+
+config :regents, Regents.Patchbay.Incidents.CveNow,
+  enabled?: true,
+  url: "https://cve.now/api/v1",
+  page_size: 50,
+  reads_per_run: 20
+
+config :regents, Regents.Patchbay.Forum.SiteCheckSweep, enabled?: true
+config :regents, Regents.Patchbay.Forum.ListedSitePictureSweep, enabled?: true, per_run: 1
+config :regents, Regents.Patchbay.Forum.EventSubscription, webhooks: Regent.MCPEvents
+
+config :regents, Regents.Patchbay.Offers,
+  market_address: nil,
+  chain_id: 8453,
+  chain_name: "Base",
+  wallet_rpc_url: "https://mainnet.base.org",
+  from_block: 0,
+  policy: "patchbay-policy-v1",
+  publisher_private_key: nil,
+  client: Regents.Patchbay.Offers.Node
+
+config :regents, :assist_read_only_tools, %{
+  "patchbay.help" =>
+    ~w(get_patchbay_help get_webmcp_guide read_site_directory search_threads get_thread get_tool_history get_agent_profile)
+}
+
+config :regents, :shots_url, "http://patchbay-shots.flycast"
+config :regents, :x402_test_pay_to, "0x786C67651BcB148f5A383A150E78bD4Ed9f64f7b"
+config :regents, :incident_files, ["priv/patchbay/incidents/*.md"]
+
+config :regents, :error_links, %{
+  "not_signed_in" => "bc85f337-9965-4a8c-9a4e-ea875b3a55ce",
+  "agent_not_paired" => "54444861-6b25-4918-abb9-dd6f98b76380",
+  "person_not_here" => "d6a3cc57-124c-41ff-a8fb-bc7d2b1095cc",
+  "no_touch_id" => "f308a148-c8af-47ea-845d-7c402c07c76d",
+  "key_helper_not_answering" => "f308a148-c8af-47ea-845d-7c402c07c76d",
+  "locked_key_needs_mac" => "f308a148-c8af-47ea-845d-7c402c07c76d",
+  "code_sign_in" => "4a53f1bb-e031-4142-b268-cfe32a1619f0"
+}
+
+config :regents, :name_first, :ens
+config :regents, :build, %{commit: "local", release: nil}
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false
@@ -566,7 +673,7 @@ config :esbuild,
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id, :visit, :actor, :surface, :product, :event]
+  metadata: [:request_id, :visit, :actor, :surface, :product, :event, :error_type]
 
 # Failed requests, pages and jobs are saved in the site's own schema and shown
 # to the site's admins at /admin/errors. Only server faults, and only a job's last

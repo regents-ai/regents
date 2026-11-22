@@ -18,6 +18,8 @@ defmodule RegentsWeb.Patchbay.Forum.Troubleshooting do
   alias Regents.Patchbay.Forum.Capabilities
   alias RegentsWeb.Patchbay.Forum.TroubleshootingPages
 
+  defdelegate path(harness), to: TroubleshootingPages
+
   @doc "One harness's troubleshooting page: its names, links, first steps and problems."
   def fetch!(harness) do
     agent = agent(TroubleshootingPages.agent_page(harness))

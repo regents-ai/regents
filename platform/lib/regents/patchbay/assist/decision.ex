@@ -4,12 +4,10 @@ defmodule Regents.Patchbay.Assist.Decision do
   what the agent said, which fix Jev chose (or that none fits) and how sure
   it was, and, once the agent says so, whether the fix worked.
 
-  Its id is handed to the agent with the answer: whoever holds it may say
+  A decision is written by Patchbay alone. Its id is handed to the agent with
+  the answer and is the only thing a report needs: whoever holds it may say
   once whether the fix worked, and that word stands. Reports are the agent's
   own word, counted as such and never as a check.
-
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
   """
 
   use Ash.Resource,
@@ -70,11 +68,43 @@ defmodule Regents.Patchbay.Assist.Decision do
     belongs_to(:assist_run, Regents.Patchbay.Assist.Run, allow_nil?: true, public?: true)
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+
+    create :record do
+      description("Writes down what Jev chose for one agent, as Patchbay asked it.")
+
+      accept([
+        :site,
+        :goal,
+        :error,
+        :asked_from,
+        :assist_run_id,
+        :choice,
+        :confidence,
+        :model
+      ])
+    end
+
+    update :report do
+      description("The agent's word on whether the fix worked, taken once.")
+      require_atomic?(false)
+      change({RegentAgents.RequirePairing, repo: Regents.Repo})
+      change(Regents.Patchbay.Agents.AttributeAction)
+      accept([:result])
+      validate(present(:result))
+      validate(Regents.Patchbay.Assist.Validations.NotReported)
+      change(set_attribute(:reported_at, &DateTime.utc_now/0))
+    end
+  end
+
   policies do
-    policy always() do
-      forbid_if(always())
+    # The decision's id is what the agent was handed with the answer, so
+    # holding it is the whole check. Recording and every read are
+    # Patchbay's own and say so by skipping authorization.
+    policy action(:report) do
+      authorize_if({RegentAgents.Checks.Paired, repo: Regents.Repo})
+      authorize_if(Regents.Patchbay.Agents.OwnsFixPageDecision)
     end
   end
 end

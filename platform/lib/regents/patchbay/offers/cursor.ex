@@ -3,10 +3,7 @@ defmodule Regents.Patchbay.Offers.Cursor do
   How far Patchbay's market has been read on its chain, always at the latest
   block: the first block not read yet, and the head last seen and when.
   Reading never stops: where the chain disagrees with the record, the reader
-  keeps what it saved first and reads on.
-
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  keeps what it saved first and reads on (`Regents.Patchbay.Offers.Scanner`).
   """
 
   use Ash.Resource,
@@ -17,6 +14,12 @@ defmodule Regents.Patchbay.Offers.Cursor do
 
   @address ~r/\A0x[0-9a-f]{40}\z/
   @hash ~r/\A0x[0-9a-f]{64}\z/
+
+  # On Base the record is behind once its head was read more than 420
+  # seconds ago (one five-minute turn and two retries a minute apart), or it
+  # is more than ten minutes of blocks (3,000) behind that head.
+  @stale_seconds 420
+  @behind_blocks 3_000
 
   postgres do
     table("agent_offer_cursors")
@@ -42,11 +45,47 @@ defmodule Regents.Patchbay.Offers.Cursor do
     identity(:unique_cursor, [:chain_id, :market])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  calculations do
+    calculate(
+      :fresh?,
+      :boolean,
+      expr(
+        not is_nil(observed_at) and observed_at > ago(@stale_seconds, :second) and
+          head_block - next_block < @behind_blocks
+      )
+    )
+  end
+
+  actions do
+    defaults([:read])
+
+    # Leaves a cursor already there as it stands.
+    create :open do
+      accept([:chain_id, :market, :next_block])
+      upsert?(true)
+      upsert_identity(:unique_cursor)
+      upsert_fields([])
+      upsert_condition(expr(false))
+      return_skipped_upsert?(true)
+    end
+
+    # Moves only a cursor still where this pass found it, so a second
+    # machine's pass is never undone.
+    update :advance do
+      accept([:next_block, :head_block, :head_block_hash, :observed_at])
+      require_attributes([:next_block, :head_block, :head_block_hash, :observed_at])
+      argument(:from, :integer, allow_nil?: false)
+      validate(Regents.Patchbay.Offers.CursorUnmoved)
+    end
+  end
+
   policies do
-    policy always() do
-      forbid_if(always())
+    policy action_type(:read) do
+      authorize_if(always())
+    end
+
+    policy action([:open, :advance]) do
+      authorize_if(actor_attribute_equals(:role, :system))
     end
   end
 end
