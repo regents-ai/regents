@@ -4,17 +4,15 @@ defmodule RegentsWeb.Patchbay.ListedSitePictureController do
   use RegentsWeb, :controller
 
   alias Regents.Patchbay.Forum
+  alias RegentsWeb.Patchbay.Picture
 
+  # A listed site's picture keeps no format: it is read from the picture's own
+  # bytes, and anything but PNG, JPEG or WebP is not served
+  # (`Picture.send_picture/3`).
   def show(conn, %{"domain" => domain}) do
     case Forum.get_listed_site_picture(domain) do
-      {:ok, picture} ->
-        conn
-        |> put_resp_content_type("image/webp", nil)
-        |> put_resp_header("cache-control", "public, max-age=86400")
-        |> send_resp(200, picture.image)
-
-      {:error, _not_found} ->
-        send_resp(conn, 404, "")
+      {:ok, picture} -> Picture.send_picture(conn, Picture.format(picture.image), picture.image)
+      {:error, _not_found} -> Picture.missing(conn)
     end
   end
 end

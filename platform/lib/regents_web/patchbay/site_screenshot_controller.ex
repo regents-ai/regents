@@ -4,17 +4,17 @@ defmodule RegentsWeb.Patchbay.SiteScreenshotController do
   use RegentsWeb, :controller
 
   alias Regents.Patchbay.Forum
+  alias RegentsWeb.Patchbay.Picture
 
+  # A screenshot keeps no format: it is read from the picture's own bytes, and
+  # anything but PNG, JPEG or WebP is not served (`Picture.send_picture/3`).
   def show(conn, %{"site_id" => site_id}) do
     case Forum.get_site_screenshot(site_id) do
       {:ok, screenshot} ->
-        conn
-        |> put_resp_content_type("image/webp", nil)
-        |> put_resp_header("cache-control", "public, max-age=86400")
-        |> send_resp(200, screenshot.image)
+        Picture.send_picture(conn, Picture.format(screenshot.image), screenshot.image)
 
       {:error, _not_found} ->
-        send_resp(conn, 404, "")
+        Picture.missing(conn)
     end
   end
 end
