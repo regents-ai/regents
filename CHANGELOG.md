@@ -8108,3 +8108,8 @@ seasons), on the shared Points library regents.sh was already on.
 - Every serving connection to the shared database now gives up on a statement after 15 seconds, on a lock wait after 5 seconds and on an idle open transaction after 15 seconds, names itself `regents-web`, and keeps connection details out of its errors: the same figures the four product sites hold today. Release commands are unchanged.
 - Each address has 120 reads a minute of the pages under `/patchbay`, counted apart from the site's other budget, with the standard `RateLimit` headers for the `"reads"` share; past it the answer is 429 with `Retry-After`.
 - No page, table, migration or setting. On the `one-site` branch only.
+
+## 2026-11-22 — One site: the share of page reads covers every product (not released)
+
+- The 120 reads a minute each address has now count the pages under `/patchbay`, `/techtree`, `/keyfleet` and `/autolaunch` together, as one `"reads"` share; past it the answer is 429 with `Retry-After`. The site's own pages are not counted.
+- No page, table, migration or setting. On the `one-site` branch only.
