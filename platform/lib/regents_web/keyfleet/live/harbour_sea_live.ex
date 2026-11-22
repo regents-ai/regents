@@ -417,30 +417,37 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
     do: assign(socket, :crew_again?, true)
 
   defp read_crew(socket) do
-    actor = ShellLive.human_actor(socket)
-
     case for({fleet_id, :member} <- socket.assigns.fleets, do: fleet_id) do
       [] ->
         socket
 
       fleet_ids ->
-        Read.start(socket, :crew, reader(socket.assigns.access_context), fn ->
-          PageRead.run("harbour", fn ->
-            Map.new(fleet_ids, fn fleet_id ->
-              %{items: items} =
-                Activity.page(fleet_id, nil,
-                  actor: actor,
-                  context: Access.context(actor, fleet_id, Access.class(actor, fleet_id))
-                )
-
-              {agents, here_faces} = here(fleet_id)
-              faces = Keys.faces(fleet_id, HarbourCrew.keys(items))
-
-              {fleet_id, HarbourCrew.ships(fleet_id, items, agents, Map.merge(here_faces, faces))}
-            end)
-          end)
-        end)
+        Read.start(
+          socket,
+          :crew,
+          reader(socket.assigns.access_context),
+          crew(ShellLive.human_actor(socket), fleet_ids)
+        )
     end
+  end
+
+  # The read of the visitor's ships in `fleet_ids`.
+  defp crew(actor, fleet_ids),
+    do: fn -> PageRead.run("harbour", fn -> Map.new(fleet_ids, &crew_ships(actor, &1)) end) end
+
+  # One fleet's ships as the visitor sees them there, with their class read
+  # again.
+  defp crew_ships(actor, fleet_id) do
+    %{items: items} =
+      Activity.page(fleet_id, nil,
+        actor: actor,
+        context: Access.context(actor, fleet_id, Access.class(actor, fleet_id))
+      )
+
+    {agents, here_faces} = here(fleet_id)
+    faces = Keys.faces(fleet_id, HarbourCrew.keys(items))
+
+    {fleet_id, HarbourCrew.ships(fleet_id, items, agents, Map.merge(here_faces, faces))}
   end
 
   # The agents here in a fleet and who holds their Keys and writes as which, from the reading every
