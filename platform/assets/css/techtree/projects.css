@@ -90,6 +90,8 @@
 /* The report keeps to its panel's width; a table wider than that scrolls in its own box. */
 .project-report { min-width: 0; max-width: var(--measure); }
 .project-report blockquote { padding-inline-start: var(--space-2); border-inline-start: 3px solid var(--color-border); color: var(--color-fg-muted); }
+/* A link whose address was left out (not https with a host) reads as its words alone. */
+.project-report a:not([href]) { color: inherit; text-decoration: none; }
 
 @media (max-width: 30rem) {
   .project-meter { grid-template-columns: minmax(0, 1fr) auto; row-gap: var(--space-1); }
