@@ -37,6 +37,8 @@ defmodule Regents.Application do
         Regents.Patchbay.Forum.FeedCount,
         # Room for two Patchbay word searches at once.
         Regents.Patchbay.Forum.SearchSlots,
+        # Techtree's Wallet Bench scores, kept 30 seconds.
+        RegentsWeb.Techtree.WalletBenchScores,
         # Each agent's reading for an open account menu, unlinked from the page.
         {Task.Supervisor, name: Regents.Account.Agents.Reads},
         # Each product's health read for /api/v1/health, unlinked from the request.
