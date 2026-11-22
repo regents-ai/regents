@@ -8,5 +8,7 @@ defmodule Regents.Account.Agents do
     resource Regents.Account.Agents.Pairing do
       define :pairings_by_wallets, action: :by_wallets, args: [:wallets]
     end
+
+    resource Regents.Account.Agents.PairedPersonWallet
   end
 end
