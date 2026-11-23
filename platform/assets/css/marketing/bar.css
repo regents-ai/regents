@@ -305,6 +305,9 @@
     visibility: hidden;
     pointer-events: none;
   }
+  .menu--products {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .menu[data-active] {
     opacity: 1;
     visibility: visible;

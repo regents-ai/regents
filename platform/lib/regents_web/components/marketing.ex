@@ -296,8 +296,21 @@ defmodule RegentsWeb.Components.Marketing do
                         <span class="menu__line">Find the fix that worked.</span>
                       </span>
                     </a>
+                    <a
+                      class="menu__link"
+                      href="/cloak"
+                      aria-current={if(@current == "cloak", do: "page")}
+                    >
+                      <span class="tile" data-id="cloak" aria-hidden="true">
+                        <svg><use href="#mark-crown" /></svg>
+                      </span>
+                      <span class="menu__words">
+                        <span class="menu__name">Cloak</span>
+                        <span class="menu__line">Rewritten before it leaves.</span>
+                      </span>
+                    </a>
                   </div>
-                  <div class="menu__column">
+                  <div class="menu__column menu__column--tint">
                     <p class="menu__heading">Protocol</p>
                     <a class="menu__link" href="/stake">
                       <span class="menu__words">
@@ -312,12 +325,6 @@ defmodule RegentsWeb.Components.Marketing do
                     <a class="menu__link" href="/siwa">
                       <span class="menu__words"><span class="menu__name">SIWA</span></span>
                     </a>
-                    <a class="menu__link" href="/cloak">
-                      <span class="menu__words"><span class="menu__name">Cloak</span></span>
-                    </a>
-                  </div>
-                  <div class="menu__column menu__column--tint">
-                    <p class="menu__heading">$REGENT</p>
                     <a
                       class="menu__link"
                       href={@buy_url}
@@ -508,10 +515,18 @@ defmodule RegentsWeb.Components.Marketing do
             </span>
             Patchbay
           </a>
+          <a class="sheet__link" href="/cloak">
+            <span class="tile" data-id="cloak" aria-hidden="true">
+              <svg><use href="#mark-crown" /></svg>
+            </span>
+            Cloak
+          </a>
+        </div>
+        <div class="sheet__section">
+          <p class="sheet__heading label">Protocol</p>
           <a class="sheet__link" href="/stake">Stake REGENT</a>
           <a class="sheet__link" href="/redeem">Redeem Animata</a>
           <a class="sheet__link" href="/siwa">SIWA</a>
-          <a class="sheet__link" href="/cloak">Cloak</a>
           <a class="sheet__link" href={@buy_url} target="_blank" rel="noopener noreferrer">
             Buy $REGENT<span class="visually-hidden">, opens in a new tab</span>
             <svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg>
