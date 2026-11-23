@@ -219,8 +219,10 @@ defmodule RegentsWeb.Keyfleet.ShareCard do
   its latest Key's name and card picture, nil before it has one. Read by
   `RegentsWeb.Keyfleet.FleetProposals`, which holds them.
   """
-  def figures(fleet_id) do
-    fleet = Fleets.get_fleet!(fleet_id)
+  def figures(fleet_id), do: figures(fleet_id, Fleets.get_fleet!(fleet_id))
+
+  @doc false
+  def figures(fleet_id, fleet) do
     sold = minted!(fleet_id)
     token_id = latest(fleet_id, sold)
 
@@ -240,8 +242,10 @@ defmodule RegentsWeb.Keyfleet.ShareCard do
   its page shows it (`RegentsWeb.Keyfleet.ProjectPage`). Read by
   `RegentsWeb.Keyfleet.FleetProposals`, which holds each under `project_key/2`.
   """
-  def project_figures(fleet_id) do
-    fleet = Fleets.get_fleet!(fleet_id)
+  def project_figures(fleet_id), do: project_figures(fleet_id, Fleets.get_fleet!(fleet_id))
+
+  @doc false
+  def project_figures(fleet_id, fleet) do
     projects = Projects.project_titles!(fleet_id)
     holders = for %{key: key} <- projects, is_integer(key), uniq: true, do: key
 

@@ -277,17 +277,19 @@ config :regents, Oban,
       {"7 * * * *", Regents.Keyfleet.Keys.PresenceTimer},
       {"1-59/10 * * * *", Regents.Keyfleet.Seasons.Turns},
       # One line for each kind of shared reading a producer rereads on notice.
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "points_board"}},
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_agents"}},
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_key_agents"}},
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_now"}},
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_proposals"}},
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_treasury"}},
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_share_card"}},
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_project_cards"}},
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_proposal"}},
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "wallet_bench"}},
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "hidden_sites"}}
+      # PubSub delivers real-time changes within a second; heals mend missed
+      # notices on a calmer cadence so multi-machine clusters stay light on Postgres.
+      {"*/10 * * * *", Regents.SharedReading.Heal, args: %{kind: "points_board"}},
+      {"*/5 * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_agents"}},
+      {"*/5 * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_key_agents"}},
+      {"*/5 * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_now"}},
+      {"*/5 * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_proposals"}},
+      {"*/5 * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_treasury"}},
+      {"*/5 * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_share_card"}},
+      {"*/5 * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_project_cards"}},
+      {"*/5 * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_proposal"}},
+      {"*/10 * * * *", Regents.SharedReading.Heal, args: %{kind: "wallet_bench"}},
+      {"*/10 * * * *", Regents.SharedReading.Heal, args: %{kind: "hidden_sites"}}
     ]
   ],
   pruner: [max_age: {7, :days}],

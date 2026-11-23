@@ -121,20 +121,27 @@ defmodule RegentsWeb.Keyfleet.FleetProposals do
   end
 
   # Every fleet is read beside the start, all at once, so a slow database holds
-  # the start for one wait, not one per fleet. Any not read in time is marked
-  # degraded; its next notice or the minute's heal reads it again.
+  # the start for one wait, not one per fleet. The fleets table is read once for
+  # the pass instead of once per fleet/share read. Any not read in time is marked
+  # degraded; its next notice or the heal reads it again.
   defp first_read(fleet_ids) do
-    fleet_ids
-    |> Task.async_stream(&__MODULE__.read/1,
-      max_concurrency: length(fleet_ids),
-      timeout: Application.fetch_env!(:regents, :keyfleet_first_read_ms),
-      on_timeout: :kill_task
-    )
-    |> Enum.zip(fleet_ids)
-    |> Enum.each(fn
-      {{:ok, _read}, _fleet_id} -> :ok
-      {{:exit, :timeout}, fleet_id} -> degraded(fleet_id)
-    end)
+    case recorded_fleets() do
+      {:ok, recorded} ->
+        fleet_ids
+        |> Task.async_stream(&__MODULE__.read(&1, Map.get(recorded, &1)),
+          max_concurrency: length(fleet_ids),
+          timeout: Application.fetch_env!(:regents, :keyfleet_first_read_ms),
+          on_timeout: :kill_task
+        )
+        |> Enum.zip(fleet_ids)
+        |> Enum.each(fn
+          {{:ok, _read}, _fleet_id} -> :ok
+          {{:exit, :timeout}, fleet_id} -> degraded(fleet_id)
+        end)
+
+      :error ->
+        Enum.each(fleet_ids, &degraded/1)
+    end
   end
 
   @impl true
@@ -155,7 +162,14 @@ defmodule RegentsWeb.Keyfleet.FleetProposals do
     do: {:noreply, Enum.reduce(Fleets.catalog_ids(), due, &due(&2, &1))}
 
   def handle_info(:read, due) do
-    Enum.each(due, &__MODULE__.read/1)
+    case recorded_fleets() do
+      {:ok, recorded} ->
+        Enum.each(due, &__MODULE__.read(&1, Map.get(recorded, &1)))
+
+      :error ->
+        Enum.each(due, &degraded/1)
+    end
+
     {:noreply, MapSet.new()}
   end
 
@@ -163,6 +177,13 @@ defmodule RegentsWeb.Keyfleet.FleetProposals do
   defp due(due, fleet_id) do
     if MapSet.size(due) == 0, do: Process.send_after(self(), :read, 1_000)
     MapSet.put(due, fleet_id)
+  end
+
+  defp recorded_fleets do
+    case PageRead.run("proposals", fn -> Map.new(Fleets.list_fleets!(), &{&1.id, &1}) end) do
+      {:ok, recorded} -> {:ok, recorded}
+      {:error, _not_read} -> :error
+    end
   end
 
   @doc """
@@ -177,13 +198,21 @@ defmodule RegentsWeb.Keyfleet.FleetProposals do
   read for each visit instead, never shown as unreadable.
   """
   def read(fleet_id) do
+    case PageRead.run("proposals", fn -> Fleets.get_fleet!(fleet_id) end) do
+      {:ok, fleet} -> read(fleet_id, fleet)
+      {:error, _not_read} -> degraded(fleet_id)
+    end
+  end
+
+  @doc false
+  def read(fleet_id, fleet) do
     held = held(fleet_id)
 
     # A failed database read is a read not taken, never a reason for this
     # process, and the site with it, to stop. It is logged and saved with the
     # site's errors as a page's own read is (`RegentsWeb.Keyfleet.PageRead`), so one
     # that keeps failing is seen at /admin/errors.
-    pages = fn -> ProposalsPage.first_pages(fleet_id, &last_page(fleet_id, &1)) end
+    pages = fn -> ProposalsPage.first_pages(fleet_id, &last_page(fleet_id, &1), fleet) end
 
     case PageRead.run("proposals", pages) do
       {:ok, %{list: list, treasury: treasury, details: details}} ->
@@ -202,20 +231,20 @@ defmodule RegentsWeb.Keyfleet.FleetProposals do
         degraded(fleet_id)
     end
 
-    share(fleet_id)
+    share(fleet_id, fleet)
   end
 
-  defp share(fleet_id) do
-    if fleet_id in ShareCard.fleets(), do: read_share(fleet_id)
+  defp share(fleet_id, fleet) do
+    if fleet_id in ShareCard.fleets(), do: read_share(fleet_id, fleet)
   end
 
-  defp read_share(fleet_id) do
-    case PageRead.run("share picture", fn -> ShareCard.figures(fleet_id) end) do
+  defp read_share(fleet_id, fleet) do
+    case PageRead.run("share picture", fn -> ShareCard.figures(fleet_id, fleet) end) do
       {:ok, figures} -> SharedReading.put(ShareCard.key(fleet_id), figures)
       {:error, _not_read} -> SharedReading.degraded(ShareCard.key(fleet_id))
     end
 
-    case PageRead.run("project pictures", fn -> ShareCard.project_figures(fleet_id) end) do
+    case PageRead.run("project pictures", fn -> ShareCard.project_figures(fleet_id, fleet) end) do
       {:ok, projects} -> put_projects(fleet_id, projects)
       {:error, _not_read} -> degraded_projects(fleet_id)
     end

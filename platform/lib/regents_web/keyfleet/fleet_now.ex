@@ -132,20 +132,27 @@ defmodule RegentsWeb.Keyfleet.FleetNow do
   end
 
   # Every fleet is read beside the start, all at once, so a slow database holds
-  # the start for one wait, not one per fleet. Any not read in time is marked
-  # degraded; its next notice or the minute's heal reads it again.
+  # the start for one wait, not one per fleet. The fleets table is read once for
+  # the pass instead of once per fleet. Any not read in time is marked degraded;
+  # its next notice or the heal reads it again.
   defp first_read(fleet_ids) do
-    fleet_ids
-    |> Task.async_stream(&__MODULE__.read/1,
-      max_concurrency: length(fleet_ids),
-      timeout: Application.fetch_env!(:regents, :keyfleet_first_read_ms),
-      on_timeout: :kill_task
-    )
-    |> Enum.zip(fleet_ids)
-    |> Enum.each(fn
-      {{:ok, _read}, _fleet_id} -> :ok
-      {{:exit, :timeout}, fleet_id} -> SharedReading.degraded(key(fleet_id))
-    end)
+    case recorded_fleets() do
+      {:ok, recorded} ->
+        fleet_ids
+        |> Task.async_stream(&__MODULE__.read(&1, Map.get(recorded, &1)),
+          max_concurrency: length(fleet_ids),
+          timeout: Application.fetch_env!(:regents, :keyfleet_first_read_ms),
+          on_timeout: :kill_task
+        )
+        |> Enum.zip(fleet_ids)
+        |> Enum.each(fn
+          {{:ok, _read}, _fleet_id} -> :ok
+          {{:exit, :timeout}, fleet_id} -> SharedReading.degraded(key(fleet_id))
+        end)
+
+      :error ->
+        Enum.each(fleet_ids, &SharedReading.degraded(key(&1)))
+    end
   end
 
   @impl true
@@ -169,7 +176,14 @@ defmodule RegentsWeb.Keyfleet.FleetNow do
     do: {:noreply, Enum.reduce(Fleets.catalog_ids(), state, &due(&2, &1))}
 
   def handle_info(:read, state) do
-    Enum.each(state.due, &__MODULE__.read/1)
+    case recorded_fleets() do
+      {:ok, recorded} ->
+        Enum.each(state.due, &__MODULE__.read(&1, Map.get(recorded, &1)))
+
+      :error ->
+        Enum.each(state.due, &SharedReading.degraded(key(&1)))
+    end
+
     {:noreply, %{state | due: MapSet.new()}}
   end
 
@@ -179,9 +193,24 @@ defmodule RegentsWeb.Keyfleet.FleetNow do
     %{state | due: MapSet.put(state.due, fleet_id)}
   end
 
+  defp recorded_fleets do
+    case PageRead.run("fleet", fn -> Map.new(Fleets.list_fleets!(), &{&1.id, &1}) end) do
+      {:ok, recorded} -> {:ok, recorded}
+      {:error, _not_read} -> :error
+    end
+  end
+
   @doc "Reads `fleet_id` and puts its reading. What the producer runs on each pass."
   def read(fleet_id) do
-    case reading(fleet_id, DateTime.utc_now()) do
+    case PageRead.run("fleet", fn -> Fleets.get_fleet!(fleet_id) end) do
+      {:ok, recorded} -> read(fleet_id, recorded)
+      {:error, _not_read} -> SharedReading.degraded(key(fleet_id))
+    end
+  end
+
+  @doc false
+  def read(fleet_id, recorded) do
+    case reading(fleet_id, recorded, DateTime.utc_now()) do
       {:ok, reading} -> SharedReading.put(key(fleet_id), reading)
       {:error, _not_read} -> SharedReading.degraded(key(fleet_id))
     end
@@ -191,10 +220,8 @@ defmodule RegentsWeb.Keyfleet.FleetNow do
   # process, and the site with it, to stop. It is logged and saved with the
   # site's errors as a page's own read is (`RegentsWeb.Keyfleet.PageRead`), so one that
   # keeps failing is seen at /admin/errors.
-  defp reading(fleet_id, now) do
+  defp reading(fleet_id, recorded, now) do
     PageRead.run("fleet", fn ->
-      recorded = Map.new(Fleets.list_fleets!(), &{&1.id, &1})[fleet_id]
-
       if Fleets.coming_soon?(fleet_id, recorded),
         do: %{coming_soon?: true},
         else: open(fleet_id, recorded, now)

@@ -80,6 +80,11 @@ config :phoenix_live_view,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
 
+# Metrics listen on an ephemeral loopback port in development so multiple local
+# instances (e.g. main on 4000 and a branch on 4010) can run side by side.
+# Production fixes port 9091 in config/prod.exs.
+config :regents, :metrics_listener, ip: {127, 0, 0, 1}, port: 0
+
 # Production-only background crawlers and Fly-private screenshot sweeps stay off
 # in development (`patchbay-shots.flycast` is unreachable outside Fly).
 config :regents, Regents.Patchbay.Incidents.CveNow, enabled?: false

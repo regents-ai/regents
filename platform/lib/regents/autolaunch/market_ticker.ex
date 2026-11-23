@@ -5,18 +5,19 @@ defmodule Regents.Autolaunch.MarketTicker do
 
   A saved bid or trade rereads them a second later, so a burst of them costs
   one read, and a list that differs from the last goes out to every page as
-  `{:market_ticker, entries}`. They are also reread each minute, because
-  entries leave the list an hour after they happened. The list holds at most
-  the twenty newest bids and the twenty newest trades of that hour.
+  `{:market_ticker, entries}`. Entries leave the list an hour after they
+  happened; when the list holds entries, one timer wakes at the oldest entry's
+  expiry, and when the list is empty no periodic reads run. The list holds at
+  most the twenty newest bids and the twenty newest trades of that hour.
   """
 
   use GenServer
 
-  alias Regents.Autolaunch.{BidActivity, TokenTrade}
+  alias Regents.Autolaunch
 
   @topic "market_ticker"
   @coalesce_ms 1_000
-  @reread_ms 60_000
+  @entry_ttl_ms :timer.hours(1)
 
   def topic, do: @topic
 
@@ -36,8 +37,7 @@ defmodule Regents.Autolaunch.MarketTicker do
     Regents.Autolaunch.Listings.subscribe()
     Regents.Autolaunch.TokenTrades.subscribe()
     send(self(), :load)
-    :timer.send_interval(@reread_ms, :load)
-    {:ok, %{due: false}}
+    {:ok, %{due: false, expiry_timer: nil}}
   end
 
   @impl true
@@ -52,18 +52,40 @@ defmodule Regents.Autolaunch.MarketTicker do
       do: {:noreply, state}
 
   def handle_info(:load, state) do
-    with {:ok, bids} <- Ash.read(BidActivity, action: :recent, actor: nil),
-         {:ok, trades} <- Ash.read(TokenTrade, action: :recent, actor: nil) do
-      entries = entries(bids, trades)
+    if state.expiry_timer, do: Process.cancel_timer(state.expiry_timer)
 
-      # Most rereads find the same list; only a new one goes out to the pages.
-      if :ets.lookup(__MODULE__, :entries) != [{:entries, entries}] do
-        :ets.insert(__MODULE__, {:entries, entries})
-        Phoenix.PubSub.broadcast(Regents.PubSub, @topic, {:market_ticker, entries})
+    expiry_timer =
+      with {:ok, bids} <- Autolaunch.recent_bid_activity(actor: nil),
+           {:ok, trades} <- Autolaunch.recent_token_trades(actor: nil) do
+        entries = entries(bids, trades)
+
+        # Most rereads find the same list; only a new one goes out to the pages.
+        if :ets.lookup(__MODULE__, :entries) != [{:entries, entries}] do
+          :ets.insert(__MODULE__, {:entries, entries})
+          Phoenix.PubSub.broadcast(Regents.PubSub, @topic, {:market_ticker, entries})
+        end
+
+        schedule_expiry(entries)
+      else
+        _error -> nil
       end
-    end
 
-    {:noreply, %{state | due: false}}
+    {:noreply, %{state | due: false, expiry_timer: expiry_timer}}
+  end
+
+  # When the list is empty, nothing can age out; PubSub wakes the ticker when a
+  # new bid or trade lands. Otherwise wake once the oldest entry turns an hour old.
+  defp schedule_expiry([]), do: nil
+
+  defp schedule_expiry(entries) do
+    oldest_at =
+      entries
+      |> Enum.map(fn {_kind, entry} -> entry.occurred_at end)
+      |> Enum.min(DateTime)
+
+    age_ms = DateTime.diff(DateTime.utc_now(), oldest_at, :millisecond)
+    wait_ms = max(@coalesce_ms, @entry_ttl_ms - age_ms + 500)
+    Process.send_after(self(), :load, wait_ms)
   end
 
   # Bids and trades together, newest first. Base makes several blocks in one

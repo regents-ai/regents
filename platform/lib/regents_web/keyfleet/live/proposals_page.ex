@@ -154,17 +154,20 @@ defmodule RegentsWeb.Keyfleet.ProposalsPage do
   its standing read at the latest block, at one block for all of them.
   """
   def first_pages(fleet_id, held) do
-    case Fleets.get_fleet!(fleet_id) do
-      nil ->
-        missing = %{fleet_id: fleet_id, fleet_name: nil}
-        %{list: missing, treasury: missing, details: %{}}
-
-      fleet ->
-        first_pages(fleet, about(fleet), held)
-    end
+    first_pages(fleet_id, held, Fleets.get_fleet!(fleet_id))
   end
 
-  defp first_pages(fleet, reading, held) do
+  @doc false
+  def first_pages(fleet_id, _held, nil) do
+    missing = %{fleet_id: fleet_id, fleet_name: nil}
+    %{list: missing, treasury: missing, details: %{}}
+  end
+
+  def first_pages(_fleet_id, held, fleet) do
+    first_pages_loaded(fleet, about(fleet), held)
+  end
+
+  defp first_pages_loaded(fleet, reading, held) do
     {proposals, _older?} = listing = Proposals.list_page(fleet.id, nil)
     assets = Treasury.assets(fleet)
     treasury_reading = Treasury.get_reading!(fleet.id)

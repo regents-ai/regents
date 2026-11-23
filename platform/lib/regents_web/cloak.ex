@@ -71,6 +71,37 @@ defmodule RegentsWeb.Cloak do
     after: "."
   }
 
+  # Expandable reference notes on `/cloak` written for agents reading the page
+  # (Decision 391 c: kept beside the drawn Mac app chat illustration).
+  @agent_docs_title "Docs for agents"
+  @agent_docs_intro "Expand any section below for structured facts about Cloak's runtime boundary, privacy modes, requirements, and Regents integration."
+  @agent_docs [
+    %{
+      id: "runtime-boundary",
+      summary: "Runtime boundary: macOS desktop app (no live web chat backend)",
+      body:
+        "Cloak is a native macOS menu bar application for Apple silicon; this page is product documentation and the chat window shown above is a static illustration of the Mac app, not a live hosted chat endpoint. Local Llama runs entirely on the user's Mac through llama.cpp with zero network traffic, while V, Token Inference, and NEAR Private AI send requests through external privacy-preserving inference backends."
+    },
+    %{
+      id: "modes-and-payments",
+      summary: "Comparing the 4 modes, routing, and payment rails",
+      body:
+        "1) V: routes through Tor with cover traffic, prompt rewording, and zkAPI inference; requires an ETH deposit. 2) Token Inference (Boundless): rewords prompts on the Mac and routes over Tor; pays per request with USDC.e on Tempo. 3) NEAR Private AI: verifiably private hosted models using a NEAR AI Cloud key, with optional trace sharing for NEAR AI Cloud credits. 4) Local Llama: runs recommended local models directly on the Mac for free with no web requests and no Tor startup required. Credit cards are not accepted."
+    },
+    %{
+      id: "requirements-and-install",
+      summary: "Hardware requirements, model download, and install steps",
+      body:
+        "Requires an Apple silicon Mac running macOS 26 with 16 GB memory and 10 GB free disk space. First run downloads a 5.7 GB local model before Local Llama can answer offline. Installation steps (drag Regents-Cloak.dmg into Applications, open, download the model, and optionally click Start in the menu bar for Tor-backed modes) are documented at /cloak/install. Neither /cloak nor /cloak/install serves the .dmg file directly."
+    },
+    %{
+      id: "agent-discovery",
+      summary: "How agents should read this page and report Cloak bugs",
+      body:
+        "Request /cloak or /cloak/install with Accept: text/markdown for plain Markdown output. For site-wide tools, OAuth/MCP endpoints, and agent pairing, read /llms.txt and /agents.md (or connect to /mcp). Report bugs or regressions in Cloak on Patchbay at /patchbay/regents.sh (or patchbay.help/regents.sh)."
+    }
+  ]
+
   # The install page, at `/cloak/install`: what to do with the app's file once a
   # person has it. The page offers no file. Each step: its one-word title, its
   # sentence.
@@ -102,6 +133,9 @@ defmodule RegentsWeb.Cloak do
   def needs, do: @needs
   def caution, do: @caution
   def feedback, do: @feedback
+  def agent_docs_title, do: @agent_docs_title
+  def agent_docs_intro, do: @agent_docs_intro
+  def agent_docs, do: @agent_docs
   def install_path, do: @install_path
   def install_heading, do: @install_heading
   def install_steps, do: @install_steps
@@ -120,6 +154,11 @@ defmodule RegentsWeb.Cloak do
           "#{n}. **#{name}.** #{credit.before}[#{credit.link}](#{credit.href})#{credit.after} #{sentence}"
       end)
 
+    agent_docs =
+      Enum.map_join(@agent_docs, "\n\n", fn doc ->
+        "### #{doc.summary}\n\n#{doc.body}"
+      end)
+
     film = RegentsWeb.Endpoint.static_url() <> RegentsWeb.Endpoint.static_path(@film)
 
     """
@@ -136,6 +175,12 @@ defmodule RegentsWeb.Cloak do
     ## #{@modes_title}
 
     #{modes}
+
+    ## #{@agent_docs_title}
+
+    #{@agent_docs_intro}
+
+    #{agent_docs}
 
     ## Needs
 

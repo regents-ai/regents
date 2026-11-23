@@ -102,6 +102,23 @@ defmodule RegentsWeb.Cloak.CloakLive do
         </div>
       </section>
 
+      <section class="cloak-agent-docs" aria-labelledby="cloak-agent-docs-heading">
+        <div class="cloak-agent-docs__head">
+          <h2 id="cloak-agent-docs-heading">{Cloak.agent_docs_title()}</h2>
+          <p>{Cloak.agent_docs_intro()}</p>
+        </div>
+        <div class="cloak-agent-docs__list">
+          <details
+            :for={doc <- Cloak.agent_docs()}
+            id={"cloak-agent-doc-#{doc.id}"}
+            class="cloak-agent-doc"
+          >
+            <summary>{doc.summary}</summary>
+            <p>{doc.body}</p>
+          </details>
+        </div>
+      </section>
+
       <section class="cloak-notes" aria-label="Details">
         <div>
           <h2>Needs</h2>

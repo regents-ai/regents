@@ -76,7 +76,7 @@ defmodule Regents.Keyfleet.Agents.Here do
     for fleet_id <- Fleets.catalog_ids(),
         do: Phoenix.PubSub.subscribe(Regents.PubSub, Keys.topic(fleet_id))
 
-    Enum.each(Fleets.catalog_ids(), &read/1)
+    read_fleets(Fleets.catalog_ids())
     {:ok, MapSet.new()}
   end
 
@@ -90,7 +90,7 @@ defmodule Regents.Keyfleet.Agents.Here do
     do: {:noreply, Enum.reduce(Fleets.catalog_ids(), due, &due(&2, &1))}
 
   def handle_info(:read, due) do
-    Enum.each(due, &read/1)
+    read_fleets(due)
     {:noreply, MapSet.new()}
   end
 
@@ -100,14 +100,64 @@ defmodule Regents.Keyfleet.Agents.Here do
     MapSet.put(due, fleet_id)
   end
 
+  # Reads the fleets table once per pass and skips undeployed coming-soon fleets.
+  defp read_fleets(fleet_ids) do
+    case recorded_fleets() do
+      {:ok, recorded} ->
+        Enum.each(fleet_ids, &read(&1, Map.get(recorded, &1)))
+
+      :error ->
+        Enum.each(fleet_ids, &mark_degraded/1)
+    end
+  end
+
+  defp recorded_fleets do
+    case Fleets.list_fleets() do
+      {:ok, fleets} -> {:ok, Map.new(fleets, &{&1.id, &1})}
+      {:error, _failure} -> :error
+    end
+  rescue
+    Ash.Error.Unknown -> :error
+    DBConnection.ConnectionError -> :error
+    Postgrex.Error -> :error
+  end
+
+  defp mark_degraded(fleet_id) do
+    SharedReading.degraded(fleet_key(fleet_id))
+    for id <- held(fleet_id), do: SharedReading.degraded({:keyfleet_key_agents, id})
+  end
+
   @doc """
   Reads `fleet_id`'s agents and puts its two kinds of reading, deleting the
   Keys no agent works on any more. What the producer runs on each pass.
   """
   def read(fleet_id) do
-    now = DateTime.utc_now()
-    read_here(fleet_id, now)
-    read_keys(fleet_id, now)
+    case Fleets.get_fleet(fleet_id) do
+      {:ok, recorded} -> read(fleet_id, recorded)
+      {:error, _failure} -> mark_degraded(fleet_id)
+    end
+  rescue
+    Ash.Error.Unknown -> mark_degraded(fleet_id)
+    DBConnection.ConnectionError -> mark_degraded(fleet_id)
+    Postgrex.Error -> mark_degraded(fleet_id)
+  end
+
+  defp read(fleet_id, recorded) do
+    if Fleets.coming_soon?(fleet_id, recorded) do
+      SharedReading.put(fleet_key(fleet_id), %{
+        here: 0,
+        agents: [],
+        holders: %{holders: 0, online: 0},
+        faces: %{}
+      })
+
+      for id <- held(fleet_id), do: SharedReading.delete({:keyfleet_key_agents, id})
+      :ok
+    else
+      now = DateTime.utc_now()
+      read_here(fleet_id, now)
+      read_keys(fleet_id, now)
+    end
   end
 
   defp read_here(fleet_id, now) do

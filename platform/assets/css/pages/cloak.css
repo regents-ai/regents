@@ -436,6 +436,94 @@
   mask-image: linear-gradient(#000 82%, transparent);
 }
 
+/* ---- Docs for agents ---- */
+
+.cloak-agent-docs {
+  max-width: 1240px;
+  margin: var(--space-6) auto 0;
+  padding: 0 var(--space-8);
+}
+
+.cloak-agent-docs__head {
+  max-width: 68ch;
+  margin-block-end: var(--space-4);
+}
+
+.cloak-agent-docs__head h2 {
+  margin: 0 0 6px;
+  font-family: var(--cloak-sans);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--color-fg);
+}
+
+.cloak-agent-docs__head p {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.cloak-agent-docs__list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.cloak-agent-doc {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.cloak-agent-doc summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 14px 18px;
+  font-family: var(--cloak-sans);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-fg);
+  cursor: pointer;
+  list-style: none;
+}
+
+.cloak-agent-doc summary::-webkit-details-marker {
+  display: none;
+}
+
+.cloak-agent-doc summary::after {
+  content: "+";
+  flex: none;
+  font-size: 1.125rem;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--color-fg-muted);
+}
+
+.cloak-agent-doc[open] summary::after {
+  content: "−";
+}
+
+.cloak-agent-doc summary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.cloak-agent-doc p {
+  margin: 0;
+  padding: 0 18px 16px;
+  color: var(--color-fg-muted);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  max-width: 78ch;
+  text-wrap: pretty;
+}
+
 /* ---- Notes ---- */
 
 .cloak-notes {
@@ -605,6 +693,11 @@
 
   .cloak-show--steps {
     margin-block-start: 44px;
+  }
+
+  .cloak-agent-docs {
+    margin-block-start: 36px;
+    padding: 0;
   }
 
   .cloak-notes {

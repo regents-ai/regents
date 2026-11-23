@@ -976,6 +976,8 @@ defmodule Regents.Keyfleet.Keys do
     query
   end
 
+  defp count_owners(_fleet_id, []), do: {:ok, 0}
+
   defp count_owners(fleet_id, token_ids) do
     Regents.Keyfleet.Keys.KeyAttachment
     |> Ash.Query.for_read(:owned_in_fleet, %{fleet_id: fleet_id, token_ids: token_ids})

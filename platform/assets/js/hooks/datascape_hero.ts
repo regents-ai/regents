@@ -99,8 +99,10 @@ export const DatascapeHero: Hook = {
     const mode = docRoot.dataset.heroMode ?? "open"
 
     // Initialize entrance state before the first paint settles.
+    // In `open` mode, always play the opening reveal so a 50/50 split between
+    // `open` and `canvas` stays visibly distinct across reloads in the same tab.
     if (!reduced.matches) {
-      if (mode === "open" && (explicitHero || readSession("regents:hero:opened") !== "yes")) {
+      if (mode === "open") {
         docRoot.dataset.hero = "closed"
       } else if (
         mode === "crown" &&

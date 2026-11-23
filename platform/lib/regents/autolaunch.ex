@@ -192,6 +192,7 @@ defmodule Regents.Autolaunch do
     resource Regents.Autolaunch.BidActivity do
       define :auction_bids, action: :for_auction, args: [:auction_id]
       define :auction_bid, action: :for_bid, args: [:auction_id, :bid_id], not_found_error?: false
+      define :recent_bid_activity, action: :recent
     end
 
     resource Regents.Autolaunch.BidSettlement do
@@ -205,6 +206,8 @@ defmodule Regents.Autolaunch do
         action: :by_pool_log,
         args: [:token_id, :transaction_hash, :log_index],
         not_found_error?: false
+
+      define :recent_token_trades, action: :recent
     end
 
     resource Regents.Autolaunch.TokenRevenue do
