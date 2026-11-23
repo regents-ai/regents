@@ -79,3 +79,9 @@ config :phoenix_live_view,
   debug_attributes: true,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
+
+# Production-only background crawlers and Fly-private screenshot sweeps stay off
+# in development (`patchbay-shots.flycast` is unreachable outside Fly).
+config :regents, Regents.Patchbay.Incidents.CveNow, enabled?: false
+config :regents, Regents.Patchbay.Forum.SiteCheckSweep, enabled?: false
+config :regents, Regents.Patchbay.Forum.ListedSitePictureSweep, enabled?: false

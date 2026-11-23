@@ -299,7 +299,7 @@ defmodule Regents.DatabaseConfig do
       hostname: "127.0.0.1",
       port: 5432,
       database: System.get_env("REGENTS_DEV_DATABASE", "regents_dev"),
-      pool_size: 2
+      pool_size: if(reader?(), do: @reader_pool_size, else: 10)
     ]
   end
 

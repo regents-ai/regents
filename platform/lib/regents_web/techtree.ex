@@ -19,6 +19,7 @@ defmodule RegentsWeb.Techtree do
     exports: [
       AgentAccountController,
       AgentsController,
+      BlogController,
       BootstrapController,
       CatalogController,
       ChangelogLive,

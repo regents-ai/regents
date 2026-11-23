@@ -490,6 +490,11 @@ config :regents, :opensea_holdings_cache_ttl_ms, 15_000
 # five minutes. Development disables this automatic work unless explicitly enabled.
 config :regents, :staking_snapshot_refresh_enabled, true
 
+# Scheduled Oban crons run in production. Development leaves background crons off
+# by default (while keeping queues active for interactive jobs) unless
+# `REGENTS_DEV_OBAN_CRON=true` enables them (config/runtime.exs).
+config :regents, :oban_cron_enabled, true
+
 # Who reads a chain again when a person's action may have changed it
 # (`Regents.Chain.Refresh`).
 config :regents, Regents.Chain.Refresh, readers: [Regents.Stake.SnapshotCache]

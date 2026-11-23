@@ -393,6 +393,15 @@ if config_env() == :dev do
          :staking_snapshot_refresh_enabled,
          System.get_env("STAKING_SNAPSHOT_REFRESH_ENABLED") == "true"
 
+  config :regents,
+         :oban_cron_enabled,
+         System.get_env("REGENTS_DEV_OBAN_CRON") == "true"
+
+  config :regents,
+         :autolaunch_chain_polling_enabled,
+         String.trim(System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT", "")) != "" or
+           System.get_env("REGENTS_DEV_OBAN_CRON") == "true"
+
   base_read_rpc_url = String.trim(System.get_env("BASE_READ_RPC_URL", ""))
 
   if base_read_rpc_url != "" do

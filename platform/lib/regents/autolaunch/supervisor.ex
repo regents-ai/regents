@@ -61,7 +61,6 @@ defmodule Regents.Autolaunch.Supervisor do
         Supervisor.child_spec({Cachex, name: Stocks.Assets.cache()},
           id: Stocks.Assets.cache()
         ),
-        LaunchDiscovery.Count.children(),
         chain_reader_children(serving?)
       ]
       |> List.flatten()
@@ -71,8 +70,11 @@ defmodule Regents.Autolaunch.Supervisor do
   end
 
   defp chain_reader_children(true) do
-    if not Regents.read_only?(),
-      do: ChainHead.children() ++ CoveredCalls.PriceLine.children()
+    if not Regents.read_only?() and
+         Application.get_env(:regents, :autolaunch_chain_polling_enabled, true) do
+      LaunchDiscovery.Count.children() ++
+        ChainHead.children() ++ CoveredCalls.PriceLine.children()
+    end
   end
 
   defp chain_reader_children(false), do: nil

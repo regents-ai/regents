@@ -8465,3 +8465,11 @@ seasons), on the shared Points library regents.sh was already on.
 - Restored Autolaunch `Auction` `creator_links` calculation, `AuctionStats.by_chain/0`, `prefix: "autolaunch_app"` on raw Repo queries in `AuctionActivity` and `TokenTrades`, `/autolaunch/blog` & `/autolaunch/unavailable` frame assigns, `/autolaunch/agents/:agent` guide pages, and `/autolaunch/stocks` link.
 - Ported Techtree's `/techtree/blog`, `/techtree/blog/:slug`, `/techtree/privacy`, and `/techtree/terms` pages and Markdown documents.
 - Added Markdown negotiation (`Accept: text/markdown`) on `/keyfleet`, `/autolaunch`, and `/patchbay`, defaulted `:dev` SIWA URL/audience when unset so signed agent endpoints return `401` JSON locally instead of `500`, and registered product-specific WebMCP read tools on `document.modelContext` (`platform/assets/js/product_webmcp.ts`).
+
+
+## 2026-11-22 — One-site local development startup cleanup (not released)
+
+- Gated scheduled Oban crons off by default in `:dev` (`:oban_cron_enabled`, opt-in via `REGENTS_DEV_OBAN_CRON=true`) while keeping all Oban queues active for interactive jobs, so 58 background production sweeps no longer fire every minute in a local server.
+- Gated Autolaunch startup chain polling (`LaunchDiscovery.Count`, `ChainHead`, `CoveredCalls.PriceLine`) off in default `:dev` (`:autolaunch_chain_polling_enabled`, opt-in when `AUTOLAUNCH_BASE_DEPLOYMENT` or `REGENTS_DEV_OBAN_CRON=true` is set) while keeping the bundled Base deployment descriptions loaded so `/autolaunch`, `/autolaunch/create`, and `/autolaunch/agent-business` render without hitting live Base mainnet RPC or GeckoTerminal on boot.
+- Disabled Patchbay's production-only `CveNow`, `SiteCheckSweep`, and `ListedSitePictureSweep` background sweeps in `platform/config/dev.exs` (preventing local `:nxdomain` retries against `http://patchbay-shots.flycast` and unsolicited external site crawls) and set `Logger.put_process_level(self(), :info)` inside `Regents.Patchbay.Supervisor`'s boot-time `site_loader` task so routine idempotent catalog upserts stay quiet in dev debug logs.
+- Raised local development Postgres `pool_size` in `Regents.DatabaseConfig` from `2` to `10` (keeping `:reader` mode at `2`) and exported `RegentsWeb.Techtree.BlogController` from the `RegentsWeb.Techtree` boundary.

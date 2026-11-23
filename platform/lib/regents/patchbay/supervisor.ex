@@ -38,6 +38,9 @@ defmodule Regents.Patchbay.Supervisor do
     if not Regents.read_only?() do
       {Task,
        fn ->
+         # Keep routine idempotent catalog upserts from flooding dev debug logs;
+         # warnings and errors still log normally.
+         Logger.put_process_level(self(), :info)
          Forum.Catalog.sync!()
          Forum.ProgramSites.make!()
        end}

@@ -108,16 +108,36 @@ defmodule Regents.Application do
 
   # AshOban adds a queue and a sweep for every trigger in the site's domains. Every
   # job writes, so the read-only venue (`Regents.read_only?/0`) runs none.
+  # Development runs queues for interactive jobs while leaving background crons
+  # off unless `REGENTS_DEV_OBAN_CRON=true` enables them.
   defp oban_child do
     if Application.get_env(:regents, :database_startup_enabled, false) and
          not Regents.read_only?() do
-      {Oban,
-       AshOban.config(
-         Application.fetch_env!(:regents, :ash_domains),
-         staking_jobs(Application.fetch_env!(:regents, Oban))
-       )}
+      config =
+        AshOban.config(
+          Application.fetch_env!(:regents, :ash_domains),
+          staking_jobs(Application.fetch_env!(:regents, Oban))
+        )
+
+      {Oban, dev_cron(config)}
     end
   end
+
+  defp dev_cron(config) do
+    cond do
+      Application.get_env(:regents, :oban_cron_enabled, true) ->
+        config
+
+      Application.get_env(:regents, :staking_snapshot_refresh_enabled, false) ->
+        update_in(config, [:cron, :crontab], &only_snapshot_refresh/1)
+
+      true ->
+        Keyword.put(config, :cron, false)
+    end
+  end
+
+  defp only_snapshot_refresh(entries),
+    do: Enum.filter(entries, &match?({_, Regents.Stake.SnapshotRefresh}, &1))
 
   defp staking_jobs(config) do
     if Application.get_env(:regents, :staking_snapshot_refresh_enabled, false),
