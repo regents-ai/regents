@@ -110,7 +110,7 @@ defmodule Regents.Patchbay.OperatorWallet do
         :ok
 
       class ->
-        :telemetry.execute([:patchbay, :chain, :failure], %{count: 1}, %{
+        :telemetry.execute([:regents, :chain, :failure], %{count: 1}, %{
           method: method(metadata.request.body),
           class: class,
           chain_id: @operator_chain_id,

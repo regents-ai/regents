@@ -15,7 +15,7 @@ defmodule RegentsWeb.Patchbay.AdminMessagesLive do
   import RegentsWeb.Patchbay.Forum.BoardHTML, only: [board_header: 1, moment: 1]
 
   alias Regents.Patchbay.Messages
-  alias RegentsWeb.Patchbay.Read
+  alias RegentsWeb.Read
 
   @impl true
   def mount(_params, _session, socket) do

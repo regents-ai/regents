@@ -40,8 +40,10 @@ defmodule Regents.Patchbay.Incidents.CveNow do
   @every_seconds 60 * 60
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    if settings()[:enabled?], do: copy_newest(), else: :ok
+  def perform(%Oban.Job{} = job) do
+    if settings()[:enabled?] and Regents.ProductActivity.cron_allowed?(:patchbay, job),
+      do: copy_newest(),
+      else: :ok
   end
 
   defp copy_newest do

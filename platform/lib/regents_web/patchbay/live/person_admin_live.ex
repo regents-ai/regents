@@ -23,7 +23,7 @@ defmodule RegentsWeb.Patchbay.PersonAdminLive do
   alias Regents.Patchbay.Members
   alias Regents.Patchbay.Members.Member
   alias RegentsWeb.NotFoundError
-  alias RegentsWeb.Patchbay.Read
+  alias RegentsWeb.Read
 
   @impl true
   def mount(%{"public_id" => public_id}, _session, socket) do

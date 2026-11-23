@@ -21,8 +21,9 @@ defmodule Regents.Autolaunch.LaunchDiscovery.Count do
 
   use GenServer
 
-  alias Regents.Autolaunch.ChainRefresh
   alias Regents.Autolaunch.LaunchDiscovery.Discover
+  alias Regents.Chain.Refresh, as: ChainRefresh
+  alias Regents.ProductActivity
   alias Regents.SharedReading
 
   @every_ms 300_000
@@ -64,29 +65,63 @@ defmodule Regents.Autolaunch.LaunchDiscovery.Count do
 
   @impl true
   def init(nil) do
+    SharedReading.register_producer(:launch_count, self(), :async)
+    :ok = ProductActivity.subscribe()
     :ok = Phoenix.PubSub.subscribe(Regents.PubSub, @topic)
-    {:ok, %{read_at: nil, timer: nil}, {:continue, :read}}
+    {:ok, %{read_at: nil, timer: nil, active?: false}}
   end
 
   @impl true
-  def handle_continue(:read, count), do: {:noreply, read(count)}
+  def handle_cast(:wake, %{active?: true} = count), do: {:noreply, count}
+
+  def handle_cast(:wake, count) do
+    ProductActivity.touch(:autolaunch)
+    SharedReading.mark_loaded(:launch_count, true)
+    {:noreply, read(%{count | active?: true})}
+  end
 
   @impl true
-  def handle_info(:read, count), do: {:noreply, read(count)}
+  def handle_info({:product_idle, :autolaunch}, %{active?: true} = count),
+    do: {:noreply, sleep(count)}
+
+  def handle_info({:product_idle, _product}, count), do: {:noreply, count}
+  def handle_info({:product_active, _product}, count), do: {:noreply, count}
+
+  def handle_info(:read, %{active?: true} = count) do
+    if ProductActivity.active?(:autolaunch),
+      do: {:noreply, read(count)},
+      else: {:noreply, sleep(count)}
+  end
+
+  def handle_info(:read, count), do: {:noreply, count}
 
   # A pass recorded a launch: read again once ten seconds have passed since the
   # last read began, unless the next read is due sooner.
+  def handle_info(:read_again, %{active?: false} = count), do: {:noreply, count}
+
+  def handle_info(:read_again, %{read_at: nil} = count), do: {:noreply, read(count)}
+
   def handle_info(:read_again, count) do
     wait = max(count.read_at + ChainRefresh.gap_s() * 1_000 - now(), 0)
 
-    case Process.read_timer(count.timer) do
+    case count.timer && Process.read_timer(count.timer) do
       left when is_integer(left) and left > wait ->
         Process.cancel_timer(count.timer)
         {:noreply, %{count | timer: Process.send_after(self(), :read, wait)}}
 
-      _sooner ->
+      left when is_integer(left) ->
         {:noreply, count}
+
+      _none ->
+        {:noreply, %{count | timer: Process.send_after(self(), :read, wait)}}
     end
+  end
+
+  defp sleep(%{timer: timer} = count) do
+    if timer, do: Process.cancel_timer(timer)
+    SharedReading.mark_loaded(:launch_count, false)
+    SharedReading.clear_kind(:launch_count)
+    %{count | active?: false, read_at: nil, timer: nil}
   end
 
   defp read(count) do

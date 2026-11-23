@@ -36,14 +36,17 @@ defmodule Regents.Patchbay.Forum.ListedSitePictureSweep do
   alias Regents.Patchbay.Forum.SiteScreenshot
 
   @impl Oban.Worker
-  def perform(_job) do
-    config = Application.fetch_env!(:regents, __MODULE__)
-    domains = SiteDirectory.domains()
-    boards = Forum.list_site_picture_states!(domains)
-    kept = Forum.list_kept_listed_site_pictures!()
+  def perform(%Oban.Job{} = job) do
+    if Regents.ProductActivity.cron_allowed?(:patchbay, job) do
+      config = Application.fetch_env!(:regents, __MODULE__)
+      domains = SiteDirectory.domains()
+      boards = Forum.list_site_picture_states!(domains)
+      kept = Forum.list_kept_listed_site_pictures!()
 
-    measure(domains, boards, kept)
-    if config[:enabled?], do: queue(domains, boards, kept, config[:per_run])
+      measure(domains, boards, kept)
+      if config[:enabled?], do: queue(domains, boards, kept, config[:per_run])
+    end
+
     :ok
   end
 

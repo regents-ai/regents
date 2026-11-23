@@ -9,17 +9,19 @@ defmodule Regents.Keyfleet.Chain.Watch do
   """
   use Oban.Worker, queue: :keyfleet_default, max_attempts: 1
 
-  @behaviour Regents.Keyfleet.ChainRefresh
+  @behaviour Regents.Chain.Refresh
 
+  alias Regents.Chain.Refresh, as: ChainRefresh
   alias Regents.Keyfleet.Chain.ReadBalances
   alias Regents.Keyfleet.Chain.ReadFleet
-  alias Regents.Keyfleet.ChainRefresh
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    Regents.Keyfleet.Fleets.list_deployed_fleets!()
-    |> Enum.flat_map(&[ReadFleet.new(%{fleet_id: &1.id}), ReadBalances.new(%{fleet_id: &1.id})])
-    |> Enum.each(&Oban.insert!/1)
+  def perform(%Oban.Job{} = job) do
+    if Regents.ProductActivity.cron_allowed?(:keyfleet, job) do
+      Regents.Keyfleet.Fleets.list_deployed_fleets!()
+      |> Enum.flat_map(&[ReadFleet.new(%{fleet_id: &1.id}), ReadBalances.new(%{fleet_id: &1.id})])
+      |> Enum.each(&Oban.insert!/1)
+    end
 
     :ok
   end

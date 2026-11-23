@@ -144,7 +144,7 @@ defmodule RegentsWeb.Autolaunch.EarnComponent do
   def handle_event("step_failed", params, socket) do
     case Presses.failed(params) do
       {:ok, _name, reason} ->
-        RegentsWeb.Autolaunch.Telemetry.wallet_failed(:earn, reason)
+        RegentsWeb.Telemetry.wallet_failed(:earn, reason)
         %{linked: linked, active: active} = socket.assigns
 
         {:noreply,

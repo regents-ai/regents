@@ -51,6 +51,7 @@ defmodule Regents.Patchbay.WalletBench.Board do
 
   alias Regents.Patchbay.WalletBench.Matrix
   alias Regents.Patchbay.WalletBench.Sets
+  alias Regents.ProductActivity
   alias Regents.Repo
   alias Regents.SharedReading
 
@@ -336,14 +337,41 @@ defmodule Regents.Patchbay.WalletBench.Board do
 
   @impl true
   def init(nil) do
+    SharedReading.register_producer(@kind, self(), :sync)
     SharedReading.subscribe_heal(@kind)
-    refresh()
-    {:ok, nil, :hibernate}
+    ProductActivity.subscribe()
+    {:ok, %{loaded?: false}, :hibernate}
   end
 
   @impl true
-  def handle_info({:shared_reading_heal, @kind}, state) do
+  def handle_call(:ensure_loaded, _from, %{loaded?: true} = state),
+    do: {:reply, :ok, state, :hibernate}
+
+  def handle_call(:ensure_loaded, _from, state) do
     refresh()
+    SharedReading.mark_loaded(@kind, true)
+    {:reply, :ok, %{state | loaded?: true}, :hibernate}
+  end
+
+  @impl true
+  def handle_info({:product_idle, product}, %{loaded?: true} = state)
+      when product in [:patchbay, :techtree] do
+    if not ProductActivity.active?(:patchbay) and not ProductActivity.active?(:techtree) do
+      SharedReading.mark_loaded(@kind, false)
+      SharedReading.clear_kind(@kind)
+      {:noreply, %{state | loaded?: false}, :hibernate}
+    else
+      {:noreply, state, :hibernate}
+    end
+  end
+
+  def handle_info({:product_idle, _product}, state), do: {:noreply, state, :hibernate}
+  def handle_info({:product_active, _product}, state), do: {:noreply, state, :hibernate}
+
+  def handle_info({:shared_reading_heal, @kind}, %{loaded?: true} = state) do
+    if ProductActivity.active?(:patchbay) or ProductActivity.active?(:techtree), do: refresh()
     {:noreply, state, :hibernate}
   end
+
+  def handle_info({:shared_reading_heal, @kind}, state), do: {:noreply, state, :hibernate}
 end

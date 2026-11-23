@@ -173,18 +173,6 @@ config :regents,
   share_video_saved_bytes: 5_000_000_000,
   autolaunch_share_video_renderer: RegentsWeb.Autolaunch.ShareVideo.Render
 
-config :regents, Regents.Autolaunch.ChainRefresh,
-  readers: [
-    Regents.Autolaunch.ChainHead,
-    Regents.Autolaunch.AuctionMarket,
-    Regents.Autolaunch.Robinhood.Discovery,
-    Regents.Autolaunch.AuctionActivity,
-    Regents.Autolaunch.TokenTrades,
-    Regents.Autolaunch.LaunchDiscovery.Discover,
-    Regents.Autolaunch.RegentFacts,
-    Regents.Autolaunch.CoveredCalls.Book
-  ]
-
 config :regents, ecto_repos: [Regents.Repo]
 
 # The read-only venue turns this on at boot (config/runtime.exs, `Regents.read_only?/0`).
@@ -418,10 +406,6 @@ config :regents, :answer_watch,
   perplexity_url: "https://openrouter.ai/api/v1/chat/completions",
   perplexity_model: "perplexity/sonar"
 
-config :regents, Regents.Patchbay.Agents.HostedAddress,
-  gc_interval: :timer.hours(12),
-  max_size: 100_000
-
 config :regents, Regents.Patchbay.WalletBench.RunRecords,
   gc_interval: :timer.minutes(10),
   max_size: 1_000,
@@ -497,9 +481,23 @@ config :regents, :staking_snapshot_refresh_enabled, true
 # `REGENTS_DEV_OBAN_CRON=true` enables them (config/runtime.exs).
 config :regents, :oban_cron_enabled, true
 
-# Who reads a chain again when a person's action may have changed it
-# (`Regents.Chain.Refresh`).
-config :regents, Regents.Chain.Refresh, readers: [Regents.Stake.SnapshotCache]
+# Who reads a chain again when a person's action may have changed it, scoped per
+# product (`Regents.Chain.Refresh`) so one product's press never fans out to another.
+config :regents, Regents.Chain.Refresh,
+  readers: %{
+    regents: [Regents.Stake.SnapshotCache],
+    keyfleet: [Regents.Keyfleet.Chain.Watch],
+    autolaunch: [
+      Regents.Autolaunch.ChainHead,
+      Regents.Autolaunch.AuctionMarket,
+      Regents.Autolaunch.Robinhood.Discovery,
+      Regents.Autolaunch.AuctionActivity,
+      Regents.Autolaunch.TokenTrades,
+      Regents.Autolaunch.LaunchDiscovery.Discover,
+      Regents.Autolaunch.RegentFacts,
+      Regents.Autolaunch.CoveredCalls.Book
+    ]
+  }
 
 # Techtree's catalog bundle this build serves, and the release channel it
 # belongs to. `catalog_root` holds the generated `techtree-python` export; it is

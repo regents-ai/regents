@@ -330,7 +330,7 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   def handle_event("step_failed", params, socket) do
     case Presses.failed(params) do
       {:ok, _step, reason} ->
-        RegentsWeb.Keyfleet.Telemetry.wallet_failed(socket.assigns.flow, reason)
+        RegentsWeb.Telemetry.wallet_failed(socket.assigns.flow, reason)
         {:noreply, noted(socket, params, reason)}
 
       :error ->
@@ -708,7 +708,7 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # Refused, and nothing reaches the wallet: counted under its reason. The
   # page reports nothing more for this press.
   defp counted(socket, %{reason: reason} = refused) do
-    RegentsWeb.Keyfleet.Telemetry.wallet_failed(socket.assigns.flow, reason)
+    RegentsWeb.Telemetry.wallet_failed(socket.assigns.flow, reason)
     refused
   end
 

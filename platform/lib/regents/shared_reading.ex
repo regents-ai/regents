@@ -41,6 +41,8 @@ defmodule Regents.SharedReading do
   use GenServer
 
   @table __MODULE__
+  @producers :regents_shared_reading_producers
+  @load_timeout 15_000
 
   # audience: who may see it, and why. keys: the most this kind holds.
   # bytes: the largest reading, measured as `:erlang.external_size/1`.
@@ -243,12 +245,56 @@ defmodule Regents.SharedReading do
   def fetch({kind, id} = key)
       when is_map_key(@kinds, kind) and (is_integer(id) or is_binary(id)) do
     case :ets.lookup(@table, key) do
-      [{^key, entry}] -> {:ok, entry}
-      [] -> :error
+      [{^key, entry}] ->
+        {:ok, entry}
+
+      [] ->
+        case maybe_load(key) do
+          :loaded -> lookup(key)
+          :miss -> :error
+        end
     end
   rescue
     # No table for the instant its owner restarts: the same as no reading.
     ArgumentError -> :error
+  end
+
+  @doc """
+  Registers a lazy producer for `kind` or a specific `key` so cold reads wake
+  the producer on first demand instead of querying at boot. `mode` is `:sync`
+  (DB-backed readers that answer `:ensure_loaded`) or `:async` (chain/HTTP
+  readers that answer `:wake` casts and push via PubSub).
+  """
+  @spec register_producer(atom() | key(), GenServer.server(), :sync | :async) :: :ok
+  def register_producer(target, server, mode \\ :sync) when mode in [:sync, :async] do
+    :ets.insert(@producers, {producer_target(target), server, mode, false})
+    :ok
+  rescue
+    ArgumentError -> :ok
+  end
+
+  @doc "Records whether the lazy producer for `target` has loaded its readings."
+  @spec mark_loaded(atom() | key(), boolean()) :: :ok
+  def mark_loaded(target, loaded?) when is_boolean(loaded?) do
+    id = producer_target(target)
+
+    case :ets.lookup(@producers, id) do
+      [{^id, server, mode, _was}] ->
+        :ets.insert(@producers, {id, server, mode, loaded?})
+        :ok
+
+      [] ->
+        :ok
+    end
+  rescue
+    ArgumentError -> :ok
+  end
+
+  @doc "Deletes every key held for `kind` (for example, when its product goes idle)."
+  @spec clear_kind(atom()) :: :ok
+  def clear_kind(kind) when is_map_key(@kinds, kind) do
+    Enum.each(ids(kind), &delete({kind, &1}))
+    :ok
   end
 
   @doc """
@@ -315,6 +361,7 @@ defmodule Regents.SharedReading do
   @impl true
   def init(nil) do
     :ets.new(@table, [:named_table, :protected, read_concurrency: true])
+    :ets.new(@producers, [:named_table, :public, read_concurrency: true, write_concurrency: true])
     {:ok, nil}
   end
 
@@ -409,6 +456,59 @@ defmodule Regents.SharedReading do
   defp plain?([head | tail]), do: plain?(head) and plain?(tail)
   defp plain?(tuple) when is_tuple(tuple), do: tuple |> Tuple.to_list() |> plain?()
   defp plain?(term), do: is_number(term) or is_binary(term) or is_atom(term)
+
+  defp lookup(key) do
+    case :ets.lookup(@table, key) do
+      [{^key, entry}] -> {:ok, entry}
+      [] -> :error
+    end
+  rescue
+    ArgumentError -> :error
+  end
+
+  defp maybe_load({kind, _id} = key) do
+    case lookup_producer(key, kind) do
+      {_target, server, :sync, false} ->
+        if GenServer.whereis(server) != self() do
+          try do
+            GenServer.call(server, :ensure_loaded, @load_timeout)
+            :loaded
+          catch
+            :exit, _reason -> :miss
+          end
+        else
+          :miss
+        end
+
+      {_target, server, :async, false} ->
+        if GenServer.whereis(server) != self(), do: GenServer.cast(server, :wake)
+        :miss
+
+      _already_loaded_or_none ->
+        :miss
+    end
+  end
+
+  defp lookup_producer(key, kind) do
+    case :ets.lookup(@producers, {:key, key}) do
+      [entry] ->
+        entry
+
+      [] ->
+        case :ets.lookup(@producers, {:kind, kind}) do
+          [entry] -> entry
+          [] -> nil
+        end
+    end
+  rescue
+    ArgumentError -> nil
+  end
+
+  defp producer_target({kind, id})
+       when is_map_key(@kinds, kind) and (is_integer(id) or is_binary(id)),
+       do: {:key, {kind, id}}
+
+  defp producer_target(kind) when is_map_key(@kinds, kind), do: {:kind, kind}
 
   # A key is built by site code from a fixed kind and an id the site holds.
   defp checked({kind, id} = key)

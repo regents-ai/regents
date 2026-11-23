@@ -434,13 +434,17 @@ defmodule Regents.Autolaunch.Chain.Rpc do
   # includes a refused log range and a reverted `eth_call`), a timeout, a
   # transport failure or an HTTP status.
   defp failed(method, class, opts) do
-    :telemetry.execute([:autolaunch, :rpc, :failure], %{count: 1}, %{
+    :telemetry.execute([:regents, :chain, :failure], %{count: 1}, %{
       method: method,
-      class: class,
+      class: telemetry_class(class),
       chain_id: Keyword.get(opts, :expected_chain_id, @chain_id),
       scope: Keyword.get(opts, :log_scope, "wallet")
     })
   end
+
+  defp telemetry_class({:http_status, status}), do: "http_#{status}"
+  defp telemetry_class(class) when is_atom(class), do: Atom.to_string(class)
+  defp telemetry_class(class) when is_binary(class), do: class
 
   defp error_class(%Req.TransportError{reason: reason})
        when reason in [:timeout, :connect_timeout],

@@ -26,7 +26,7 @@ defmodule RegentsWeb.Patchbay.OffersAdminLive do
   alias Regent.Primitives
   alias Regents.Patchbay.Offers
   alias Regents.Patchbay.Offers.Source
-  alias RegentsWeb.Patchbay.Read
+  alias RegentsWeb.Read
 
   @impl true
   def mount(_params, _session, socket) do

@@ -9,8 +9,11 @@ defmodule Regents.Keyfleet.Atlas.ReadHubs do
   alias Regents.Keyfleet.Notebooks
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    Enum.each(Notebooks.hub_fleet_ids(), &Oban.insert!(ReadHub.new(%{fleet_id: &1})))
+  def perform(%Oban.Job{} = job) do
+    if Regents.ProductActivity.cron_allowed?(:keyfleet, job) do
+      Enum.each(Notebooks.hub_fleet_ids(), &Oban.insert!(ReadHub.new(%{fleet_id: &1})))
+    end
+
     :ok
   end
 end

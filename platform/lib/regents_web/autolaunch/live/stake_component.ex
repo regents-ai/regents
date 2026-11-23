@@ -514,7 +514,7 @@ defmodule RegentsWeb.Autolaunch.StakeComponent do
     do: {:noreply, OnchainCalls.landed(socket, params)}
 
   def handle_event("calls_failed", params, socket) do
-    RegentsWeb.Autolaunch.Telemetry.wallet_failed(:stake, "calls_failed")
+    RegentsWeb.Telemetry.wallet_failed(:stake, "calls_failed")
 
     {:noreply,
      socket

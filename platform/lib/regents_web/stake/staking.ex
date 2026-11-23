@@ -55,9 +55,12 @@ defmodule RegentsWeb.Stake.Staking do
   defp enter(socket, %{route_id: :stake}) do
     socket = assign(socket, staking_wallet: Identity.position_wallet(socket.assigns))
 
-    if connected?(socket),
-      do: socket |> follow_snapshots() |> paint_shared_snapshot() |> start_staking_read(),
-      else: paint_shared_snapshot(socket, :loading)
+    if connected?(socket) do
+      maybe_wake_snapshot()
+      socket |> follow_snapshots() |> paint_shared_snapshot() |> start_staking_read()
+    else
+      paint_shared_snapshot(socket, :loading)
+    end
   end
 
   # An anonymous visitor to either page buys no chain read at all: the shared
@@ -66,6 +69,8 @@ defmodule RegentsWeb.Stake.Staking do
   # own fresh block.
   defp enter(socket, %{route_id: :app}) do
     if connected?(socket) do
+      maybe_wake_snapshot()
+
       socket
       |> follow_snapshots()
       |> clear_staking_wallet()
@@ -272,6 +277,18 @@ defmodule RegentsWeb.Stake.Staking do
         )
     end
   end
+
+  defp maybe_wake_snapshot do
+    if Application.get_env(:regents, :staking_snapshot_refresh_enabled, false) and
+         not Regents.read_only?() and stale_snapshot?(SnapshotCache.snapshot()) do
+      SnapshotCache.refresh(8453)
+    end
+  end
+
+  defp stale_snapshot?(%{read_at: %DateTime{} = read_at}),
+    do: DateTime.diff(DateTime.utc_now(), read_at, :second) >= 300
+
+  defp stale_snapshot?(_missing), do: true
 
   defp clear_staking_wallet(socket), do: assign(socket, staking_wallet: nil, staking_notice: nil)
 

@@ -47,6 +47,8 @@ defmodule RegentsWeb.Autolaunch.CoveredCallsAnswer do
     # The site started with a covered-calls description for another chain than
     # its Base deployment's, or with a Base deployment id that is empty; the start
     # refuses every other fault in either description.
+    covered_calls_off: {:not_found, "Covered calls are not enabled on this site."},
+    covered_calls_deployment_missing: @site_unavailable,
     base_deployment_mismatch: @site_unavailable,
     missing_deployment_id: @site_unavailable
   }

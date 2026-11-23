@@ -117,7 +117,7 @@ defmodule RegentsWeb.Autolaunch.CoveredCallsLive do
   # The Refresh press asks every reader of the chain to read again, so the
   # shared book is taken anew unless it was taken in the last ten seconds.
   def handle_event("refresh", _params, socket) do
-    Regents.Autolaunch.ChainRefresh.request(socket.assigns.chain_id)
+    Regents.Chain.Refresh.request(:autolaunch, socket.assigns.chain_id)
 
     socket =
       case socket.assigns.linked do

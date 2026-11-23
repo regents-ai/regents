@@ -281,7 +281,7 @@ defmodule RegentsWeb.Autolaunch.OnchainSteps do
   def failed(socket, params, flow, network) do
     case Presses.failed(params) do
       {:ok, _name, reason} ->
-        RegentsWeb.Autolaunch.Telemetry.wallet_failed(flow, reason)
+        RegentsWeb.Telemetry.wallet_failed(flow, reason)
         assign(socket, press_note: failure_note(socket.assigns, reason, network))
 
       :error ->
@@ -424,11 +424,11 @@ defmodule RegentsWeb.Autolaunch.OnchainSteps do
     do: assign(socket, notice: "#{note} #{notice}")
 
   @doc """
-  A step that landed may have changed what the site's shared figures show, so
-  every reader of its chain reads it again (`Regents.Autolaunch.ChainRefresh`).
+  A step that landed may have changed what Autolaunch's shared figures show, so
+  Autolaunch's readers of its chain read it again (`Regents.Chain.Refresh`).
   """
   def refresh_chain(socket, %{review: %{chain: %{chain_id: chain_id}}}) do
-    Regents.Autolaunch.ChainRefresh.request(chain_id)
+    Regents.Chain.Refresh.request(:autolaunch, chain_id)
     socket
   end
 

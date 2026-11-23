@@ -64,35 +64,41 @@ defmodule Regents.Autolaunch.Stocks.StockCandidate.ReadMarket do
   @impl true
   def change(changeset, _opts, _context) do
     Ash.Changeset.before_action(changeset, fn changeset ->
-      with {:ok, _tried} <-
-             Regents.Autolaunch.mark_stock_candidate_tried(changeset.data, actor: @actor),
-           {:ok, facts} <- reading(changeset.data) do
-        now = DateTime.utc_now()
-
-        Ash.Changeset.force_change_attributes(
-          changeset,
-          Map.merge(facts, %{read_at: now, tried_at: now})
-        )
-      else
-        {:error, {:gecko_terminal, reason}} ->
-          Logger.warning(
-            "stock candidate #{changeset.data.ticker} not read: GeckoTerminal answered #{inspect(reason)}"
-          )
-
-          changeset
-
-        {:error, :chain_unavailable} ->
-          Logger.warning("stock candidate #{changeset.data.ticker} not read: a chain read failed")
-
-          changeset
-
-        {:error, reason} ->
-          Ash.Changeset.add_error(
-            changeset,
-            UnknownError.exception(error: "stock candidate read failed: #{inspect(reason)}")
-          )
-      end
+      if Regents.ProductActivity.active?(:autolaunch),
+        do: read_candidate(changeset),
+        else: changeset
     end)
+  end
+
+  defp read_candidate(changeset) do
+    with {:ok, _tried} <-
+           Regents.Autolaunch.mark_stock_candidate_tried(changeset.data, actor: @actor),
+         {:ok, facts} <- reading(changeset.data) do
+      now = DateTime.utc_now()
+
+      Ash.Changeset.force_change_attributes(
+        changeset,
+        Map.merge(facts, %{read_at: now, tried_at: now})
+      )
+    else
+      {:error, {:gecko_terminal, reason}} ->
+        Logger.warning(
+          "stock candidate #{changeset.data.ticker} not read: GeckoTerminal answered #{inspect(reason)}"
+        )
+
+        changeset
+
+      {:error, :chain_unavailable} ->
+        Logger.warning("stock candidate #{changeset.data.ticker} not read: a chain read failed")
+
+        changeset
+
+      {:error, reason} ->
+        Ash.Changeset.add_error(
+          changeset,
+          UnknownError.exception(error: "stock candidate read failed: #{inspect(reason)}")
+        )
+    end
   end
 
   # The chain reads are counted under their own name, so a fault that lasts shows

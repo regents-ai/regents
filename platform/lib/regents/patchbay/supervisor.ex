@@ -7,7 +7,7 @@ defmodule Regents.Patchbay.Supervisor do
   """
   use Supervisor
 
-  alias Regents.Patchbay.{Agents, Assist, Forum, OperatorWallet, WalletBench}
+  alias Regents.Patchbay.{Assist, Forum, OperatorWallet, WalletBench}
 
   def start_link(opts \\ []), do: Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -20,7 +20,6 @@ defmodule Regents.Patchbay.Supervisor do
     children =
       [
         RegentPayments.Supervisor,
-        Agents.HostedAddress,
         WalletBench.RunRecords,
         WalletBench.Board.builds(),
         {Task.Supervisor, name: Forum.SiteScan.tasks()},
@@ -35,16 +34,7 @@ defmodule Regents.Patchbay.Supervisor do
   end
 
   defp site_loader(true, true) do
-    if not Regents.read_only?() do
-      {Task,
-       fn ->
-         # Keep routine idempotent catalog upserts from flooding dev debug logs;
-         # warnings and errors still log normally.
-         Logger.put_process_level(self(), :info)
-         Forum.Catalog.sync!()
-         Forum.ProgramSites.make!()
-       end}
-    end
+    if not Regents.read_only?(), do: Forum.CatalogSync
   end
 
   defp site_loader(_serving?, _db?), do: nil

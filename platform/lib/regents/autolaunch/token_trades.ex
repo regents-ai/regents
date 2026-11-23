@@ -49,7 +49,7 @@ defmodule Regents.Autolaunch.TokenTrades do
     max_attempts: 20,
     unique: [keys: [:token_id], period: :infinity, states: :incomplete]
 
-  @behaviour Regents.Autolaunch.ChainRefresh
+  @behaviour Regents.Chain.Refresh
   import Ecto.Query
   require Ash.Query
   require Logger
@@ -59,7 +59,6 @@ defmodule Regents.Autolaunch.TokenTrades do
   alias Regents.Repo
 
   alias Regents.Autolaunch.{
-    ChainRefresh,
     ChainWatch,
     LabAbi,
     Token,
@@ -67,6 +66,8 @@ defmodule Regents.Autolaunch.TokenTrades do
     TokenStake,
     TokenTrade
   }
+
+  alias Regents.Chain.Refresh, as: ChainRefresh
 
   alias RegentChain.Address
   @actor %System{}
@@ -102,31 +103,31 @@ defmodule Regents.Autolaunch.TokenTrades do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"token_id" => id}}) do
+    if Regents.ProductActivity.active?(:autolaunch), do: perform_token(id), else: :ok
+  end
+
+  defp perform_token(id) do
     case Ash.get(Token, id, action: :trades, actor: @actor, not_found_error?: false) do
-      {:ok, nil} ->
-        {:cancel, :not_listed}
+      {:ok, nil} -> {:cancel, :not_listed}
+      {:ok, token} -> next_trade_pass(token, id)
+      {:error, error} -> {:error, error}
+    end
+  end
 
-      {:ok, token} ->
-        case read(token) do
-          {:ok, :behind} ->
-            {:snooze, 1}
+  defp next_trade_pass(token, id) do
+    case read(token) do
+      {:ok, :behind} ->
+        {:snooze, 1}
 
-          {:ok, :caught_up} ->
-            {:snooze, 300}
+      {:ok, :caught_up} ->
+        {:snooze, 300}
 
-          {:error, reason} when reason in @unavailable ->
-            Logger.warning(
-              "Trades for token #{id} not read (#{reason}); reading again in a minute"
-            )
+      {:error, reason} when reason in @unavailable ->
+        Logger.warning("Trades for token #{id} not read (#{reason}); reading again in a minute")
+        {:snooze, 60}
 
-            {:snooze, 60}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-
-      {:error, error} ->
-        {:error, error}
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -207,7 +208,7 @@ defmodule Regents.Autolaunch.TokenTrades do
     with {:ok, oldest} when is_integer(oldest) <- oldest_next_block(chain_id),
          do:
            :telemetry.execute(
-             [:autolaunch, :indexer, :lag],
+             [:regents, :indexer, :lag],
              %{blocks: max(head - (oldest - 1), 0)},
              %{indexer: :token_trades, chain_id: chain_id}
            )
@@ -219,7 +220,7 @@ defmodule Regents.Autolaunch.TokenTrades do
           number >= token.trades_next_block,
           do:
             :telemetry.execute(
-              [:autolaunch, :chain_event, :recorded],
+              [:regents, :chain_event, :recorded],
               %{delay_ms: DateTime.diff(now, at, :millisecond)},
               %{kind: :trade, chain_id: chain_id}
             )

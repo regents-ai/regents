@@ -25,6 +25,7 @@ defmodule Regents.Patchbay.Forum.HiddenSites do
   require Logger
 
   alias Regents.Patchbay.Forum.SiteDirectory
+  alias Regents.ProductActivity
   alias Regents.SharedReading
 
   @kind :hidden_sites
@@ -94,27 +95,52 @@ defmodule Regents.Patchbay.Forum.HiddenSites do
 
   @impl true
   def init(nil) do
+    SharedReading.register_producer(@kind, self(), :sync)
     SharedReading.subscribe_heal(@kind)
+    ProductActivity.subscribe()
     Phoenix.PubSub.subscribe(Regents.PubSub, @topic)
-    refresh()
-    {:ok, :idle, :hibernate}
+    {:ok, %{status: :idle, loaded?: false}, :hibernate}
   end
 
   @impl true
-  def handle_info({:shared_reading_heal, @kind}, state) do
+  def handle_call(:ensure_loaded, _from, %{loaded?: true} = state),
+    do: {:reply, :ok, state, :hibernate}
+
+  def handle_call(:ensure_loaded, _from, state) do
+    ProductActivity.touch(:patchbay)
     refresh()
+    SharedReading.mark_loaded(@kind, true)
+    {:reply, :ok, %{state | status: :idle, loaded?: true}, :hibernate}
+  end
+
+  @impl true
+  def handle_info({:product_idle, :patchbay}, %{loaded?: true} = state) do
+    SharedReading.mark_loaded(@kind, false)
+    SharedReading.clear_kind(@kind)
+    {:noreply, %{state | status: :idle, loaded?: false}, :hibernate}
+  end
+
+  def handle_info({:product_idle, _product}, state), do: {:noreply, state, :hibernate}
+  def handle_info({:product_active, _product}, state), do: {:noreply, state, :hibernate}
+
+  def handle_info({:shared_reading_heal, @kind}, %{loaded?: true} = state) do
+    if ProductActivity.active?(:patchbay), do: refresh()
     {:noreply, state, :hibernate}
   end
 
-  def handle_info(%Ash.Notifier.Notification{}, :idle) do
+  def handle_info({:shared_reading_heal, @kind}, state), do: {:noreply, state, :hibernate}
+
+  def handle_info(%Ash.Notifier.Notification{}, %{loaded?: true, status: :idle} = state) do
     Process.send_after(self(), :reread, @debounce)
-    {:noreply, :due}
+    {:noreply, %{state | status: :due}}
   end
 
-  def handle_info(%Ash.Notifier.Notification{}, :due), do: {:noreply, :due}
+  def handle_info(%Ash.Notifier.Notification{}, state), do: {:noreply, state}
 
-  def handle_info(:reread, :due) do
-    refresh()
-    {:noreply, :idle, :hibernate}
+  def handle_info(:reread, %{loaded?: true, status: :due} = state) do
+    if ProductActivity.active?(:patchbay), do: refresh()
+    {:noreply, %{state | status: :idle}, :hibernate}
   end
+
+  def handle_info(:reread, state), do: {:noreply, %{state | status: :idle}, :hibernate}
 end

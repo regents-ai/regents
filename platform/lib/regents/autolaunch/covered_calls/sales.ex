@@ -81,12 +81,16 @@ defmodule Regents.Autolaunch.CoveredCalls.Sales do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"contract" => contract}}) do
-    with {:ok, config} <- Deployment.current(),
-         %{} = market <-
-           Enum.find(config.markets, &(&1.contract == contract)) || {:error, :unknown_market} do
-      market |> read(config.lab) |> next(market)
+    if Regents.ProductActivity.active?(:autolaunch) do
+      with {:ok, config} <- Deployment.current(),
+           %{} = market <-
+             Enum.find(config.markets, &(&1.contract == contract)) || {:error, :unknown_market} do
+        market |> read(config.lab) |> next(market)
+      else
+        {:error, reason} -> {:cancel, reason}
+      end
     else
-      {:error, reason} -> {:cancel, reason}
+      :ok
     end
   end
 
@@ -425,7 +429,7 @@ defmodule Regents.Autolaunch.CoveredCalls.Sales do
     if least,
       do:
         :telemetry.execute(
-          [:autolaunch, :indexer, :lag],
+          [:regents, :indexer, :lag],
           %{blocks: max(head.number - (least - 1), 0)},
           %{indexer: :covered_call_sales, chain_id: market.chain_id}
         )

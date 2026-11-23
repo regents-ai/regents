@@ -21,7 +21,7 @@ defmodule RegentsWeb.Patchbay.PeopleAdminLive do
   import RegentsWeb.Patchbay.PersonAdminLive, only: [name: 1, status_label: 1, status_tone: 1]
 
   alias Regents.Patchbay.Members
-  alias RegentsWeb.Patchbay.Read
+  alias RegentsWeb.Read
 
   @impl true
   def mount(_params, _session, socket) do

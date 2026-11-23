@@ -25,6 +25,7 @@ defmodule Regents do
       PaperProDaily,
       PaperProDaily.PaperFile,
       PaperProDaily.Publication,
+      ProductActivity,
       RateLimiter,
       Repo,
       SharedReading,

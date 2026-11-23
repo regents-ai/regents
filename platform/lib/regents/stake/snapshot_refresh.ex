@@ -12,6 +12,7 @@ defmodule Regents.Stake.SnapshotRefresh do
   require Logger
 
   alias Regents.Account.Actors.System
+  alias Regents.ProductActivity
   alias Regents.Stake
   alias Regents.Stake.{PriceClient, RevenueHistory, RpcClient, SnapshotCache}
 
@@ -19,10 +20,14 @@ defmodule Regents.Stake.SnapshotRefresh do
   def timeout(_job), do: 70_000
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    # Every machine receives this committed reading, even without an Erlang
-    # cluster. Listeners read the row and notify their local pages.
-    with {:ok, _snapshot} <- refresh(), do: SnapshotCache.announce(:updated)
+  def perform(%Oban.Job{} = job) do
+    if ProductActivity.cron_allowed?(:stake, job) do
+      # Every machine receives this committed reading, even without an Erlang
+      # cluster. Listeners read the row and notify their local pages.
+      with {:ok, _snapshot} <- refresh(), do: SnapshotCache.announce(:updated)
+    else
+      :ok
+    end
   end
 
   @doc """

@@ -198,6 +198,7 @@ defmodule RegentsWeb.VisitLog do
     # Only a browser sends Global Privacy Control, so its API calls are its page's own.
     surface = if surface == "agent_http" and (visit || gpc), do: "page", else: surface
     product = Regents.Products.for_path(conn.request_path)
+    unless monitor_probe?(conn), do: Regents.ProductActivity.touch_path(conn.request_path)
     Logger.metadata(visit: visit, surface: surface, product: product)
     Process.put(@gpc, gpc)
 
@@ -305,6 +306,16 @@ defmodule RegentsWeb.VisitLog do
   defp page?(conn),
     do: conn |> get_req_header("accept") |> Enum.any?(&String.contains?(&1, "text/html"))
 
+  # Synthetic health probes from Fly Sentinel read public lists without waking
+  # idle background chain indexers and pollers for products with no real traffic.
+  @monitor_agents ["fly-sentinel-site-watch", "fly-sentinel-proposals", "Regent Sentinel"]
+  defp monitor_probe?(conn) do
+    case get_req_header(conn, "user-agent") do
+      [agent | _] -> agent in @monitor_agents
+      [] -> false
+    end
+  end
+
   defp surface(%Plug.Conn{path_info: ["api" | _]} = conn) do
     client = conn |> get_req_header("x-regent-client") |> List.first("")
 
@@ -355,6 +366,7 @@ defmodule RegentsWeb.VisitLog do
     )
 
     Process.put(@gpc, session["gpc"] == true)
+    Regents.ProductActivity.touch_path(session["render_route"])
 
     socket =
       Phoenix.Component.assign(socket, visit: visit, arrival: first_arrival(session, socket))
@@ -376,6 +388,7 @@ defmodule RegentsWeb.VisitLog do
 
   defp page(_params, uri, socket) do
     %URI{path: path, host: host} = URI.parse(uri)
+    Regents.ProductActivity.touch_path(path)
     Logger.metadata(product: Regents.Products.for_path(path))
 
     if Phoenix.LiveView.connected?(socket) do

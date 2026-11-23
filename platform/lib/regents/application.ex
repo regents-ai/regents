@@ -57,6 +57,9 @@ defmodule Regents.Application do
         {Task.Supervisor, name: Regents.Products.Health},
         database_child(),
         {Phoenix.PubSub, name: Regents.PubSub},
+        # After PubSub: tracks which folded products have active route traffic so
+        # background DB/RPC/HTTP readers stay dormant for inactive products.
+        Regents.ProductActivity,
         # After the repository and PubSub: a pairing or the staking figures
         # changed on any Regent site reach the pages showing them.
         shared_changes_child(),

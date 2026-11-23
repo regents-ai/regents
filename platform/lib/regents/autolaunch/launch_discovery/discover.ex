@@ -33,7 +33,7 @@ defmodule Regents.Autolaunch.LaunchDiscovery.Discover do
   notice clears.
   """
 
-  @behaviour Regents.Autolaunch.ChainRefresh
+  @behaviour Regents.Chain.Refresh
 
   require Logger
 
@@ -58,9 +58,13 @@ defmodule Regents.Autolaunch.LaunchDiscovery.Discover do
   end
 
   def run(_input, _context) do
-    case Enum.flat_map(launchpads(), &discover/1) do
-      [] -> :ok
-      unrecorded -> {:error, {:launches_not_recorded, unrecorded}}
+    if Regents.ProductActivity.active?(:autolaunch) do
+      case Enum.flat_map(launchpads(), &discover/1) do
+        [] -> :ok
+        unrecorded -> {:error, {:launches_not_recorded, unrecorded}}
+      end
+    else
+      :ok
     end
   end
 
@@ -124,7 +128,7 @@ defmodule Regents.Autolaunch.LaunchDiscovery.Discover do
   # nothing, as the site's other chain readers say once a pass is done.
   defp followed(pad) do
     :telemetry.execute(
-      [:autolaunch, :indexer, :lag],
+      [:regents, :indexer, :lag],
       %{blocks: 0},
       %{indexer: :launch_discovery, chain_id: pad.chain_id}
     )

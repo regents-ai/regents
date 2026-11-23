@@ -10,8 +10,8 @@ defmodule RegentsWeb.Keyfleet.OnchainSteps do
   (`remember/2`). The page reports each press against the review it sent from.
   Every sent step is then read at the latest block of the review's chain, every
   two seconds, until it lands or the page stops asking. Nothing is kept beyond
-  the page. A step that lands asks every reader of its chain to read it again
-  (`Regents.Keyfleet.ChainRefresh`), so the fleets' figures show what it changed.
+  the page. A step that lands asks Keyfleet's readers of its chain to read it again
+  (`Regents.Chain.Refresh`), so the fleets' figures show what it changed.
 
   The only wallet that may act is Privy's active wallet when it is one of the
   signed-in account's own (`signer/2`). Reads that show another wallet never
@@ -22,7 +22,8 @@ defmodule RegentsWeb.Keyfleet.OnchainSteps do
   import Phoenix.LiveView, only: [push_event: 3, start_async: 3]
 
   alias RegentChain.{Outcome, Presses}
-  alias Regents.Keyfleet.{ChainClient, ChainRefresh}
+  alias Regents.Chain.Client, as: ChainClient
+  alias Regents.Chain.Refresh, as: ChainRefresh
 
   @recheck_ms 2_000
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
@@ -116,7 +117,10 @@ defmodule RegentsWeb.Keyfleet.OnchainSteps do
 
       {entry, presses} ->
         socket = assign(socket, presses: presses)
-        if entry.outcome == :confirmed, do: ChainRefresh.request(entry.review.chain.chain_id)
+
+        if entry.outcome == :confirmed,
+          do: ChainRefresh.request(:keyfleet, entry.review.chain.chain_id)
+
         if Presses.reading?(entry), do: check(socket, entry), else: socket
     end
   end

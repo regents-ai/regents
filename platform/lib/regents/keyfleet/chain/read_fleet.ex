@@ -38,12 +38,16 @@ defmodule Regents.Keyfleet.Chain.ReadFleet do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"fleet_id" => fleet_id}}) do
-    case Fleets.get_fleet!(fleet_id) do
-      %{manager_address: address} = fleet when is_binary(address) ->
-        pass(fleet)
+    if Regents.ProductActivity.active?(:keyfleet) do
+      case Fleets.get_fleet!(fleet_id) do
+        %{manager_address: address} = fleet when is_binary(address) ->
+          pass(fleet)
 
-      _not_deployed ->
-        {:cancel, :not_deployed}
+        _not_deployed ->
+          {:cancel, :not_deployed}
+      end
+    else
+      :ok
     end
   end
 
@@ -69,7 +73,7 @@ defmodule Regents.Keyfleet.Chain.ReadFleet do
     %{head_block: head, next_block: next} = Chain.get_cursor!(fleet.id)
     lag = max(head - (next - 1), 0)
 
-    :telemetry.execute([:regents, :keyfleet_indexer, :lag], %{blocks: lag}, %{
+    :telemetry.execute([:regents, :indexer, :lag], %{blocks: lag}, %{
       indexer: "fleet",
       chain_id: fleet.chain_id
     })

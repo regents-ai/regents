@@ -28,7 +28,7 @@ defmodule RegentsWeb.Patchbay.SearchLive do
   alias Phoenix.LiveView.JS
   alias Regents.Patchbay.Forum
   alias RegentsWeb.Patchbay.Forum.Board
-  alias RegentsWeb.Patchbay.Read
+  alias RegentsWeb.Read
 
   def mount(_params, session, socket),
     do:

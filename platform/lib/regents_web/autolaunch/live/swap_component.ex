@@ -278,7 +278,7 @@ defmodule RegentsWeb.Autolaunch.SwapComponent do
   def handle_event("step_failed", params, socket) do
     case Presses.failed(params) do
       {:ok, _name, reason} ->
-        RegentsWeb.Autolaunch.Telemetry.wallet_failed(:swap, reason)
+        RegentsWeb.Telemetry.wallet_failed(:swap, reason)
         {:noreply, assign(socket, press_note: failure_note(socket.assigns, reason))}
 
       :error ->

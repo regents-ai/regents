@@ -20,7 +20,7 @@ defmodule Regents.Keyfleet do
   """
   use Boundary,
     top_level?: true,
-    deps: [Regents],
+    deps: [Regents, Regents.Chain],
     exports: [
       Access,
       Activity,
@@ -37,8 +37,6 @@ defmodule Regents.Keyfleet do
       Chain,
       Chain.ReadBalances,
       Chain.RewardsWaiting,
-      ChainClient,
-      ChainRefresh,
       Code,
       Code.RecordsDownError,
       Directory,

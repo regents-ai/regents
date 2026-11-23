@@ -31,8 +31,9 @@ defmodule Regents.Patchbay.Forum.SiteCheckSweep do
   def batch, do: @batch
 
   @impl Oban.Worker
-  def perform(_job) do
-    if Application.fetch_env!(:regents, __MODULE__)[:enabled?] do
+  def perform(%Oban.Job{} = job) do
+    if Application.fetch_env!(:regents, __MODULE__)[:enabled?] and
+         Regents.ProductActivity.cron_allowed?(:patchbay, job) do
       new = never_asked()
       Enum.each(new ++ due_again(@batch - length(new)), &Forum.request_site_check!/1)
     end

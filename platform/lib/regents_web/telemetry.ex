@@ -32,9 +32,37 @@ defmodule RegentsWeb.Telemetry do
 
   @reporter :regents_prometheus
 
+  # Bounded allowlist of wallet send failure reasons reported across Keyfleet
+  # and Autolaunch wallet hooks so Prometheus labels stay bounded.
+  @wallet_failures ~w(
+    step_unknown
+    blocked
+    calls_failed
+    wallet_unavailable
+    switch_declined
+    network_mismatch
+    wallet_declined
+    insufficient_funds
+    send_unconfirmed
+    sign_unconfirmed
+  )
+
   def child_spec(_arg) do
     Peep.child_spec(metrics: metrics(), name: @reporter)
   end
+
+  @doc """
+  Counts one wallet send/sign failure across any folded product (`flow` is the
+  bounded flow name, `reason` is checked against the bounded allowlist).
+  """
+  def wallet_failed(flow, reason) when reason in @wallet_failures do
+    :telemetry.execute([:regents, :wallet, :failure], %{count: 1}, %{
+      flow: to_string(flow),
+      reason: reason
+    })
+  end
+
+  def wallet_failed(_flow, _reason), do: :ok
 
   @doc "Every measurement as Prometheus text, as the metrics listener answers it."
   def scrape,
@@ -120,9 +148,46 @@ defmodule RegentsWeb.Telemetry do
         description: "Chain requests that got no answer"
       ),
       counter("health.wallet_send_failures.total",
-        event_name: [:regents, :keyfleet_wallet, :failure],
+        event_name: [:regents, :wallet, :failure],
         tags: [:flow, :reason],
-        description: "Keyfleet wallet presses that were not sent, not confirmed or refused"
+        description: "Wallet presses that were not sent, not confirmed or refused"
+      ),
+      last_value("health.indexer.lag.blocks",
+        event_name: [:regents, :indexer, :lag],
+        measurement: :blocks,
+        tags: [:indexer, :chain_id],
+        description: "Blocks behind head reported at the end of each chain indexer pass"
+      ),
+      counter("health.indexer.passes.total",
+        event_name: [:regents, :indexer, :lag],
+        tags: [:indexer, :chain_id],
+        description: "Completed chain indexer passes, by indexer and chain"
+      ),
+      distribution("health.chain_event.delay.microseconds",
+        event_name: [:regents, :chain_event, :recorded],
+        measurement: :delay_ms,
+        unit: {:millisecond, :microsecond},
+        tags: [:kind, :chain_id],
+        description: "Microseconds between an on-chain bid/trade and recording it",
+        reporter_options: [
+          peep_bucket_calculator: Buckets,
+          buckets: [
+            1_000_000,
+            5_000_000,
+            15_000_000,
+            30_000_000,
+            60_000_000,
+            120_000_000,
+            300_000_000,
+            600_000_000
+          ]
+        ]
+      ),
+      last_value("health.product.active",
+        event_name: [:regents, :product, :active],
+        measurement: :active,
+        tags: [:product],
+        description: "1 while a product's routes are active, 0 while its background readers sleep"
       ),
       last_value("health.points_tally_finished.seconds",
         event_name: [:regent_points, :tally_periods, :finished],

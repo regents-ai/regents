@@ -22,7 +22,8 @@ defmodule RegentsWeb.Techtree.Components.Enquiry do
   alias Regent.Primitives
   alias Regents.Techtree.Enquiries
   alias Regents.Techtree.Enquiries.Enquiry
-  alias RegentsWeb.Techtree.{FormErrors, Services}
+  alias RegentsWeb.FormErrors
+  alias RegentsWeb.Techtree.Services
 
   @impl true
   def mount(socket) do

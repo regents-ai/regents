@@ -201,7 +201,7 @@ defmodule Regents.Keyfleet.Chain.RpcClient do
   defp count_failure(method, class) do
     [chain_id] = :regents |> Application.fetch_env!(:keyfleet_wallet_chains) |> Map.keys()
 
-    :telemetry.execute([:regents, :keyfleet_chain, :failure], %{count: 1}, %{
+    :telemetry.execute([:regents, :chain, :failure], %{count: 1}, %{
       method: method,
       class: class,
       chain_id: chain_id,

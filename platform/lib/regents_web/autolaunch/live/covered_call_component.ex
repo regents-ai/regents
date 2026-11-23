@@ -134,7 +134,7 @@ defmodule RegentsWeb.Autolaunch.CoveredCallComponent do
   def handle_event("step_failed", params, socket) do
     case Presses.failed(params) do
       {:ok, _name, reason} ->
-        RegentsWeb.Autolaunch.Telemetry.wallet_failed(:covered_calls, reason)
+        RegentsWeb.Telemetry.wallet_failed(:covered_calls, reason)
         %{linked: linked, active: active} = socket.assigns
 
         {:noreply,

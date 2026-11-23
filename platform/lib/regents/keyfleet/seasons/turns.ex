@@ -13,12 +13,16 @@ defmodule Regents.Keyfleet.Seasons.Turns do
   alias Regents.Keyfleet.Seasons.Turn
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    boundary = DateTime.utc_now() |> Seasons.boundary() |> DateTime.to_iso8601()
+  def perform(%Oban.Job{} = job) do
+    if Regents.ProductActivity.cron_allowed?(:keyfleet, job) do
+      boundary = DateTime.utc_now() |> Seasons.boundary() |> DateTime.to_iso8601()
 
-    Enum.each(
-      Regents.Keyfleet.Fleets.list_deployed_fleets!(),
-      &Oban.insert!(Turn.new(%{fleet_id: &1.id, boundary: boundary}))
-    )
+      Enum.each(
+        Regents.Keyfleet.Fleets.list_deployed_fleets!(),
+        &Oban.insert!(Turn.new(%{fleet_id: &1.id, boundary: boundary}))
+      )
+    end
+
+    :ok
   end
 end

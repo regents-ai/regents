@@ -1,20 +1,14 @@
 defmodule Regents.Chain.Refresh do
   @moduledoc """
-  Asks every reader of a chain to read it again now, instead of waiting for its
-  next turn.
+  Unified chain-refresh coordinator shared across Regents, Keyfleet, and Autolaunch.
 
-  The site's background readers of a chain run on a slow clock (five minutes),
-  because a node is paid for each call and almost nothing changes between two
-  reads. What does change a reading is a person acting: so a confirmed on-chain
-  press (`RegentsWeb.Chain.OnchainSteps.checked/3`) and a press of a page's read-again
-  icon (`Regent.Primitives.last_read`) call `request/1` with the chain's id.
+  Each product keeps its own `:readers` list under
+  `config :regents, Regents.Chain.Refresh, readers: %{...}` so a confirmed
+  on-chain press or Refresh click in one product wakes only that product's
+  chain readers and never fans out Alchemy/RPC calls to inactive products.
 
-  Each reader named in this module's `:readers` setting implements `refresh/1`
-  and decides for itself how to read again soon; the staking reading
-  (`Regents.Stake.SnapshotCache`) queues its one unique Oban job. Every reader
-  keeps at least ten seconds between two reads it was asked for, so a crowd
-  pressing the icon costs one read. The same module runs in every Regent site;
-  ash-template holds the original.
+  Every reader implements `refresh/1` and enforces at least `gap_s/0` (10s)
+  between requested reads so bursts coalesce into one read.
   """
 
   @doc "Reads the chain again soon, or at once."
@@ -24,13 +18,22 @@ defmodule Regents.Chain.Refresh do
   def gap_s, do: 10
 
   @doc """
-  Asks every reader of chain `chain_id` to read it again. Answers the first
-  reader's refusal, after every reader has been asked.
+  Asks every reader belonging to `product` (`:regents`, `:keyfleet`, or
+  `:autolaunch`) for `chain_id` to read it again. Answers the first reader's
+  refusal after every reader in that product has been asked.
   """
-  @spec request(pos_integer()) :: :ok | {:error, term()}
-  def request(chain_id) when is_integer(chain_id) and chain_id > 0 do
-    Application.fetch_env!(:regents, __MODULE__)[:readers]
+  @spec request(atom(), pos_integer()) :: :ok | {:error, term()}
+  def request(product \\ :regents, chain_id)
+      when is_atom(product) and is_integer(chain_id) and chain_id > 0 do
+    readers_for(product)
     |> Enum.map(& &1.refresh(chain_id))
     |> Enum.find(:ok, &(&1 != :ok))
+  end
+
+  defp readers_for(product) do
+    case Application.fetch_env!(:regents, __MODULE__)[:readers] do
+      readers when is_map(readers) -> Map.get(readers, product, [])
+      readers when is_list(readers) -> readers
+    end
   end
 end

@@ -107,6 +107,10 @@ defmodule RegentsWeb.Router do
     plug :put_site_edition, :main
   end
 
+  pipeline :patchbay_public do
+    plug :put_site_edition, :main
+  end
+
   pipeline :patchbay_require_profile do
     plug RegentsWeb.Patchbay.Plugs.RequireProfile
   end
@@ -1251,6 +1255,8 @@ defmodule RegentsWeb.Router do
 
   # Public feeds, Markdown guides, pictures, fix-check, known-fixes and diagnostic endpoints.
   scope "/patchbay", RegentsWeb.Patchbay do
+    pipe_through :patchbay_public
+
     get "/solved.json", SolvedController, :feed
     get "/solved.rss", SolvedController, :rss
     get "/offers.md", OffersController, :markdown

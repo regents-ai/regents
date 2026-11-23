@@ -44,6 +44,7 @@ defmodule Regents.Keyfleet.Agents.Here do
 
   alias Regents.Keyfleet.{Agents, Directory, Fleets, Keys}
   alias Regents.Keyfleet.Agents.{Avatar, CheckInStatus}
+  alias Regents.ProductActivity
   alias Regents.SharedReading
 
   # As many of a Key's agents as its page lists (`Regents.Keyfleet.Keys.Profile`).
@@ -71,33 +72,71 @@ defmodule Regents.Keyfleet.Agents.Here do
 
   @impl true
   def init(nil) do
-    Enum.each(@kinds, &SharedReading.subscribe_heal/1)
+    Enum.each(@kinds, fn kind ->
+      SharedReading.register_producer(kind, self(), :sync)
+      SharedReading.subscribe_heal(kind)
+    end)
+
+    ProductActivity.subscribe()
 
     for fleet_id <- Fleets.catalog_ids(),
         do: Phoenix.PubSub.subscribe(Regents.PubSub, Keys.topic(fleet_id))
 
-    read_fleets(Fleets.catalog_ids())
-    {:ok, MapSet.new()}
+    {:ok, %{due: MapSet.new(), loaded?: false}}
   end
 
   @impl true
-  def handle_info({:keys_changed, fleet_id, _token_ids}, due), do: {:noreply, due(due, fleet_id)}
+  def handle_call(:ensure_loaded, _from, %{loaded?: true} = state), do: {:reply, :ok, state}
 
-  # Keys marked present change no agent's line here.
-  def handle_info({:keys_present, _fleet_id, _token_ids}, due), do: {:noreply, due}
-
-  def handle_info({:shared_reading_heal, _kind}, due),
-    do: {:noreply, Enum.reduce(Fleets.catalog_ids(), due, &due(&2, &1))}
-
-  def handle_info(:read, due) do
-    read_fleets(due)
-    {:noreply, MapSet.new()}
+  def handle_call(:ensure_loaded, _from, state) do
+    ProductActivity.touch(:keyfleet)
+    read_fleets(Fleets.catalog_ids())
+    Enum.each(@kinds, &SharedReading.mark_loaded(&1, true))
+    {:reply, :ok, %{state | due: MapSet.new(), loaded?: true}}
   end
 
+  @impl true
+  def handle_info({:product_idle, :keyfleet}, %{loaded?: true} = state) do
+    Enum.each(@kinds, fn kind ->
+      SharedReading.mark_loaded(kind, false)
+      SharedReading.clear_kind(kind)
+    end)
+
+    {:noreply, %{state | due: MapSet.new(), loaded?: false}}
+  end
+
+  def handle_info({:product_idle, _product}, state), do: {:noreply, state}
+  def handle_info({:product_active, _product}, state), do: {:noreply, state}
+
+  def handle_info({:keys_changed, fleet_id, _token_ids}, %{loaded?: true} = state),
+    do: {:noreply, due(state, fleet_id)}
+
+  def handle_info({:keys_changed, _fleet_id, _token_ids}, state), do: {:noreply, state}
+
+  # Keys marked present change no agent's line here.
+  def handle_info({:keys_present, _fleet_id, _token_ids}, state), do: {:noreply, state}
+
+  def handle_info({:shared_reading_heal, _kind}, %{loaded?: true} = state) do
+    if ProductActivity.active?(:keyfleet),
+      do: {:noreply, Enum.reduce(Fleets.catalog_ids(), state, &due(&2, &1))},
+      else: {:noreply, state}
+  end
+
+  def handle_info({:shared_reading_heal, _kind}, state), do: {:noreply, state}
+
+  def handle_info(:read, %{loaded?: true} = state) do
+    if MapSet.size(state.due) > 0 and ProductActivity.active?(:keyfleet),
+      do: read_fleets(state.due)
+
+    {:noreply, %{state | due: MapSet.new()}}
+  end
+
+  def handle_info(:read, state), do: {:noreply, %{state | due: MapSet.new()}}
+
   # The first fleet to fall due starts the one-second wait; the rest join it.
-  defp due(due, fleet_id) do
-    if MapSet.size(due) == 0, do: Process.send_after(self(), :read, 1_000)
-    MapSet.put(due, fleet_id)
+  defp due(state, fleet_id) do
+    if MapSet.size(state.due) == 0, do: Process.send_after(self(), :read, 1_000)
+    %{state | due: MapSet.put(state.due, fleet_id)}
   end
 
   # Reads the fleets table once per pass and skips undeployed coming-soon fleets.

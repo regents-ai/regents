@@ -66,14 +66,18 @@ defmodule Regents.Autolaunch.Stocks.Stock.SyncAdmissions do
   @actor %Regents.Account.Actors.System{}
 
   def run do
-    stop_logs_at = System.monotonic_time(:millisecond) + @log_read_ms
-    pads = Enum.filter(Launchpads.configured(), &is_map_key(@admitted, &1.launchpad))
+    if Regents.ProductActivity.active?(:autolaunch) do
+      stop_logs_at = System.monotonic_time(:millisecond) + @log_read_ms
+      pads = Enum.filter(Launchpads.configured(), &is_map_key(@admitted, &1.launchpad))
 
-    Enum.find(
-      Enum.map(pads, &refresh_saved/1) ++ Enum.map(pads, &read_admitted(&1, stop_logs_at)),
-      :ok,
-      &match?({:error, _reason}, &1)
-    )
+      Enum.find(
+        Enum.map(pads, &refresh_saved/1) ++ Enum.map(pads, &read_admitted(&1, stop_logs_at)),
+        :ok,
+        &match?({:error, _reason}, &1)
+      )
+    else
+      :ok
+    end
   end
 
   defp refresh_saved(pad) do
@@ -119,7 +123,7 @@ defmodule Regents.Autolaunch.Stocks.Stock.SyncAdmissions do
   # do. A pass that failed says nothing, so its silence is what is seen.
   defp followed(pad, head, next_block) do
     :telemetry.execute(
-      [:autolaunch, :indexer, :lag],
+      [:regents, :indexer, :lag],
       %{blocks: max(head.number + 1 - next_block, 0)},
       %{indexer: :stock_admissions, chain_id: pad.chain_id}
     )

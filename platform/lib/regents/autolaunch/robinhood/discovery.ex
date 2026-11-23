@@ -28,16 +28,17 @@ defmodule Regents.Autolaunch.Robinhood.Discovery do
     max_attempts: 20,
     unique: [period: :infinity, states: :incomplete]
 
-  @behaviour Regents.Autolaunch.ChainRefresh
+  @behaviour Regents.Chain.Refresh
 
   require Ash.Query
   require Logger
 
   alias Regents.Account.Actors.System
-  alias Regents.Autolaunch.{Auction, ChainRefresh, ChainWatch, LabProjection, LaunchedDrafts}
+  alias Regents.Autolaunch.{Auction, ChainWatch, LabProjection, LaunchedDrafts}
   alias Regents.Autolaunch.Auction.MarketState
   alias Regents.Autolaunch.Robinhood.{Lab, Launchpad}
   alias Regents.Autolaunch.Stocks.LaunchActions
+  alias Regents.Chain.Refresh, as: ChainRefresh
 
   @actor %System{}
   @unavailable [:chain_unavailable, :invalid_chain_response, :invalid_block_header, :wrong_chain]
@@ -45,16 +46,20 @@ defmodule Regents.Autolaunch.Robinhood.Discovery do
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
-    case pass() do
-      :ok ->
-        {:snooze, if(Lab.test_chain?(), do: 1, else: 300)}
+    if Regents.ProductActivity.active?(:autolaunch) do
+      case pass() do
+        :ok ->
+          {:snooze, if(Lab.test_chain?(), do: 1, else: 300)}
 
-      {:error, reason} when reason in @unavailable ->
-        Logger.warning("Robinhood launches not read (#{reason}); reading again in a minute")
-        {:snooze, 60}
+        {:error, reason} when reason in @unavailable ->
+          Logger.warning("Robinhood launches not read (#{reason}); reading again in a minute")
+          {:snooze, 60}
 
-      {:error, reason} ->
-        {:error, reason}
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      :ok
     end
   end
 

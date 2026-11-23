@@ -23,6 +23,7 @@ defmodule Regents.Autolaunch.CoveredCalls.PriceLine do
 
   alias Regents.Autolaunch.CoveredCalls.{Chain, Deployment}
   alias Regents.Autolaunch.PriceFeedHistory
+  alias Regents.ProductActivity
   alias Regents.SharedReading
 
   @every_ms 300_000
@@ -69,17 +70,45 @@ defmodule Regents.Autolaunch.CoveredCalls.PriceLine do
 
   def start_link(market), do: GenServer.start_link(__MODULE__, market)
 
-  # The first read waits until the site has started, so a long walk never holds it up.
   @impl true
-  def init(market), do: {:ok, market, {:continue, :read}}
+  def init(%{symbol: symbol} = market) do
+    SharedReading.register_producer(key(symbol), self(), :async)
+    :ok = ProductActivity.subscribe()
+    {:ok, %{market: market, active?: false, timer: nil}}
+  end
 
   @impl true
-  def handle_continue(:read, market), do: {:noreply, read(market)}
+  def handle_cast(:wake, %{active?: true} = state), do: {:noreply, state}
+
+  def handle_cast(:wake, %{market: %{symbol: symbol}} = state) do
+    ProductActivity.touch(:autolaunch)
+    SharedReading.mark_loaded(key(symbol), true)
+    {:noreply, read(%{state | active?: true})}
+  end
 
   @impl true
-  def handle_info(:read, market), do: {:noreply, read(market)}
+  def handle_info({:product_idle, :autolaunch}, %{active?: true} = state),
+    do: {:noreply, sleep(state)}
 
-  defp read(%{symbol: symbol, feed: feed} = market) do
+  def handle_info({:product_idle, _product}, state), do: {:noreply, state}
+  def handle_info({:product_active, _product}, state), do: {:noreply, state}
+
+  def handle_info(:read, %{active?: true} = state) do
+    if ProductActivity.active?(:autolaunch),
+      do: {:noreply, read(state)},
+      else: {:noreply, sleep(state)}
+  end
+
+  def handle_info(:read, state), do: {:noreply, state}
+
+  defp sleep(%{market: %{symbol: symbol}, timer: timer} = state) do
+    if timer, do: Process.cancel_timer(timer)
+    SharedReading.mark_loaded(key(symbol), false)
+    SharedReading.delete(key(symbol))
+    %{state | active?: false, timer: nil}
+  end
+
+  defp read(%{market: %{symbol: symbol, feed: feed}} = state) do
     key = key(symbol)
 
     with {:ok, %{lab: lab}} <- Deployment.current(),
@@ -91,8 +120,7 @@ defmodule Regents.Autolaunch.CoveredCalls.PriceLine do
       _failed -> SharedReading.degraded(key)
     end
 
-    Process.send_after(self(), :read, @every_ms)
-    market
+    %{state | timer: Process.send_after(self(), :read, @every_ms)}
   end
 
   defp held(key) do

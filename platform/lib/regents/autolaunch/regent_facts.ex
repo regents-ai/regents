@@ -28,7 +28,7 @@ defmodule Regents.Autolaunch.RegentFacts do
 
   use GenServer
 
-  @behaviour Regents.Autolaunch.ChainRefresh
+  @behaviour Regents.Chain.Refresh
 
   require Logger
 
@@ -99,7 +99,7 @@ defmodule Regents.Autolaunch.RegentFacts do
   @spec read() :: {:ok, map()} | {:error, atom()}
   def read, do: GenServer.call(__MODULE__, :read, @reading_timeout)
 
-  @impl Regents.Autolaunch.ChainRefresh
+  @impl Regents.Chain.Refresh
   def refresh(@base_chain_id), do: GenServer.cast(__MODULE__, :refresh)
   def refresh(_chain_id), do: :ok
 
@@ -110,8 +110,7 @@ defmodule Regents.Autolaunch.RegentFacts do
   def handle_cast(:refresh, {reading, read_at}),
     do:
       {:noreply,
-       {reading,
-        min(read_at, read_at + Regents.Autolaunch.ChainRefresh.gap_s() * 1_000 - @ttl_ms)}}
+       {reading, min(read_at, read_at + Regents.Chain.Refresh.gap_s() * 1_000 - @ttl_ms)}}
 
   def handle_cast(:refresh, nil), do: {:noreply, nil}
 

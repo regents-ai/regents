@@ -14,6 +14,7 @@ defmodule Regents.Autolaunch.MarketTicker do
   use GenServer
 
   alias Regents.Autolaunch
+  alias Regents.ProductActivity
 
   @topic "market_ticker"
   @coalesce_ms 1_000
@@ -26,32 +27,83 @@ defmodule Regents.Autolaunch.MarketTicker do
   @doc "The current list, newest first; each later one arrives as `{:market_ticker, entries}`."
   def subscribe do
     Phoenix.PubSub.subscribe(Regents.PubSub, @topic)
-    [{:entries, entries}] = :ets.lookup(__MODULE__, :entries)
-    entries
+
+    case :ets.lookup(__MODULE__, :entries) do
+      [{:entries, entries, true}] ->
+        entries
+
+      _unloaded ->
+        ensure_loaded()
+
+        case :ets.lookup(__MODULE__, :entries) do
+          [{:entries, entries, _loaded?}] -> entries
+          [] -> []
+        end
+    end
+  end
+
+  defp ensure_loaded do
+    GenServer.call(__MODULE__, :ensure_loaded, 10_000)
+  catch
+    :exit, _reason -> :ok
   end
 
   @impl true
   def init(nil) do
     :ets.new(__MODULE__, [:named_table, :protected, read_concurrency: true])
-    :ets.insert(__MODULE__, {:entries, []})
+    :ets.insert(__MODULE__, {:entries, [], false})
+    ProductActivity.subscribe()
     Regents.Autolaunch.Listings.subscribe()
     Regents.Autolaunch.TokenTrades.subscribe()
-    send(self(), :load)
-    {:ok, %{due: false, expiry_timer: nil}}
+    {:ok, %{due: false, loaded?: false, expiry_timer: nil}}
   end
 
   @impl true
-  def handle_info({event, _id}, %{due: false} = state)
+  def handle_call(:ensure_loaded, _from, %{loaded?: true} = state), do: {:reply, :ok, state}
+
+  def handle_call(:ensure_loaded, _from, state) do
+    ProductActivity.touch(:autolaunch)
+    state = load_entries(state)
+    {:reply, :ok, %{state | loaded?: true}}
+  end
+
+  @impl true
+  def handle_info({:product_idle, :autolaunch}, %{loaded?: true} = state) do
+    if state.expiry_timer, do: Process.cancel_timer(state.expiry_timer)
+    :ets.insert(__MODULE__, {:entries, [], false})
+    {:noreply, %{state | due: false, loaded?: false, expiry_timer: nil}}
+  end
+
+  def handle_info({:product_idle, _product}, state), do: {:noreply, state}
+  def handle_info({:product_active, _product}, state), do: {:noreply, state}
+
+  def handle_info({event, _id}, %{due: false, loaded?: true} = state)
       when event in [:autolaunch_listings_changed, :autolaunch_trade] do
-    Process.send_after(self(), :load, @coalesce_ms)
-    {:noreply, %{state | due: true}}
+    if ProductActivity.active?(:autolaunch) do
+      Process.send_after(self(), :load, @coalesce_ms)
+      {:noreply, %{state | due: true}}
+    else
+      {:noreply, state}
+    end
   end
 
   def handle_info({event, _id}, state)
       when event in [:autolaunch_listings_changed, :autolaunch_trade],
       do: {:noreply, state}
 
-  def handle_info(:load, state) do
+  def handle_info(:load, %{loaded?: true} = state) do
+    if ProductActivity.active?(:autolaunch) do
+      {:noreply, load_entries(state)}
+    else
+      if state.expiry_timer, do: Process.cancel_timer(state.expiry_timer)
+      :ets.insert(__MODULE__, {:entries, [], false})
+      {:noreply, %{state | due: false, loaded?: false, expiry_timer: nil}}
+    end
+  end
+
+  def handle_info(:load, state), do: {:noreply, %{state | due: false}}
+
+  defp load_entries(state) do
     if state.expiry_timer, do: Process.cancel_timer(state.expiry_timer)
 
     expiry_timer =
@@ -60,8 +112,8 @@ defmodule Regents.Autolaunch.MarketTicker do
         entries = entries(bids, trades)
 
         # Most rereads find the same list; only a new one goes out to the pages.
-        if :ets.lookup(__MODULE__, :entries) != [{:entries, entries}] do
-          :ets.insert(__MODULE__, {:entries, entries})
+        if :ets.lookup(__MODULE__, :entries) != [{:entries, entries, true}] do
+          :ets.insert(__MODULE__, {:entries, entries, true})
           Phoenix.PubSub.broadcast(Regents.PubSub, @topic, {:market_ticker, entries})
         end
 
@@ -70,7 +122,7 @@ defmodule Regents.Autolaunch.MarketTicker do
         _error -> nil
       end
 
-    {:noreply, %{state | due: false, expiry_timer: expiry_timer}}
+    %{state | due: false, expiry_timer: expiry_timer}
   end
 
   # When the list is empty, nothing can age out; PubSub wakes the ticker when a

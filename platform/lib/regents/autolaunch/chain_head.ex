@@ -25,13 +25,15 @@ defmodule Regents.Autolaunch.ChainHead do
 
   use GenServer
 
-  @behaviour Regents.Autolaunch.ChainRefresh
+  @behaviour Regents.Chain.Refresh
 
   alias Regents.Autolaunch.Chain.Rpc
-  alias Regents.Autolaunch.{ChainRefresh, Lab}
+  alias Regents.Autolaunch.Lab
   alias Regents.Autolaunch.Robinhood.BlockClock
   alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Regents.Autolaunch.Stocks.Lab, as: StocksLab
+  alias Regents.Chain.Refresh, as: ChainRefresh
+  alias Regents.ProductActivity
   alias Regents.SharedReading
 
   @lab_every_ms 1_000
@@ -100,26 +102,64 @@ defmodule Regents.Autolaunch.ChainHead do
 
   @impl true
   def init({feed, every_ms}) do
+    SharedReading.register_producer(key(feed), self(), :async)
+    :ok = ProductActivity.subscribe()
     :ok = Phoenix.PubSub.subscribe(Regents.PubSub, topic(feed))
-    {:ok, read(%{feed: feed, every_ms: every_ms, read_at: nil, timer: nil})}
+    {:ok, %{feed: feed, every_ms: every_ms, read_at: nil, timer: nil, active?: false}}
   end
 
   @impl true
-  def handle_info(:read, head), do: {:noreply, read(head)}
+  def handle_cast(:wake, %{active?: true} = head), do: {:noreply, head}
+
+  def handle_cast(:wake, %{feed: feed} = head) do
+    ProductActivity.touch(:autolaunch)
+    SharedReading.mark_loaded(key(feed), true)
+    {:noreply, read(%{head | active?: true})}
+  end
+
+  @impl true
+  def handle_info({:product_idle, :autolaunch}, %{active?: true} = head),
+    do: {:noreply, sleep(head)}
+
+  def handle_info({:product_idle, _product}, head), do: {:noreply, head}
+  def handle_info({:product_active, _product}, head), do: {:noreply, head}
+
+  def handle_info(:read, %{active?: true} = head) do
+    if ProductActivity.active?(:autolaunch),
+      do: {:noreply, read(head)},
+      else: {:noreply, sleep(head)}
+  end
+
+  def handle_info(:read, head), do: {:noreply, head}
 
   # A press landed: read again once ten seconds have passed since the last
   # read began, unless the next read is due sooner.
+  def handle_info(:chain_refresh, %{read_at: nil, feed: feed} = head) do
+    SharedReading.mark_loaded(key(feed), true)
+    {:noreply, read(%{head | active?: true})}
+  end
+
   def handle_info(:chain_refresh, head) do
     wait = max(head.read_at + ChainRefresh.gap_s() * 1_000 - now(), 0)
 
-    case Process.read_timer(head.timer) do
+    case head.timer && Process.read_timer(head.timer) do
       left when is_integer(left) and left > wait ->
         Process.cancel_timer(head.timer)
-        {:noreply, %{head | timer: Process.send_after(self(), :read, wait)}}
+        {:noreply, %{head | active?: true, timer: Process.send_after(self(), :read, wait)}}
 
-      _sooner ->
+      left when is_integer(left) ->
         {:noreply, head}
+
+      _none ->
+        {:noreply, %{head | active?: true, timer: Process.send_after(self(), :read, wait)}}
     end
+  end
+
+  defp sleep(%{feed: feed, timer: timer} = head) do
+    if timer, do: Process.cancel_timer(timer)
+    SharedReading.mark_loaded(key(feed), false)
+    SharedReading.delete(key(feed))
+    %{head | active?: false, read_at: nil, timer: nil}
   end
 
   defp read(%{feed: feed} = head) do

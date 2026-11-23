@@ -25,6 +25,7 @@ defmodule Regents.Account.Points.Board do
 
   use GenServer
 
+  alias Regents.ProductActivity
   alias Regents.SharedReading
 
   @kind :points_board
@@ -36,20 +37,50 @@ defmodule Regents.Account.Points.Board do
 
   @impl true
   def init(nil) do
+    SharedReading.register_producer(@kind, self(), :sync)
     SharedReading.subscribe_heal(@kind)
+    ProductActivity.subscribe()
     Phoenix.PubSub.subscribe(Regents.PubSub, "points:board")
-    read()
-    {:ok, false}
+    {:ok, %{due: false, loaded?: false}}
   end
 
   @impl true
-  def handle_info(%{topic: "points:board"}, due?), do: {:noreply, due(due?)}
-  def handle_info({:shared_reading_heal, @kind}, due?), do: {:noreply, due(due?)}
+  def handle_call(:ensure_loaded, _from, %{loaded?: true} = state), do: {:reply, :ok, state}
 
-  def handle_info(:read, true) do
+  def handle_call(:ensure_loaded, _from, state) do
+    ProductActivity.touch(:points)
     read()
-    {:noreply, false}
+    SharedReading.mark_loaded(@kind, true)
+    {:reply, :ok, %{state | due: false, loaded?: true}}
   end
+
+  @impl true
+  def handle_info({:product_idle, :points}, %{loaded?: true} = state) do
+    SharedReading.mark_loaded(@kind, false)
+    SharedReading.clear_kind(@kind)
+    {:noreply, %{state | due: false, loaded?: false}}
+  end
+
+  def handle_info({:product_idle, _product}, state), do: {:noreply, state}
+  def handle_info({:product_active, _product}, state), do: {:noreply, state}
+
+  def handle_info(%{topic: "points:board"}, %{loaded?: true} = state),
+    do: {:noreply, due(state)}
+
+  def handle_info(%{topic: "points:board"}, state), do: {:noreply, state}
+
+  def handle_info({:shared_reading_heal, @kind}, %{loaded?: true} = state) do
+    if ProductActivity.active?(:points), do: {:noreply, due(state)}, else: {:noreply, state}
+  end
+
+  def handle_info({:shared_reading_heal, @kind}, state), do: {:noreply, state}
+
+  def handle_info(:read, %{due: true, loaded?: true} = state) do
+    if ProductActivity.active?(:points), do: read()
+    {:noreply, %{state | due: false}}
+  end
+
+  def handle_info(:read, state), do: {:noreply, %{state | due: false}}
 
   @doc "Reads the board now and holds it, or marks it not read."
   def read do
@@ -62,11 +93,11 @@ defmodule Regents.Account.Points.Board do
   end
 
   # The first notice starts the one-second wait; the rest join it.
-  defp due(true), do: true
+  defp due(%{due: true} = state), do: state
 
-  defp due(false) do
+  defp due(%{due: false} = state) do
     Process.send_after(self(), :read, 1_000)
-    true
+    %{state | due: true}
   end
 
   defp board do

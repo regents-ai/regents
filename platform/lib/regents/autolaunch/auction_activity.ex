@@ -21,7 +21,7 @@ defmodule Regents.Autolaunch.AuctionActivity do
     max_attempts: 20,
     unique: [keys: [:auction_id], period: :infinity, states: :incomplete]
 
-  @behaviour Regents.Autolaunch.ChainRefresh
+  @behaviour Regents.Chain.Refresh
   import Ecto.Query
   require Ash.Query
   require Logger
@@ -43,7 +43,7 @@ defmodule Regents.Autolaunch.AuctionActivity do
 
   alias RegentChain.Address
   alias Regents.Autolaunch.Chain.Rpc
-  alias Regents.Autolaunch.ChainRefresh
+  alias Regents.Chain.Refresh, as: ChainRefresh
   @actor %System{}
   # The node did not answer, answered with something that is not a block, or
   # answered for a head that has since moved.
@@ -70,10 +70,14 @@ defmodule Regents.Autolaunch.AuctionActivity do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"auction_id" => id}}) do
-    case Ash.get(Auction, id, action: :activity, actor: @actor, not_found_error?: false) do
-      {:ok, nil} -> {:cancel, :not_listed}
-      {:ok, auction} -> auction |> read() |> next(auction)
-      {:error, error} -> {:error, error}
+    if Regents.ProductActivity.active?(:autolaunch) do
+      case Ash.get(Auction, id, action: :activity, actor: @actor, not_found_error?: false) do
+        {:ok, nil} -> {:cancel, :not_listed}
+        {:ok, auction} -> auction |> read() |> next(auction)
+        {:error, error} -> {:error, error}
+      end
+    else
+      :ok
     end
   end
 
@@ -171,7 +175,7 @@ defmodule Regents.Autolaunch.AuctionActivity do
   # auction has caught up with the head.
   defp indexed(:ok, auction, bids, behind) do
     :telemetry.execute(
-      [:autolaunch, :indexer, :lag],
+      [:regents, :indexer, :lag],
       %{blocks: behind},
       %{indexer: :auction_activity, chain_id: auction.chain_id}
     )
@@ -183,7 +187,7 @@ defmodule Regents.Autolaunch.AuctionActivity do
           number >= auction.activity_next_block,
           do:
             :telemetry.execute(
-              [:autolaunch, :chain_event, :recorded],
+              [:regents, :chain_event, :recorded],
               %{delay_ms: DateTime.diff(now, at, :millisecond)},
               %{kind: :bid, chain_id: auction.chain_id}
             )

@@ -18,6 +18,7 @@ defmodule Regents.Keyfleet.Seasons.CoinList do
   use GenServer
 
   alias Regents.Keyfleet.Seasons.Coinbase
+  alias Regents.ProductActivity
   alias Regents.SharedReading
 
   @kind :keyfleet_season_coins
@@ -29,21 +30,38 @@ defmodule Regents.Keyfleet.Seasons.CoinList do
 
   @impl true
   def init(nil) do
+    SharedReading.register_producer(@kind, self(), :sync)
     SharedReading.subscribe_heal(@kind)
-    {:ok, nil, {:continue, :read}}
+    ProductActivity.subscribe()
+    {:ok, %{loaded?: false}}
   end
 
   @impl true
-  def handle_continue(:read, state) do
+  def handle_call(:ensure_loaded, _from, %{loaded?: true} = state), do: {:reply, :ok, state}
+
+  def handle_call(:ensure_loaded, _from, state) do
+    ProductActivity.touch(:keyfleet)
     read()
-    {:noreply, state}
+    SharedReading.mark_loaded(@kind, true)
+    {:reply, :ok, %{state | loaded?: true}}
   end
 
   @impl true
-  def handle_info({:shared_reading_heal, @kind}, state) do
-    read()
+  def handle_info({:product_idle, :keyfleet}, %{loaded?: true} = state) do
+    SharedReading.mark_loaded(@kind, false)
+    SharedReading.clear_kind(@kind)
+    {:noreply, %{state | loaded?: false}}
+  end
+
+  def handle_info({:product_idle, _product}, state), do: {:noreply, state}
+  def handle_info({:product_active, _product}, state), do: {:noreply, state}
+
+  def handle_info({:shared_reading_heal, @kind}, %{loaded?: true} = state) do
+    if ProductActivity.active?(:keyfleet), do: read()
     {:noreply, state}
   end
+
+  def handle_info({:shared_reading_heal, @kind}, state), do: {:noreply, state}
 
   @doc "Reads the list now and holds it, or marks it not read."
   def read do

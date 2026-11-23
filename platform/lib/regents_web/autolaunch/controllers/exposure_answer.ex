@@ -75,6 +75,9 @@ defmodule RegentsWeb.Autolaunch.ExposureAnswer do
     # The site started with an Exposure description for another chain than its
     # Base deployment's, or with a Base deployment id that is empty; the start
     # refuses every other fault in either description.
+    exposure_off:
+      {:not_found, "Isolated Exposure to After-hours Stocks is not enabled on this site."},
+    exposure_deployment_missing: @site_unavailable,
     base_deployment_mismatch: @site_unavailable,
     missing_deployment_id: @site_unavailable
   }

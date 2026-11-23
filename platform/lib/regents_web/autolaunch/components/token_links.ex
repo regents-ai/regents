@@ -2,15 +2,14 @@ defmodule RegentsWeb.Autolaunch.Components.TokenLinks do
   @moduledoc false
   use Phoenix.Component
 
-  alias Regents.Autolaunch.Chain.Abi
   alias Regents.Autolaunch.Lab
-  alias Regents.Autolaunch.RegentFacts
+  alias RegentsWeb.Stake.TokenLinks, as: SharedTokenLinks
 
   @doc "The REGENT contract address a visitor copies. Same token the buy link names."
-  def address, do: Abi.regent_address()
+  defdelegate address, to: SharedTokenLinks
 
-  def buy, do: "https://app.uniswap.org/explore/tokens/base/#{Abi.regent_address()}"
-  def chart, do: "https://dexscreener.com/base/#{RegentFacts.pool()}"
+  defdelegate buy, to: SharedTokenLinks
+  defdelegate chart, to: SharedTokenLinks
 
   # Both destinations are public Base mainnet. On a local-fork site they are
   # named as such, because nothing they sell or show is the fork's REGENT. The

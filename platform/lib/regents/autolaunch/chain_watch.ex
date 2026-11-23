@@ -14,15 +14,21 @@ defmodule Regents.Autolaunch.ChainWatch do
   """
   use Oban.Worker, queue: :autolaunch_default, max_attempts: 1
 
-  alias Regents.Autolaunch.{AuctionActivity, AuctionMarket, ChainRefresh, TokenTrades}
+  alias Regents.Autolaunch.{AuctionActivity, AuctionMarket, TokenTrades}
   alias Regents.Autolaunch.CoveredCalls.Sales
   alias Regents.Autolaunch.Robinhood.Discovery
+  alias Regents.Chain.Refresh, as: ChainRefresh
+  alias Regents.ProductActivity
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    (AuctionMarket.jobs() ++
-       Discovery.jobs() ++ AuctionActivity.jobs() ++ TokenTrades.jobs() ++ Sales.jobs())
-    |> Enum.each(&Oban.insert!/1)
+  def perform(%Oban.Job{} = job) do
+    if ProductActivity.cron_allowed?(:autolaunch, job) do
+      (AuctionMarket.jobs() ++
+         Discovery.jobs() ++ AuctionActivity.jobs() ++ TokenTrades.jobs() ++ Sales.jobs())
+      |> Enum.each(&Oban.insert!/1)
+    end
+
+    :ok
   end
 
   @doc """

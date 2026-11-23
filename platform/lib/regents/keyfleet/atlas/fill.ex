@@ -29,7 +29,11 @@ defmodule Regents.Keyfleet.Atlas.Fill do
   @tables [Graph.Cursor, Graph.Event, Graph.Object, Atlas.Thing, Atlas.Bucket]
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
+  def perform(%Oban.Job{} = job) do
+    if Regents.ProductActivity.cron_allowed?(:keyfleet, job), do: fill_all(), else: :ok
+  end
+
+  defp fill_all do
     until = System.monotonic_time(:millisecond) + @budget_ms
 
     Enum.reduce_while(Graph.uncounted_cursors!(actor: @system), :ok, fn cursor, :ok ->

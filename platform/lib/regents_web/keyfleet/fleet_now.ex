@@ -78,6 +78,7 @@ defmodule RegentsWeb.Keyfleet.FleetNow do
   }
 
   alias Regents.Keyfleet.Seasons
+  alias Regents.ProductActivity
   alias Regents.SharedReading
 
   alias RegentsWeb.Keyfleet.{
@@ -111,7 +112,9 @@ defmodule RegentsWeb.Keyfleet.FleetNow do
 
   @impl true
   def init(nil) do
+    SharedReading.register_producer(:keyfleet_fleet_now, self(), :sync)
     SharedReading.subscribe_heal(:keyfleet_fleet_now)
+    ProductActivity.subscribe()
 
     # By topic, so a room's head, which names no fleet, is still a fleet's.
     topics =
@@ -127,8 +130,17 @@ defmodule RegentsWeb.Keyfleet.FleetNow do
           do: {topic, fleet_id}
 
     Enum.each(Map.keys(topics), &Phoenix.PubSub.subscribe(Regents.PubSub, &1))
+    {:ok, %{due: MapSet.new(), topics: topics, loaded?: false}}
+  end
+
+  @impl true
+  def handle_call(:ensure_loaded, _from, %{loaded?: true} = state), do: {:reply, :ok, state}
+
+  def handle_call(:ensure_loaded, _from, state) do
+    ProductActivity.touch(:keyfleet)
     first_read(Fleets.catalog_ids())
-    {:ok, %{due: MapSet.new(), topics: topics}}
+    SharedReading.mark_loaded(:keyfleet_fleet_now, true)
+    {:reply, :ok, %{state | due: MapSet.new(), loaded?: true}}
   end
 
   # Every fleet is read beside the start, all at once, so a slow database holds
@@ -156,36 +168,64 @@ defmodule RegentsWeb.Keyfleet.FleetNow do
   end
 
   @impl true
-  def handle_info(%Broadcast{topic: topic}, state),
+  def handle_info({:product_idle, :keyfleet}, %{loaded?: true} = state) do
+    SharedReading.mark_loaded(:keyfleet_fleet_now, false)
+    SharedReading.clear_kind(:keyfleet_fleet_now)
+    {:noreply, %{state | due: MapSet.new(), loaded?: false}}
+  end
+
+  def handle_info({:product_idle, _product}, state), do: {:noreply, state}
+  def handle_info({:product_active, _product}, state), do: {:noreply, state}
+
+  def handle_info(%Broadcast{topic: topic}, %{loaded?: true} = state),
     do: {:noreply, due(state, state.topics[topic])}
 
-  def handle_info({:graph_notable, fleet_id}, state), do: {:noreply, due(state, fleet_id)}
+  def handle_info(%Broadcast{}, state), do: {:noreply, state}
 
-  def handle_info({:keys_changed, fleet_id, _token_ids}, state),
+  def handle_info({:graph_notable, fleet_id}, %{loaded?: true} = state),
     do: {:noreply, due(state, fleet_id)}
+
+  def handle_info({:graph_notable, _fleet_id}, state), do: {:noreply, state}
+
+  def handle_info({:keys_changed, fleet_id, _token_ids}, %{loaded?: true} = state),
+    do: {:noreply, due(state, fleet_id)}
+
+  def handle_info({:keys_changed, _fleet_id, _token_ids}, state), do: {:noreply, state}
 
   # Presence isn't in the reading.
   def handle_info({:keys_present, _fleet_id, _token_ids}, state), do: {:noreply, state}
 
-  def handle_info({:proposals_changed, fleet_id}, state), do: {:noreply, due(state, fleet_id)}
+  def handle_info({:proposals_changed, fleet_id}, %{loaded?: true} = state),
+    do: {:noreply, due(state, fleet_id)}
+
+  def handle_info({:proposals_changed, _fleet_id}, state), do: {:noreply, state}
 
   # Balances aren't in the reading.
   def handle_info({:balances_changed, _fleet_id}, state), do: {:noreply, state}
 
-  def handle_info({:shared_reading_heal, :keyfleet_fleet_now}, state),
-    do: {:noreply, Enum.reduce(Fleets.catalog_ids(), state, &due(&2, &1))}
+  def handle_info({:shared_reading_heal, :keyfleet_fleet_now}, %{loaded?: true} = state) do
+    if ProductActivity.active?(:keyfleet),
+      do: {:noreply, Enum.reduce(Fleets.catalog_ids(), state, &due(&2, &1))},
+      else: {:noreply, state}
+  end
 
-  def handle_info(:read, state) do
-    case recorded_fleets() do
-      {:ok, recorded} ->
-        Enum.each(state.due, &__MODULE__.read(&1, Map.get(recorded, &1)))
+  def handle_info({:shared_reading_heal, :keyfleet_fleet_now}, state), do: {:noreply, state}
 
-      :error ->
-        Enum.each(state.due, &SharedReading.degraded(key(&1)))
+  def handle_info(:read, %{loaded?: true} = state) do
+    if MapSet.size(state.due) > 0 and ProductActivity.active?(:keyfleet) do
+      case recorded_fleets() do
+        {:ok, recorded} ->
+          Enum.each(state.due, &__MODULE__.read(&1, Map.get(recorded, &1)))
+
+        :error ->
+          Enum.each(state.due, &SharedReading.degraded(key(&1)))
+      end
     end
 
     {:noreply, %{state | due: MapSet.new()}}
   end
+
+  def handle_info(:read, state), do: {:noreply, %{state | due: MapSet.new()}}
 
   # The first fleet to fall due starts the one-second wait; the rest join it.
   defp due(state, fleet_id) do

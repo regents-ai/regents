@@ -22,7 +22,7 @@ defmodule RegentsWeb.Patchbay.OnchainSteps do
   import Phoenix.LiveView, only: [start_async: 3]
 
   alias RegentChain.{Outcome, Presses}
-  alias Regents.Patchbay.ChainClient
+  alias Regents.Chain.Client, as: ChainClient
 
   @recheck_ms 250
   # What the hook reports when nothing was sent, or may have been: Patchbay's

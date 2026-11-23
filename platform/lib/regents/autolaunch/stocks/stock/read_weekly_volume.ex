@@ -29,20 +29,26 @@ defmodule Regents.Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   @impl true
   def change(changeset, _opts, _context) do
     Ash.Changeset.before_action(changeset, fn changeset ->
-      stock = changeset.data
-      through = Date.add(Date.utc_today(), -1)
-
-      case volume(stock.chain_id, String.downcase(stock.address), through) do
-        {:ok, usd, complete?} ->
-          changeset
-          |> Ash.Changeset.force_change_attribute(:weekly_volume_usd, usd)
-          |> Ash.Changeset.force_change_attribute(:weekly_volume_complete, complete?)
-          |> Ash.Changeset.force_change_attribute(:weekly_volume_through, through)
-
-        {:error, reason} ->
-          Ash.Changeset.add_error(changeset, "weekly volume read failed: #{inspect(reason)}")
-      end
+      if Regents.ProductActivity.active?(:autolaunch),
+        do: read_volume(changeset),
+        else: changeset
     end)
+  end
+
+  defp read_volume(changeset) do
+    stock = changeset.data
+    through = Date.add(Date.utc_today(), -1)
+
+    case volume(stock.chain_id, String.downcase(stock.address), through) do
+      {:ok, usd, complete?} ->
+        changeset
+        |> Ash.Changeset.force_change_attribute(:weekly_volume_usd, usd)
+        |> Ash.Changeset.force_change_attribute(:weekly_volume_complete, complete?)
+        |> Ash.Changeset.force_change_attribute(:weekly_volume_through, through)
+
+      {:error, reason} ->
+        Ash.Changeset.add_error(changeset, "weekly volume read failed: #{inspect(reason)}")
+    end
   end
 
   defp volume(chain_id, token, through) do

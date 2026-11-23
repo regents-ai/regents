@@ -23,13 +23,13 @@ end
 defmodule Regents.Patchbay.Offers.Node do
   @moduledoc """
   `Regents.Patchbay.Offers.Client` over JSON-RPC, through the site's own node for the
-  market's chain (`Regents.Patchbay.ChainClient`), reading `latest` wherever a block
+  market's chain (`Regents.Chain.Client`), reading `latest` wherever a block
   goes. Hashes and addresses come back lowercase.
   """
 
   @behaviour Regents.Patchbay.Offers.Client
 
-  alias Regents.Patchbay.ChainClient
+  alias Regents.Chain.Client, as: ChainClient
 
   @scope "offers"
 
@@ -84,8 +84,7 @@ defmodule Regents.Patchbay.Offers.Node do
          ) do
       {:ok, result} -> {:ok, result}
       {:error, {:rpc, _error}} = refused -> refused
-      {:error, {:http, status}} when status == 429 or status >= 500 -> {:error, :unavailable}
-      {:error, {:http, status}} -> {:error, {:http, status}}
+      {:error, :chain_unavailable} -> {:error, :unavailable}
       {:error, _transport} -> {:error, :unavailable}
     end
   end

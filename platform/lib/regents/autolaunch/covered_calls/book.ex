@@ -54,7 +54,7 @@ defmodule Regents.Autolaunch.CoveredCalls.Book do
 
   use GenServer
 
-  @behaviour Regents.Autolaunch.ChainRefresh
+  @behaviour Regents.Chain.Refresh
 
   alias Regents.Autolaunch.CoveredCalls.{Chain, Deployment, Quote, Terms}
 
@@ -84,7 +84,7 @@ defmodule Regents.Autolaunch.CoveredCalls.Book do
   @spec expire(String.t()) :: :ok
   def expire(symbol), do: GenServer.cast(__MODULE__, {:expire, symbol})
 
-  @impl Regents.Autolaunch.ChainRefresh
+  @impl Regents.Chain.Refresh
   def refresh(chain_id) do
     case Deployment.current() do
       {:ok, %{chain_id: ^chain_id}} -> GenServer.cast(__MODULE__, :refresh)
@@ -224,7 +224,7 @@ defmodule Regents.Autolaunch.CoveredCalls.Book do
   # However many refreshes arrive, a reading stays good for ten seconds from
   # when it was taken, so a crowd asking at once costs one read.
   def handle_cast(:refresh, state) do
-    gap = Regents.Autolaunch.ChainRefresh.gap_s() * 1_000
+    gap = Regents.Chain.Refresh.gap_s() * 1_000
 
     kept =
       Map.new(state.kept, fn {symbol, {reading, taken_at, good_until}} ->

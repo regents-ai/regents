@@ -29,7 +29,7 @@ defmodule Regents.Autolaunch.AuctionMarket do
     max_attempts: 20,
     unique: [keys: [:auction_id], period: :infinity, states: :incomplete]
 
-  @behaviour Regents.Autolaunch.ChainRefresh
+  @behaviour Regents.Chain.Refresh
 
   require Ash.Query
   require Logger
@@ -42,13 +42,13 @@ defmodule Regents.Autolaunch.AuctionMarket do
   alias Regents.Autolaunch.{
     Auction,
     AuctionReading,
-    ChainRefresh,
     ChainWatch,
     LabPositions,
     LabProjection
   }
 
   alias Regents.Autolaunch.Chain.Rpc
+  alias Regents.Chain.Refresh, as: ChainRefresh
 
   @actor %System{}
   # The node did not answer, or answered with something that is not a block.
@@ -59,10 +59,14 @@ defmodule Regents.Autolaunch.AuctionMarket do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"auction_id" => id}}) do
-    case Ash.get(Auction, id, action: :market, actor: @actor, not_found_error?: false) do
-      {:ok, nil} -> {:cancel, :not_found}
-      {:ok, auction} -> auction |> read() |> next(auction)
-      {:error, error} -> {:error, error}
+    if Regents.ProductActivity.active?(:autolaunch) do
+      case Ash.get(Auction, id, action: :market, actor: @actor, not_found_error?: false) do
+        {:ok, nil} -> {:cancel, :not_found}
+        {:ok, auction} -> auction |> read() |> next(auction)
+        {:error, error} -> {:error, error}
+      end
+    else
+      :ok
     end
   end
 

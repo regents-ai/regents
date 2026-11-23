@@ -12,7 +12,7 @@ defmodule Regents.Keyfleet.WalletSteps.LaunchSteps do
   """
 
   alias RegentChain.{Call, Event, Review}
-  alias Regents.Keyfleet.ChainClient
+  alias Regents.Chain.Client, as: ChainClient
   alias Regents.Keyfleet.Proposals
   alias Regents.Keyfleet.Proposals.Actions
   alias Regents.Keyfleet.WalletSteps.Reads

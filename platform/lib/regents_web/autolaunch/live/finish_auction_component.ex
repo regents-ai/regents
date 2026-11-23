@@ -151,7 +151,7 @@ defmodule RegentsWeb.Autolaunch.FinishAuctionComponent do
   def handle_event("step_failed", params, socket) do
     case Presses.failed(params) do
       {:ok, _name, reason} ->
-        RegentsWeb.Autolaunch.Telemetry.wallet_failed(:finish_auction, reason)
+        RegentsWeb.Telemetry.wallet_failed(:finish_auction, reason)
         %{linked: linked, active: active} = socket.assigns
 
         {:noreply,

@@ -81,7 +81,7 @@ defmodule RegentsWeb.Keyfleet.Layouts do
     ~H"""
     <footer class="regent-footer">
       <div class="regent-footer__social">
-        <RegentsWeb.Keyfleet.Components.RegentLinks.social_links />
+        <RegentsWeb.Components.RegentLinks.social_links />
       </div>
       <nav class="regent-footer__links" aria-label="About Keyfleet">
         <a href={@buy_regent} target="_blank" rel="noopener noreferrer">Buy $REGENT</a>
