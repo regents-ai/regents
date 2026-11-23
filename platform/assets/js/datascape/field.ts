@@ -10,29 +10,31 @@
 import {CELL, KIND, LAYERS, cellContents, type Colour, type PanelSeed, type TubeSeed} from "./world"
 
 /** Fastest the camera ever flies, in world units a second. */
-export const SPEED = 2200
+export const SPEED = 3800
 /** A smaller picture flies slower: its longer side this many times a second, so panels still have time to open. */
-const PACE = 1.4
+const PACE = 2.5
 /** How far ahead of the camera cells are brought in, in seconds of travel, so each is ready before it comes into sight. */
-const LEAD = 0.45
+const LEAD = 0.6
 /** How long the camera takes to answer the pointer, in seconds. */
-const LAG = 0.55
+const LAG = 0.26
 /** The share of the picture round its middle where the pointer steers nothing, unless the field is told otherwise. */
-export const REST = 0.1
-/** The most of the picture a calm zone may take, so there is always room left to steer. */
-const MOST_CALM = 0.9
+export const REST = 0.14
+/** The most of the picture a calm zone may take, so there is always generous room left to steer. */
+const MOST_CALM = 0.55
+/** Share of half-viewport where camera reaches full top speed, so moving near an edge feels lenient and fast. */
+const EDGE_FULL = 0.86
 /** How sharply speed rises towards an edge. */
-const CURVE = 1.6
+const CURVE = 1.2
 /** How far the picture leans into a turn, in radians, at full speed. */
-const LEAN = (2.5 * Math.PI) / 180
+const LEAN = (2.8 * Math.PI) / 180
 /** How far the camera pulls back at full speed, as a share of the picture. */
-const PULL = 0.22
+const PULL = 0.25
 /** How fast the camera drifts while nothing steers it, in world units a second. */
 const DRIFT: readonly [number, number] = [12, 7]
 /** Cells kept beyond the picture's edge, so a panel is ready before it shows. */
-const MARGIN = 0.35
+const MARGIN = 0.55
 /** How much further out a cell must be before it is dropped, so one on the edge does not flicker. */
-const KEEP = 0.9
+const KEEP = 1.05
 /** How much larger a panel under the pointer grows. */
 export const EXPANSION = 0.22
 /** How much faster a panel under the pointer runs. */
@@ -120,6 +122,14 @@ export type Field = {
   advance(elapsed: number, width: number, height: number): void
   /** The panel drawn under a point, measured from the picture's middle in CSS pixels. */
   panelAt(x: number, y: number): Panel | null
+  /** Nearest visible interactive panel within `maxRadius` CSS pixels of `(x, y)`, or null. */
+  nearestPanel(x: number, y: number, maxRadius: number): Panel | null
+  /** Whether a panel still belongs to an active cell in the field. */
+  hasPanel(panel: Panel): boolean
+  /** Replaces a panel's shape attributes in place while preserving its world position and layer. */
+  replacePanel(panel: Panel, seed: PanelSeed): void
+  /** Spawns a new interactive panel on the nearest layer at screen point `(x, y)` (from picture middle in CSS pixels). */
+  spawnPanelAt(x: number, y: number, makeSeed: (wx: number, wy: number) => PanelSeed): Panel | null
   /** Throws a few sparks out from a panel. */
   burst(panel: Panel, count: number): void
 }
@@ -129,11 +139,13 @@ export const topSpeed = (width: number, height: number) => Math.min(SPEED, PACE 
 
 /**
  * How fast the camera should go for a pointer this far from the middle on one axis, from -1 to 1,
- * when this share of that half of the picture is calm: nothing inside it, top speed at the edge.
+ * when this share of that half of the picture is calm: nothing inside it, reaching top speed
+ * comfortably near the edge (`EDGE_FULL`).
  */
 export const steerSpeed = (offset: number, top: number, calm = REST) => {
   const rest = Math.min(MOST_CALM, Math.max(0, calm))
-  const reach = Math.max(0, (Math.abs(offset) - rest) / (1 - rest))
+  const span = Math.max(0.08, EDGE_FULL - rest)
+  const reach = Math.max(0, (Math.abs(offset) - rest) / span)
   return Math.sign(offset) * Math.min(1, reach) ** CURVE * top
 }
 
@@ -299,6 +311,103 @@ export function createField(watcher: Watcher): Field {
         if (found) return found
       }
       return null
+    },
+    nearestPanel(x, y, maxRadius) {
+      const cos = Math.cos(-camera.lean)
+      const sin = Math.sin(-camera.lean)
+      const levelX = x * cos - y * sin
+      const levelY = x * sin + y * cos
+      let best: Panel | null = null
+      let bestDist = maxRadius
+      for (let layer = LAYERS.length - 1; layer >= 0; layer--) {
+        const scale = LAYERS[layer]!.depth * camera.zoom
+        const worldX = camera.x + levelX / scale
+        const worldY = camera.y + levelY / scale
+        for (const cell of cells.values()) {
+          if (cell.layer !== layer) continue
+          for (const panel of cell.panels) {
+            if (!answers(panel) || panel.grow < 0.5) continue
+            const dx = Math.max(0, Math.abs(worldX - panel.x) - panel.w)
+            const dy = Math.max(0, Math.abs(worldY - panel.y) - panel.h)
+            const dist = Math.hypot(dx, dy) * scale
+            if (dist < bestDist) {
+              bestDist = dist
+              best = panel
+            }
+          }
+        }
+      }
+      return best
+    },
+    hasPanel(panel) {
+      for (const cell of cells.values()) {
+        if (cell.layer === panel.layer && cell.panels.includes(panel)) return true
+      }
+      return false
+    },
+    replacePanel(panel, next) {
+      panel.kind = next.kind
+      panel.w = next.w
+      panel.h = next.h
+      panel.seed = next.seed
+      panel.a = next.a
+      panel.b = next.b
+      panel.alpha = next.alpha
+      panel.entrance = next.entrance
+      panel.words = next.words
+      panel.clock = next.seed * 40
+    },
+    spawnPanelAt(x, y, makeSeed) {
+      const cos = Math.cos(-camera.lean)
+      const sin = Math.sin(-camera.lean)
+      const levelX = x * cos - y * sin
+      const levelY = x * sin + y * cos
+      const layer = LAYERS.length - 1
+      const scale = LAYERS[layer]!.depth * camera.zoom
+      const worldX = camera.x + levelX / scale
+      const worldY = camera.y + levelY / scale
+      const column = Math.floor(worldX / CELL)
+      const row = Math.floor(worldY / CELL)
+      const key = `${layer}:${column}:${row}`
+      let cell = cells.get(key)
+      if (!cell) {
+        const contents = cellContents(layer, column, row)
+        cell = {
+          key,
+          layer,
+          column,
+          row,
+          panels: contents.panels.map(seed => ({
+            ...seed,
+            layer,
+            grow: 0,
+            flash: 0,
+            assemble: 0,
+            hover: 0,
+            clock: seed.seed * 40,
+            seen: false,
+            taken: false,
+            free: 0,
+          })),
+          tube: contents.tube && {...contents.tube, drawn: 0, seen: false},
+        }
+        cells.set(key, cell)
+      }
+      const seed = makeSeed(worldX, worldY)
+      const panel: Panel = {
+        ...seed,
+        layer,
+        grow: 0,
+        flash: 0,
+        assemble: 0,
+        hover: 0,
+        clock: seed.seed * 40,
+        seen: true,
+        taken: false,
+        free: 0,
+      }
+      cell.panels.push(panel)
+      return panel
     },
     burst(panel, count) {
       for (let index = 0; index < count; index++) {

@@ -20,13 +20,13 @@ defmodule RegentsWeb.Layouts do
 
   @doc """
   The home hero mode written as `data-hero-mode` on `/` (`open`, `canvas`, or
-  `crown`). Picks `open` or `canvas` with a 50% chance on each load when
-  unspecified, and honors `?hero=open|canvas|crown` when passed explicitly.
+  `crown`). Defaults to `open` (click-to-reveal center hero with cursor-steered
+  infinite canvas) and honors `?hero=open|canvas|crown` when passed explicitly.
   """
   def hero_mode(conn) do
     case conn.query_params do
       %{"hero" => mode} when mode in ~w(open canvas crown) -> mode
-      _query -> Enum.random(["open", "canvas"])
+      _query -> "open"
     end
   end
 

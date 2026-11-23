@@ -48,21 +48,21 @@ export const TUBE_STYLE = {solid: 0, candy: 1, rainbow: 2, dotted: 3} as const
 export type Colour = readonly [number, number, number]
 
 export type PanelSeed = {
-  readonly kind: Kind
+  kind: Kind
   /** The middle, in world units. */
   readonly x: number
   readonly y: number
   /** Half the width and half the height. */
-  readonly w: number
-  readonly h: number
+  w: number
+  h: number
   /** A number of the panel's own, from 0 to 1. */
-  readonly seed: number
-  readonly a: Colour
-  readonly b: Colour
-  readonly alpha: number
-  readonly entrance: number
+  seed: number
+  a: Colour
+  b: Colour
+  alpha: number
+  entrance: number
   /** For text and labels: where in the atlas the words are (see `pageWindow` and `labelRect`). */
-  readonly words: readonly [number, number, number, number]
+  words: readonly [number, number, number, number]
 }
 
 /** One piece of a tube: a straight run, or the quarter turn between two runs. */
@@ -264,6 +264,55 @@ export function cellContents(layer: number, column: number, row: number): CellSe
   }
 
   return {panels, tube: next() < 0.3 ? tubeFrom(left + next() * CELL, top + next() * CELL, next, between, pick) : null}
+}
+
+/** Generates a fresh random interactive panel shape at `(x, y)`, preferring a different kind than `excludeKind`. */
+export function randomPanelSeed(x: number, y: number, excludeKind?: Kind): PanelSeed {
+  const next = () => Math.random()
+  const between = (low: number, high: number) => low + (high - low) * next()
+  const pick = <T>(from: readonly T[]): T => from[Math.floor(next() * from.length)]!
+  const choices = excludeKind === undefined ? PANEL_ODDS : PANEL_ODDS.filter(([kind]) => kind !== excludeKind)
+  const total = choices.reduce((sum, [, odds]) => sum + odds, 0)
+  let chosen = next() * total
+  const kind = (choices.find(([, odds]) => (chosen -= odds) < 0) ?? choices[0]!)[0]
+  const [w, h] = sizeOf(kind, between)
+  const a = kind === KIND.text ? (next() < 0.6 ? PAPER : pick(BRIGHT)) : pick(BRIGHT)
+  const b = next() < 0.45 ? pick(QUIET) : pick(BRIGHT)
+  return {
+    kind,
+    x,
+    y,
+    w,
+    h,
+    seed: next(),
+    a,
+    b,
+    alpha: kind === KIND.gradient || kind === KIND.mosaic ? (next() < 0.3 ? between(0.45, 0.8) : 1) : 1,
+    entrance: Math.floor(next() * ENTRANCES),
+    words: kind === KIND.text ? pageWindow(Math.floor(next() * ATLAS.pages), w, h, next()) : [0, 0, 0, 0],
+  }
+}
+
+const CROWN_KINDS: readonly Kind[] = [KIND.mosaic, KIND.gradient, KIND.bars]
+
+/** Generates a fresh filling visual style for a crown square, different from `excludeKind` when possible. */
+export function randomCrownStyle(excludeKind?: Kind): {
+  kind: Kind
+  seed: number
+  a: Colour
+  b: Colour
+  entrance: number
+} {
+  const next = () => Math.random()
+  const pick = <T>(from: readonly T[]): T => from[Math.floor(next() * from.length)]!
+  const kinds = excludeKind === undefined ? CROWN_KINDS : CROWN_KINDS.filter(k => k !== excludeKind)
+  return {
+    kind: pick(kinds.length > 0 ? kinds : CROWN_KINDS),
+    seed: next(),
+    a: pick(BRIGHT),
+    b: next() < 0.45 ? pick(QUIET) : pick(BRIGHT),
+    entrance: Math.floor(next() * ENTRANCES),
+  }
 }
 
 function sizeOf(kind: Kind, between: (low: number, high: number) => number): [number, number] {

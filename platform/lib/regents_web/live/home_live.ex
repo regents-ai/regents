@@ -1,10 +1,10 @@
 defmodule RegentsWeb.HomeLive do
   @moduledoc """
   Regents Labs marketing homepage (`/`): Stripe-style solid inverse top bar,
-  full-viewport dark Datascape vgpu island hero (supporting Open, Canvas, and
-  Crown modes via `?hero=open|canvas|crown`), Products, Agents with the 22-tool
-  WebMCP modal dialog, `$REGENT`, Reading, closing band, huge `Regents` footer,
-  and the small product picker opened by clicking a Datascape panel or crown.
+  full-viewport dark Datascape vgpu island hero (cursor-navigable infinite canvas
+  that reveals the center hero area on first click and morphs clicked shapes into
+  new random shapes on subsequent clicks), Products, Agents with the WebMCP
+  modal dialog, `$REGENT`, Reading, closing band, and huge `Regents` footer.
   """
 
   use RegentsWeb, :live_view
@@ -487,34 +487,6 @@ defmodule RegentsWeb.HomeLive do
           <Marketing.footer current="regents" huge="Regents" />
         </div>
       </main>
-
-      <nav class="pick" id="pick" aria-label="Products" tabindex="-1">
-        <p class="pick__heading label">Products</p>
-        <a class="pick__link" href="/techtree">
-          <span class="tile" data-id="techtree" aria-hidden="true">
-            <svg><use href="#mark-techtree" /></svg>
-          </span>
-          Techtree
-        </a>
-        <a class="pick__link" href="/keyfleet">
-          <span class="tile" data-id="keyfleet" aria-hidden="true">
-            <svg><use href="#mark-crown" /></svg>
-          </span>
-          Keyfleet
-        </a>
-        <a class="pick__link" href="/autolaunch">
-          <span class="tile" data-id="autolaunch" aria-hidden="true">
-            <svg><use href="#mark-autolaunch" /></svg>
-          </span>
-          Autolaunch
-        </a>
-        <a class="pick__link" href="/patchbay">
-          <span class="tile" data-id="patchbay" aria-hidden="true">
-            <svg><use href="#mark-crown" /></svg>
-          </span>
-          Patchbay
-        </a>
-      </nav>
 
       <Marketing.agent_tools_dialog />
       <div class="visually-hidden" id="announce" role="status"></div>

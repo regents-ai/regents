@@ -1,24 +1,15 @@
 /* Home hero: full viewport, dark Datascape vgpu island + still fallback +
-   Open opening sequence + clickable #pick product menu. Scoped to :root[data-marketing]. */
+   click-to-reveal center hero area. Scoped to :root[data-marketing]. */
 
-:root[data-marketing][data-hero-mode="open"]:is([data-hero="closed"], [data-hero="opening"])
-  .hero__crown {
-  visibility: visible;
-}
-:root[data-marketing][data-hero-mode="open"]:is([data-hero="closed"], [data-hero="opening"])
-  .bar__brand
-  svg {
-  visibility: hidden;
-}
 :root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"])
   :is(.hero__label, .hero__title, .hero__sentence, .hero__actions) {
   opacity: 0;
 }
+:root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"]) .hero__words {
+  pointer-events: none;
+}
 :root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"]) .hero__actions {
   visibility: hidden;
-}
-:root[data-marketing][data-hero="closed"] .bar {
-  opacity: 0;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -100,7 +91,7 @@
   }
   .hero__canvas {
     opacity: 0;
-    cursor: grab;
+    cursor: default;
     touch-action: pan-y pinch-zoom;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
@@ -176,84 +167,5 @@
     .hero__canvas {
       transition: opacity 200ms var(--ease-out);
     }
-  }
-
-  .pick {
-    position: fixed;
-    inset-block-start: 0;
-    inset-inline-start: 0;
-    z-index: var(--rg-layer-tip);
-    display: grid;
-    gap: 2px;
-    inline-size: 14rem;
-    padding: var(--space-1);
-    background: #F6F4EA;
-    color: #161616;
-    border: 1px solid #DAD8C7;
-    --focus: #161616;
-    opacity: 0;
-    transform: scale(0.96);
-    visibility: hidden;
-  }
-  .pick[data-open] {
-    opacity: 1;
-    transform: none;
-    visibility: visible;
-  }
-  .pick__heading {
-    padding: 4px var(--space-1) 6px;
-    color: #5E5D57;
-  }
-  .pick__link {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-block-size: 2.75rem;
-    padding: 0 var(--space-1);
-    color: inherit;
-    font-size: 0.9375rem;
-    text-decoration: none;
-  }
-  .pick__link:focus-visible {
-    outline-offset: -2px;
-  }
-  .pick .tile {
-    inline-size: 1.75rem;
-    block-size: 1.75rem;
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .pick__link:hover {
-      background: #ECEADD;
-    }
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    .pick {
-      transition:
-        opacity 120ms var(--ease-out),
-        transform 120ms var(--ease-out),
-        visibility 0s linear 120ms;
-    }
-    .pick[data-open] {
-      transition:
-        opacity 160ms var(--ease-out),
-        transform 160ms var(--ease-out),
-        visibility 0s;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .pick {
-      transform: none;
-      transition:
-        opacity 120ms var(--ease-out),
-        visibility 0s linear 120ms;
-    }
-    .pick[data-open] {
-      transition:
-        opacity 160ms var(--ease-out),
-        visibility 0s;
-    }
-  }
-  .pick[data-instant] {
-    transition: none;
   }
 }

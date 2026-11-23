@@ -52,11 +52,11 @@ export type Square = {
   /** Its place in the mark, from the mark's middle, in the mark's units. */
   readonly mx: number
   readonly my: number
-  readonly kind: Kind
-  readonly seed: number
-  readonly a: Colour
-  readonly b: Colour
-  readonly entrance: number
+  kind: Kind
+  seed: number
+  a: Colour
+  b: Colour
+  entrance: number
   /** The panel it was taken from, hidden in the field while the square is out of it. */
   readonly source: Panel | null
   /** Where it set out from: its middle, then half its width and height. */

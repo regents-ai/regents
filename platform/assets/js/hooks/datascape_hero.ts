@@ -6,35 +6,49 @@
  * motion still-face fallback stay in one place. Every Anime.js animation runs
  * inside a `createScope` reverted cleanly on `destroyed()`.
  *
- * Supports all three hero modes (`open`, `canvas`, `crown`) via `data-hero-mode`
- * on `<html>` (set by the server from `?hero=open|canvas|crown`, default `open`),
- * plus clicking any panel or crown square to open the `#pick` products menu.
+ * Interactive behavior:
+ * - Cursor movement steers smoothly across the infinite Datascape canvas (with
+ *   lenient, faster acceleration near the viewport edges).
+ * - Before the first click (in default `open`/`canvas` mode), the center hero
+ *   area starts hidden so visitors can explore the Datascape freely; the first
+ *   click anywhere on the hero canvas reveals the center hero area.
+ * - Subsequent clicks animate the clicked shape out and animate a fresh random
+ *   shape in (never opening a product picker menu).
+ * - `?hero=crown` preserves the crown-gathering choreography, with clicks
+ *   morphing crown squares or field shapes in place.
  */
 import {animate, createScope, cubicBezier, utils, type Scope} from "animejs"
 
 import {createCanvasIsland, type CanvasIslandController} from "../canvas_island"
 import {MARK_HEIGHT, MARK_WIDTH, type Square} from "../datascape/crown"
-import {calmAround, type Cell, type Panel, type Tube} from "../datascape/field"
+import {calmAround, REST, type Cell, type Panel, type Tube} from "../datascape/field"
 import type {DatascapeRenderer, Quiet} from "../datascape/renderer"
+import {randomCrownStyle, randomPanelSeed} from "../datascape/world"
 import type {Hook} from "../hook_composition"
 
-const OPENING = 750
-const ASSEMBLY = 2400
+const OPENING = 680
+const MORPH_OUT = 260
+const MORPH_IN = 580
+const ASSEMBLY = 2200
 const FLASH = 0.55
 const STAGGER = 500
 const FIRST_WAVE = 900
 const TUBE_SPEED = 1300
-const REACTION = 350
+const REACTION = 320
 const LARGE = 8
 const OPENING_SPARKS = 3
 const PRESS_SPARKS = 14
+const MORPH_IN_SPARKS = 9
+const NEAREST_CLICK_RADIUS = 180
 
-const LEAVING = 28
+const LEAVING = 16
 const ROOM = 24
 const SOFT = 140
 const BAND_ROOM = 12
 const BAND_SOFT = 72
 const DRAG = 6
+const MAX_OPEN_CALM_X = 0.42
+const MAX_OPEN_CALM_Y = 0.36
 
 const FLIGHT = 560
 const SPREAD = 420
@@ -45,12 +59,10 @@ const CROWN_QUIET = 600
 const REFORM = 1400
 const FREE = 1200
 
-const OPEN_AFTER = 1600
 const QUIETING = 700
 const GATHER_AFTER = 800
 const WORDS_AFTER = 450
-const EDGE = 8
-const BEGIN = ["pointerdown", "keydown", "wheel", "touchstart", "scroll"] as const
+const GATHER_BEGIN = ["pointerdown", "keydown", "wheel", "touchstart", "scroll"] as const
 
 const EASE_OUT = cubicBezier(0.23, 1, 0.32, 1)
 
@@ -77,6 +89,15 @@ function writeSession(key: string, value: string): void {
   }
 }
 
+function isInteractiveTarget(target: EventTarget | null, heroEl: HTMLElement): boolean {
+  if (!(target instanceof Element)) return false
+  if (target.closest("a, button, input, select, textarea, summary, [role='button'], [role='menuitem'], dialog")) {
+    return true
+  }
+  if (!heroEl.contains(target)) return true
+  return false
+}
+
 export const DatascapeHero: Hook = {
   mounted(this: DatascapeHeroHook) {
     const heroEl = this.el
@@ -87,30 +108,26 @@ export const DatascapeHero: Hook = {
     const actions = heroEl.querySelector<HTMLElement>(".hero__actions")
     const crownSlot = heroEl.querySelector<HTMLElement>("[data-crown]")
     const bar = document.querySelector<HTMLElement>("[data-bar]")
-    const pick = document.getElementById("pick")
 
-    if (!stage || !canvas || !words || !actions || !crownSlot || !bar || !pick) return
+    if (!stage || !canvas || !words || !actions || !crownSlot || !bar) return
 
-    const pickLinks = [...pick.querySelectorAll<HTMLAnchorElement>("a")]
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)")
     const fine = window.matchMedia("(hover: hover) and (pointer: fine)")
 
     const explicitHero = new URLSearchParams(window.location.search).has("hero")
     const mode = docRoot.dataset.heroMode ?? "open"
 
-    // Initialize entrance state before the first paint settles.
-    // In `open` mode, always play the opening reveal so a 50/50 split between
-    // `open` and `canvas` stays visibly distinct across reloads in the same tab.
+    // Start with the center hero area hidden until the first click (except
+    // reduced-motion users or `?hero=crown`).
     if (!reduced.matches) {
-      if (mode === "open") {
-        docRoot.dataset.hero = "closed"
-      } else if (
-        mode === "crown" &&
-        (explicitHero || readSession("regents:hero:crowned") !== "yes")
-      ) {
-        docRoot.dataset.hero = "gathering"
+      if (mode === "crown") {
+        if (explicitHero || readSession("regents:hero:crowned") !== "yes") {
+          docRoot.dataset.hero = "gathering"
+        } else {
+          delete docRoot.dataset.hero
+        }
       } else {
-        delete docRoot.dataset.hero
+        docRoot.dataset.hero = "closed"
       }
     } else {
       delete docRoot.dataset.hero
@@ -122,58 +139,11 @@ export const DatascapeHero: Hook = {
       scope.add(fn)
     }
 
-    const closePick = () => {
-      if (!pick.hasAttribute("data-open")) return
-      if (pick.contains(document.activeElement) && document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur()
-      }
-      delete pick.dataset.open
-    }
-
-    const openPick = (x: number, y: number) => {
-      pick.dataset.instant = ""
-      delete pick.dataset.open
-      const left = Math.max(EDGE, Math.min(x, window.innerWidth - pick.offsetWidth - EDGE))
-      const top = Math.max(EDGE, Math.min(y, window.innerHeight - pick.offsetHeight - EDGE))
-      pick.style.left = `${left}px`
-      pick.style.top = `${top}px`
-      pick.style.transformOrigin = `${x - left}px ${y - top}px`
-      pick.getBoundingClientRect()
-      delete pick.dataset.instant
-      pick.dataset.open = ""
-      pick.focus({preventScroll: true})
-    }
-
-    const onPickKeydown = (event: KeyboardEvent) => {
-      const here = pickLinks.indexOf(document.activeElement as HTMLAnchorElement)
-      const targets: Record<string, HTMLAnchorElement | undefined> = {
-        ArrowDown: pickLinks[(here + 1) % pickLinks.length],
-        ArrowUp: pickLinks[(here - 1 + pickLinks.length) % pickLinks.length],
-        Home: pickLinks[0],
-        End: pickLinks[pickLinks.length - 1],
-      }
-      const go = targets[event.key]
-      if (go) {
-        event.preventDefault()
-        go.focus()
-      }
-      if (event.key === "Escape") closePick()
-    }
-    const onPickFocusOut = (event: FocusEvent) => {
-      if (!pick.contains(event.relatedTarget as Node | null)) closePick()
-    }
-    const onDocPointerDown = (event: PointerEvent) => {
-      if (!pick.contains(event.target as Node | null)) closePick()
-    }
-
-    pick.addEventListener("keydown", onPickKeydown)
-    pick.addEventListener("focusout", onPickFocusOut)
-    document.addEventListener("pointerdown", onDocPointerDown, true)
-    window.addEventListener("scroll", closePick, {passive: true})
-    window.addEventListener("resize", closePick)
-
     let scape: DatascapeRenderer | undefined
     let rested: Hoverable | null = null
+    const morphingPanels = new WeakSet<Panel>()
+    const morphingSquares = new WeakSet<Square>()
+
     const quiet: Quiet = {
       x: 0,
       y: 0,
@@ -191,6 +161,8 @@ export const DatascapeHero: Hook = {
     let crownShown = false
     let quietAim = -1
     let crownMiddle: [number, number] = [0, 0]
+
+    const closed = () => docRoot.dataset.hero === "closed"
 
     const wait = (distance: number, seed: number) =>
       scape && scape.field.time === 0 ? distance * FIRST_WAVE + seed * STAGGER : 0
@@ -238,7 +210,7 @@ export const DatascapeHero: Hook = {
         if (target) animate(target, {hover: 1, duration: REACTION, ease: "outExpo"})
       })
       rested = target
-      canvas.style.cursor = target ? "pointer" : ""
+      heroEl.style.cursor = target ? "pointer" : ""
     }
 
     const flash = (target: Panel | Square) => {
@@ -246,6 +218,92 @@ export const DatascapeHero: Hook = {
         animate(target, {
           flash: {from: 0.85, to: 0, duration: OPENING, ease: "outQuad"},
           assemble: {from: 0, to: 1, duration: ASSEMBLY / 2, ease: "outCubic"},
+        })
+      })
+    }
+
+    const animatePanelIn = (panel: Panel, onDone?: () => void) => {
+      runScoped(() => {
+        animate(panel, {
+          grow: {from: 0, to: 1, duration: MORPH_IN, ease: "outBack(1.6)"},
+          flash: {from: 0.68, to: 0, duration: MORPH_IN, ease: "outQuad"},
+          assemble: {from: 0, to: 1, duration: ASSEMBLY * 0.6, ease: "outCubic"},
+          onBegin: () => {
+            scape?.field.burst(panel, MORPH_IN_SPARKS)
+          },
+          onComplete: () => {
+            onDone?.()
+          },
+        })
+      })
+    }
+
+    const morphPanel = (panel: Panel) => {
+      if (!scape || morphingPanels.has(panel)) return
+      morphingPanels.add(panel)
+      if (rested === panel) rest(null)
+      scape.field.burst(panel, PRESS_SPARKS)
+      utils.remove(panel)
+      runScoped(() => {
+        animate(panel, {
+          grow: {to: 0, duration: MORPH_OUT, ease: "inBack(1.8)"},
+          flash: {from: 0.78, to: 0, duration: MORPH_OUT, ease: "outQuad"},
+          assemble: {to: 0, duration: MORPH_OUT, ease: "inQuad"},
+          hover: {to: 0, duration: MORPH_OUT / 2, ease: "outQuad"},
+          onComplete: () => {
+            if (!scape || !scape.field.hasPanel(panel)) {
+              morphingPanels.delete(panel)
+              return
+            }
+            const next = randomPanelSeed(panel.x, panel.y, panel.kind)
+            scape.field.replacePanel(panel, next)
+            panel.grow = 0
+            panel.assemble = 0
+            panel.hover = 0
+            animatePanelIn(panel, () => {
+              morphingPanels.delete(panel)
+            })
+          },
+        })
+      })
+    }
+
+    const morphSquare = (square: Square) => {
+      if (!scape || morphingSquares.has(square)) return
+      morphingSquares.add(square)
+      if (rested === square) rest(null)
+      utils.remove(square)
+      runScoped(() => {
+        animate(square, {
+          grow: {to: 0, duration: MORPH_OUT, ease: "inBack(1.8)"},
+          flash: {from: 0.75, to: 0, duration: MORPH_OUT, ease: "outQuad"},
+          assemble: {to: 0, duration: MORPH_OUT, ease: "inQuad"},
+          hover: {to: 0, duration: MORPH_OUT / 2, ease: "outQuad"},
+          onComplete: () => {
+            if (!scape || !scape.crown.squares.includes(square)) {
+              morphingSquares.delete(square)
+              return
+            }
+            const next = randomCrownStyle(square.kind)
+            square.kind = next.kind
+            square.seed = next.seed
+            square.a = next.a
+            square.b = next.b
+            square.entrance = next.entrance
+            square.grow = 0
+            square.assemble = 0
+            square.hover = 0
+            runScoped(() => {
+              animate(square, {
+                grow: {from: 0, to: 1, duration: MORPH_IN, ease: "outBack(1.6)"},
+                flash: {from: 0.65, to: 0, duration: MORPH_IN, ease: "outQuad"},
+                assemble: {from: 0, to: 1, duration: ASSEMBLY * 0.6, ease: "outCubic"},
+                onComplete: () => {
+                  morphingSquares.delete(square)
+                },
+              })
+            })
+          },
         })
       })
     }
@@ -272,6 +330,18 @@ export const DatascapeHero: Hook = {
       if (scape.crown.squares.some(square => square === rested)) rest(null)
     }
 
+    const syncCalm = () => {
+      if (!scape) return
+      if (closed()) {
+        scape.field.calm = [REST, REST]
+        return
+      }
+      const box = canvas.getBoundingClientRect()
+      const wordsBox = words.getBoundingClientRect()
+      const [cx, cy] = calmAround([wordsBox.width, wordsBox.height], LEAVING, [box.width, box.height])
+      scape.field.calm = [Math.min(MAX_OPEN_CALM_X, cx), Math.min(MAX_OPEN_CALM_Y, cy)]
+    }
+
     const measure = () => {
       const box = canvas.getBoundingClientRect()
       const wordsBox = words.getBoundingClientRect()
@@ -287,11 +357,7 @@ export const DatascapeHero: Hook = {
         slot.top + slot.height / 2 + window.scrollY,
       ]
       if (!scape) return
-      scape.field.calm = calmAround(
-        [wordsBox.width, wordsBox.height],
-        LEAVING,
-        [box.width, box.height],
-      )
+      syncCalm()
       const {place} = scape.crown
       place.x = slot.left + slot.width / 2 - (box.left + box.width / 2)
       place.y = slot.top + slot.height / 2 - (box.top + box.height / 2)
@@ -384,18 +450,49 @@ export const DatascapeHero: Hook = {
       return [event.clientX - box.left - box.width / 2, event.clientY - box.top - box.height / 2]
     }
 
-    const lift = () => {
+    const lift = (clearPointer = false) => {
       down = null
       dragging = false
       delete stage.dataset.datascapeDragging
-      if (scape) scape.field.pointer = null
+      if (clearPointer && scape) scape.field.pointer = null
       reform()
+    }
+
+    const setQuiet = (strength: number, duration: number) => {
+      utils.remove(quiet)
+      if (duration <= 0) quiet.strength = strength
+      else {
+        runScoped(() => {
+          animate(quiet, {strength, duration, ease: EASE_OUT})
+        })
+      }
+    }
+
+    let openSettle = 0
+
+    const openHero = ({moving}: {moving: boolean}) => {
+      if (!closed()) return
+      window.clearTimeout(openSettle)
+      if (moving) {
+        setQuiet(1, QUIETING)
+        docRoot.dataset.hero = "opening"
+        openSettle = window.setTimeout(() => {
+          if (docRoot.dataset.hero === "opening") {
+            delete docRoot.dataset.hero
+            syncCalm()
+          }
+        }, 1000)
+      } else {
+        setQuiet(1, 0)
+        delete docRoot.dataset.hero
+      }
+      syncCalm()
     }
 
     const onPointerDown = (event: PointerEvent) => {
       if (down || event.button !== 0) return
+      if (isInteractiveTarget(event.target, heroEl)) return
       down = {id: event.pointerId, x: event.clientX, y: event.clientY}
-      canvas.setPointerCapture(event.pointerId)
     }
 
     const onPointerMove = (event: PointerEvent) => {
@@ -405,42 +502,83 @@ export const DatascapeHero: Hook = {
           dragging = true
           stage.dataset.datascapeDragging = ""
           rest(null)
-          closePick()
         }
         if (dragging) scape.field.pointer = pointOf(event)
         return
       }
       if (event.pointerType === "mouse") {
+        // Pause steering when interacting with the top nav bar or an open modal dialog.
+        if (
+          event.target instanceof Element &&
+          (event.target.closest("[data-bar]") || document.querySelector("dialog[open]"))
+        ) {
+          scape.field.pointer = null
+          rest(null)
+          return
+        }
         const point = pointOf(event)
-        rest(scape.crown.squareAt(...point) ?? scape.field.panelAt(...point))
+        scape.field.pointer = point
+        if (isInteractiveTarget(event.target, heroEl)) {
+          rest(null)
+        } else {
+          rest(scape.crown.squareAt(...point) ?? scape.field.panelAt(...point))
+        }
       }
     }
 
     const onPointerUp = (event: PointerEvent) => {
       if (down?.id !== event.pointerId) return
       const pressed = !dragging
-      lift()
+      lift(event.pointerType !== "mouse")
       if (!pressed || !scape) return
+      if (isInteractiveTarget(event.target, heroEl)) return
+
       const point = pointOf(event)
-      const square = scape.crown.squareAt(...point)
-      const panel = square ? null : scape.field.panelAt(...point)
-      if (square) flash(square)
-      else if (panel) {
-        flash(panel)
-        scape.field.burst(panel, PRESS_SPARKS)
-      } else {
-        closePick()
+
+      // 1. First click reveals the center of the hero area.
+      if (closed()) {
+        const panel = scape.field.panelAt(...point)
+        if (panel) {
+          flash(panel)
+          scape.field.burst(panel, PRESS_SPARKS)
+        }
+        openHero({moving: true})
         return
       }
-      openPick(event.clientX, event.clientY)
+
+      // 2. Subsequent clicks animate the clicked shape out and a new random shape in.
+      const square = scape.crown.squareAt(...point)
+      if (square) {
+        morphSquare(square)
+        return
+      }
+      const panel = scape.field.panelAt(...point) ?? scape.field.nearestPanel(...point, NEAREST_CLICK_RADIUS)
+      if (panel) {
+        morphPanel(panel)
+        return
+      }
+      const spawned = scape.field.spawnPanelAt(...point, (wx, wy) => randomPanelSeed(wx, wy))
+      if (spawned) animatePanelIn(spawned)
     }
 
     const onPointerCancel = (event: PointerEvent) => {
-      if (down?.id === event.pointerId) lift()
+      if (down?.id === event.pointerId) lift(true)
     }
 
     const onPointerLeave = (event: PointerEvent) => {
-      if (event.pointerType === "mouse" && !down) rest(null)
+      if (event.pointerType === "mouse") {
+        if (scape) scape.field.pointer = null
+        if (!down) rest(null)
+      }
+    }
+
+    const onKeydown = (event: KeyboardEvent) => {
+      if (!closed()) return
+      if (event.key !== "Enter" && event.key !== " ") return
+      if (event.target instanceof Element && event.target.closest("a, button, input, select, textarea, dialog")) {
+        return
+      }
+      openHero({moving: true})
     }
 
     const onAim = (event: PointerEvent) => {
@@ -451,16 +589,9 @@ export const DatascapeHero: Hook = {
     }
 
     const onAimAway = (event: PointerEvent) => {
-      if (scape && !event.relatedTarget) scape.crown.aim = null
-    }
-
-    const setQuiet = (strength: number, duration: number) => {
-      utils.remove(quiet)
-      if (duration <= 0) quiet.strength = strength
-      else {
-        runScoped(() => {
-          animate(quiet, {strength, duration, ease: EASE_OUT})
-        })
+      if (scape && !event.relatedTarget) {
+        scape.crown.aim = null
+        scape.field.pointer = null
       }
     }
 
@@ -496,58 +627,41 @@ export const DatascapeHero: Hook = {
           resized.observe(stage)
           resized.observe(words)
           resized.observe(crownSlot)
-          canvas.addEventListener("pointerdown", onPointerDown)
-          canvas.addEventListener("pointermove", onPointerMove)
-          canvas.addEventListener("pointerup", onPointerUp)
-          canvas.addEventListener("pointercancel", onPointerCancel)
-          canvas.addEventListener("pointerleave", onPointerLeave)
+          heroEl.addEventListener("pointerdown", onPointerDown)
+          heroEl.addEventListener("pointermove", onPointerMove)
+          window.addEventListener("pointerup", onPointerUp)
+          window.addEventListener("pointercancel", onPointerCancel)
+          heroEl.addEventListener("pointerleave", onPointerLeave)
           window.addEventListener("pointermove", onAim, {passive: true})
           document.addEventListener("pointerout", onAimAway, {passive: true})
+          window.addEventListener("keydown", onKeydown)
           return () => {
             scape = undefined
             rested = null
-            lift()
+            lift(true)
             window.clearTimeout(reforming)
-            canvas.style.cursor = ""
+            heroEl.style.cursor = ""
             resized.disconnect()
-            canvas.removeEventListener("pointerdown", onPointerDown)
-            canvas.removeEventListener("pointermove", onPointerMove)
-            canvas.removeEventListener("pointerup", onPointerUp)
-            canvas.removeEventListener("pointercancel", onPointerCancel)
-            canvas.removeEventListener("pointerleave", onPointerLeave)
+            heroEl.removeEventListener("pointerdown", onPointerDown)
+            heroEl.removeEventListener("pointermove", onPointerMove)
+            window.removeEventListener("pointerup", onPointerUp)
+            window.removeEventListener("pointercancel", onPointerCancel)
+            heroEl.removeEventListener("pointerleave", onPointerLeave)
             window.removeEventListener("pointermove", onAim)
             document.removeEventListener("pointerout", onAimAway)
+            window.removeEventListener("keydown", onKeydown)
           }
         },
       },
     )
     island.mount()
 
-    // Open mode choreography.
-    let opener = 0
-    const closed = () => docRoot.dataset.hero === "closed"
-    const openHero = ({moving}: {moving: boolean}) => {
-      if (!closed()) return
-      window.clearTimeout(opener)
-      for (const type of BEGIN) window.removeEventListener(type, onBegin, true)
-      writeSession("regents:hero:opened", "yes")
-      if (moving) {
-        setQuiet(1, QUIETING)
-        docRoot.dataset.hero = "opening"
-      } else {
-        setQuiet(1, 0)
-        delete docRoot.dataset.hero
-      }
-    }
-    const onBegin = () => openHero({moving: true})
-    const onBarEnter = () => openHero({moving: false})
-
-    // Crown mode choreography.
+    // Crown mode choreography (`?hero=crown`).
     let gatherer = 0
     const gathering = () => docRoot.dataset.hero === "gathering"
     const stopGathering = () => {
       window.clearTimeout(gatherer)
-      for (const type of BEGIN) window.removeEventListener(type, onGatherBegin, true)
+      for (const type of GATHER_BEGIN) window.removeEventListener(type, onGatherBegin, true)
     }
     const onGatherBegin = () => {
       stopGathering()
@@ -575,15 +689,13 @@ export const DatascapeHero: Hook = {
       }
       delete docRoot.dataset.hero
       stopGathering()
+      syncCalm()
     }
     actions.addEventListener("transitionend", onActionsTransitionEnd)
 
     const onReady = () => {
       if (!closed()) return
-      window.clearTimeout(opener)
-      if (stage.dataset.datascapeReady === "true") {
-        opener = window.setTimeout(onBegin, OPEN_AFTER)
-      }
+      // Only fall back to immediately showing the center hero when live WebGPU is unavailable.
       if (stage.dataset.datascapeReady === "false") {
         openHero({moving: false})
       }
@@ -608,15 +720,13 @@ export const DatascapeHero: Hook = {
     readyObserver.observe(stage, {attributes: true, attributeFilter: ["data-datascape-ready"]})
 
     if (closed()) {
-      for (const type of BEGIN) window.addEventListener(type, onBegin, {capture: true, passive: true})
-      bar.addEventListener("pointerenter", onBarEnter, {passive: true})
       onReady()
     } else {
       setQuiet(1, 0)
     }
 
     if (gathering()) {
-      for (const type of BEGIN) {
+      for (const type of GATHER_BEGIN) {
         window.addEventListener(type, onGatherBegin, {capture: true, passive: true})
       }
       onGatherReady()
@@ -626,21 +736,14 @@ export const DatascapeHero: Hook = {
     }
 
     this.cleanup = () => {
-      window.clearTimeout(opener)
+      window.clearTimeout(openSettle)
       window.clearTimeout(gatherer)
       window.clearTimeout(reforming)
-      for (const type of BEGIN) {
-        window.removeEventListener(type, onBegin, true)
+      for (const type of GATHER_BEGIN) {
         window.removeEventListener(type, onGatherBegin, true)
       }
-      bar.removeEventListener("pointerenter", onBarEnter)
       readyObserver.disconnect()
       actions.removeEventListener("transitionend", onActionsTransitionEnd)
-      pick.removeEventListener("keydown", onPickKeydown)
-      pick.removeEventListener("focusout", onPickFocusOut)
-      document.removeEventListener("pointerdown", onDocPointerDown, true)
-      window.removeEventListener("scroll", closePick)
-      window.removeEventListener("resize", closePick)
       island.destroy()
       scope.revert()
       delete docRoot.dataset.hero
