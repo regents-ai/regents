@@ -2,16 +2,13 @@ defmodule RegentsWeb.Components.Marketing do
   @moduledoc """
   Shared chrome for the five marketing pages (`/`, `/techtree`, `/keyfleet`,
   `/autolaunch`, `/patchbay`): SVG mark/icon sprite, the Stripe-style fixed top
-  bar with its three-column menus, the phone navigation sheet, the product
-  sub-bar, the 5-column huge-name footer, and the 22-tool WebMCP modal dialog.
-
-  Reuses `RegentsWeb.Components.Shell.theme_toggle/1` directly so the light/dark
-  theme switch stays identical across the entire site.
+  bar with its dropdown menus, the phone navigation sheet, the product sub-bar,
+  the 5-column huge-name footer, and the 22-tool WebMCP modal dialog.
   """
 
   use RegentsWeb, :html
 
-  alias RegentsWeb.Components.{AgentTools, Shell}
+  alias RegentsWeb.Components.AgentTools
   alias RegentsWeb.Stake.TokenLinks
 
   @doc "Hidden SVG symbol sprite shared by marketing bar, cards, buttons, and footer."
@@ -447,8 +444,6 @@ defmodule RegentsWeb.Components.Marketing do
             </ul>
           </nav>
           <div class="bar__end" data-menu-off>
-            <Shell.theme_toggle id="marketing-theme-control" />
-            <a class="btn btn--secondary btn--small" href="/account">Sign in</a>
             <.cta_button
               label={@cta_label}
               href={@cta_href}
@@ -551,7 +546,6 @@ defmodule RegentsWeb.Components.Marketing do
           <a class="sheet__link" href="/about">About</a>
         </div>
         <div class="sheet__foot">
-          <a class="btn btn--secondary" href="/account">Sign in</a>
           <.cta_button
             label={@cta_label}
             href={@cta_href}

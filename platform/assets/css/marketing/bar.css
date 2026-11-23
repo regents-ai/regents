@@ -214,13 +214,6 @@
     inline-size: 10.5rem;
   }
 
-  .bar .btn--secondary {
-    color: var(--ink);
-  }
-  .bar .btn--secondary::before {
-    background: none;
-    border-color: var(--ink);
-  }
   .bar .btn--primary {
     --btn-fill: var(--ink);
     --btn-on: var(--key);
@@ -229,19 +222,6 @@
   .bar .btn--brand {
     --btn-fill: var(--id-tile);
     --btn-on: var(--id-mark);
-  }
-
-  /* Existing theme switch keeps its exact form & WebGPU morph; only colours follow the bar. */
-  .bar .theme-switch {
-    --color-fg: var(--ink);
-    --color-fg-muted: var(--muted);
-    --color-bg: var(--key);
-    --color-surface: var(--key);
-  }
-  .bar .theme-switch__button {
-    border: 0;
-    background: none;
-    padding: 0;
   }
 
   .bar__menu-button {
@@ -271,10 +251,7 @@
       .bar__brand,
       .bar__trigger,
       .bar__link,
-      .bar__menu-button,
-      .theme-switch__button,
-      .theme-switch__track,
-      .theme-switch__knob
+      .bar__menu-button
     ) {
     transition:
       color 0s linear var(--half),
@@ -503,10 +480,7 @@
       .bar__trigger,
       .bar__link,
       .bar__menu-button,
-      .btn,
-      .theme-switch__button,
-      .theme-switch__track,
-      .theme-switch__knob
+      .btn
     ),
   .bar[data-instant] .btn::before {
     transition: none;
@@ -613,7 +587,7 @@
   }
   .sheet__foot {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: var(--space-1);
     align-self: end;
     padding-block-start: var(--space-2);
