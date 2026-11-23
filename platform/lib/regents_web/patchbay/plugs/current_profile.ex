@@ -12,7 +12,7 @@ defmodule RegentsWeb.Patchbay.Plugs.CurrentProfile do
   def init(opts), do: opts
 
   def call(conn, _opts) do
-    case conn.assigns[:current_account] do
+    case conn.assigns[:current_human_account] || conn.assigns[:current_account] do
       %{} = account ->
         profile = CurrentProfile.member_for_account(account)
 

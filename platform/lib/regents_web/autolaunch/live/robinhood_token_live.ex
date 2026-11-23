@@ -135,7 +135,7 @@ defmodule RegentsWeb.Autolaunch.RobinhoodTokenLive do
       id="autolaunch-robinhood-token"
       class="autolaunch-page token-page"
     >
-      <.link navigate="/tokens" class="market-back">← Tokens</.link>
+      <.link navigate="/autolaunch/tokens" class="market-back">← Tokens</.link>
       <header class="token-page__head">
         <.token_heading
           name={@token.name}
@@ -322,7 +322,7 @@ defmodule RegentsWeb.Autolaunch.RobinhoodTokenLive do
       </Regent.Structure.section_bar>
       <p :if={!@open?}>Robinhood tokens are not open on this site yet.</p>
       <p :if={@open?}>No graduated Robinhood token exists at {@token_address}.</p>
-      <.link navigate="/tokens">Return to Tokens</.link>
+      <.link navigate="/autolaunch/tokens">Return to Tokens</.link>
     </section>
 
     <section
@@ -336,7 +336,7 @@ defmodule RegentsWeb.Autolaunch.RobinhoodTokenLive do
       </Regent.Structure.section_bar>
       <p>This token could not be loaded right now.</p>
       <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
-      <.link navigate="/tokens">Return to Tokens</.link>
+      <.link navigate="/autolaunch/tokens">Return to Tokens</.link>
     </section>
     """
   end

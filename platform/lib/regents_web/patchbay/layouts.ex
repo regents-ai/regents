@@ -16,6 +16,7 @@ defmodule RegentsWeb.Patchbay.Layouts do
   use RegentsWeb, :html
 
   alias Regents.Account.AccessContext.AccountControl
+  alias Regents.Patchbay.Offers
   alias RegentsWeb.Components.Shell
   alias RegentsWeb.Live.Session
 
@@ -23,9 +24,10 @@ defmodule RegentsWeb.Patchbay.Layouts do
   @buy_regent "https://app.uniswap.org/explore/tokens/base/0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
   @share_picture "/images/patchbay/og-image.png"
 
-  attr :conn, Plug.Conn, required: true
+  attr :conn, Plug.Conn, default: nil
   attr :flash, :map, required: true
   attr :account_control, AccountControl, required: true
+  attr :current_profile, :map, default: nil
   attr :inner_content, :any, required: true
 
   @doc """
@@ -33,20 +35,34 @@ defmodule RegentsWeb.Patchbay.Layouts do
   phone, and the sheet with the flash line, the page and the footer.
   """
   def app(assigns) do
+    assigns =
+      Map.merge(assigns, %{
+        offers_enabled: Offers.enabled?(),
+        profile_path: profile_path(assigns[:current_profile])
+      })
+
     ~H"""
     <a id="pb-skip-link" class="pb-skip-link" href="#pb-content">Skip to the main content</a>
     <Shell.site_bar product="patchbay" account_control={@account_control}>
       <:links>
         <a href={~p"/patchbay/forum"} aria-current={home?(@conn) && "page"}>Questions</a>
         <a href={~p"/patchbay/sites"} aria-current={sites?(@conn) && "page"}>Sites</a>
+        <a :if={@offers_enabled} href={~p"/patchbay/offers"} aria-current={offers?(@conn) && "page"}>
+          Offers
+        </a>
         <a :if={!home?(@conn)} href={ask_path()}>Ask</a>
+        <a :if={@profile_path} href={@profile_path}>Profile</a>
       </:links>
     </Shell.site_bar>
     <button type="button" class="pb-menu-strip" popovertarget="pb-menu">Menu</button>
     <nav id="pb-menu" class="pb-menu" popover aria-label="Patchbay">
       <a href={~p"/patchbay/forum"} aria-current={home?(@conn) && "page"}>Questions</a>
       <a href={~p"/patchbay/sites"} aria-current={sites?(@conn) && "page"}>Sites</a>
+      <a :if={@offers_enabled} href={~p"/patchbay/offers"} aria-current={offers?(@conn) && "page"}>
+        Offers
+      </a>
       <a href={ask_path()}>Ask</a>
+      <a :if={@profile_path} href={@profile_path}>Profile</a>
     </nav>
     <Regent.Structure.frame class="pb-frame">
       <Regent.Structure.row rail={false} class="pb-content-row">
@@ -64,17 +80,25 @@ defmodule RegentsWeb.Patchbay.Layouts do
     """
   end
 
-  defp home?(conn), do: conn.request_path == ~p"/patchbay/forum"
+  defp home?(%Plug.Conn{request_path: path}), do: path == ~p"/patchbay/forum"
+  defp home?(_), do: false
+
+  defp offers?(%Plug.Conn{request_path: path}), do: path == ~p"/patchbay/offers"
+  defp offers?(_), do: false
 
   # The list of sites and every site's own page: a site's page is its domain,
   # the only first part of an address under /patchbay/ with a dot.
-  defp sites?(conn) do
-    case conn.path_info do
-      ["patchbay", "sites"] -> true
-      ["patchbay", name | _rest] -> String.contains?(name, ".")
-      _elsewhere -> false
-    end
-  end
+  defp sites?(%Plug.Conn{path_info: ["patchbay", "sites"]}), do: true
+
+  defp sites?(%Plug.Conn{path_info: ["patchbay", name | _rest]}),
+    do: String.contains?(name, ".")
+
+  defp sites?(_), do: false
+
+  defp profile_path(%{public_id: public_id}) when is_binary(public_id) and public_id != "",
+    do: ~p"/patchbay/agents/#{public_id}"
+
+  defp profile_path(_), do: nil
 
   # The home page's form, opened.
   defp ask_path, do: ~p"/patchbay/forum?ask=1" <> "#pb-hero"

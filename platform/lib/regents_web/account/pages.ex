@@ -15,6 +15,7 @@ defmodule RegentsWeb.Account.Pages do
   alias Regents.Account.{Accounts, Ens}
   alias Regents.Account.Accounts.LinkedIdentity.Providers
   alias Regents.Account.Actors.Human
+  alias Regents.Products.AccountOverview
   alias RegentsWeb.Account.{AgentsPanel, MenuAgents, PairingBox}
   alias RegentsWeb.Account.Identity
   alias RegentsWeb.Read
@@ -32,6 +33,7 @@ defmodule RegentsWeb.Account.Pages do
   def init(socket) do
     socket
     |> assign(
+      account_overview: %Read{},
       verified_connections: %Read{},
       verified_connections_notice: nil,
       connection_outcome: nil
@@ -42,6 +44,7 @@ defmodule RegentsWeb.Account.Pages do
   def route(socket, route_spec) do
     socket
     |> refresh_ens(route_spec)
+    |> load_account_overview(route_spec)
     |> load_verified_connections(route_spec)
   end
 
@@ -135,6 +138,21 @@ defmodule RegentsWeb.Account.Pages do
   end
 
   defp refresh_ens(socket, _route_spec), do: socket
+
+  defp load_account_overview(socket, %{route_id: :account}) do
+    case Identity.human_actor(socket) do
+      %Human{} = actor ->
+        Read.now(socket, :account_overview, actor.human_account_id, fn ->
+          AccountOverview.read_summary(actor: actor)
+        end)
+
+      nil ->
+        Read.clear(socket, :account_overview)
+    end
+  end
+
+  defp load_account_overview(socket, _route_spec),
+    do: Read.clear(socket, :account_overview)
 
   defp load_verified_connections(socket, %{route_id: :connections}),
     do: read_verified_connections(socket)

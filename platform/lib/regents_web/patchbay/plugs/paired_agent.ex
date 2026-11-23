@@ -29,7 +29,7 @@ defmodule RegentsWeb.Patchbay.Plugs.PairedAgent do
   # A request with no signed header is refused here, as the sign-in service
   # itself would refuse it, so the service is never asked about it.
   @impl Siwa.AgentAuthPlug.Hooks
-  def before_verify(%{path_info: ["api", "agent", kind | _]} = conn, headers)
+  def before_verify(%{path_info: ["api", "agent", "v1", "patchbay", kind | _]} = conn, headers)
       when kind in ["payment_intents", "assists"],
       do: conn |> WalletAuthor.before_verify(headers) |> require_signed(conn)
 
@@ -67,7 +67,7 @@ defmodule RegentsWeb.Patchbay.Plugs.PairedAgent do
             "kind" => "wallet",
             "wallet_address" => address,
             "chain_id" => 8453,
-            "audience" => "patchbay"
+            "audience" => "regents"
           }
         },
         _context
@@ -161,7 +161,7 @@ defmodule RegentsWeb.Patchbay.Plugs.PairedAgent do
     WalletAuthor.signed_refusal(
       failure,
       "A signed agent request is required.",
-      "Prepare the exact request and sign it for patchbay with your existing signer. See #{guide(SiteEdition.current())}. Cookies confer no agent authority."
+      "Prepare the exact request and sign it for regents with your existing signer. See #{guide(SiteEdition.current())}. Cookies confer no agent authority."
     )
   end
 
@@ -173,7 +173,7 @@ defmodule RegentsWeb.Patchbay.Plugs.PairedAgent do
     [
       client: RegentAgents.Broker,
       hooks: hooks,
-      audience: "patchbay",
+      audience: "regents",
       query: :signed
     ]
   end

@@ -502,6 +502,9 @@ a.patchbay-board-facts:hover {
   .patchbay-board .patchbay-topbar-meta {
     justify-content: flex-start;
   }
+  .patchbay-board .pb-lede {
+    padding-right: 0;
+  }
 }
 
 /* The setup pages: help, payments, WebMCP, developers, About, Terms, Privacy,
@@ -1180,7 +1183,7 @@ a.patchbay-board-facts:hover {
 .pb-chip-facts { color: var(--pb-text-muted); font-size: .8125rem; }
 
 .pb-log { width: 100%; display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
-.pb-version-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.pb-version-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
 .pb-version-head h3 { margin: 0; font-size: 1rem; letter-spacing: 0;  font-family: var(--font-family-title); font-weight: 400; font-synthesis: none; }
 .pb-version-marks { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-1); }
 .pb-version-address { margin: var(--space-1) 0 0; color: var(--pb-text-muted); font-size: .8125rem; overflow-wrap: anywhere; }
@@ -1243,8 +1246,8 @@ a.patchbay-board-facts:hover {
 .pb-version-head h3 .pb-fingerprint-hex { font-size: .86rem; }
 .pb-version-head h3 .pb-fingerprint-chip { width: .5rem; height: 1rem; }
 
-/* A schema's top-level fields, in plain rows. */
-.pb-schema { margin-top: var(--space-2); }
+/* A schema's top-level fields, in plain rows; scrolls safely on narrow phones. */
+.pb-schema { margin-top: var(--space-2); max-width: 100%; overflow-x: auto; }
 .pb-schema-table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 .pb-schema-table th,
 .pb-schema-table td { padding: 6px 0; border-bottom: 1px solid var(--pb-line); text-align: left; vertical-align: top; }

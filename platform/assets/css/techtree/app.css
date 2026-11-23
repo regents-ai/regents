@@ -207,7 +207,8 @@ code { font-size: .9em; }
 .pagecopy details { position: static; }
 .pagecopy summary { min-width: 2.75rem; min-height: 100%; display: flex; align-items: center; justify-content: center; padding: var(--space-1) var(--space-2); border: 1px solid var(--hairline-strong); cursor: pointer; list-style: none; }
 .pagecopy summary::-webkit-details-marker { display: none; }
-.pagecopy__menu { position: absolute; top: calc(100% + var(--space-1)); right: 0; z-index: var(--rg-layer-tip); width: 20rem; max-width: calc(100vw - 4rem); border: 1px solid var(--hairline-strong); background: var(--color-surface); box-shadow: var(--rg-layer-tip-shadow); padding: var(--space-1); transform-origin: 100% 0; }
+.pagecopy__menu { position: absolute; top: calc(100% + var(--space-1)); right: 0; z-index: var(--rg-layer-tip); width: 20rem; max-width: calc(100vw - 2rem); border: 1px solid var(--hairline-strong); background: var(--color-surface); box-shadow: var(--rg-layer-tip-shadow); padding: var(--space-1); transform-origin: 100% 0; }
+.mk-opening__tools .pagecopy__menu { left: 0; right: auto; transform-origin: 0 0; }
 .pagecopy__item { display: block; width: 100%; text-align: left; font-size: .875rem; }
 .pagecopy__item small { display: block; font-size: .8125rem; font-weight: 400; }
 /* "Copy page" holds the width of its widest word, so its answer never moves the menu beside it. */

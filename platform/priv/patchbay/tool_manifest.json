@@ -3083,7 +3083,7 @@
       "route": "GET /api/offers"
     }
   ],
-  "audience": "patchbay",
+  "audience": "regents",
   "proof_headers": [
     "x-siwa-signature",
     "x-siwa-signature-input",

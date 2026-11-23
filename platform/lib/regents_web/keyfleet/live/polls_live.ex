@@ -468,6 +468,17 @@ defmodule RegentsWeb.Keyfleet.PollsLive do
         >
           Sign in
         </Regent.Primitives.button>
+        <div :if={@page.signed_in?} class="polls-locked__actions">
+          <.link
+            patch={Regents.Keyfleet.Fleets.path(@page.fleet_id)}
+            class="rg-button rg-button--secondary"
+          >
+            Back to {@page.fleet_name}
+          </.link>
+          <a href="/account#account-keyfleet" class="rg-button rg-button--quiet">
+            View your Keys
+          </a>
+        </div>
       </section>
     </article>
     """
@@ -538,7 +549,7 @@ defmodule RegentsWeb.Keyfleet.PollsLive do
       </header>
       <section class="polls-panel">
         <h2>This fleet doesn’t exist.</h2>
-        <a href="/" class="rg-button rg-button--secondary">See the fleets</a>
+        <a href="/keyfleet/app" class="rg-button rg-button--secondary">See the fleets</a>
       </section>
     </article>
     """

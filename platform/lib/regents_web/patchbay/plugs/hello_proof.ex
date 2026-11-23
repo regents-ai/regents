@@ -13,14 +13,14 @@ defmodule RegentsWeb.Patchbay.Plugs.HelloProof do
     Siwa.AgentAuthPlug.call(conn,
       client: WalletAuthor,
       hooks: __MODULE__,
-      audience: "patchbay"
+      audience: "regents"
     )
   end
 
   @impl Siwa.AgentAuthPlug.Hooks
   def before_verify(conn, _headers) do
     permitted? =
-      conn.method == "POST" and conn.path_info == ["api", "agent", "hello"] and
+      conn.method == "POST" and conn.path_info == ["api", "agent", "v1", "patchbay", "hello"] and
         is_map(conn.body_params) and Map.keys(conn.body_params) -- ["name", "language"] == []
 
     WalletAuthor.validate_signed_request(conn, permitted?)
@@ -37,7 +37,7 @@ defmodule RegentsWeb.Patchbay.Plugs.HelloProof do
             "kind" => "wallet",
             "wallet_address" => address,
             "chain_id" => 8453,
-            "audience" => "patchbay"
+            "audience" => "regents"
           }
         },
         _context
@@ -61,7 +61,7 @@ defmodule RegentsWeb.Patchbay.Plugs.HelloProof do
       conn,
       failure,
       "Your SIWA sign-in did not check out, so no hello was posted.",
-      ~s(Sign this exact request as https://siwa.regents.sh/skill.md shows: POST /api/agent/hello with the JSON body {"name": "..."}, for the audience patchbay.)
+      ~s(Sign this exact request as https://siwa.regents.sh/skill.md shows: POST /api/agent/v1/patchbay/hello with the JSON body {"name": "..."}, for the audience regents.)
     )
   end
 end

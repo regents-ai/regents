@@ -32,7 +32,12 @@ defmodule RegentsWeb.Techtree.SiteMenu do
 
   @doc "The row's links after Services, by name and address."
   @spec links() :: [link()]
-  def links, do: [link("Results", ~p"/techtree/results"), link("Docs", ~p"/techtree/docs")]
+  def links,
+    do: [
+      link("Results", ~p"/techtree/results"),
+      link("Projects", ~p"/techtree/account/projects"),
+      link("Docs", ~p"/techtree/docs")
+    ]
 
   @doc "The footer's columns, each page by name and address."
   @spec footer() :: [column(link())]
@@ -48,6 +53,8 @@ defmodule RegentsWeb.Techtree.SiteMenu do
       ),
       column("site", "Site", [
         link("Results", ~p"/techtree/results"),
+        link("Projects", ~p"/techtree/account/projects"),
+        link("Watchdog", ~p"/techtree/watchdog"),
         link("Docs", ~p"/techtree/docs"),
         link("Run locally", ~p"/techtree/docs/run-locally"),
         link("Changelog", ~p"/techtree/changelog"),

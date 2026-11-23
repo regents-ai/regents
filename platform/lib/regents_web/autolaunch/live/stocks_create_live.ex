@@ -378,7 +378,7 @@ defmodule RegentsWeb.Autolaunch.StocksCreateLive do
       <div :if={@status == :error} class="autolaunch-empty" role="alert">
         <h2>Your draft didn’t open</h2>
         <p>It could not be read just now. Nothing you saved is lost.</p>
-        <a href="/create" class="rg-button rg-button--primary">
+        <a href="/autolaunch/create" class="rg-button rg-button--primary">
           <span class="rg-button__label">Try again</span>
         </a>
       </div>

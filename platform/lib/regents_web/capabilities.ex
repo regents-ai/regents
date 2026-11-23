@@ -16,6 +16,8 @@ defmodule RegentsWeb.Capabilities do
     "regents_claims" => "Read your name claims",
     "regents_agent_whoami" => nil,
     "regents_account" => "Read your display name and ENS name",
+    "regents_account_overview" =>
+      "Read your account overview across Keyfleet, Autolaunch, Patchbay, and Techtree",
     "account_points" => "Read your Points",
     "messages_leave" => "Leave private messages for the Regents team"
   }

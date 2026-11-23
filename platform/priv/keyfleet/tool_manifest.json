@@ -8186,7 +8186,7 @@
       }
     }
   ],
-  "audience": "keyfleet",
+  "audience": "regents",
   "proof_headers": [
     "x-siwa-signature",
     "x-siwa-signature-input",

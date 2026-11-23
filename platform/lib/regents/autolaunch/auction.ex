@@ -277,6 +277,13 @@ defmodule Regents.Autolaunch.Auction do
       filter expr(chain_id == ^arg(:chain_id) and auction_address == ^arg(:auction_address))
     end
 
+    # Every auction the signed-in person (or paired agent's person) launched, newest first.
+    read :by_creator do
+      prepare Regents.Autolaunch.Auction.Preparations.Listed
+      filter expr(creator_human_account_id == ^actor(:human_account_id))
+      prepare build(sort: [inserted_at: :desc, id: :desc], limit: 25, load: [:path_tail])
+    end
+
     # Every auction, each read by its own reading job (`Regents.Autolaunch.AuctionMarket`).
     read :market
 
@@ -464,6 +471,11 @@ defmodule Regents.Autolaunch.Auction do
 
     policy action(:set_treasury_security_report) do
       authorize_if Regents.Checks.SystemActor
+    end
+
+    policy action(:by_creator) do
+      authorize_if Regents.Account.Accounts.Checks.HumanActor
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
     end
 
     policy action(:bid_position) do

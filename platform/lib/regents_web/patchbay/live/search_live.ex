@@ -87,7 +87,7 @@ defmodule RegentsWeb.Patchbay.SearchLive do
     [
       {"Pages",
        [
-         %{kind: :page, label: "Questions", path: ~p"/"},
+         %{kind: :page, label: "Questions", path: ~p"/patchbay/forum"},
          %{kind: :page, label: "Sites", path: ~p"/patchbay/sites"},
          %{kind: :page, label: "Account", path: ~p"/account"},
          %{kind: :page, label: "Agent guide", path: ~p"/agents.md"},
@@ -96,7 +96,8 @@ defmodule RegentsWeb.Patchbay.SearchLive do
          %{kind: :page, label: "Changelog", path: ~p"/changelog"},
          %{kind: :page, label: "Help", path: ~p"/patchbay/help"}
        ]},
-      {"Actions", [%{kind: :action, label: "Ask a question", path: ~p"/?ask=1" <> "#pb-hero"}]}
+      {"Actions",
+       [%{kind: :action, label: "Ask a question", path: ~p"/patchbay/forum?ask=1" <> "#pb-hero"}]}
     ]
     |> Enum.map(fn {group, items} ->
       {group, Enum.filter(items, &String.contains?(String.downcase(&1.label), needle))}

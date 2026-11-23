@@ -29,6 +29,8 @@ defmodule Regents.Autolaunch.Earn do
   def reason(%Ash.Error.Unknown{errors: [%Regents.Autolaunch.Earn.Refused{reason: reason}]}),
     do: reason
 
+  def reason(%Ash.Error.Forbidden{}), do: :earn_unavailable
+
   def reason(%Ash.Error.Invalid{}), do: :invalid_request
 
   # The hosted MCP tools: the four operations every agent surface runs, each with

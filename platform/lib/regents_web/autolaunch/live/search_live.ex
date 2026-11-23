@@ -187,11 +187,11 @@ defmodule RegentsWeb.Autolaunch.SearchLive do
             <%= if @results_q == "" do %>
               <h3>Nothing here yet</h3>
               <p>Auctions and tokens appear here once someone launches a token.</p>
-              <.link navigate="/create" class="rg-button rg-button--secondary">Launch a token</.link>
+              <.link navigate="/autolaunch/create" class="rg-button rg-button--secondary">Launch a token</.link>
             <% else %>
               <h3>Nothing matches “{@results_q}”</h3>
               <p>Check the spelling, or search by ticker, name or creator address.</p>
-              <.link navigate="/auctions" class="rg-button rg-button--secondary">Browse auctions</.link>
+              <.link navigate="/autolaunch/auctions" class="rg-button rg-button--secondary">Browse auctions</.link>
             <% end %>
           </div>
 

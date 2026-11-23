@@ -22,7 +22,7 @@ defmodule Regents.Products do
       Regents.Autolaunch,
       Regents.Patchbay
     ],
-    exports: []
+    exports: [AccountOverview]
 
   @site "regents"
 

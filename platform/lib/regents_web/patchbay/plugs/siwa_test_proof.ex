@@ -19,14 +19,14 @@ defmodule RegentsWeb.Patchbay.Plugs.SiwaTestProof do
     Siwa.AgentAuthPlug.call(conn,
       client: WalletAuthor,
       hooks: __MODULE__,
-      audience: "patchbay"
+      audience: "regents"
     )
   end
 
   @impl Siwa.AgentAuthPlug.Hooks
   def before_verify(conn, _headers) do
     permitted? =
-      conn.method == "GET" and conn.path_info == ["siwa-test"] and
+      conn.method == "GET" and conn.path_info == ["patchbay", "siwa-test"] and
         conn.body_params in [%{}, %Plug.Conn.Unfetched{aspect: :body_params}]
 
     WalletAuthor.validate_signed_request(conn, permitted?)
@@ -43,7 +43,7 @@ defmodule RegentsWeb.Patchbay.Plugs.SiwaTestProof do
             "kind" => "wallet",
             "wallet_address" => address,
             "chain_id" => 8453,
-            "audience" => "patchbay"
+            "audience" => "regents"
           }
         },
         _context
@@ -75,7 +75,7 @@ defmodule RegentsWeb.Patchbay.Plugs.SiwaTestProof do
       conn,
       failure,
       "Your SIWA sign-in did not check out, so nothing was proved.",
-      "Sign this exact request as https://siwa.regents.sh/skill.md shows: GET /siwa-test with no body and no query, for the audience patchbay."
+      "Sign this exact request as https://siwa.regents.sh/skill.md shows: GET /patchbay/siwa-test with no body and no query, for the audience regents."
     )
   end
 

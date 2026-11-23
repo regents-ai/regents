@@ -26,7 +26,7 @@ defmodule RegentsWeb.Patchbay.Plugs.WalletAuthor do
     Siwa.AgentAuthPlug.call(conn,
       client: __MODULE__,
       hooks: __MODULE__,
-      audience: "patchbay"
+      audience: "regents"
     )
   end
 
@@ -63,7 +63,7 @@ defmodule RegentsWeb.Patchbay.Plugs.WalletAuthor do
 
   defp permitted_request?(%{
          method: "POST",
-         path_info: ["api", "agent", "payment_intents"],
+         path_info: ["api", "agent", "v1", "patchbay", "payment_intents"],
          body_params: params
        }) do
     case params do
@@ -78,7 +78,7 @@ defmodule RegentsWeb.Patchbay.Plugs.WalletAuthor do
   # A free fix: the body is the assist request as args, which the controller checks.
   defp permitted_request?(%{
          method: "POST",
-         path_info: ["api", "agent", "assists"],
+         path_info: ["api", "agent", "v1", "patchbay", "assists"],
          body_params: %{"args" => args} = params
        })
        when is_map(args),
@@ -86,7 +86,7 @@ defmodule RegentsWeb.Patchbay.Plugs.WalletAuthor do
 
   defp permitted_request?(%{
          method: "POST",
-         path_info: ["api", "agent", "payment_intents", _id, "execute"],
+         path_info: ["api", "agent", "v1", "patchbay", "payment_intents", _id, "execute"],
          body_params: params
        })
        when is_map(params) do
@@ -99,7 +99,7 @@ defmodule RegentsWeb.Patchbay.Plugs.WalletAuthor do
   # Completion cannot accept another payment, even in its signed body.
   defp permitted_request?(%{
          method: "POST",
-         path_info: ["api", "agent", "payment_intents", _id, "complete"],
+         path_info: ["api", "agent", "v1", "patchbay", "payment_intents", _id, "complete"],
          body_params: params
        }),
        do: params == %{}
@@ -115,7 +115,7 @@ defmodule RegentsWeb.Patchbay.Plugs.WalletAuthor do
         Siwa.AgentAuthPlug.BrokerClient.verify_http_request(payload,
           http: __MODULE__,
           base_url: base_url,
-          audience: "patchbay",
+          audience: "regents",
           connect_timeout_ms: 3_000,
           receive_timeout_ms: 5_000
         )
@@ -156,7 +156,7 @@ defmodule RegentsWeb.Patchbay.Plugs.WalletAuthor do
             "kind" => "wallet",
             "wallet_address" => address,
             "chain_id" => 8453,
-            "audience" => "patchbay"
+            "audience" => "regents"
           },
           "agentRegistration" => registration,
           "agentBook" => book

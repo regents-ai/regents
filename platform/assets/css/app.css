@@ -85,6 +85,27 @@ button, input, select, textarea {
   font-family: var(--font-family-ui);
 }
 
+/* Prevent double dropdown arrows on styled selects (including Chromium customizable select
+   picker icons) and keep long option labels from overflowing narrow containers. */
+.rg-pill-select > :is(select, summary) {
+  max-inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.rg-pill-select > select,
+.pb-directory-select > select,
+.pb-address-select > select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: none;
+}
+
+.rg-pill-select > select::picker-icon,
+.pb-directory-select > select::picker-icon,
+.pb-address-select > select::picker-icon {
+  display: none;
+}
+
 code, pre, kbd, samp {
   font-family: var(--font-family-mono);
 }

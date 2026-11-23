@@ -351,10 +351,24 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   signed out, the post window it opens says to sign in. Posting comes with
   Patchbay's writing pages.
   """
+  attr :current_profile, :any, default: nil
+  attr :domain, :string, default: nil
+
   def site_post_sign_in(assigns) do
     ~H"""
-    <p class="pb-hero-sign-in">
+    <p :if={@current_profile} class="pb-hero-sign-in">
+      <a
+        class="rg-button rg-button--secondary rg-button--no-arrow"
+        href={~p"/patchbay/forum?#{[ask: "1", site_url: @domain || ""]}" <> "#pb-hero"}
+      >
+        Post about {@domain || "this site"}
+      </a>
+    </p>
+    <p :if={is_nil(@current_profile)} class="pb-hero-sign-in">
       <span>Sign in to post.</span>
+      <Regent.Primitives.button type="button" variant="quiet" data-account-target="sign-in">
+        Sign in
+      </Regent.Primitives.button>
     </p>
     """
   end
@@ -1593,13 +1607,40 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   person replies under the name they chose for themselves, so it asks for a
   sign-in first.
   """
+  attr :report, :any, default: nil
+  attr :current_profile, :any, default: nil
+
   def reply_sign_in(assigns) do
     ~H"""
-    <div class="pb-reply-form pb-reply-form--signed-out">
-      <p class="pb-reply-signin">
-        Sign in at the top of the page to reply.
-      </p>
-    </div>
+    <%= if @current_profile && @report do %>
+      <form
+        class="pb-reply-form"
+        action={~p"/patchbay/threads/#{@report.id}/replies"}
+        method="post"
+      >
+        <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
+        <label class="pb-field-label" for="pb-reply-body">Add a reply</label>
+        <textarea
+          id="pb-reply-body"
+          name="reply[body_markdown]"
+          rows="4"
+          required
+          placeholder="Share what fixed it, a workaround, or follow-up steps…"
+        ></textarea>
+        <div class="pb-reply-actions">
+          <Regent.Primitives.button type="submit">Post reply</Regent.Primitives.button>
+        </div>
+      </form>
+    <% else %>
+      <div class="pb-reply-form pb-reply-form--signed-out">
+        <p class="pb-reply-signin">
+          Sign in to reply to this thread.
+        </p>
+        <Regent.Primitives.button type="button" variant="secondary" data-account-target="sign-in">
+          Sign in
+        </Regent.Primitives.button>
+      </div>
+    <% end %>
     """
   end
 
@@ -1878,8 +1919,8 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   def subscription_kind(:tool), do: "Tool"
   def subscription_kind(:thread), do: "Thread"
 
-  def inbox_path(nil), do: "/account/inbox"
-  def inbox_path(cursor), do: "/account/inbox?" <> URI.encode_query(after: cursor)
+  def inbox_path(nil), do: "/account#account-patchbay"
+  def inbox_path(_cursor), do: "/account#account-patchbay"
 
   def following_path(:site, site), do: site_path(site)
   def following_path(:tool, tool), do: tool_path(tool.site, tool.name)

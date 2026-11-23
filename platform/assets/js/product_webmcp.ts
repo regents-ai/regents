@@ -196,6 +196,12 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
       accept: "text/markdown",
       path: () => "/patchbay/sites",
     },
+    {
+      name: "patchbay_offers",
+      title: "List Patchbay agent offers",
+      description: "Read active Patchbay Agent Offers placements, slots, and current leases as JSON.",
+      path: () => "/api/v1/patchbay/offers",
+    },
   ],
 }
 

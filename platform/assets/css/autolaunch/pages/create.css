@@ -72,8 +72,8 @@
 .launch-wallet-agent-set dd { color: var(--orange-ink); }
 
 /* Memestock or Revstake: two words beside the title, the open one filled. */
-.launch-kind { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
-.launch-kind a { display: inline-grid; place-items: center; min-height: 2.75rem; padding: 0 var(--space-4); color: var(--color-fg-muted); text-decoration: none; transition: color var(--duration-fast) ease; }
+.launch-kind { display: inline-flex; flex-wrap: wrap; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
+.launch-kind a { display: inline-grid; place-items: center; min-height: 2.75rem; padding: 0 clamp(var(--space-2), 4vw, var(--space-4)); color: var(--color-fg-muted); text-decoration: none; transition: color var(--duration-fast) ease; }
 .launch-kind a:hover { color: var(--color-fg); }
 .launch-kind a:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 .launch-kind a[aria-current="page"] { background: var(--color-fg); color: var(--color-bg); }

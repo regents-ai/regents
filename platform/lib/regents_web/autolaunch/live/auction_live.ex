@@ -222,7 +222,7 @@ defmodule RegentsWeb.Autolaunch.AuctionLive do
       class="autolaunch-page auction-page auction-next"
     >
       <header class="autolaunch-heading">
-        <.link navigate="/auctions" class="market-back">← Auctions</.link>
+        <.link navigate="/autolaunch/auctions" class="market-back">← Auctions</.link>
         <Regent.Structure.section_bar>
           <h1 class="rg-section-bar__label">{@page_record.title}</h1>
         </Regent.Structure.section_bar>
@@ -632,7 +632,7 @@ defmodule RegentsWeb.Autolaunch.AuctionLive do
         <h1 class="rg-section-bar__label">Auction not found</h1>
       </Regent.Structure.section_bar>
       <p>This auction is no longer listed.</p>
-      <.link navigate="/auctions" class="rg-button rg-button--primary">
+      <.link navigate="/autolaunch/auctions" class="rg-button rg-button--primary">
         <span class="rg-button__label">Return to Auctions</span>
       </.link>
     </section>
@@ -648,7 +648,7 @@ defmodule RegentsWeb.Autolaunch.AuctionLive do
       </Regent.Structure.section_bar>
       <p>This auction could not be loaded right now.</p>
       <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
-      <.link navigate="/auctions">Return to Auctions</.link>
+      <.link navigate="/autolaunch/auctions">Return to Auctions</.link>
     </section>
     """
   end

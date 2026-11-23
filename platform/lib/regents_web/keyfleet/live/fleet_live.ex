@@ -291,7 +291,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
       <section :if={is_nil(@fleet.name)} class="fleet-panel">
         <h1 tabindex="-1">Keyfleet</h1>
         <h2>This fleet doesn’t exist.</h2>
-        <a href="/" class="rg-button rg-button--secondary">See the fleets</a>
+        <a href="/keyfleet/app" class="rg-button rg-button--secondary">See the fleets</a>
       </section>
 
       <.coming_soon :if={@fleet.name && @fleet.coming_soon?} fleet={@fleet} />
@@ -338,7 +338,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
 
           <div class="fleet-bar__actions">
             <Tour.start_button />
-            <Shell.pair_button :if={@account} id="fleet-pair" />
+            <Shell.pair_button :if={@account && @fleet.held != nil} id="fleet-pair" />
           </div>
 
           <.entry
@@ -525,7 +525,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
               <dd>{value}</dd>
             </div>
           </dl>
-          <a href="/" class="rg-button rg-button--secondary">See the fleets</a>
+          <a href="/keyfleet/app" class="rg-button rg-button--secondary">See the fleets</a>
         </section>
       </div>
     </div>
@@ -749,7 +749,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
           class="kf-empty"
           title="No activity yet."
         >
-          <:action :if={@actor}>
+          <:action :if={@actor && @fleet.held != nil}>
             <Shell.pair_button id="fleet-feed-pair" />
           </:action>
         </Regent.Primitives.empty_state>
@@ -804,7 +804,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
           shown={@fleet.agents_shown}
           agents_here={@fleet.agents_here}
         />
-        <.quote_box :if={@quotes} quotes={@quotes} fleet_id={@fleet.fleet_id} />
+        <.quote_box :if={@quotes && @fleet.held != nil} quotes={@quotes} fleet_id={@fleet.fleet_id} />
       </aside>
     </div>
     """
@@ -1241,7 +1241,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
           Next Key
         </Regent.Primitives.button>
         <Regent.Primitives.button
-          :if={@fleet.signed_in?}
+          :if={@fleet.signed_in? && @fleet.held != nil}
           id="key-map-mine"
           variant="secondary"
           phx-click={JS.dispatch("keymap:mine", to: @map)}

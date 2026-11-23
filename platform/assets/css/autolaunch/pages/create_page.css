@@ -52,7 +52,7 @@
 .create-menu__value small { margin-left: var(--space-2); color: var(--color-fg-muted); font-size: .8125rem; }
 .create-menu__chevron { flex: none; color: var(--color-fg-muted); transition: transform var(--duration-fast) var(--ease-out); }
 .create-menu__button[aria-expanded="true"] .create-menu__chevron { transform: rotate(180deg); }
-.create-menu__list { position: absolute; z-index: var(--rg-layer-tip); inset-inline: 0; top: calc(100% + 4px); display: grid; min-width: 14rem; padding: 4px; border: 1px solid var(--color-fg); background: var(--color-surface-elevated); box-shadow: var(--rg-layer-tip-shadow); transform-origin: top center; }
+.create-menu__list { position: absolute; z-index: var(--rg-layer-tip); inset-inline: 0; top: calc(100% + 4px); display: grid; min-width: min(14rem, 100%); max-width: calc(100vw - 2rem); padding: 4px; border: 1px solid var(--color-fg); background: var(--color-surface-elevated); box-shadow: var(--rg-layer-tip-shadow); transform-origin: top center; }
 .create-menu__list[hidden] { display: none; }
 .create-menu__option { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0 var(--space-2); min-height: 2.75rem; padding: 6px var(--space-2); border: 0; background: none; color: var(--color-fg); font: inherit; text-align: left; cursor: pointer; }
 .create-menu__option:hover, .create-menu__option:focus-visible, .create-menu__option:has(input:focus-visible) { background: color-mix(in srgb, var(--color-fg) 6%, transparent); outline: none; }

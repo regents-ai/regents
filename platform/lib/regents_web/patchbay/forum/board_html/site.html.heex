@@ -9,7 +9,7 @@
   <section :if={@site} class="pb-sheet-section patchbay-board-card" id="pb-site-posts">
     <div class="patchbay-card-heading">
       <h2>Posts</h2>
-      <.site_post_sign_in />
+      <.site_post_sign_in current_profile={@current_profile} domain={@domain} />
     </div>
     <.address_filter site={@site} address={@address} />
     <%!-- The first page of every post stays current while it is open. --%>
@@ -47,7 +47,7 @@
   <section :if={!@site} class="pb-sheet-section patchbay-board-card" id="pb-site-ask">
     <div class="patchbay-card-heading">
       <h2>No posts</h2>
-      <.site_post_sign_in />
+      <.site_post_sign_in current_profile={@current_profile} domain={@domain} />
     </div>
   </section>
 
@@ -79,7 +79,7 @@
         ]
       }>
         <h3>
-          <a href={~p"/patchbay?#{[site: @domain, scope: scope]}"}>
+          <a href={~p"/patchbay/forum?#{[site: @domain, scope: scope]}"}>
             {label} <span class="pb-standing-count">{Map.fetch!(@standing, key).count}</span>
           </a>
         </h3>

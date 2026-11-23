@@ -23,8 +23,8 @@ defmodule RegentsWeb.Keyfleet.AgentKeys do
   alias RegentsWeb.Keyfleet.KeyLinks
   alias RegentsWeb.Keyfleet.PageRead
 
-  @doc "Your Keys on the Account page, where the person puts an agent on a Key."
-  def assign_path, do: "/account#account-keys"
+  @doc "Your Keys on the Account page, where the person sees their Keys across fleets."
+  def assign_path, do: "/account#account-keyfleet"
 
   @doc """
   `{:ok, keys}`, where for each of `agents` (paired agents, each with its

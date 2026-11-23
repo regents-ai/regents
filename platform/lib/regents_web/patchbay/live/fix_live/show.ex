@@ -27,7 +27,7 @@ defmodule RegentsWeb.Patchbay.FixLive.Show do
         {:ok,
          socket
          |> put_flash(:error, "There is no fix to show at that address.")
-         |> redirect(to: ~p"/")}
+         |> redirect(to: ~p"/patchbay/forum")}
     end
   end
 

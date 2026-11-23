@@ -994,6 +994,132 @@
         }
       }
     },
+    "/api/agent/v1/account/overview": {
+      "get": {
+        "operationId": "getAccountOverview",
+        "summary": "Read the paired account's unified cross-product overview",
+        "description": "Requires fresh SIWA proof for audience regents and a current pairing. Returns account status, paired agents, points, and Keyfleet, Autolaunch, Patchbay, and Techtree summaries with tailored next_steps.",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SiwaReceipt"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaKeyId"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaTimestamp"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaAgentWallet"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaAgentChainId"
+          },
+          {
+            "$ref": "#/components/parameters/HttpSignatureInput"
+          },
+          {
+            "$ref": "#/components/parameters/HttpSignature"
+          }
+        ],
+        "x-authentication": "siwa_per_request",
+        "x-pairing-required": true,
+        "responses": {
+          "200": {
+            "description": "Unified cross-product account overview",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "account",
+                    "keyfleet",
+                    "autolaunch",
+                    "patchbay",
+                    "techtree",
+                    "next_steps"
+                  ],
+                  "properties": {
+                    "account": {
+                      "type": "object"
+                    },
+                    "keyfleet": {
+                      "type": "object"
+                    },
+                    "autolaunch": {
+                      "type": "object"
+                    },
+                    "patchbay": {
+                      "type": "object"
+                    },
+                    "techtree": {
+                      "type": "object"
+                    },
+                    "next_steps": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing proof",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/PairedAgentRefused"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "description": "Service unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/agent/v1/account": {
       "get": {
         "operationId": "agentAccount",

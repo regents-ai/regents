@@ -94,9 +94,20 @@ defmodule RegentsWeb.Autolaunch.Layouts do
      end)}
   end
 
-  # Autolaunch's own destinations, in autolaunch.sh's order, each once its page is
-  # here. Explore is the home page and marks only itself.
-  defp links, do: [%{label: "Explore", path: ~p"/autolaunch"}]
+  # Autolaunch's own destinations, in autolaunch.sh's order.
+  defp links do
+    [
+      %{label: "Explore", path: ~p"/autolaunch/app"},
+      %{label: "Auctions", path: ~p"/autolaunch/auctions"},
+      %{label: "Tokens", path: ~p"/autolaunch/tokens"},
+      %{label: "Portfolio", path: ~p"/autolaunch/portfolio"},
+      %{label: "Create", path: ~p"/autolaunch/create"}
+    ] ++
+      if(Regents.Autolaunch.Earn.Catalog.enabled?(),
+        do: [%{label: "Earn", path: ~p"/autolaunch/earn"}],
+        else: []
+      )
+  end
 
   attr :links, :list, required: true
   attr :current_path, :string, required: true

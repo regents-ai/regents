@@ -13,7 +13,7 @@ defmodule RegentsWeb.Patchbay.CurrentProfile do
   alias Regents.Patchbay.Members.Member
   alias RegentsWeb.VisitLog
 
-  @public_root "/patchbay"
+  @public_root "/patchbay/forum"
 
   def render_context(conn) do
     conn
@@ -62,14 +62,16 @@ defmodule RegentsWeb.Patchbay.CurrentProfile do
   @spec member_for_account(map() | nil) :: Member.t() | nil
   def member_for_account(nil), do: nil
 
-  def member_for_account(%{privy_did: privy_did, wallet_address: wallet} = account)
-      when is_binary(privy_did) do
-    case Members.get_profile_by_privy_user_id(privy_did) do
+  def member_for_account(%{privy_user_id: privy_user_id} = account)
+      when is_binary(privy_user_id) do
+    wallet = Map.get(account, :wallet_address)
+
+    case Members.get_profile_by_privy_user_id(privy_user_id) do
       {:ok, %Member{} = member} ->
         attach_account_wallets(member, account)
 
       {:ok, nil} ->
-        provision_member(privy_did, wallet, account)
+        provision_member(privy_user_id, wallet, account)
 
       _other ->
         nil

@@ -124,7 +124,7 @@ defmodule RegentsWeb.Autolaunch.UpcomingLive do
       >
         <h2 id="upcoming-available" class="upcoming__pairing">
           <span>Available to Pair:</span>
-          <a href="/create" class="standalone-link">Memestock</a>
+          <a href="/autolaunch/create" class="standalone-link">Memestock</a>
           <span aria-hidden="true">|</span>
           <span
             class="upcoming__pairing-soon"

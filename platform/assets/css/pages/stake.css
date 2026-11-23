@@ -347,12 +347,12 @@
 /* For a different address: a small toggle, then the address and Change. */
 .stake-for-other {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
   min-height: 2rem;
   font-size: 0.85rem;
-  white-space: nowrap;
 }
 
 .stake-for-other label {
@@ -461,10 +461,17 @@
 .stake-preview > div,
 .stake-position > div {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: 0.25rem 1rem;
   min-width: 0;
+}
+
+.stake-preview dd,
+.stake-position dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .stake-preview dt,

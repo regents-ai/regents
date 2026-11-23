@@ -184,9 +184,12 @@
   #home-explore .home-backed { margin-bottom: 28px; }
   #home-explore .home-backed__row { grid-auto-columns: max(40%, 8rem); gap: 12px; }
   #home-explore .home-toolbar > .home-switch { flex: 1 0 100%; }
-  #home-explore .home-switch a { flex: 1; min-width: 0; }
+  #home-explore .home-switch a { flex: 1; min-width: 0; padding: 0 6px; }
   #home-explore .home-filter { margin-left: auto; }
   #home-explore .home-search-context { flex: 1 0 100%; justify-content: flex-start; }
+}
+@media (max-width: 26rem) {
+  #home-explore .home-coin__actions { grid-auto-flow: row; }
 }
 @media (max-width: 22rem) { #home-explore .home-coin-grid { grid-template-columns: minmax(0, 1fr); } }
 

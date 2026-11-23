@@ -120,8 +120,21 @@ defmodule RegentsWeb.Autolaunch.AccountAnswer do
   def positions(%Human{} = actor, account), do: wallet_positions(actor, account)
 
   defp wallet_positions(actor, account) do
-    {:ok, wallet} = Address.normalize(account.wallet_address)
+    case Address.normalize(account.wallet_address) do
+      {:ok, wallet} ->
+        read_wallet_positions(actor, wallet)
 
+      :error ->
+        {:error,
+         Refusal.new(
+           :conflict,
+           "wallet_required",
+           "Your Regent account has no verified wallet to read."
+         )}
+    end
+  end
+
+  defp read_wallet_positions(actor, wallet) do
     reads = [
       fn -> read_bids(actor, wallet) end,
       fn -> RobinhoodPositions.read_wallet(wallet) end,

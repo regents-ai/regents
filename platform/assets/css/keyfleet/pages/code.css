@@ -54,6 +54,7 @@
   font-size: 0.85rem;
   line-height: 1.6;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .code-summary,

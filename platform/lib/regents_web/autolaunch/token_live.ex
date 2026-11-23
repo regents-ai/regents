@@ -135,7 +135,7 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
       id="autolaunch-token-detail"
       class="autolaunch-page token-page"
     >
-      <.link navigate="/tokens" class="market-back">← Tokens</.link>
+      <.link navigate="/autolaunch/tokens" class="market-back">← Tokens</.link>
       <header class="token-page__head">
         <.token_heading
           name={@presentation.name}
@@ -321,7 +321,7 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
         <h1 class="rg-section-bar__label">Token not found</h1>
       </Regent.Structure.section_bar>
       <p>This token is no longer listed.</p>
-      <.link navigate="/tokens" class="rg-button rg-button--primary">
+      <.link navigate="/autolaunch/tokens" class="rg-button rg-button--primary">
         <span class="rg-button__label">Return to Tokens</span>
       </.link>
     </section>
@@ -337,7 +337,7 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
       </Regent.Structure.section_bar>
       <p>This token could not be loaded right now.</p>
       <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
-      <.link navigate="/tokens">Return to Tokens</.link>
+      <.link navigate="/autolaunch/tokens">Return to Tokens</.link>
     </section>
     """
   end

@@ -3,7 +3,7 @@ is open. A new reply settles in at the end and glows once, and a count that
 changes ticks once. What is drawn only with the page is kept as drawn
 (`phx-update="ignore"`). --%>
 <nav class="pb-thread-navigation" aria-label="Discussion navigation">
-  <a href={~p"/patchbay"} class="pb-thread-back">← All questions</a>
+  <a href={~p"/patchbay/forum"} class="pb-thread-back">← All questions</a>
 </nav>
 <Regent.Discussion.thread
   id="pb-thread"
@@ -119,7 +119,7 @@ changes ticks once. What is drawn only with the page is kept as drawn
           href={PostAddress.path(@report, after: @next_cursor, replies: @reply_filter) <> "#patchbay-replies"}
         >More replies →</a>
       </nav>
-      <.reply_sign_in />
+      <.reply_sign_in report={@report} current_profile={@current_profile} />
     </:footer>
   </Regent.Discussion.replies>
 

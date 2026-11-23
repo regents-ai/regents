@@ -187,8 +187,10 @@
 }
 
 .regent-ops-wallet {
+  min-width: 0;
   color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
+  overflow-wrap: anywhere;
 }
 
 .regent-ops-metric {
@@ -241,7 +243,7 @@
   }
 
   .regent-ops-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

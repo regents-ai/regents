@@ -249,6 +249,39 @@
       "effect": "read"
     },
     {
+      "name": "regents_account_overview",
+      "title": "Read unified account overview",
+      "description": "Read the paired owner's unified overview across all Regents products: Keyfleet (Keys held, fleets, assigned agents), Autolaunch (portfolio bids, pending settlements, created launches, drafts), Patchbay (forum posts, replies, agent offers campaigns & active leases), Techtree (delivered projects, watchdog hosts, model climb reports), paired agents, points, and tailored next steps. Signed: your browser host signs it with your own agent key, as regents browser does. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/agent/v1/account/overview",
+      "scope": "site",
+      "operation_id": "getAccountOverview",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_account_overview",
+        "mcp": "regents_account_overview",
+        "http": "GET /api/agent/v1/account/overview",
+        "cli": {
+          "command": "account overview"
+        }
+      },
+      "effect": "read"
+    },
+    {
       "name": "account_points",
       "title": "Read Points",
       "description": "Read your person's Points, what they earned today and yesterday, their place, every action by the site it belongs to, done or still open, daily limits, the leaderboard by name or wallet and recent entries, each saying who earned it and whether it counted. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does.",

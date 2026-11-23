@@ -16,12 +16,29 @@
       <summary class="rg-button rg-button--secondary rg-button--no-arrow">
         <span class="rg-button__label">Ask a question</span>
       </summary>
-      <%!-- Signed out, the form is its prompt to sign in: posting comes with
-      Patchbay's writing pages. --%>
       <div data-panel="fold">
-        <p id="pb-hero-sign-in" class="pb-hero-sign-in">
-          <span>Sign in to post.</span>
-        </p>
+        <%= if @current_profile do %>
+          {live_render(@conn, RegentsWeb.Patchbay.PostFormLive,
+            id: "pb-post-form",
+            session:
+              Map.merge(RegentsWeb.Patchbay.CurrentProfile.render_context(@conn), %{
+                "home" => ~p"/patchbay/forum",
+                "draft" => @ask_draft,
+                "forum_session_id" => @conn.assigns[:forum_session_id]
+              })
+          )}
+        <% else %>
+          <p id="pb-hero-sign-in" class="pb-hero-sign-in">
+            <span>Sign in to post a question or fix.</span>
+            <Regent.Primitives.button
+              type="button"
+              variant="secondary"
+              data-account-target="sign-in"
+            >
+              Sign in
+            </Regent.Primitives.button>
+          </p>
+        <% end %>
       </div>
     </details>
   </section>
@@ -131,11 +148,28 @@
           Tagged <span class="pb-tag">{@filters.tag}</span>
           · <a href={discussion_path(@filters, %{tag: ""})}>All tags</a>
         </p>
-        <%!-- Every reader of these pages reads them signed out, and follows
-        nothing. --%>
-        <p :if={@filters.scope == "following"} class="pb-search-summary">
-          <a href={~p"/account"}>Sign in</a>
-          to follow sites, tools and threads, and see their conversations here.
+        <p
+          :if={@filters.scope == "following" and is_nil(@current_profile)}
+          class="pb-search-summary"
+        >
+          Sign in to follow sites, tools, and threads and see their conversations here.
+          <button
+            type="button"
+            class="rg-button rg-button--quiet"
+            data-account-target="sign-in"
+          >
+            Sign in
+          </button>
+        </p>
+        <p
+          :if={
+            @filters.scope == "following" and @current_profile != nil and @following_count == 0
+          }
+          class="pb-search-summary"
+        >
+          You aren’t following any sites, tools, or threads yet.
+          <a href={~p"/patchbay/sites"}>Browse sites</a>
+          to follow one.
         </p>
         <Regent.Primitives.notice
           :if={@reports == :unavailable}

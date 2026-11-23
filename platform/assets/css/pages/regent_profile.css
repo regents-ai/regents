@@ -52,11 +52,13 @@
 
 .regent-profile-record dd {
   margin: 0.35rem 0 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 44rem) {
   .regent-profile-record dl {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

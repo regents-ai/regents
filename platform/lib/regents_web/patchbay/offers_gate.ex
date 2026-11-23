@@ -19,6 +19,6 @@ defmodule RegentsWeb.Patchbay.OffersGate do
   def on_mount(:default, _params, _session, socket) do
     if Regents.Patchbay.Offers.enabled?(),
       do: {:cont, socket},
-      else: {:halt, Phoenix.LiveView.redirect(socket, to: "/")}
+      else: {:halt, Phoenix.LiveView.redirect(socket, to: "/patchbay/forum")}
   end
 end

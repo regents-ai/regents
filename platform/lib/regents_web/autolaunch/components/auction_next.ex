@@ -323,7 +323,7 @@ defmodule RegentsWeb.Autolaunch.Components.AuctionNext do
         waiting only gets you a worse average price. Everyone buys at the same rates, with no
         advantage for advanced users or MEV bots.
       </p>
-      <.link navigate="/how-it-works#how-it-works-auction" class="auction-next-link">
+      <.link navigate="/autolaunch/how-it-works#how-it-works-auction" class="auction-next-link">
         How the auction works
       </.link>
     </section>

@@ -84,6 +84,7 @@ defmodule RegentsWeb.Autolaunch.PortfolioLive do
 
   def handle_event("refresh", _params, socket) do
     read_covered_calls(socket, [])
+    read_exposure(socket)
     read_earn(socket)
     {:noreply, request_reads(socket)}
   end
@@ -260,7 +261,46 @@ defmodule RegentsWeb.Autolaunch.PortfolioLive do
           class="account-control__sign-in"
           data-account-target="sign-in"
         >Sign in</Regent.Primitives.button>
-        <.link navigate="/" class="standalone-link">Keep exploring</.link>
+        <.link navigate="/autolaunch/app" class="standalone-link">Keep exploring</.link>
+      </section>
+
+      <section
+        :if={
+          @account_control.kind != :sign_in and
+            (@created_auctions != [] or @launch_drafts != [])
+        }
+        id="autolaunch-launches"
+        class="portfolio__section"
+        aria-labelledby="portfolio-launches-title"
+      >
+        <h2 id="portfolio-launches-title" class="portfolio__title">Your launches &amp; drafts</h2>
+        <div :if={@created_auctions != []} class="market-list__scroll">
+          <table class="market-list__table portfolio__table">
+            <caption class="visually-hidden">Your launches</caption>
+            <thead>
+              <tr>
+                <th scope="col">Launch</th>
+                <th scope="col">Kind</th>
+                <th scope="col">State</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={auction <- @created_auctions}>
+                <td>
+                  <.link navigate={Paths.auction(auction)}>
+                    {if auction.token_symbol != "", do: auction.token_symbol, else: auction.title}
+                  </.link>
+                </td>
+                <td>{auction.kind}</td>
+                <td>{auction.state}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p :if={@launch_drafts != []} class="portfolio__hint">
+          {length(@launch_drafts)} saved launch draft(s).
+          <.link navigate="/autolaunch/create">Continue creating</.link>
+        </p>
       </section>
 
       <section
@@ -320,7 +360,7 @@ defmodule RegentsWeb.Autolaunch.PortfolioLive do
         >
           <h2>No open bids</h2>
           <p>Your bids will appear here.</p>
-          <.link navigate="/auctions" class="rg-button rg-button--secondary">Explore auctions</.link>
+          <.link navigate="/autolaunch/auctions" class="rg-button rg-button--secondary">Explore auctions</.link>
         </div>
 
         <Regent.Primitives.disclosure
@@ -426,7 +466,7 @@ defmodule RegentsWeb.Autolaunch.PortfolioLive do
         >
           <h2>No tokens yet</h2>
           <p>Tokens held or staked by the wallet you signed in with will appear here.</p>
-          <.link navigate="/tokens" class="rg-button rg-button--secondary">Explore tokens</.link>
+          <.link navigate="/autolaunch/tokens" class="rg-button rg-button--secondary">Explore tokens</.link>
         </div>
       </section>
 
@@ -963,6 +1003,8 @@ defmodule RegentsWeb.Autolaunch.PortfolioLive do
       token_holdings: %AsyncResult{},
       robinhood_positions: %AsyncResult{},
       books: %AsyncResult{},
+      created_auctions: [],
+      launch_drafts: [],
       read_at: %{},
       queued?: false,
       dialog: nil
@@ -981,21 +1023,48 @@ defmodule RegentsWeb.Autolaunch.PortfolioLive do
         clear_wallet_state(socket)
 
       connected?(socket) and lapsed?(socket.assigns) ->
-        socket |> clear_wallet_state() |> push_navigate(to: "/portfolio")
+        socket |> clear_wallet_state() |> push_navigate(to: "/autolaunch/portfolio")
 
       true ->
         socket
+        |> read_launches(actor)
         |> read_bids(actor, linked_wallets(context))
         |> read_chain(actor, signed_in_wallet(context))
     end
   end
 
+  defp read_launches(socket, actor) do
+    auctions =
+      case Regents.Autolaunch.list_my_auctions(actor: actor) do
+        {:ok, rows} -> rows
+        _ -> []
+      end
+
+    agent_drafts =
+      case Regents.Autolaunch.list_my_launch_drafts(actor: actor) do
+        {:ok, rows} -> rows
+        _ -> []
+      end
+
+    stocks_draft =
+      case Regents.Autolaunch.get_my_stocks_launch_draft(actor: actor) do
+        {:ok, %{} = draft} -> [draft]
+        _ -> []
+      end
+
+    assign(socket, created_auctions: auctions, launch_drafts: agent_drafts ++ stocks_draft)
+  end
+
   # A read of the lease that fails says nothing about it, so only a lease that
   # reads as ended counts as lapsed.
   defp lapsed?(%{session_lease: %{lineage: lineage, account_id: account_id}}),
-    do: SessionAuthority.leased_account(lineage, account_id) == {:ok, nil}
+    do: is_nil(SessionAuthority.leased_account(lineage, account_id))
 
   defp lapsed?(_assigns), do: true
+
+  defp read_bids(socket, _actor, []) do
+    socket |> read_ok(:bids, []) |> read_ok(:books, %{})
+  end
 
   defp read_bids(socket, actor, wallets) do
     case Regents.Autolaunch.list_wallet_bid_positions(wallets, actor: actor) do
@@ -1027,7 +1096,14 @@ defmodule RegentsWeb.Autolaunch.PortfolioLive do
   end
 
   # Wallet balances and Robinhood bids come from the chain, so they arrive
-  # after the page; the first paint shows them as on their way.
+  # after the page; the first paint shows them as on their way. When an account
+  # has no verified wallet yet, resolve cleanly to empty lists without crashing.
+  defp read_chain(socket, _actor, wallet) when not is_binary(wallet) or wallet == "" do
+    socket
+    |> read_ok(:token_holdings, [])
+    |> read_ok(:robinhood_positions, [])
+  end
+
   defp read_chain(socket, actor, wallet) do
     socket =
       socket
@@ -1102,6 +1178,16 @@ defmodule RegentsWeb.Autolaunch.PortfolioLive do
          send_update(
            RegentsWeb.Autolaunch.CoveredCallsPortfolioComponent,
            Keyword.merge([id: "portfolio-covered-calls", read: true], only)
+         )
+  end
+
+  defp read_exposure(socket) do
+    if socket.assigns.account_control.kind != :sign_in and
+         Regents.Autolaunch.Exposure.Deployment.enabled?(),
+       do:
+         send_update(RegentsWeb.Autolaunch.ExposurePortfolioComponent,
+           id: "portfolio-exposure",
+           read: true
          )
   end
 

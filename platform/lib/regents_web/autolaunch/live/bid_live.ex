@@ -124,7 +124,7 @@ defmodule RegentsWeb.Autolaunch.BidLive do
 
     ~H"""
     <section id="autolaunch-bid" class="bid-page">
-      <.link navigate="/portfolio" class="bid-page__back">Portfolio</.link>
+      <.link navigate="/autolaunch/portfolio" class="bid-page__back">Portfolio</.link>
 
       <header :if={!is_map(@bid.result)} class="bid-page__header">
         <h1>{if @bid.result == :missing, do: "We can’t find that bid", else: "Your bid"}</h1>
@@ -149,7 +149,7 @@ defmodule RegentsWeb.Autolaunch.BidLive do
         </p>
         <div :if={@bid.ok? && @bid.result == :missing} class="autolaunch-empty" role="status">
           <p>The wallet you signed in with has no bid at this address.</p>
-          <.link navigate="/portfolio" class="rg-button rg-button--primary">
+          <.link navigate="/autolaunch/portfolio" class="rg-button rg-button--primary">
             <span class="rg-button__label">See your bids</span>
           </.link>
         </div>

@@ -12,6 +12,7 @@ defmodule RegentsWeb.Patchbay.AgentProfileController do
 
   use RegentsWeb, :controller
 
+  alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Members
   alias Regents.Patchbay.Members.Member
   alias Regents.Patchbay.Payments
@@ -22,12 +23,26 @@ defmodule RegentsWeb.Patchbay.AgentProfileController do
            load: [:bounties_posted, :answers_accepted, :same_person_profiles]
          ) do
       {:ok, profile} ->
+        posts =
+          case Forum.list_reports_for_account(profile.id, nil) do
+            {:ok, rows} -> rows
+            _ -> []
+          end
+
+        replies =
+          case Forum.list_replies_for_account(profile.id, nil) do
+            {:ok, rows} -> rows
+            _ -> []
+          end
+
         conn
         |> merge_assigns(RegentsWeb.Patchbay.Layouts.frame(conn, []))
         |> render(:show,
           page_title: Member.own_name(profile),
           page_description: description(profile, conn.assigns.site_edition),
           profile: profile,
+          posts: posts,
+          replies: replies,
           tips: Payments.tip_record!(profile.id)
         )
 

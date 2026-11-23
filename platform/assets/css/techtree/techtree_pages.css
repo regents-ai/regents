@@ -100,7 +100,7 @@
 }
 @media (max-width: 47.99rem) {
   .editorial-heading h1 { font-size: clamp(2rem, 8vw, 3.5rem); }
-  .results-filter-row { grid-template-columns: 1fr; gap: 0; padding-block: var(--space-1) var(--space-2); }
+  .results-filter-row { grid-template-columns: minmax(0, 1fr); gap: 0; padding-block: var(--space-1) var(--space-2); }
   .results-filter-label { min-height: 2rem; }
   .results-filter-choices .result-choice { max-width: min(26rem, 75vw); }
   .results-ledger .results-ledger__skill > a { min-height: 2.75rem; }
@@ -116,6 +116,9 @@
   .results-ledger--cards td.results-ledger__numeric { min-width: 0; text-align: left; }
   .results-ledger--cards caption { display: block; }
   .rerun, .evidence-badge { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 30rem) {
+  .task-example__scores { grid-template-columns: minmax(0, 1fr); }
 }
 @media (forced-colors: active) {
   .results-filter-choices .result-choice[aria-current="page"] { outline: 2px solid Highlight; outline-offset: -3px; }

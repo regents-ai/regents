@@ -284,7 +284,7 @@ defmodule RegentsWeb.Patchbay.OffersLive do
                 <a
                   :if={placement.source_origin}
                   class="pb-placement-forum"
-                  href={"/" <> placement.source_origin}
+                  href={"/patchbay/" <> placement.source_origin}
                 >
                   View Forum
                 </a>

@@ -53,7 +53,9 @@ defmodule RegentsWeb.Keyfleet.NotebookOpenController do
         )
 
       {:error, :no_hub} ->
-        conn |> put_flash(:error, "This fleet has no notebooks yet.") |> redirect(to: "/keyfleet")
+        conn
+        |> put_flash(:error, "This fleet has no notebooks yet.")
+        |> redirect(to: "/keyfleet/app")
 
       {:error, reason} when is_atom(reason) or is_struct(reason, OwnershipRefreshingError) ->
         to_workspace(conn, fleet_id, reason)

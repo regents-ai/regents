@@ -196,11 +196,12 @@ defmodule RegentsWeb.Components.Shell do
   attr :account_control, AccountControl, required: true
 
   attr :menu, :boolean,
-    default: false,
+    default: true,
     doc: """
-    Signed in, the name opens the account menu, given in `account_menu`; the theme
-    switch is then in that menu. Without it the bar shows the theme switch, the
-    name and Sign out.
+    Signed in, the name opens the account menu (supplied in `account_menu`, or a
+    built-in universal popover linking to `/account`, pairing, theme switch, and
+    Sign out). When explicitly false, the bar shows the theme switch, name, and
+    Sign out inline.
     """
 
   slot :links, doc: "the product's own links"
@@ -218,8 +219,73 @@ defmodule RegentsWeb.Components.Shell do
         <.theme_toggle :if={!@menu or @account_control.kind != :signed_in} id="theme-control" />
         <.account_control account_control={@account_control} menu={@menu} />
         {render_slot(@account_menu)}
+        <.universal_account_menu
+          :if={@menu and @account_control.kind == :signed_in and @account_menu == []}
+          account_control={@account_control}
+        />
       </:account>
     </Regent.Site.bar>
+    """
+  end
+
+  defp universal_account_menu(assigns) do
+    ~H"""
+    <section
+      id="account-menu"
+      class="rg-account-menu"
+      popover
+      aria-label={@account_control.label}
+    >
+      <div class="rg-account-menu__who">
+        <div class="rg-account-menu__picture">
+          <img
+            :if={@account_control.avatar_src}
+            src={@account_control.avatar_src}
+            referrerpolicy="no-referrer"
+            width="40"
+            height="40"
+            alt=""
+          />
+        </div>
+        <p class="rg-account-menu__name">
+          <strong>{@account_control.label}</strong>
+        </p>
+        <p :if={@account_control.wallet} class="rg-account-menu__wallet">
+          <Regent.Primitives.address
+            id="account-menu-wallet"
+            address={@account_control.wallet}
+            label={@account_control.ens_name}
+          />
+        </p>
+      </div>
+      <div class="rg-account-menu__links">
+        <a class="rg-account-menu__pair" href="/account/agents">
+          <Regent.Icons.icon name="plus" /> Pair New Agent
+        </a>
+        <a class="rg-account-menu__pair" href="/techtree/account/projects">
+          Techtree Projects
+        </a>
+        <a class="rg-account-menu__pair" href="/autolaunch/portfolio">
+          Autolaunch Portfolio
+        </a>
+      </div>
+      <div class="rg-account-menu__theme">
+        <span class="shell-theme-label" aria-hidden="true">Light theme</span>
+        <.theme_toggle id="account-menu-theme" />
+      </div>
+      <div class="rg-account-menu__foot">
+        <a href="/account" class="rg-button rg-button--secondary rg-button--no-arrow">
+          Manage Account
+        </a>
+        <Regent.Primitives.button
+          variant="quiet"
+          type="button"
+          data-account-target="sign-out"
+        >
+          Sign out
+        </Regent.Primitives.button>
+      </div>
+    </section>
     """
   end
 

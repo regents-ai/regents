@@ -97,7 +97,7 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
           </div>
         </dl>
         <p class="launch-trust__note">
-          <.link navigate="/how-it-works" class="standalone-link">
+          <.link navigate="/autolaunch/how-it-works" class="standalone-link">
             How every {@split.name} token is split
           </.link>
         </p>

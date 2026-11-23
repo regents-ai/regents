@@ -274,7 +274,7 @@ defmodule RegentsWeb.Keyfleet.DmsLive do
       <h2 :if={@dms != :unreadable}>{closed_reason(@dms)}</h2>
       <a
         :if={@dms != :unreadable and is_nil(@dms.fleet_name)}
-        href="/"
+        href="/keyfleet/app"
         class="rg-button rg-button--secondary"
       >
         See the fleets
@@ -287,6 +287,20 @@ defmodule RegentsWeb.Keyfleet.DmsLive do
       >
         Sign in
       </Regent.Primitives.button>
+      <div
+        :if={@dms != :unreadable and not is_nil(@dms.fleet_name) and not sign_in?(@dms)}
+        class="dms-closed__actions"
+      >
+        <.link
+          patch={Regents.Keyfleet.Fleets.path(@dms.fleet_id)}
+          class="rg-button rg-button--secondary"
+        >
+          Back to {@dms.fleet_name}
+        </.link>
+        <a href="/account#account-keyfleet" class="rg-button rg-button--quiet">
+          View your Keys
+        </a>
+      </div>
     </section>
     """
   end
@@ -648,6 +662,7 @@ defmodule RegentsWeb.Keyfleet.DmsLive do
         other_token_id: dms.other_token_id,
         fleet_name: dms.fleet_name,
         refreshing?: false,
+        signed_in?: true,
         holder?: false
       })
     else

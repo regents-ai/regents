@@ -3,7 +3,7 @@ defmodule RegentsWeb.Account do
   The Account pages, controllers, components, plugs and shell features.
   """
   use Boundary,
-    deps: [RegentsWeb, RegentsWeb.Chain],
+    deps: [RegentsWeb, RegentsWeb.Chain, Regents.Products],
     exports: [
       AccountLive,
       AgentPictureController,

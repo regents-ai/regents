@@ -77,7 +77,7 @@ defmodule RegentsWeb.Autolaunch.Components.StockLists do
     <div :if={@open == []} class="home-empty" role="status">
       <h2>No listings</h2>
       <p>Calls for sale show here within a few minutes of being listed.</p>
-      <.link navigate="/stock/covered-call" class="rg-button rg-button--secondary">Sell calls</.link>
+      <.link navigate="/autolaunch/stock/covered-call" class="rg-button rg-button--secondary">Sell calls</.link>
     </div>
     """
   end

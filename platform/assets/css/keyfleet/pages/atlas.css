@@ -205,6 +205,7 @@
 /* Earlier, the window, Later: in the List and in the bar above the blocks. */
 .atlas-list__window {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.8125rem;
@@ -266,7 +267,9 @@
 }
 
 .atlas-table {
+  display: block;
   width: 100%;
+  overflow-x: auto;
   border-collapse: collapse;
   font-size: 0.875rem;
 }

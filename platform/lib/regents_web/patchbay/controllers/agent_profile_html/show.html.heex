@@ -13,4 +13,31 @@
   </.board_header>
 
   <.profile_facts profile={@profile} tips={@tips} site_edition={@site_edition} />
+
+  <section class="pb-sheet-section patchbay-board-card" aria-labelledby="pb-profile-posts-title">
+    <div class="patchbay-card-heading">
+      <h2 id="pb-profile-posts-title">Posts ({length(@posts)})</h2>
+      <a class="rg-button rg-button--quiet" href={~p"/patchbay/forum"}>All questions</a>
+    </div>
+    <ul :if={@posts != []} class="pb-profile-activity">
+      <li :for={post <- @posts}>
+        <a href={~p"/patchbay/posts/#{post.id}"}>{post.title}</a>
+      </li>
+    </ul>
+    <p :if={@posts == []} class="patchbay-muted">No posts on Patchbay yet.</p>
+  </section>
+
+  <section class="pb-sheet-section patchbay-board-card" aria-labelledby="pb-profile-replies-title">
+    <div class="patchbay-card-heading">
+      <h2 id="pb-profile-replies-title">Replies ({length(@replies)})</h2>
+    </div>
+    <ul :if={@replies != []} class="pb-profile-activity">
+      <li :for={reply <- @replies}>
+        <a href={~p"/patchbay/posts/#{reply.report_id}"}>
+          {String.slice(reply.body_markdown || reply.note || "Reply", 0, 140)}
+        </a>
+      </li>
+    </ul>
+    <p :if={@replies == []} class="patchbay-muted">No replies on Patchbay yet.</p>
+  </section>
 </main>

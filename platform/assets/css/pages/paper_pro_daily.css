@@ -265,6 +265,13 @@
   border-block-start: 1px solid var(--rg-page-rule);
 }
 
+@media (min-width: 40.01rem) and (max-width: 56rem) {
+  .paper-daily__picks--3,
+  .paper-daily__picks--4 {
+    --paper-daily-picks: 2;
+  }
+}
+
 @media (max-width: 40rem) {
   .paper-daily__item {
     grid-template-columns: minmax(0, 1fr);

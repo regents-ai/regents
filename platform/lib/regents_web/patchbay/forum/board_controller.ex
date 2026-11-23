@@ -12,10 +12,12 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   require Logger
 
   alias Regents.Patchbay.DatabaseBusy
+  alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Forum.BoardActivity
   alias Regents.Patchbay.Forum.Origin
   alias Regents.Patchbay.Forum.PostAddress
   alias Regents.Patchbay.Forum.PostSummary
+  alias Regents.Patchbay.Forum.Principal
   alias Regents.Patchbay.Forum.SearchUnavailable
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.SiteDirectory
@@ -24,8 +26,10 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   alias RegentsWeb.Patchbay.BusyPage
   alias RegentsWeb.Patchbay.Forum.Board
   alias RegentsWeb.Patchbay.Forum.BoardHTML
+  alias RegentsWeb.Patchbay.Forum.BoardJSON
   alias RegentsWeb.Patchbay.Forum.BoardMD
   alias RegentsWeb.Patchbay.Forum.Discussions
+  alias RegentsWeb.Patchbay.Forum.Hero
   alias RegentsWeb.Patchbay.Forum.SiteChecks
   alias RegentsWeb.Patchbay.Forum.ToolHistory
   alias RegentsWeb.Patchbay.Forum.Troubleshooting
@@ -76,7 +80,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   # a named site is on record. A search the site is too busy for says so
   # instead, and asks to be sent again shortly.
   defp render_questions(conn, params, filters) do
-    case discussions(filters, params["after"]) do
+    subscriptions = followed_subscriptions(conn, filters)
+
+    case discussions(filters, subscriptions, params["after"]) do
       {:error, :invalid_cursor} ->
         conn
         |> put_flash(:error, "That discussion page does not match these filters.")
@@ -98,7 +104,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
           next_page: next_page,
           current_page: params["after"],
           matches: matches,
-          post_count: post_count(filters),
+          post_count: post_count(filters, subscriptions),
+          following_count: length(subscriptions),
+          ask_draft: Hero.prefilled(params),
           activity: section(BoardActivity.reading(), "Board figures"),
           found_nothing: found_nothing?,
           ask_open: found_nothing? or ask_open?(params),
@@ -107,11 +115,31 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
     end
   end
 
+  defp followed_subscriptions(_conn, %{scope: scope}) when scope != "following", do: []
+
+  defp followed_subscriptions(conn, _filters) do
+    profile = conn.assigns[:current_profile]
+    session_id = conn.assigns[:forum_session_id]
+
+    if is_nil(profile) and is_nil(session_id) do
+      []
+    else
+      principals = Principal.for_request(profile, session_id)
+
+      case Forum.list_subscriptions_for_principals(principals, actor: %{principals: principals}) do
+        {:ok, subs} -> subs
+        {:error, _} -> []
+      end
+    end
+  end
+
   # How many threads the list holds across its pages, beside its heading. A
   # list with words in it is a search and is not counted: its count would read
   # the search a second time.
-  defp post_count(%{q: q}) when q != "", do: nil
-  defp post_count(filters), do: section(Discussions.count(filters), "Question count")
+  defp post_count(%{q: q}, _subscriptions) when q != "", do: nil
+
+  defp post_count(filters, subscriptions),
+    do: section(Discussions.count(filters, subscriptions), "Question count")
 
   # The form under Ask a question opens when a link asks for it, or names what
   # to fill it with: the site, a tool, what to ask about or tags. Signed out,
@@ -123,8 +151,8 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
   defp filled?(value), do: is_binary(value) and String.trim(value) != ""
 
-  defp discussions(filters, after_token) do
-    case Discussions.page(filters, after_token) do
+  defp discussions(filters, subscriptions, after_token) do
+    case Discussions.page(filters, subscriptions, after_token) do
       {:ok, reports, next_page} -> {reports, next_page}
       {:error, refused} when refused in [:invalid_cursor, :unknown_site] -> {:error, refused}
       {:error, failure} -> {searched({:error, failure}, "Discussions"), nil}
@@ -311,6 +339,85 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
       {:error, failure} ->
         raise failure
+    end
+  end
+
+  @doc "JSON site directory for API and CLI callers (`GET /api/v1/patchbay/sites`)."
+  def sites_json(conn, params) do
+    with {:ok, _number} <- SiteDirectory.page_number(params["page"]),
+         {:ok, directory} <- SiteDirectory.page(params) do
+      send_catalog_json(conn, :sites, %{directory: directory}, 200)
+    else
+      {:error, {:invalid, messages}} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(BoardJSON.sites_error(%{messages: messages}))
+
+      {:error, _failure} ->
+        conn
+        |> put_status(:service_unavailable)
+        |> json(BoardJSON.tool_error(%{}))
+    end
+  end
+
+  @doc "JSON tool catalog for API and CLI callers (`GET /api/v1/patchbay/sites/:host/tools/:name`)."
+  def tool_json(conn, %{"host" => host, "name" => name} = params) do
+    with true <- Board.tool_name?(name),
+         {:ok, site} <- Board.fetch_site_ref(host),
+         true <- host == site.origin,
+         {:ok, history} <- Board.tool_history(site, name, params["after"]),
+         {:ok, current_tool} <- history_header(site, name, params["after"], history),
+         false <- is_nil(current_tool) do
+      send_catalog_json(
+        conn,
+        :tool,
+        %{
+          site: site,
+          current_tool: current_tool,
+          versions: history.versions,
+          pagination: history.pagination
+        },
+        200
+      )
+    else
+      {:error, :invalid_cursor} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(BoardJSON.tool_error(%{invalid_cursor?: true}))
+
+      {:error, _reason} ->
+        conn
+        |> put_status(:service_unavailable)
+        |> json(BoardJSON.tool_error(%{}))
+
+      _not_found ->
+        conn
+        |> put_status(:not_found)
+        |> json(
+          RegentsWeb.Patchbay.ApiError.body(
+            "not_found",
+            "No recorded tool matches that host and name.",
+            "List sites with regents patchbay sites list or search tools with regents patchbay tools history."
+          )
+        )
+    end
+  end
+
+  defp send_catalog_json(conn, template, assigns, status) do
+    payload = apply(BoardJSON, template, [assigns])
+
+    if byte_size(Jason.encode!(payload)) <= 256 * 1024 do
+      conn |> put_status(status) |> json(payload)
+    else
+      conn
+      |> put_status(:internal_server_error)
+      |> json(
+        RegentsWeb.Patchbay.ApiError.body(
+          "response_too_large",
+          "This catalog page could not be returned intact.",
+          "Read one version's schemas with regents patchbay tools history --limit 1 (or the get_tool_history tool)."
+        )
+      )
     end
   end
 

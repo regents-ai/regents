@@ -13,7 +13,7 @@ defmodule RegentsWeb.Keyfleet.Components.LoadFailed do
     <p>Something went wrong on our side. Try again in a moment.</p>
     <p class="load-failed__actions">
       <a href="" class="rg-button rg-button--primary">Try again</a>
-      <a href="/" class="rg-button rg-button--secondary">Go to the homepage</a>
+      <a href="/keyfleet/app" class="rg-button rg-button--secondary">See Keyfleet</a>
     </p>
     """
   end

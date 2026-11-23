@@ -804,9 +804,15 @@
   #workspace-page[data-active="docs"] .workspace-places-ink { transform: translateX(calc(100% + 0.5rem)); }
   #workspace-page[data-active="code"] .workspace-places-ink { transform: translateX(calc(200% + 1rem)); }
   #workspace-page[data-active="public"] .workspace-places-ink { transform: translateX(calc(300% + 1.5rem)); }
-  .workspace-place-tab { padding: 0.65rem 0.45rem; }
-  /* Four names stay whole on one line, down to a 320px phone. */
-  .workspace-place-name { font-size: clamp(0.85rem, 4vw, 1rem); white-space: nowrap; }
+  .workspace-place-tab { min-width: 0; overflow: hidden; padding: 0.65rem 0.35rem; }
+  /* Four names stay inside their cut-corner tabs down to 320px. */
+  .workspace-place-name {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: clamp(0.75rem, 3.6vw, 0.95rem);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .workspace-place-name::before { display: none; }
   .workspace-place-tool {
     overflow: hidden;

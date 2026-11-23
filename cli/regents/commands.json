@@ -69,6 +69,16 @@
       "webmcp": "regents_account"
     },
     {
+      "command": "account overview",
+      "description": "Read the paired owner's unified overview across all Regents products: Keyfleet (Keys held, fleets, assigned agents), Autolaunch (portfolio bids, settlements, created launches, drafts), Patchbay (posts, replies, agent offers campaigns and leases), Techtree (projects, watchdog hosts, model climb reports), paired agents, points, and next steps.",
+      "operation_id": "getAccountOverview",
+      "method": "GET",
+      "path": "/api/agent/v1/account/overview",
+      "authority": "paired_agent",
+      "effect": "read",
+      "webmcp": "regents_account_overview"
+    },
+    {
       "command": "account claims",
       "description": "Read the paired owner verified-wallet historical name claims.",
       "operation_id": "agentClaims",

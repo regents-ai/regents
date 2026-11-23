@@ -36,9 +36,11 @@
 
 .transaction-receipt dd {
   margin: 0;
+  min-width: 0;
   color: var(--color-fg);
   font-size: 0.88rem;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 .transaction-receipt a { color: var(--ash-signal); }

@@ -345,6 +345,29 @@ defmodule Regents.Patchbay.Forum.Reply do
   actions do
     defaults([:read])
 
+    read :for_account do
+      description("""
+      Published replies authored by or attributed to a person's Patchbay profile
+      or Regents account (including their paired agents), newest first.
+      """)
+
+      argument(:profile_id, :uuid, allow_nil?: true)
+      argument(:human_account_id, :integer, allow_nil?: true)
+
+      filter(
+        expr(
+          visibility == :published and
+            ((not is_nil(^arg(:profile_id)) and
+                (author_profile_id == ^arg(:profile_id) or
+                   beneficiary_profile_id == ^arg(:profile_id))) or
+               (not is_nil(^arg(:human_account_id)) and
+                  human_account_id == ^arg(:human_account_id)))
+        )
+      )
+
+      prepare(build(sort: [inserted_at: :desc, id: :desc], limit: 25))
+    end
+
     read :posted_by_author do
       description("""
       What one signed-in account posted after a moment, from any session,

@@ -312,12 +312,13 @@
 
 .account-claim__name {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1);
 }
 
 .account-claim__name input {
-  flex: 1 1 auto;
+  flex: 1 1 10rem;
   min-width: 0;
 }
 
@@ -332,6 +333,210 @@
 
 .account-claim__claimed {
   color: var(--color-error);
+}
+
+/* Unified cross-product account overview */
+.account-overview {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.account-overview__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.account-overview__head code {
+  font-size: 0.875em;
+  overflow-wrap: anywhere;
+}
+
+.account-overview__strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.account-overview__strip > div {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.account-overview__strip dt {
+  color: var(--color-fg-muted);
+  font-size: var(--type-label-size);
+  line-height: var(--type-label-line);
+}
+
+.account-overview__strip dd {
+  margin: 0;
+  font-family: var(--font-family-mono);
+  font-size: 1.125rem;
+}
+
+.account-overview__strip dd a {
+  color: var(--color-fg);
+  text-decoration: none;
+}
+
+.account-overview__strip dd a:hover {
+  text-decoration: underline;
+}
+
+.account-overview__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--space-3);
+  align-items: stretch;
+}
+
+.account-product-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.account-product-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.account-product-card__head h3 {
+  margin: 0;
+  font-family: var(--font-family-ui);
+  font-size: var(--type-headline-size);
+  line-height: var(--type-headline-line);
+}
+
+.account-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--color-border);
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-mono);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.account-pill--active {
+  border-color: var(--color-fg);
+  color: var(--color-fg);
+}
+
+.account-product-card__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding-block: var(--space-2);
+  border-block: 1px solid var(--color-border);
+}
+
+.account-product-card__stats > div {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.account-product-card__stats dt {
+  color: var(--color-fg-muted);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.account-product-card__stats dd {
+  margin: 0;
+  font-family: var(--font-family-mono);
+  font-size: 1rem;
+}
+
+.account-stat--attention {
+  color: var(--color-warning, var(--palette-tangerine-tango));
+  font-weight: 600;
+}
+
+.account-product-card__list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-product-card__list a {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem var(--space-2);
+  color: var(--color-fg);
+  font-size: 0.9375rem;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.account-product-card__list a:hover {
+  text-decoration: underline;
+}
+
+.account-product-card__summary {
+  color: var(--color-fg-muted);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.account-product-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-block-start: auto;
+  padding-block-start: var(--space-1);
+}
+
+/* Universal account menu links & narrow-screen account menu footer */
+.rg-account-menu__links {
+  display: grid;
+  gap: 0.25rem;
+  border-block-end: 1px solid var(--color-border);
+  padding-block-end: var(--space-2);
+}
+
+@media (max-width: 24rem) {
+  .rg-account-menu__foot {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Points mobile wrap & tier collapse */
+@media (max-width: 30rem) {
+  .rg-points-bonus__tiers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rg-points-activity li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+  }
+  .rg-points-activity__status,
+  .rg-points-activity__points {
+    justify-self: start;
+  }
 }
 }
 

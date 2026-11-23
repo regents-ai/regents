@@ -502,6 +502,7 @@ defmodule RegentsWeb.Router do
   scope "/api/agent/v1", RegentsWeb do
     pipe_through [:api, :paired_agent]
     get "/account", Account.AgentReadsController, :account
+    get "/account/overview", Account.AgentReadsController, :overview
     post "/claims", Account.OwnedClaimsController, :agent_index
     get "/staking/position", Stake.StakingPositionController, :agent_show
   end
@@ -1199,8 +1200,12 @@ defmodule RegentsWeb.Router do
     pipe_through [:browser, :patchbay]
 
     live_session :patchbay_fixes,
-      on_mount: [{RegentsWeb.Patchbay.CurrentProfile, :default}],
-      session: {RegentsWeb.Patchbay.CurrentProfile, :render_context, []} do
+      layout: {RegentsWeb.Patchbay.Layouts, :app},
+      on_mount: [
+        {RegentsWeb.Live.Session, :load_human},
+        {RegentsWeb.Patchbay.CurrentProfile, :default}
+      ],
+      session: {RegentsWeb.Live.Session, :render_context, []} do
       live "/fixes/:id", FixLive.Show, :show
     end
   end
@@ -1209,11 +1214,13 @@ defmodule RegentsWeb.Router do
     pipe_through [:patchbay_offers, :browser, :patchbay]
 
     live_session :patchbay_offers,
+      layout: {RegentsWeb.Patchbay.Layouts, :app},
       on_mount: [
         RegentsWeb.Patchbay.OffersGate,
+        {RegentsWeb.Live.Session, :load_human},
         {RegentsWeb.Patchbay.CurrentProfile, :default}
       ],
-      session: {RegentsWeb.Patchbay.CurrentProfile, :render_context, []} do
+      session: {RegentsWeb.Live.Session, :render_context, []} do
       live "/offers", OffersLive, :index
     end
   end
@@ -1222,11 +1229,13 @@ defmodule RegentsWeb.Router do
     pipe_through [:browser, :patchbay]
 
     live_session :patchbay_moderation,
+      layout: {RegentsWeb.Patchbay.Layouts, :app},
       on_mount: [
+        {RegentsWeb.Live.Session, :load_human},
         {RegentsWeb.Patchbay.CurrentProfile, :default},
         RegentsWeb.Patchbay.Moderators
       ],
-      session: {RegentsWeb.Patchbay.CurrentProfile, :render_context, []} do
+      session: {RegentsWeb.Live.Session, :render_context, []} do
       live "/people", PeopleAdminLive, :index
       live "/people/:public_id", PersonAdminLive, :show
       live "/messages", AdminMessagesLive, :index
@@ -1237,12 +1246,14 @@ defmodule RegentsWeb.Router do
     pipe_through [:patchbay_offers, :browser, :patchbay]
 
     live_session :patchbay_offers_admin,
+      layout: {RegentsWeb.Patchbay.Layouts, :app},
       on_mount: [
         RegentsWeb.Patchbay.OffersGate,
+        {RegentsWeb.Live.Session, :load_human},
         {RegentsWeb.Patchbay.CurrentProfile, :default},
         RegentsWeb.Patchbay.Moderators
       ],
-      session: {RegentsWeb.Patchbay.CurrentProfile, :render_context, []} do
+      session: {RegentsWeb.Live.Session, :render_context, []} do
       live "/offers", OffersAdminLive, :index
     end
   end
@@ -1313,6 +1324,8 @@ defmodule RegentsWeb.Router do
   scope "/api/v1/patchbay", RegentsWeb.Patchbay do
     pipe_through :patchbay_api
 
+    get "/sites", Forum.BoardController, :sites_json
+    get "/sites/:host/tools/:name", Forum.BoardController, :tool_json
     get "/wallet-bench", WalletBenchController, :index
     get "/wallet-bench/:harness_id/:wallet_id", WalletBenchController, :show
     get "/offers", OffersController, :index
@@ -1322,6 +1335,7 @@ defmodule RegentsWeb.Router do
     get "/forum/tool-history", ForumAPI.ToolController, :index
     get "/forum/capabilities", ForumAPI.ReportController, :capabilities
     get "/forum/help", ForumAPI.ReportController, :help
+    get "/agents/:public_id", AgentAPI.ProfileController, :show
   end
 
   # Patchbay signed-in browser session JSON APIs.
@@ -1329,7 +1343,6 @@ defmodule RegentsWeb.Router do
     pipe_through :patchbay_forum_tools
 
     get "/forum/readiness", ForumAPI.ReportController, :readiness
-    get "/agents/:public_id", AgentAPI.ProfileController, :show
   end
 
   scope "/api/v1/patchbay", RegentsWeb.Patchbay do

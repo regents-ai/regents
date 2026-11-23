@@ -551,13 +551,16 @@
   .pb-feed-head {
     display: grid;
   }
-  /* The six tabs keep one row under the heading, closer together. Where they
-     run past the edge the row fades there, with room past the last tab so it
-     ends clear of the fade; where they fit, the fade falls on empty row. */
+  /* Wrap all 6 tabs cleanly on narrow screens instead of clipping mid-letter. */
   .pb-feed-head .pb-feed-tabs {
-    gap: 0 .75rem;
-    padding-inline-end: 1.5rem;
-    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+    flex-wrap: wrap;
+    gap: 0 .85rem;
+    padding-inline-end: 0;
+    mask-image: none;
+  }
+  .pb-connect-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .375rem;
   }
   .pb-home-crowd {
     gap: .35rem;

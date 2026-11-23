@@ -313,6 +313,7 @@ defmodule Regents.Autolaunch do
 
     resource Regents.Autolaunch.Auction do
       define :auction_counts, action: :counts
+      define :list_my_auctions, action: :by_creator
       define :sitemap_auctions, action: :sitemap
 
       define :get_public_auction,

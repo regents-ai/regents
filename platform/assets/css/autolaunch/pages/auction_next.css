@@ -133,8 +133,8 @@
 .auction-next-check input { width: 8rem; min-height: 2.75rem; padding: 8px 10px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-bg); color: var(--color-fg); font: inherit; font-variant-numeric: tabular-nums; }
 .auction-next-check input:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
 
-/* The charts' tables. */
-.auction-next-table { width: 100%; margin-block: 8px 16px; border-collapse: collapse; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+/* The charts' tables: scroll horizontally inside disclosures on narrow phones. */
+.auction-next-table { display: block; width: 100%; overflow-x: auto; margin-block: 8px 16px; border-collapse: collapse; font-size: .8125rem; font-variant-numeric: tabular-nums; }
 .auction-next-table caption { padding-bottom: 6px; color: var(--color-fg-muted); font-size: .75rem; text-align: left; }
 .auction-next-table th, .auction-next-table td { padding: 6px 8px; border-bottom: 1px solid var(--hairline); text-align: left; overflow-wrap: anywhere; }
 .auction-next-table th { color: var(--color-fg-muted); }

@@ -43,6 +43,15 @@
   }
 }
 
+/* On a phone the bar's switch keeps the shared compact size so the product switcher has room. */
+@media (max-width: 47.99rem) {
+  .rg-bar__account .theme-switch {
+    --theme-switch-lens: var(--space-3);
+    --theme-switch-track: var(--space-2);
+    --theme-switch-travel: var(--space-2);
+  }
+}
+
 .theme-switch .theme-switch__button {
   position: relative;
   display: grid;

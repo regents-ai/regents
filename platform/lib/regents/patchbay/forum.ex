@@ -114,6 +114,11 @@ defmodule Regents.Patchbay.Forum do
         args: [:author_profile_id, :since]
       )
 
+      define(:list_reports_for_account,
+        action: :for_account,
+        args: [:profile_id, :human_account_id]
+      )
+
       define(:list_recent_reports, action: :recent)
       define(:list_feed_reports, action: :feed)
       define(:list_threads_for_site, action: :for_site, args: [:site_id])
@@ -167,6 +172,11 @@ defmodule Regents.Patchbay.Forum do
       define(:replies_posted_by_author,
         action: :posted_by_author,
         args: [:author_profile_id, :since]
+      )
+
+      define(:list_replies_for_account,
+        action: :for_account,
+        args: [:profile_id, :human_account_id]
       )
     end
 

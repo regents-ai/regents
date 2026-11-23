@@ -4,6 +4,7 @@ defmodule RegentsWeb.Account.AgentReadsController do
 
   alias RegentPoints.{Rules, Seasons}
   alias Regents.Account.Points.Board
+  alias Regents.Products.AccountOverview
   alias Regents.SharedReading
   alias RegentsWeb.Account.PointsEntries
 
@@ -22,6 +23,15 @@ defmodule RegentsWeb.Account.AgentReadsController do
 
       {:error, _} ->
         unavailable(conn)
+    end
+  end
+
+  def overview(conn, _params) do
+    actor = conn.assigns.actor
+
+    case AccountOverview.read_summary(actor: actor) do
+      {:ok, summary} -> json(conn, summary)
+      {:error, _} -> unavailable(conn)
     end
   end
 

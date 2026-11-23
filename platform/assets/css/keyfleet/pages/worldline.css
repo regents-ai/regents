@@ -177,6 +177,21 @@ li:is([data-trail="workspace"], [data-trail="code"], [data-trail="notebooks"]) .
   font-size: 0.875rem;
 }
 
+@media (max-width: 30rem) {
+  .worldline-filter {
+    grid-template-columns: minmax(0, 1fr) auto;
+    justify-content: stretch;
+  }
+
+  .worldline-filter input {
+    grid-column: 1 / -1;
+  }
+
+  .worldline-filter .rg-field-errors {
+    grid-row: auto;
+  }
+}
+
 /* The picture, edge to edge inside the panel, on the page's own ground; its
    stars by night are drawn with it. A mouse dragging across it turns it; a
    finger dragging across it moves through time, and one dragging up or down

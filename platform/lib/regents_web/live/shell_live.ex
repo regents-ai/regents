@@ -238,6 +238,7 @@ defmodule RegentsWeb.ShellLive do
           signed_out_reason={@signed_out_reason}
           account={current_account(@access_context)}
           account_control={@account_control}
+          overview={@account_overview}
         />
 
         <AccountLive.agents

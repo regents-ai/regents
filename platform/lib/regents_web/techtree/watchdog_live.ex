@@ -40,7 +40,12 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
   @impl true
   def handle_event(event, params, socket) do
     if Regents.read_only?() do
-      {:noreply, socket}
+      {:noreply,
+       inform(
+         socket,
+         :info,
+         "This site is read-only right now, so Watchdog sites cannot be changed."
+       )}
     else
       handle_write_event(event, params, socket)
     end
@@ -150,15 +155,23 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
   defp load_list(socket) do
     case actor(socket) do
       %Human{} = actor ->
-        hosts = Watchdog.list_my_hosts!(actor: actor)
+        with {:ok, hosts} <- Watchdog.list_my_hosts(actor: actor),
+             {:ok, raw_routes} <- Watchdog.list_my_routes(%{}, actor: actor) do
+          routes =
+            raw_routes
+            |> Enum.reject(&(&1.state == :removed))
+            |> Enum.group_by(& &1.host_id)
 
-        routes =
-          %{}
-          |> Watchdog.list_my_routes!(actor: actor)
-          |> Enum.reject(&(&1.state == :removed))
-          |> Enum.group_by(& &1.host_id)
-
-        assign(socket, signed_in?: true, hosts: hosts, routes: routes, leaving: [])
+          assign(socket, signed_in?: true, hosts: hosts, routes: routes, leaving: [])
+        else
+          _error ->
+            socket
+            |> assign(signed_in?: true, hosts: [], routes: %{}, leaving: [])
+            |> inform(
+              :error,
+              "Your monitored sites couldn't be read right now. Try again shortly."
+            )
+        end
 
       nil ->
         assign(socket, signed_in?: false, hosts: [], routes: %{}, leaving: [])

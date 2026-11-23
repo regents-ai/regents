@@ -184,7 +184,7 @@ defmodule RegentsWeb.Autolaunch.RobinhoodAuctionLive do
       class="autolaunch-page auction-page auction-next"
     >
       <header class="autolaunch-heading">
-        <.link navigate="/auctions" class="market-back">← Auctions</.link>
+        <.link navigate="/autolaunch/auctions" class="market-back">← Auctions</.link>
         <Regent.Structure.section_bar>
           <h1 class="rg-section-bar__label">
             {@launch.title}<span :if={!same_name?(@launch.title, @launch.token_symbol)}> · {@launch.token_symbol}</span>
@@ -468,7 +468,7 @@ defmodule RegentsWeb.Autolaunch.RobinhoodAuctionLive do
       </Regent.Structure.section_bar>
       <p :if={!@open?}>Robinhood auctions are not open on this site yet.</p>
       <p :if={@open?}>No Robinhood auction exists at {@auction}.</p>
-      <.link navigate="/auctions">Return to Auctions</.link>
+      <.link navigate="/autolaunch/auctions">Return to Auctions</.link>
     </section>
 
     <section
@@ -482,7 +482,7 @@ defmodule RegentsWeb.Autolaunch.RobinhoodAuctionLive do
       </Regent.Structure.section_bar>
       <p>This auction could not be loaded right now.</p>
       <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
-      <.link navigate="/auctions">Return to Auctions</.link>
+      <.link navigate="/autolaunch/auctions">Return to Auctions</.link>
     </section>
     """
   end

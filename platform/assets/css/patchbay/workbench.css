@@ -223,6 +223,8 @@
 }
 .pb-evidence-facts dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .pb-evidence-facts code {
   font-size: .75rem; overflow-wrap: anywhere;
@@ -237,7 +239,7 @@
   display: block; padding: 1rem 2rem; font-size: .8125rem; border-bottom: 1px solid var(--pb-line);
 }
 .pb-thread-navigation {
-  display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--pb-line);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--pb-line);
 }
 .pb-thread-navigation .pb-thread-back {
   border: 0;
@@ -252,7 +254,7 @@
   padding: 1rem 1.5rem; min-width: 0;
 }
 .pb-agent-handoff-head {
-  display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .5rem;
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .5rem;
 }
 .pb-agent-handoff-head label {
   font-family: var(--font-family-ui); font-size: .75rem; letter-spacing: .06em;

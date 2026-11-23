@@ -44,6 +44,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
 
   alias Regents.Keyfleet.Agents.Here
   alias Regents.Keyfleet.Fleets
+  alias Regents.Keyfleet.Keys
   alias Regents.SharedReading
   alias RegentsWeb.Components.Shell, as: SiteShell
   alias RegentsWeb.Components.ValueCards
@@ -121,7 +122,24 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
      socket
      |> assign(PublicDocuments.page(:home))
      |> assign(client_tag: client_tag, buy_open: false)
-     |> assign(classic: fleet(@classic), cards: cards(Fleets.path(@classic)))}
+     |> assign(
+       classic: fleet(@classic),
+       cards: cards(Fleets.path(@classic)),
+       held_keys: held_keys(socket)
+     )}
+  end
+
+  defp held_keys(socket) do
+    case ShellLive.human_actor(socket) do
+      %{wallet_addresses: wallets} when wallets != [] ->
+        case Keys.keys_held_everywhere(wallets) do
+          {:ok, rows} -> rows
+          _ -> []
+        end
+
+      _ ->
+        []
+    end
   end
 
   # The Overview's cards, each opening a page of Classic #1, or Pair New Agent.
@@ -239,7 +257,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
 
       <main>
         <Regent.Structure.row rail={false}>
-          <.hero classic={@classic} />
+          <.hero classic={@classic} actor={@actor} held_keys={@held_keys} />
         </Regent.Structure.row>
         <Regent.Structure.row :if={@classic.public != [] or @classic.page} rail={false}>
           <.recent public={@classic.public} page={@classic.page} />
@@ -269,6 +287,8 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
   end
 
   attr :classic, :map, required: true
+  attr :actor, :any, default: nil
+  attr :held_keys, :list, default: []
 
   # The headline, with its last words in the accent colour, what a fleet gives
   # an agent and "Explore", a fleet at work, which needs no wallet. Then Classic
@@ -295,6 +315,22 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
           >
             <span class="rg-button__label">Explore</span>
           </.link>
+          <a
+            :if={@actor != nil && @held_keys != []}
+            id="home-your-keys"
+            href="/account#account-keyfleet"
+            class="rg-button rg-button--secondary"
+          >
+            Your Keys ({length(@held_keys)})
+          </a>
+          <a
+            :if={@actor != nil && @held_keys == []}
+            id="home-no-keys"
+            href="/account#account-keyfleet"
+            class="rg-button rg-button--quiet"
+          >
+            No Keys held yet · Account
+          </a>
         </div>
 
         <div id="home-now" class="rl-now">

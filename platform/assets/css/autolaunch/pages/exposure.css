@@ -25,14 +25,14 @@
 .exposure__example { display: grid; gap: var(--space-2); padding-block: var(--space-2); }
 .exposure__example > p { margin: 0; line-height: 1.5; }
 .exposure__details { display: grid; gap: var(--space-4); padding-block: var(--space-2); }
-.exposure__addresses { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--space-2) var(--space-3); margin: 0; }
+.exposure__addresses { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: var(--space-2) var(--space-3); margin: 0; }
 .exposure__addresses > div { display: grid; gap: .125rem; min-width: 0; }
 .exposure__addresses dt { color: var(--color-fg-muted); font-size: .8125rem; }
 .exposure__addresses dd { margin: 0; }
 .exposure__leg-facts dd small { display: block; color: var(--color-fg-muted); font-size: .75rem; }
 .exposure__trade-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 
-.exposure__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr)); gap: var(--space-3); margin: 0; }
+.exposure__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12.5rem), 1fr)); gap: var(--space-3); margin: 0; }
 .exposure__facts > div, .exposure__leg-facts > div { display: grid; gap: .125rem; min-width: 0; }
 .exposure__facts dt, .exposure__leg-facts dt { color: var(--color-fg-muted); font-size: .8125rem; }
 .exposure__facts dd, .exposure__leg-facts dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -70,7 +70,7 @@
 .exposure-panel input { inline-size: 100%; min-block-size: 2.625rem; font: inherit; font-variant-numeric: tabular-nums; }
 .exposure-panel__balance { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; color: var(--color-fg-muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
 .exposure-panel__balance button { padding: 0; border: 0; color: var(--color-fg); font: inherit; text-decoration: underline; background: none; cursor: pointer; }
-.exposure-panel__facts { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.exposure-panel__facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-1) var(--space-3); margin: 0; }
 .exposure-panel__facts dt { color: var(--color-fg-muted); }
 .exposure-panel__facts dd { margin: 0; font-variant-numeric: tabular-nums; }
 .exposure-panel__problem { margin: 0; color: var(--color-danger, #b42318); font-size: .875rem; }
@@ -90,11 +90,12 @@
 
 @media (max-width: 47.99rem) {
   .exposure__legs { grid-template-columns: minmax(0, 1fr); }
+  .exposure__leg, .exposure__panel { padding: var(--space-3); }
   .exposure-panel__step { grid-template-columns: minmax(0, 1fr); }
-  .exposure-panel__step .rg-button { inline-size: 100%; }
+  .exposure-panel__step .rg-button { inline-size: 100%; min-inline-size: 0; white-space: normal; }
   /* On a phone each price is a block of labelled figures, never wider than the screen. */
   .exposure__table thead { display: none; }
-  .exposure__table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1) var(--space-3); padding: var(--space-2) 12px; }
+  .exposure__table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-3); padding: var(--space-2) 12px; }
   .exposure__table.market-list__table tbody td { padding: 0; text-align: left; white-space: normal; }
   .exposure__table tbody td[data-label]::before { content: attr(data-label); display: block; color: var(--color-fg-muted); font-size: .75rem; }
   .exposure__next td[colspan], .exposure__table td.exposure__row-action { grid-column: 1 / -1; }

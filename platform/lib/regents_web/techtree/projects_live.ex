@@ -160,8 +160,11 @@ defmodule RegentsWeb.Techtree.ProjectsLive do
       When our team finishes work for you, it shows here, to read and to download.
       <:action>
         <ul class="project-services" aria-label="Services">
-          <li :for={service <- Services.all()}>
+          <li :for={service <- Services.all() ++ Services.others()}>
             <.link navigate={Services.path(service.id)}>{service.name}</.link>
+          </li>
+          <li>
+            <a href={~p"/account"}>Account overview</a>
           </li>
         </ul>
       </:action>
