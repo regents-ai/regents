@@ -378,9 +378,16 @@ defmodule RegentsWeb.Router do
     get "/capabilities.json", PublicPagesController, :capabilities
     get "/agents.md", PublicPagesController, :agents
     get "/skill.md", PublicPagesController, :skill
+    get "/pricing.md", PublicPagesController, :pricing
     get "/llms.txt", PublicPagesController, :llms
+    get "/server.json", PublicPagesController, :server_registry
+    get "/mcp/server-card", PublicPagesController, :mcp_server_card
     get "/.well-known/security.txt", PublicPagesController, :security
     get "/.well-known/api-catalog", PublicPagesController, :api_catalog
+    get "/.well-known/ai-catalog.json", PublicPagesController, :ai_catalog
+    get "/.well-known/mcp/server-card.json", PublicPagesController, :mcp_server_card
+    get "/.well-known/agent-skills/index.json", PublicPagesController, :agent_skills_index
+    get "/.well-known/agent-skills/regents/SKILL.md", PublicPagesController, :agent_skills_regents
     get "/paper-pro-daily.md", PaperPageController, :show
     get "/paper-pro-daily/pictures/:id", PaperPictureController, :show
     get "/paper-pro-daily/share.png", PaperPictureController, :page_share

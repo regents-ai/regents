@@ -8513,3 +8513,19 @@ seasons), on the shared Points library regents.sh was already on.
   - **Keyfleet:** Improved no-Keys vs has-Keys and signed-out vs signed-in banners and next steps on `HomeLive`, `FleetLive`, `PollsLive`, and `DmsLive`.
   - **Techtree:** Wired `Projects` into `SiteMenu` and added signed-out vs empty-projects vs populated states on `ProjectsLive` and `WatchdogLive`.
 - Fixed small-screen (`320px`–`768px`) responsiveness across `shell.css`, `app.css`, `account.css`, Keyfleet, Autolaunch, Patchbay, Techtree, and marketing stylesheets: removed phantom 4th-column gap in mobile `.rg-bar` (`.rg-bar__account { grid-column: 3 }`), added `320px` top-bar and Keyfleet mobile theme-switch compaction, single-chevron native `<select>` styling, non-clipping Patchbay feed tabs, and tablet `768px` layout grids with zero horizontal overflow.
+
+
+## 2026-11-23 — Is Agentic readiness pass: well-known discovery, JSON-LD, docs, versioning policy, and RateLimit compatibility headers (not released)
+
+- Added emerging agent-discovery endpoints with CORS and ETag headers (`RegentsWeb.PublicDocuments`, `RegentsWeb.PublicPagesController`, `RegentsWeb.Router`):
+  - `GET /.well-known/ai-catalog.json` (AI Catalog 1.0 pointing to `/mcp/server-card`).
+  - `GET /mcp/server-card` and `GET /.well-known/mcp/server-card.json` (MCP Server Card v1 advertising `streamable-http` on `/mcp`; exempted `/mcp/server-card` from authenticated MCP rate-limiting in `RegentsWeb.Endpoint`).
+  - `GET /server.json` (MCP Registry manifest).
+  - `GET /.well-known/agent-skills/index.json` (Agent Skills Discovery 0.2.0 with dynamic SHA-256 digest) and `GET /.well-known/agent-skills/regents/SKILL.md`.
+  - `GET /pricing.md` (`platform/priv/public/pricing.md`), machine-readable pricing guide linked from `/llms.txt`, `/docs`, `/about`, and `/sitemap.xml`.
+- Upgraded RFC 9727 `GET /.well-known/api-catalog` (`application/vnd.oai.openapi+json`, RFC 8288 `Link` header, CORS, `/api/v1`, `/api/agent/v1`, `/mcp`), `GET /robots.txt` (explicit `Allow: /` for search/AI crawlers with `Disallow` on private routes and `Host`/`Sitemap`), and `GET /sitemap.xml`.
+- Upgraded HTML `<head>`, JSON-LD, and HTTP headers (`root.html.heex`, `PublicDocuments`, `Endpoint`, `shared/agent_access/lib/regent_agent_access/rate_limit.ex`):
+  - Selected per-route `is-agentic-site-type` (`business`, `content`, or `app`) via `PublicDocuments.site_type/1` instead of hardcoding `business` on every page.
+  - Enriched `Organization` JSON-LD with `PostalAddress` (`addressCountry: "US"`), `knowsAbout`, developer support `contactPoint`, and PyPI `regents-cli` in `sameAs`, and added a `WebApplication` (`#application`) node plus `<meta name="keywords">`, `application-name`, and `robots`.
+  - Added RFC 8288 discovery `Link` headers on `/`, expanded `Permissions-Policy` (`camera=(), microphone=(), geolocation=(), browsing-topics=(), tools=(self)`), set `Referrer-Policy: strict-origin-when-cross-origin`, and added `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` compatibility headers alongside IETF `RateLimit-Policy` and `RateLimit`.
+- Expanded `/docs` (`platform/priv/public/docs/overview.md`) into a self-contained developer & agent entry point, published an explicit `#versioning-and-deprecation` policy (major URL versioning + RFC 9745 `Deprecation` and RFC 8594 `Sunset` headers) in `docs/contracts.md` and `openapi.json`, linked the official PyPI `regents-cli` package across docs/guides/JSON-LD, documented `GET /api/agent/v1/account/overview` in `llms.md`/`agents.md`/`skill.md`/`docs/agent-reads.md`, and updated remaining separate-domain product links in `about.md`, `contracts.md`, and `skill.md` to unified `{{origin}}/*` paths.

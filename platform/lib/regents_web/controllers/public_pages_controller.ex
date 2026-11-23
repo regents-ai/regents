@@ -30,6 +30,13 @@ defmodule RegentsWeb.PublicPagesController do
 
   def skill(conn, _params), do: send_cached(conn, "text/markdown", PublicDocuments.skill())
 
+  def pricing(conn, _params) do
+    conn
+    |> put_public_cors()
+    |> put_resp_header("content-disposition", ~s(inline; filename="pricing.md"))
+    |> send_cached("text/markdown", PublicDocuments.pricing())
+  end
+
   @doc "One agent's skill: the agent guide with that agent's Set up section added."
   def agent_skill(conn, %{"agent" => slug}) do
     case AgentGuides.skill(slug) do
@@ -41,10 +48,7 @@ defmodule RegentsWeb.PublicPagesController do
   def robots(conn, _params) do
     conn
     |> put_resp_content_type("text/plain")
-    |> send_resp(
-      200,
-      "User-agent: *\nAllow: /\n\nSitemap: #{PublicDocuments.url("/sitemap.xml")}\n"
-    )
+    |> send_resp(200, PublicDocuments.robots_txt())
   end
 
   def security(conn, _params),
@@ -54,10 +58,78 @@ defmodule RegentsWeb.PublicPagesController do
       |> send_resp(200, PublicDocuments.security_txt())
 
   # The body is JSON built from this site's own addresses, sent as a linkset with
-  # the RFC 9727 profile.
+  # the RFC 9727 profile and RFC 8288 discovery Link headers.
   def api_catalog(conn, _params) do
     type = ~s(application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727")
-    send_cached(conn, type, Jason.encode!(PublicDocuments.api_catalog()), nil)
+
+    link =
+      Enum.join(
+        [
+          ~s(<#{PublicDocuments.url("/.well-known/api-catalog")}>; rel="api-catalog"),
+          ~s(<#{PublicDocuments.url("/api/v1")}>; rel="item"),
+          ~s(<#{PublicDocuments.url("/openapi.json")}>; rel="service-desc"; type="application/vnd.oai.openapi+json")
+        ],
+        ", "
+      )
+
+    conn
+    |> put_public_cors()
+    |> put_resp_header("link", link)
+    |> send_cached(type, Jason.encode!(PublicDocuments.api_catalog()), nil)
+  end
+
+  def ai_catalog(conn, _params) do
+    conn
+    |> put_public_cors(mcp: true)
+    |> send_cached(
+      "application/ai-catalog+json",
+      Jason.encode!(PublicDocuments.ai_catalog())
+    )
+  end
+
+  def mcp_server_card(conn, _params) do
+    conn
+    |> put_public_cors(mcp: true)
+    |> send_cached(
+      "application/mcp-server-card+json",
+      Jason.encode!(PublicDocuments.mcp_server_card())
+    )
+  end
+
+  def server_registry(conn, _params) do
+    conn
+    |> put_public_cors(mcp: true)
+    |> send_cached("application/json", Jason.encode!(PublicDocuments.mcp_server_registry()))
+  end
+
+  def agent_skills_index(conn, _params) do
+    conn
+    |> put_public_cors()
+    |> send_cached("application/json", Jason.encode!(PublicDocuments.agent_skills_index()))
+  end
+
+  def agent_skills_regents(conn, _params) do
+    conn
+    |> put_public_cors()
+    |> send_cached("text/markdown", PublicDocuments.skill())
+  end
+
+  defp put_public_cors(conn, opts \\ []) do
+    conn =
+      conn
+      |> put_resp_header("access-control-allow-origin", "*")
+      |> put_resp_header("access-control-allow-methods", "GET, HEAD, OPTIONS")
+
+    if Keyword.get(opts, :mcp, false) do
+      conn
+      |> put_resp_header(
+        "access-control-allow-headers",
+        "Accept, Content-Type, If-None-Match, MCP-Protocol-Version"
+      )
+      |> put_resp_header("access-control-expose-headers", "ETag")
+    else
+      conn
+    end
   end
 
   # XML from fixed page paths; PublicDocuments.sitemap/0 escapes every location.

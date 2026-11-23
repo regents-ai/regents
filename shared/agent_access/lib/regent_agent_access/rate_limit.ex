@@ -69,6 +69,20 @@ defmodule RegentAgentAccess.RateLimit do
     conn
     |> append("ratelimit-policy", ~s("#{policy}";q=#{budget.limit};w=#{budget.window}))
     |> append("ratelimit", ~s("#{policy}";r=#{budget.remaining};t=#{budget.reset}))
+    |> put_compat_headers(budget)
+  end
+
+  # Emit compatibility RateLimit-Limit / Remaining / Reset headers alongside the
+  # IETF structured fields so older clients and scanners read the active budget too.
+  defp put_compat_headers(conn, budget) do
+    if get_resp_header(conn, "ratelimit-limit") == [] do
+      conn
+      |> put_resp_header("ratelimit-limit", Integer.to_string(budget.limit))
+      |> put_resp_header("ratelimit-remaining", Integer.to_string(budget.remaining))
+      |> put_resp_header("ratelimit-reset", Integer.to_string(budget.reset))
+    else
+      conn
+    end
   end
 
   defp append(conn, header, item),

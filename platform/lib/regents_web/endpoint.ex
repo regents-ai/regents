@@ -93,11 +93,33 @@ defmodule RegentsWeb.Endpoint do
   # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
   # sobelow_skip ["Config.CSP"]
   defp secure_every_answer(conn, _opts) do
-    Phoenix.Controller.put_secure_browser_headers(conn, %{
-      "content-security-policy" => RegentsWeb.ContentSecurityPolicy.reading(),
-      "permissions-policy" => "tools=(self)",
-      "origin-trial" => @webmcp_origin_trial
-    })
+    conn =
+      Phoenix.Controller.put_secure_browser_headers(conn, %{
+        "content-security-policy" => RegentsWeb.ContentSecurityPolicy.reading(),
+        "permissions-policy" =>
+          "camera=(), microphone=(), geolocation=(), browsing-topics=(), tools=(self)",
+        "referrer-policy" => "strict-origin-when-cross-origin",
+        "origin-trial" => @webmcp_origin_trial
+      })
+
+    if conn.path_info == [] do
+      origin = url()
+
+      Plug.Conn.put_resp_header(
+        conn,
+        "link",
+        Enum.join(
+          [
+            ~s(<#{origin}/.well-known/api-catalog>; rel="api-catalog"),
+            ~s(<#{origin}/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json"),
+            ~s(<#{origin}/llms.txt>; rel="describedby"; type="text/plain")
+          ],
+          ", "
+        )
+      )
+    else
+      conn
+    end
   end
 
   defp limit_rate(%Plug.Conn{path_info: ["healthz"]} = conn, _opts),
@@ -128,6 +150,8 @@ defmodule RegentsWeb.Endpoint do
          _opts
        ),
        do: RegentsWeb.Techtree.PublicationRate.call(conn, [])
+
+  defp limit_rate(%Plug.Conn{path_info: ["mcp", "server-card"]} = conn, _opts), do: conn
 
   defp limit_rate(%Plug.Conn{path_info: ["mcp" | _]} = conn, _opts),
     do: RegentsWeb.Plugs.McpAgent.limit_address(conn)

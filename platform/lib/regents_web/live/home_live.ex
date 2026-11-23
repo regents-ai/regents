@@ -51,6 +51,21 @@ defmodule RegentsWeb.HomeLive do
 
     [Buy on Uniswap](#{TokenLinks.buy()}) · [View Chart](#{TokenLinks.chart()})
 
+    ## Public resources
+
+    - Developer docs: #{PublicDocuments.url("/docs")}
+    - OpenAPI specification: #{PublicDocuments.url("/openapi.json")}
+    - RFC 9727 API catalog: #{PublicDocuments.url("/.well-known/api-catalog")}
+    - Official CLI (PyPI): https://pypi.org/project/regents-cli/
+    - Hosted MCP server: #{PublicDocuments.url("/mcp")}
+    - MCP server card: #{PublicDocuments.url("/mcp/server-card")}
+    - AI Catalog: #{PublicDocuments.url("/.well-known/ai-catalog.json")}
+    - MCP Registry manifest: #{PublicDocuments.url("/server.json")}
+    - Agent Skills index: #{PublicDocuments.url("/.well-known/agent-skills/index.json")}
+    - Pricing: #{PublicDocuments.url("/pricing.md")}
+    - Machine-readable site guide: #{PublicDocuments.url("/llms.txt")}
+    - Sitemap: #{PublicDocuments.url("/sitemap.xml")}
+
     © 2026 Regents Labs
     """
   end

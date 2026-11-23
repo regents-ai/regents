@@ -2,7 +2,7 @@ defmodule RegentsWeb.PublicDocuments do
   @moduledoc "Public documents only; never projects a signed-in page or account."
 
   @directory Application.app_dir(:regents, "priv/public")
-  @files Enum.map(~w(about llms agents skill), &Path.join(@directory, &1 <> ".md"))
+  @files Enum.map(~w(about llms agents skill pricing), &Path.join(@directory, &1 <> ".md"))
   for file <- @files, do: @external_resource(file)
   @sources Map.new(@files, &{Path.basename(&1, ".md"), File.read!(&1)})
   # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
@@ -264,6 +264,46 @@ defmodule RegentsWeb.PublicDocuments do
   def llms, do: source("llms")
   def agents, do: source("agents")
   def skill, do: source("skill")
+  def pricing, do: source("pricing")
+
+  @doc """
+  Selects the Is Agentic site-type lens (`content`, `business`, or `app`) for a
+  page path so every page emits one accurate `is-agentic-site-type` meta tag.
+  """
+  def site_type(path) when is_binary(path) do
+    cond do
+      content_path?(path) -> "content"
+      app_path?(path) -> "app"
+      true -> "business"
+    end
+  end
+
+  def site_type(_), do: "business"
+
+  @content_exact ~w(/docs /about /changelog /privacy /terms /articles /paper-pro-daily /literature /agents)
+  @content_prefixes ~w(/docs/ /articles/ /paper-pro-daily/ /agents/)
+  @content_suffixes ~w(/docs /about)
+  @content_segments ~w(/docs/ /blog)
+
+  @app_exact ~w(/app /account /pair /stake /redeem /redeem/gallery)
+  @app_prefixes ~w(
+    /account/ /keyfleet/app /keyfleet/fleets
+    /autolaunch/app /autolaunch/auctions /autolaunch/tokens /autolaunch/stocks
+    /autolaunch/portfolio /autolaunch/create
+    /patchbay/forum /patchbay/posts /patchbay/sites /patchbay/offers /patchbay/agents
+    /techtree/app /techtree/account /techtree/watchdog /techtree/results
+  )
+
+  defp content_path?(path) do
+    path in @content_exact or
+      Enum.any?(@content_prefixes, &String.starts_with?(path, &1)) or
+      Enum.any?(@content_suffixes, &String.ends_with?(path, &1)) or
+      Enum.any?(@content_segments, &String.contains?(path, &1))
+  end
+
+  defp app_path?(path) do
+    path in @app_exact or Enum.any?(@app_prefixes, &String.starts_with?(path, &1))
+  end
 
   # The public documents change only with a release; security.txt expires a year after it.
   @released_at DateTime.utc_now() |> DateTime.truncate(:second)
@@ -379,7 +419,7 @@ defmodule RegentsWeb.PublicDocuments do
 
   defp share_image_alt("/"),
     do:
-      "The Regents crown above Regents Labs, the community-owned agentic product lab, and $REGENT, beside its six sites: regents.sh, patchbay.help, autolaunch.sh, techtree.sh, keyfleet.ai and siwa-server"
+      "The Regents crown above Regents Labs, the community-owned agentic product lab, and $REGENT, with Techtree, Keyfleet, Autolaunch, Patchbay, Cloak and SIWA on regents.sh"
 
   defp share_image_alt("/paper-pro-daily"), do: @paper_share_heading
 
@@ -396,21 +436,26 @@ defmodule RegentsWeb.PublicDocuments do
 
   def openapi do
     @openapi
-    |> Map.put("servers", [%{"url" => url("")}])
+    |> Map.put("servers", [%{"url" => url(""), "description" => "Regents Labs unified API"}])
     |> Map.put("externalDocs", %{
       "url" => url("/docs"),
-      "description" => "Developer documentation"
+      "description" => "Developer documentation, versioning policy, and error guidance"
     })
-    |> put_in(["info", "contact", "url"], url("/about"))
+    |> put_in(["info", "contact", "url"], url("/about#contact"))
+    |> put_in(["info", "contact", "email"], "build@regents.sh")
     |> put_in(["info", "termsOfService"], url("/terms"))
+    |> put_in(["info", "license"], %{
+      "name" => "Regents Labs Terms of Use",
+      "url" => url("/terms")
+    })
   end
 
   @doc "Instructions served to hosted MCP clients on initialize at `/mcp`."
   def mcp_instructions do
     """
     Regents Labs unified hosted MCP server at #{url("/mcp")}.
-    Covers Regents identity pairing, Keyfleet workspace and Atlas reads, Autolaunch covered calls and Earn tools, and Patchbay forum reads.
-    Start at #{url("/llms.txt")} and #{url("/agents.md")}. Every tool runs under the calling paired agent's policies.
+    Covers Regents identity pairing and unified account overview (`regents_account_overview`), Keyfleet workspace and Atlas reads, Autolaunch covered calls and Earn tools, and Patchbay forum reads.
+    Start at #{url("/llms.txt")}, #{url("/agents.md")}, and #{url("/mcp/server-card")}. Every tool runs under the calling paired agent's policies.
     """
   end
 
@@ -420,27 +465,145 @@ defmodule RegentsWeb.PublicDocuments do
       "linkset" => [
         %{
           "anchor" => url("/api/v1"),
-          "service-desc" => [%{"href" => url("/openapi.json"), "type" => "application/json"}],
+          "service-desc" => [
+            %{"href" => url("/openapi.json"), "type" => "application/vnd.oai.openapi+json"}
+          ],
           "service-doc" => [%{"href" => url("/docs"), "type" => "text/html"}]
         },
         %{
+          "anchor" => url("/api/agent/v1"),
+          "service-desc" => [
+            %{"href" => url("/openapi.json"), "type" => "application/vnd.oai.openapi+json"}
+          ],
+          "service-doc" => [%{"href" => url("/docs/agent-reads"), "type" => "text/html"}]
+        },
+        %{
           "anchor" => url("/mcp"),
+          "service-desc" => [
+            %{"href" => url("/mcp/server-card"), "type" => "application/mcp-server-card+json"}
+          ],
           "service-doc" => [%{"href" => url("/agents.md"), "type" => "text/markdown"}]
         }
       ]
     }
   end
 
+  @doc "AI Catalog 1.0 discovery document at `/.well-known/ai-catalog.json`."
+  def ai_catalog do
+    %{
+      "specVersion" => "1.0",
+      "entries" => [
+        %{
+          "identifier" => "urn:air:regents.sh:mcp:regents",
+          "type" => "application/mcp-server-card+json",
+          "url" => url("/mcp/server-card")
+        }
+      ]
+    }
+  end
+
+  @doc "Canonical MCP Server Card v1 document at `/mcp/server-card` and `/.well-known/mcp/server-card.json`."
+  def mcp_server_card do
+    %{
+      "$schema" => "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
+      "name" => "io.github.regents-ai/regents",
+      "title" => "Regents Labs",
+      "description" =>
+        "Unified Regents Labs MCP server for paired agents across Regents account overview, Keyfleet, Autolaunch, Patchbay, and Techtree.",
+      "version" => get_in(@openapi, ["info", "version"]) || "1.0.0",
+      "websiteUrl" => url("/"),
+      "repository" => %{
+        "source" => "github",
+        "url" => "https://github.com/regents-ai/regents"
+      },
+      "remotes" => [
+        %{
+          "type" => "streamable-http",
+          "url" => url("/mcp"),
+          "supportedProtocolVersions" => ["2026-07-28", "2025-11-25", "2025-06-18"]
+        }
+      ]
+    }
+  end
+
+  @doc "MCP Registry manifest at `/server.json`."
+  def mcp_server_registry do
+    %{
+      "$schema" => "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name" => "io.github.regents-ai/regents",
+      "title" => "Regents Labs",
+      "description" =>
+        "Unified Regents Labs MCP server for paired agents across Regents account overview, Keyfleet, Autolaunch, Patchbay, and Techtree.",
+      "version" => get_in(@openapi, ["info", "version"]) || "1.0.0",
+      "websiteUrl" => url("/"),
+      "remotes" => [
+        %{
+          "type" => "streamable-http",
+          "url" => url("/mcp")
+        }
+      ]
+    }
+  end
+
+  @doc "Agent Skills Discovery 0.2.0 index at `/.well-known/agent-skills/index.json`."
+  def agent_skills_index do
+    skill_body = skill()
+    digest = "sha256:" <> Base.encode16(:crypto.hash(:sha256, skill_body), case: :lower)
+
+    %{
+      "$schema" => "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+      "skills" => [
+        %{
+          "name" => "regents",
+          "type" => "skill-md",
+          "description" =>
+            "Use Regents Labs for your person across Keyfleet, Autolaunch, Patchbay, Techtree, staking, and Points via regents-cli, WebMCP, MCP, and REST APIs.",
+          "url" => url("/.well-known/agent-skills/regents/SKILL.md"),
+          "digest" => digest
+        }
+      ]
+    }
+  end
+
+  @doc "Crawler policy for `/robots.txt`, explicitly welcoming search and AI assistants on public pages."
+  def robots_txt do
+    """
+    User-agent: OAI-SearchBot
+    User-agent: ChatGPT-User
+    User-agent: GPTBot
+    User-agent: Claude-SearchBot
+    User-agent: Claude-User
+    User-agent: ClaudeBot
+    User-agent: PerplexityBot
+    User-agent: Perplexity-User
+    Allow: /
+    Disallow: /api/agent/
+    Disallow: /oauth/
+    Disallow: /admin/
+    Disallow: /visit-log
+
+    User-agent: *
+    Allow: /
+    Disallow: /api/agent/
+    Disallow: /oauth/
+    Disallow: /admin/
+    Disallow: /visit-log
+
+    Host: #{url("")}
+    Sitemap: #{url("/sitemap.xml")}
+    """
+  end
+
   def sitemap do
     locations =
       Enum.map_join(
         ~w(
-          / /about /changelog /privacy /terms /start /articles /paper-pro-daily /literature
-          /cloak /cloak/install /siwa
-          /techtree /techtree/results /techtree/wallet-bench /techtree/docs /techtree/about
-          /keyfleet /keyfleet/about /keyfleet/docs /keyfleet/opportunities
+          / /about /changelog /pricing.md /privacy /terms /start /articles /paper-pro-daily /literature
+          /stake /redeem /redeem/gallery /cloak /cloak/install /siwa
+          /techtree /techtree/app /techtree/results /techtree/wallet-bench /techtree/docs /techtree/about
+          /keyfleet /keyfleet/app /keyfleet/about /keyfleet/docs /keyfleet/opportunities
           /autolaunch /autolaunch/auctions /autolaunch/tokens /autolaunch/stocks /autolaunch/about /autolaunch/docs
-          /patchbay /patchbay/sites /patchbay/wallet-bench /patchbay/incidents /patchbay/start /patchbay/about
+          /patchbay /patchbay/forum /patchbay/sites /patchbay/wallet-bench /patchbay/incidents /patchbay/start /patchbay/docs /patchbay/about
         ) ++
           RegentsWeb.Docs.Pages.paths() ++ AgentGuides.paths(),
         "\n",
@@ -459,6 +622,12 @@ defmodule RegentsWeb.PublicDocuments do
   end
 
   def structured_data do
+    same_as = [
+      "https://github.com/regents-ai",
+      "https://x.com/regents_sh",
+      "https://pypi.org/project/regents-cli/"
+    ]
+
     %{
       "@context" => "https://schema.org",
       "@graph" => [
@@ -469,23 +638,66 @@ defmodule RegentsWeb.PublicDocuments do
           "legalName" => "Regents Labs, Inc.",
           "url" => url("/"),
           "logo" => url("/mark.png"),
+          "email" => "build@regents.sh",
           "description" => @description,
-          "sameAs" => ["https://github.com/regents-ai", "https://x.com/regents_sh"],
+          "knowsAbout" => [
+            "AI agents",
+            "REGENT staking",
+            "Autolaunch",
+            "Keyfleet",
+            "Patchbay",
+            "Techtree",
+            "Regents Cloak",
+            "Sign-in with Agent"
+          ],
+          "sameAs" => same_as,
+          "address" => %{
+            "@type" => "PostalAddress",
+            "addressCountry" => "US"
+          },
           "contactPoint" => [
             %{
               "@type" => "ContactPoint",
-              "contactType" => "privacy",
-              "email" => "privacy@regents.sh"
+              "contactType" => "developer and product support",
+              "email" => "build@regents.sh",
+              "url" => url("/about#contact"),
+              "availableLanguage" => "English"
             },
-            %{"@type" => "ContactPoint", "contactType" => "legal", "email" => "legal@regents.sh"}
+            %{
+              "@type" => "ContactPoint",
+              "contactType" => "privacy",
+              "email" => "privacy@regents.sh",
+              "url" => url("/privacy")
+            },
+            %{
+              "@type" => "ContactPoint",
+              "contactType" => "legal",
+              "email" => "legal@regents.sh",
+              "url" => url("/terms")
+            }
           ]
         },
         %{
           "@type" => "WebSite",
           "@id" => url("/#website"),
           "url" => url("/"),
-          "name" => "Regents Labs",
-          "publisher" => %{"@id" => url("/#organization")}
+          "name" => @site_name,
+          "description" => @description,
+          "publisher" => %{"@id" => url("/#organization")},
+          "sameAs" => same_as
+        },
+        %{
+          "@type" => "WebApplication",
+          "@id" => url("/#application"),
+          "name" => @site_name,
+          "url" => url("/"),
+          "description" => @description,
+          "applicationCategory" => "DeveloperApplication",
+          "operatingSystem" => "Any",
+          "provider" => %{"@id" => url("/#organization")},
+          "isPartOf" => %{"@id" => url("/#website")},
+          "softwareHelp" => url("/docs"),
+          "sameAs" => same_as
         }
       ]
     }

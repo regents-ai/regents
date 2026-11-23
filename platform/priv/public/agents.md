@@ -62,6 +62,7 @@ file: `uv run siwa_agent.py pair {{origin}} < ~/pair.json`, then `rm ~/pair.json
 ## 3. Read for your person
 
 ```sh
+regents overview
 regents protocol agents status
 regents protocol account show
 regents protocol account points
@@ -70,6 +71,7 @@ regents protocol --help
 
 | Read | Command | Request |
 | --- | --- | --- |
+| Unified cross-product overview (Keyfleet, Autolaunch, Patchbay, Techtree) | `regents overview` (`protocol account overview`) | `GET /api/agent/v1/account/overview` |
 | Check in | `agents status` | `GET /api/agents/v1/me` |
 | Account display and ENS name | `account show` | `GET /api/agent/v1/account` |
 | Verified owner-wallet name claims | `account claims` | `POST /api/agent/v1/claims` |

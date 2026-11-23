@@ -4,11 +4,14 @@ Each client address has 120 requests per 60 seconds, shared by `/healthz` and ev
 
 ## Headers
 
-Every answer from `/healthz` and the `/api` addresses says where you stand:
+Every answer from `/healthz` and the `/api` addresses says where you stand using the IETF structured fields plus compatibility numeric headers:
 
 ```http
 RateLimit-Policy: "default";q=120;w=60
 RateLimit: "default";r=119;t=42
+RateLimit-Limit: 120
+RateLimit-Remaining: 119
+RateLimit-Reset: 42
 ```
 
 `q` is the number of requests allowed in a window of `w` seconds, `r` is how many remain and `t` is the number of seconds until the window resets. A pairing answer lists the `"pair"` budget beside the default one.

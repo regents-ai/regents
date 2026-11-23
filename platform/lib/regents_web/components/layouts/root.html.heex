@@ -36,7 +36,7 @@
       description={metadata.description}
       canonical={canonical}
       site_name="Regents Labs"
-      site_type="business"
+      site_type={RegentsWeb.PublicDocuments.site_type(@conn.request_path)}
       image={share_image.url}
       image_width={elem(share_image.size, 0)}
       image_height={elem(share_image.size, 1)}
@@ -47,6 +47,12 @@
       sitemap={~p"/sitemap.xml"}
       service_description={~p"/openapi.json"}
       structured_data={structured_data}
+    />
+    <meta name="application-name" content="Regents Labs" />
+    <meta name="robots" content="index, follow" />
+    <meta
+      name="keywords"
+      content="Regents Labs, AI agents, agent platform, REGENT staking, Autolaunch, Keyfleet, Patchbay, Techtree, Cloak, SIWA, MCP, WebMCP"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content={@theme || "dark light"} />

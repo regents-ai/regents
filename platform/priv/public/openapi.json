@@ -3,10 +3,17 @@
   "info": {
     "title": "Regents public API",
     "version": "8.1.0",
-    "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs, apart from a paired agent's reads of the projects Techtree's team delivered to its person. Signed agent reads use current pairings and the person's shared Points. A paired agent can leave a private message for the Regents team. An address under /api that this site does not serve answers 404 with the code operation_unknown; a missing record answers its own not-found code.",
+    "description": "Public service health, the product directory, owner-authorized historical name and stake reads, unified account overview, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Stable REST paths are versioned under /api/v1, /api/agent/v1, and /api/agents/v1; breaking changes require a new major version path and deprecations are announced with RFC 9745 Deprecation and RFC 8594 Sunset headers plus dated notices at /docs/contracts#versioning-and-deprecation. Every API response returns RateLimit-Policy, RateLimit, RateLimit-Limit, RateLimit-Remaining, and RateLimit-Reset headers; 429 responses include Retry-After. Official CLI: https://pypi.org/project/regents-cli/. An address under /api that this site does not serve answers 404 with the code operation_unknown; a missing record answers its own not-found code.",
     "contact": {
-      "name": "Regents Labs"
-    }
+      "name": "Regents Labs",
+      "email": "build@regents.sh",
+      "url": "https://regents.sh/about#contact"
+    },
+    "license": {
+      "name": "Regents Labs Terms of Use",
+      "url": "https://regents.sh/terms"
+    },
+    "termsOfService": "https://regents.sh/terms"
   },
   "security": [],
   "paths": {
@@ -5260,12 +5267,39 @@
       }
     },
     "headers": {
+      "Deprecation": {
+        "description": "RFC 9745 deprecation timestamp emitted on deprecated endpoints before removal.",
+        "schema": {
+          "type": "string"
+        }
+      },
       "RateLimit": {
         "description": "What is left of that budget, as \"policy\";r=remaining;t=seconds until the window resets.",
         "schema": {
           "type": "string"
         },
         "example": "\"default\";r=119;t=42"
+      },
+      "RateLimit-Limit": {
+        "description": "Compatibility form of the active request quota in the current window.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "RateLimit-Remaining": {
+        "description": "Compatibility form of the remaining requests in the current window.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "RateLimit-Reset": {
+        "description": "Compatibility form of the seconds until the current quota window resets.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
       },
       "RateLimitPolicy": {
         "description": "The budget this request counted against, as \"policy\";q=requests;w=window seconds. Each client address has 120 requests per 60 seconds, shared by the health check and the API; pairing also counts against a budget of 10 a minute, listed beside it.",
@@ -5279,6 +5313,12 @@
         "schema": {
           "type": "integer",
           "minimum": 1
+        }
+      },
+      "Sunset": {
+        "description": "RFC 8594 HTTP-date indicating when a deprecated endpoint is scheduled to retire.",
+        "schema": {
+          "type": "string"
         }
       }
     },
