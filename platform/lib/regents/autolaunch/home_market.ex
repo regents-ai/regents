@@ -75,29 +75,36 @@ defmodule Regents.Autolaunch.HomeMarket do
     with {:ok, page} <- Ash.read(query, page: [limit: limit]), do: {:ok, page.results}
   end
 
+  @public_link_providers [:x, :ens, :github]
+
   @doc """
   The connected accounts of the creators of one page's records (`read/3`'s
   results), by account id: their verified X profile and company
   (`XConnection`, as `:profile` and `:company`) and their linked X, ENS and
   GitHub accounts (as `:x`, `:ens` and `:github`), each with its `username`.
+  Records that already carry loaded `creator_links` use them directly; records
+  without `creator_links` (such as Create page previews or Robinhood pages)
+  batch-read `Regents.Account.Accounts.public_links_for_accounts/1`.
   The X read asks for one page's creators only, so it is capped at the
   page's size.
   """
-  @spec creators([struct()]) :: {:ok, %{integer() => map()}} | {:error, term()}
+  @spec creators([map()]) :: {:ok, %{integer() => map()}} | {:error, term()}
   def creators(records) do
-    auctions =
-      records |> Enum.map(&auction/1) |> Enum.filter(&is_integer(&1.creator_human_account_id))
+    creators =
+      records
+      |> Enum.map(&creator_record/1)
+      |> Enum.filter(&match?(%{creator_human_account_id: id} when is_integer(id), &1))
 
-    ids = auctions |> Enum.map(& &1.creator_human_account_id) |> Enum.uniq()
+    ids = creators |> Enum.map(& &1.creator_human_account_id) |> Enum.uniq()
 
-    with {:ok, connections} <- x_connections(ids) do
-      linked = Map.new(auctions, &{&1.creator_human_account_id, linked(&1.creator_links)})
-
+    with {:ok, connections} <- x_connections(ids),
+         {:ok, linked} <- linked_by_creator(creators) do
       {:ok,
        Enum.reduce(connections, linked, fn connection, grouped ->
-         Map.update!(
+         Map.update(
            grouped,
            connection.human_account_id,
+           %{connection.role => connection},
            &Map.put(&1, connection.role, connection)
          )
        end)}
@@ -107,20 +114,100 @@ defmodule Regents.Autolaunch.HomeMarket do
   # A page with no signed-up creator asks nothing, as autolaunch.sh's did.
   defp x_connections([]), do: {:ok, []}
 
-  defp x_connections(ids),
-    do:
-      XConnection
-      |> Ash.Query.for_read(:public_for_humans, %{human_account_ids: ids}, actor: nil)
-      |> Ash.read()
+  defp x_connections(ids) do
+    case XConnection
+         |> Ash.Query.for_read(:public_for_humans, %{human_account_ids: ids}, actor: nil)
+         |> Ash.read() do
+      {:ok, connections} ->
+        {:ok, connections}
 
-  defp auction(%Token{auction: auction}), do: auction
-  defp auction(%Auction{} = auction), do: auction
+      {:error, error} ->
+        if undefined_table?(error), do: {:ok, []}, else: {:error, error}
+    end
+  end
+
+  defp undefined_table?(%{errors: errors}) when is_list(errors),
+    do: Enum.any?(errors, &undefined_table?/1)
+
+  defp undefined_table?(%{error: inner}), do: undefined_table?(inner)
+  defp undefined_table?(%Postgrex.Error{postgres: %{code: :undefined_table}}), do: true
+
+  defp undefined_table?(message) when is_binary(message),
+    do: String.contains?(message, "ERROR 42P01 (undefined_table)")
+
+  defp undefined_table?(_other), do: false
+
+  defp creator_record(%Token{auction: auction}), do: auction
+  defp creator_record(%Auction{} = auction), do: auction
+  defp creator_record(%{creator_human_account_id: _} = record), do: record
+  defp creator_record(_other), do: nil
+
+  defp linked_by_creator(creators) do
+    {preloaded, missing_ids} =
+      Enum.reduce(creators, {%{}, MapSet.new()}, &collect_creator_links/2)
+
+    case MapSet.to_list(missing_ids) do
+      [] -> {:ok, preloaded}
+      ids -> fetch_public_links(ids, preloaded)
+    end
+  end
+
+  defp collect_creator_links(record, {acc, missing}) do
+    id = record.creator_human_account_id
+
+    case Map.get(record, :creator_links) do
+      %{} = links when not is_struct(links) ->
+        {Map.put(acc, id, linked(links)), MapSet.delete(missing, id)}
+
+      _unloaded ->
+        mark_missing_creator_links(acc, missing, id)
+    end
+  end
+
+  defp mark_missing_creator_links(acc, missing, id) do
+    if Map.has_key?(acc, id),
+      do: {acc, missing},
+      else: {Map.put(acc, id, %{}), MapSet.put(missing, id)}
+  end
+
+  defp fetch_public_links(ids, grouped) do
+    if Regents.read_only?() do
+      {:ok, grouped}
+    else
+      ids
+      |> Enum.chunk_every(100)
+      |> Enum.reduce_while({:ok, grouped}, &fetch_public_links_batch/2)
+    end
+  end
+
+  defp fetch_public_links_batch(batch, {:ok, acc}) do
+    case Regents.Account.Accounts.public_links_for_accounts(batch) do
+      {:ok, links} -> {:cont, {:ok, merge_public_links(acc, links)}}
+      {:error, reason} -> {:halt, {:error, reason}}
+    end
+  end
+
+  defp merge_public_links(grouped, links) do
+    Enum.reduce(links, grouped, fn link, acc ->
+      if link.provider in @public_link_providers and is_binary(link.username) and
+           link.username != "" do
+        Map.update(
+          acc,
+          link.human_account_id,
+          %{link.provider => %{username: link.username}},
+          &Map.put(&1, link.provider, %{username: link.username})
+        )
+      else
+        acc
+      end
+    end)
+  end
 
   defp linked(links),
     do:
       for(
         {provider, name} <- links,
-        is_binary(name),
+        is_binary(name) and name != "",
         into: %{},
         do: {provider, %{username: name}}
       )

@@ -12,6 +12,7 @@ defmodule RegentsWeb.Autolaunch.CreateLive do
 
   require Logger
 
+  alias Regents.Account.Accounts
   alias Regents.Account.Actors.Human
 
   alias Regents.SharedReading
@@ -199,6 +200,7 @@ defmodule RegentsWeb.Autolaunch.CreateLive do
          if connected?(socket) do
            Listings.subscribe()
            AgentDrafts.subscribe("revstake", actor.human_account_id)
+           Accounts.subscribe_linked_identities(actor.human_account_id)
 
            socket
            |> load_create(actor)
@@ -210,20 +212,6 @@ defmodule RegentsWeb.Autolaunch.CreateLive do
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
-
-  def handle_event("refresh_x_connections", _params, %{assigns: %{current_human_id: id}} = socket)
-      when is_integer(id) do
-    send_update(RegentsWeb.Autolaunch.CreatorConnectionsComponent,
-      id: "creator-connections",
-      current_human_id: socket.assigns.current_human_id,
-      session_lease: socket.assigns.session_lease
-    )
-
-    {:noreply, assign_connections(socket)}
-  end
-
-  # Signed out there is no socials panel to refresh.
-  def handle_event("refresh_x_connections", _params, socket), do: {:noreply, socket}
 
   def handle_event(event, params, socket) when event in @autosave_events do
     values = Map.take(params["launch_draft"] || %{}, Map.fetch!(@sections, event))
@@ -608,6 +596,20 @@ defmodule RegentsWeb.Autolaunch.CreateLive do
 
   def handle_info({:creator_connections, :changed}, socket),
     do: {:noreply, assign_connections(socket)}
+
+  def handle_info({:linked_identities_changed, _account_id, _provider}, socket) do
+    if is_integer(socket.assigns.current_human_id) do
+      send_update(RegentsWeb.Autolaunch.CreatorConnectionsComponent,
+        id: "creator-connections",
+        current_human_id: socket.assigns.current_human_id,
+        session_lease: socket.assigns.session_lease
+      )
+
+      {:noreply, assign_connections(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
 
   # The site read a new Base block: the factory may have paused or reopened
   # new launches.

@@ -1498,32 +1498,36 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   label, handle and link, in the order X, Company X, ENS, GitHub.
   """
   def connection_list(connections) when is_map(connections) do
-    [:profile, :x, :company, :ens, :github]
+    [:x, :profile, :company, :ens, :github]
     |> Enum.flat_map(&connection(&1, Map.get(connections, &1)))
     |> Enum.uniq_by(& &1.url)
   end
 
   def connection_list(_connections), do: []
 
-  defp connection(key, %{verified_at: %DateTime{}, username: name})
+  defp connection(key, %{username: name} = entry)
        when is_binary(name) and name != "" do
-    {kind, label, base, handle} =
-      case key do
-        :ens -> {:ens, "ENS", "https://app.ens.domains/", name}
-        :github -> {:github, "GitHub", "https://github.com/", name}
-        :company -> {:x, "Company X", "https://x.com/", "@" <> name}
-        _ -> {:x, "X", "https://x.com/", "@" <> name}
-      end
+    if Map.has_key?(entry, :verified_at) and not match?(%DateTime{}, entry.verified_at) do
+      []
+    else
+      {kind, label, base, handle} =
+        case key do
+          :ens -> {:ens, "ENS", "https://app.ens.domains/", name}
+          :github -> {:github, "GitHub", "https://github.com/", name}
+          :company -> {:x, "Company X", "https://x.com/", "@" <> name}
+          _ -> {:x, "X", "https://x.com/", "@" <> name}
+        end
 
-    [
-      %{
-        kind: kind,
-        username: name,
-        label: label,
-        handle: handle,
-        url: base <> URI.encode_www_form(name)
-      }
-    ]
+      [
+        %{
+          kind: kind,
+          username: name,
+          label: label,
+          handle: handle,
+          url: base <> URI.encode_www_form(name)
+        }
+      ]
+    end
   end
 
   defp connection(_key, _value), do: []

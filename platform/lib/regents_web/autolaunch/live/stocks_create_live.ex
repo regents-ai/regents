@@ -13,6 +13,7 @@ defmodule RegentsWeb.Autolaunch.StocksCreateLive do
 
   require Logger
 
+  alias Regents.Account.Accounts
   alias Regents.Account.Actors.Human
 
   alias Regents.SharedReading
@@ -129,6 +130,7 @@ defmodule RegentsWeb.Autolaunch.StocksCreateLive do
          if connected?(socket) do
            Listings.subscribe()
            AgentDrafts.subscribe("memestock", actor.human_account_id)
+           Accounts.subscribe_linked_identities(actor.human_account_id)
 
            socket
            |> load_draft(actor)
@@ -270,18 +272,6 @@ defmodule RegentsWeb.Autolaunch.StocksCreateLive do
       else: {:reply, %{taken: true}, restore(socket, values)}
   end
 
-  # The X connect button reloads the socials panel once the account is linked.
-  def handle_event("refresh_x_connections", _params, %{assigns: %{current_human_id: id}} = socket)
-      when is_integer(id) do
-    send_update(RegentsWeb.Autolaunch.CreatorConnectionsComponent,
-      id: "creator-connections",
-      current_human_id: socket.assigns.current_human_id,
-      session_lease: socket.assigns.session_lease
-    )
-
-    {:noreply, socket}
-  end
-
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   # A launch card opened its review, which takes the form's place, so the
@@ -308,6 +298,20 @@ defmodule RegentsWeb.Autolaunch.StocksCreateLive do
 
   def handle_info({:creator_connections, :changed}, socket),
     do: {:noreply, assign_connections(socket)}
+
+  def handle_info({:linked_identities_changed, _account_id, _provider}, socket) do
+    if is_integer(socket.assigns.current_human_id) do
+      send_update(RegentsWeb.Autolaunch.CreatorConnectionsComponent,
+        id: "creator-connections",
+        current_human_id: socket.assigns.current_human_id,
+        session_lease: socket.assigns.session_lease
+      )
+
+      {:noreply, assign_connections(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
 
   # The site read a new block: the launchpad may have paused or reopened new
   # launches.

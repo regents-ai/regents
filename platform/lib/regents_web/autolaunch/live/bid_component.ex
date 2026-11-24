@@ -91,6 +91,9 @@ defmodule RegentsWeb.Autolaunch.BidComponent do
   @impl true
   def update(%{use_price: price}, socket), do: {:ok, at_price(socket, price)}
 
+  # Linked identities changed in another tab (such as /account/connections); refresh X in place.
+  def update(%{refresh_x: true}, socket), do: {:ok, load_x(socket)}
+
   # A review lives on the page until something it depends on changes, and is
   # built again once it is ten minutes old, so its allowance window, deadline
   # and tick hint stay current (`OnchainSteps.refresh_later/1`).
@@ -398,8 +401,6 @@ defmodule RegentsWeb.Autolaunch.BidComponent do
   def handle_event("opening_due", _params, socket), do: {:noreply, read_opening(socket)}
 
   def handle_event("share_opened", _params, socket), do: {:noreply, load_x(socket)}
-
-  def handle_event("refresh_x_connections", _params, socket), do: {:noreply, load_x(socket)}
 
   @impl true
   def handle_async(:prepare, {:ok, {key, inputs, result}}, socket) do
@@ -858,17 +859,18 @@ defmodule RegentsWeb.Autolaunch.BidComponent do
   defp tickers(%{facts: facts}), do: ["USDC", facts.currency_symbol]
   defp tickers(_prepared), do: ["USDC"]
 
-  # The bidder's own X account, read when they choose to share.
+  # The bidder's own X account, read when they choose to share and kept live via
+  # Ash PubSub when they connect or disconnect X on /account/connections.
   defp load_x(socket) do
-    connections =
-      case Regents.Autolaunch.list_my_x_connections(actor: OnchainSteps.actor(socket)) do
-        {:ok, connections} -> connections
-        {:error, _unavailable} -> []
-      end
+    actor = OnchainSteps.actor(socket)
+
+    if actor do
+      send(self(), {:watch_linked_identities, __MODULE__, socket.assigns.id})
+    end
 
     assign(socket,
-      x_connection: BidPlaced.profile_x(connections),
-      x_enabled: Regents.Autolaunch.XOAuth.enabled?()
+      x_connection: BidPlaced.x_account(actor),
+      x_enabled: not Regents.read_only?()
     )
   end
 

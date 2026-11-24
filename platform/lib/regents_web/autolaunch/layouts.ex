@@ -23,6 +23,7 @@ defmodule RegentsWeb.Autolaunch.Layouts do
   use RegentsWeb, :html
 
   alias Regents.Account.AccessContext.AccountControl
+  alias Regents.Account.Accounts
   alias RegentsWeb.Autolaunch.Components.LearnNavigation
   alias RegentsWeb.Autolaunch.Components.RegentLinks
   alias RegentsWeb.Components.Shell
@@ -93,7 +94,54 @@ defmodule RegentsWeb.Autolaunch.Layouts do
      |> assign(:client_key, session["client_tag"] || "anonymous")
      |> Phoenix.LiveView.attach_hook(:page, :handle_params, fn _params, uri, socket ->
        {:cont, assign(socket, :current_path, URI.parse(uri).path)}
+     end)
+     |> Phoenix.LiveView.attach_hook(:linked_identities, :handle_info, fn
+       {:watch_linked_identities, module, id}, socket ->
+         {:halt, watch_linked_identities(socket, module, id)}
+
+       {:linked_identities_changed, _account_id, _provider}, socket ->
+         case linked_identity_watchers(socket) do
+           [] ->
+             {:cont, socket}
+
+           watchers ->
+             for {module, id} <- watchers do
+               Phoenix.LiveView.send_update(module, id: id, refresh_x: true)
+             end
+
+             {:halt, socket}
+         end
+
+       _other, socket ->
+         {:cont, socket}
      end)}
+  end
+
+  defp watch_linked_identities(socket, module, id) do
+    watchers = MapSet.put(socket.private[:linked_identity_watchers] || MapSet.new(), {module, id})
+
+    socket =
+      if socket.private[:linked_identities_subscribed?] do
+        socket
+      else
+        case {Phoenix.LiveView.connected?(socket), socket.assigns[:access_context]} do
+          {true, %{principal: {:human, %{id: account_id}}}} when is_integer(account_id) ->
+            Accounts.subscribe_linked_identities(account_id)
+            Phoenix.LiveView.put_private(socket, :linked_identities_subscribed?, true)
+
+          _other ->
+            socket
+        end
+      end
+
+    Phoenix.LiveView.put_private(socket, :linked_identity_watchers, watchers)
+  end
+
+  defp linked_identity_watchers(socket) do
+    case socket.private[:linked_identity_watchers] do
+      %MapSet{} = watchers -> MapSet.to_list(watchers)
+      _none -> []
+    end
   end
 
   # Autolaunch's own destinations, in autolaunch.sh's order.

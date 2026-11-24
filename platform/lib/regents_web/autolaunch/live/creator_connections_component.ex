@@ -25,8 +25,7 @@ defmodule RegentsWeb.Autolaunch.CreatorConnectionsComponent do
      |> assign(
        identities: identities_from(linked),
        x_connections: records(x),
-       unread?: unread?([x, linked]),
-       x_enabled: Regents.Autolaunch.XOAuth.enabled?()
+       unread?: unread?([linked])
      )
      |> assign_new(:notify, fn -> false end)
      |> assign_new(:bare, fn -> false end)
@@ -148,7 +147,6 @@ defmodule RegentsWeb.Autolaunch.CreatorConnectionsComponent do
         "creator-connections",
         !@bare && "launchpad-form-section rg-panel rg-panel--surface"
       ]}
-      phx-hook="CreatorConnections"
     >
       <header :if={!@bare}>
         <div>
@@ -166,20 +164,23 @@ defmodule RegentsWeb.Autolaunch.CreatorConnectionsComponent do
       </p>
       <.rows id={@id} myself={@myself} {@rows} />
       <p :if={@notice} role="status">{@notice}</p>
-      <p data-creator-connection-status role="status"></p>
     </section>
     """
   end
 
   defp row_assigns(assigns) do
     assigns
-    |> Map.take([:x_connections, :x_enabled, :ens_name, :ens_address, :ens_error, :resolving])
-    |> Map.merge(%{github: assigns.identities[:github], ens: assigns.identities[:ens]})
+    |> Map.take([:x_connections, :ens_name, :ens_address, :ens_error, :resolving])
+    |> Map.merge(%{
+      x_identity: assigns.identities[:x],
+      github: assigns.identities[:github],
+      ens: assigns.identities[:ens]
+    })
   end
 
   defp rows(assigns) do
     ~H"""
-    <.x_connections id={"#{@id}-x"} connections={@x_connections} enabled={@x_enabled}>
+    <.x_connections id={"#{@id}-x"} x_identity={@x_identity} connections={@x_connections}>
       <.connection
         label="GitHub"
         icon={:github}
@@ -187,25 +188,14 @@ defmodule RegentsWeb.Autolaunch.CreatorConnectionsComponent do
         href={@github && "https://github.com/#{URI.encode_www_form(@github.username)}"}
       >
         <:actions>
-          <Regent.Primitives.button
-            :if={!@github}
-            type="button"
-            variant="secondary"
-            data-connect-github
+          <a
+            href={~p"/account/connections"}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rg-button rg-button--secondary"
           >
-            Connect
-          </Regent.Primitives.button>
-          <Regent.Primitives.button
-            :if={@github}
-            type="button"
-            variant="secondary"
-            data-disconnect-github
-            data-github-subject={@github.subject}
-            data-confirm={"Disconnect #{@github.username}? To connect it again you sign in to GitHub."}
-            data-confirm-action="Disconnect"
-          >
-            Disconnect
-          </Regent.Primitives.button>
+            <span class="rg-button__label">{if @github, do: "Manage", else: "Connect"}</span>
+          </a>
         </:actions>
       </.connection>
       <.connection

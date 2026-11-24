@@ -39,6 +39,7 @@ defmodule RegentsWeb.Account.Pages do
       connection_outcome: nil
     )
     |> follow_agents()
+    |> follow_linked_identities()
   end
 
   def route(socket, route_spec) do
@@ -56,6 +57,17 @@ defmodule RegentsWeb.Account.Pages do
     with true <- connected?(socket),
          %{privy_user_id: id} <- Identity.current_account(socket.assigns.access_context) do
       Phoenix.PubSub.subscribe(Regents.PubSub, RegentAgents.topic(id))
+    end
+
+    socket
+  end
+
+  # Linked social accounts may be connected or disconnected in another tab; any
+  # open /account/connections tab follows those writes live via Ash PubSub.
+  defp follow_linked_identities(socket) do
+    with true <- connected?(socket),
+         %{id: id} when is_integer(id) <- Identity.current_account(socket.assigns.access_context) do
+      Accounts.subscribe_linked_identities(id)
     end
 
     socket
@@ -120,6 +132,13 @@ defmodule RegentsWeb.Account.Pages do
       do: send_update(PairingBox, id: "pair-pairing-box", agents_changed: true)
 
     socket
+  end
+
+  @doc "A verified social identity was linked, refreshed, or removed for this account."
+  def linked_identities_changed(socket) do
+    if socket.assigns.route_spec.route_id == :connections,
+      do: read_verified_connections(socket),
+      else: socket
   end
 
   # Sign-in read the wallet's primary name once, and the Account page asks again

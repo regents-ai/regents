@@ -55,7 +55,7 @@ defmodule Regents.Account.Accounts do
       define :refresh_linked_identity,
         action: :refresh_verified,
         get_by: [:provider, :subject, :human_account_id],
-        default_options: [bulk_options: [strategy: :atomic]]
+        default_options: [bulk_options: [strategy: :atomic, notify?: true]]
 
       define :list_my_linked_identities, action: :read_mine
 
@@ -80,4 +80,17 @@ defmodule Regents.Account.Accounts do
       define :public_links_for_accounts, action: :for_accounts, args: [:account_ids]
     end
   end
+
+  @doc "The PubSub topic notified whenever `human_account_id`'s linked identities change."
+  @spec linked_identities_topic(integer()) :: String.t()
+  def linked_identities_topic(human_account_id) when is_integer(human_account_id),
+    do: "account_linked_identities:#{human_account_id}"
+
+  @doc """
+  Subscribes the calling process to `{:linked_identities_changed, human_account_id, provider}`
+  whenever `human_account_id` links, refreshes, or disconnects a verified social identity.
+  """
+  @spec subscribe_linked_identities(integer()) :: :ok | {:error, {:already_registered, pid()}}
+  def subscribe_linked_identities(human_account_id) when is_integer(human_account_id),
+    do: Phoenix.PubSub.subscribe(Regents.PubSub, linked_identities_topic(human_account_id))
 end

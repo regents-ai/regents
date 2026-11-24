@@ -726,15 +726,6 @@ defmodule RegentsWeb.Router do
     delete "/privy/session", PrivySessionController, :delete
   end
 
-  scope "/auth/x", RegentsWeb.Autolaunch do
-    pipe_through [:read_only, :browser]
-
-    get "/callback", XOAuthController, :callback, log: false
-    post "/connections/:role", XOAuthController, :create
-    delete "/connections/:role", XOAuthController, :delete
-    delete "/connections/:role/attempt", XOAuthController, :cancel
-  end
-
   scope "/techtree", RegentsWeb.Techtree do
     pipe_through [:techtree_browser, :techtree]
 

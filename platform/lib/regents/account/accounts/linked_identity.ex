@@ -14,7 +14,8 @@ defmodule Regents.Account.Accounts.LinkedIdentity do
     otp_app: :regents,
     domain: Regents.Account.Accounts,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
 
   # The providers whose social accounts several human accounts may link at once,
   # and the one place that choice is made. Every other provider's subject is held
@@ -140,6 +141,22 @@ defmodule Regents.Account.Accounts.LinkedIdentity do
     policy action(:read_mine) do
       authorize_if Regents.Account.Accounts.Checks.HumanActor
     end
+  end
+
+  # Open tabs across the site (Autolaunch create forms, bid share panels, and
+  # other /account/connections tabs) follow linked-identity changes for the
+  # signed-in account (`Regents.Account.Accounts.subscribe_linked_identities/1`).
+  pub_sub do
+    module Phoenix.PubSub
+    name Regents.PubSub
+
+    transform fn notification ->
+      {:linked_identities_changed, notification.data.human_account_id, notification.data.provider}
+    end
+
+    publish :upsert_verified, ["account_linked_identities", :human_account_id]
+    publish :refresh_verified, ["account_linked_identities", :human_account_id]
+    publish :remove_verified, ["account_linked_identities", :human_account_id]
   end
 
   identities do

@@ -7,19 +7,46 @@ defmodule RegentsWeb.Autolaunch.Components.BidPlaced do
   appears, so it is read out and scrolled into view wherever the panel sits,
   and its tick draws itself in as the bid lands.
 
-  The host component owns two events that read the bidder's X account:
-  `share_opened` when the window opens, and `refresh_x_connections` (sent
-  here by the X connect button) once they connect one.
+  The host component handles `share_opened` when the window opens, reads the
+  bidder's X account from `Regents.Account.Accounts` (with legacy `XConnection`
+  fallback), and follows linked-identity PubSub broadcasts so connecting X on
+  `/account/connections` in a new tab updates the open Share dialog live.
   """
   use Phoenix.Component
   use RegentsWeb, :verified_routes
 
   alias Phoenix.LiveView.JS
-  alias Regents.Autolaunch.XOAuth
+  alias Regents.Account.Accounts
   alias RegentsWeb.Autolaunch.Components.ShareDialog
 
-  @doc "The bidder's personal X connection, connected or not."
-  def profile_x(connections), do: Enum.find(connections, &(&1.role == :profile))
+  @doc """
+  The bidder's verified X account: prefers their `/account/connections` `:x`
+  `LinkedIdentity` and falls back to any legacy verified `:profile` `XConnection`.
+  """
+  def x_account(nil), do: nil
+
+  def x_account(actor) do
+    linked_x =
+      case Accounts.list_my_linked_identities(actor: actor) do
+        {:ok, identities} -> Enum.find(identities, &(&1.provider == :x and present_username?(&1)))
+        {:error, _unavailable} -> nil
+      end
+
+    linked_x || legacy_profile_x(actor)
+  end
+
+  defp legacy_profile_x(actor) do
+    case Regents.Autolaunch.list_my_x_connections(actor: actor) do
+      {:ok, connections} ->
+        Enum.find(connections, &(&1.role == :profile and not is_nil(connected(&1))))
+
+      {:error, _unavailable} ->
+        nil
+    end
+  end
+
+  defp present_username?(%{username: username}), do: is_binary(username) and username != ""
+  defp present_username?(_other), do: false
 
   attr :id, :string, required: true
   attr :target, :any, required: true
@@ -83,26 +110,19 @@ defmodule RegentsWeb.Autolaunch.Components.BidPlaced do
               :if={@x_account || @x_enabled}
               id={"#{@id}-x"}
               class="share-x__account"
-              phx-hook="XConnections"
-              data-x-oauth-origin={XOAuth.origin()}
-              data-x-refresh-here
             >
               <p :if={@x_account}>Connected as @{@x_account.username}</p>
-              <div
-                :if={!@x_account}
-                data-x-role="profile"
-                data-x-intent-sequence={intent_sequence(@x_connection)}
-              >
+              <div :if={!@x_account}>
                 <p>Connect your X account to share from it.</p>
-                <Regent.Primitives.button
-                  type="button"
-                  data-x-connect-role="profile"
-                  variant="secondary"
+                <a
+                  href={~p"/account/connections"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="rg-button rg-button--secondary"
                 >
-                  Connect X
-                </Regent.Primitives.button>
+                  <span class="rg-button__label">Connect X</span>
+                </a>
               </div>
-              <p data-x-connection-status role="status" aria-live="polite"></p>
             </div>
           </:account>
         </ShareDialog.share_dialog>
@@ -126,11 +146,8 @@ defmodule RegentsWeb.Autolaunch.Components.BidPlaced do
   def explorer(:robinhood), do: "Blockscout"
 
   defp connected(%{verified_at: %DateTime{}, username: username} = connection)
-       when is_binary(username),
+       when is_binary(username) and username != "",
        do: connection
 
   defp connected(_connection), do: nil
-
-  defp intent_sequence(%{intent_sequence: sequence}) when is_integer(sequence), do: sequence
-  defp intent_sequence(_connection), do: 0
 end

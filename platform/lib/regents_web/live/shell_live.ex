@@ -162,6 +162,9 @@ defmodule RegentsWeb.ShellLive do
 
   def handle_info(:agents_changed, socket), do: {:noreply, Pages.agents_changed(socket)}
 
+  def handle_info({:linked_identities_changed, _account_id, _provider}, socket),
+    do: {:noreply, Pages.linked_identities_changed(socket)}
+
   # A points award or correction landed for this account; the Points page follows.
   def handle_info(%{topic: "points:" <> _}, socket), do: {:noreply, Points.changed(socket)}
 
