@@ -8567,3 +8567,11 @@ seasons), on the shared Points library regents.sh was already on.
   - Hidden while `data-hero="closed"` / `"gathering"` and reveals right after the first click shows `Agent-native`, with a matching bottom hush pocket in `platform/assets/js/datascape/shaders.ts` so bright Datascape panels fade cleanly into the ruled obsidian ground behind the chevron.
   - Built on `createCanvasIsland` + `vgpu 0.6` (`prepareShader` v2, validated with `npx vgpu check`) sharing `pageDevice`, with a Lucide `chevrons-down` still fallback for reduced motion or browsers without WebGPU, and smooth scrolling to `#products` on click.
 - Redesigned the four `#products` cards on `RegentsWeb.HomeLive` (`platform/lib/regents_web/live/home_live.ex`, `platform/assets/css/marketing/marketing.css`) into subtle dark obsidian instrument cards (`.card--product`) powered by the existing `ValueCard` `vgpu` islands (`compare`, `fleet`, `level`, `blob` panels and `.webp` stills), matching the Datascape hero while keeping Techtree's `.card--service` cards untouched.
+
+
+## 2026-11-24 — Replace homepage Products and non-animated quiet cards with canonical ValueCards (not released)
+
+- Replaced both `#products` card rows in `RegentsWeb.HomeLive` (`platform/lib/regents_web/live/home_live.ex`, `platform/assets/css/marketing/marketing.css`) with the shared `RegentsWeb.Components.ValueCards` component used on `patchbay.help`, `autolaunch.sh`, and `/app`, backed by `RegentOpsLive.products/0`:
+  - Row 1 (`#home-products`, 4-up desktop): full square animated `vgpu` `ValueCards` for Techtree (`compare`), Keyfleet (`fleet`), Autolaunch (`level`), and Patchbay (`blob`).
+  - Row 2 (`#home-ecosystem`, 3-up desktop): replaced the three static `.quiet-cards` (Protocol, SIWA, Cloak) with animated `vgpu` `ValueCards` (`prorata`, `siwa/pair`, `cloak/rewrite`) in a `2:1` centered-square horizontal strip matching `patchbay.help`'s compact card row.
+- Added unlayered `:root[data-marketing]` link/margin compatibility rules in `platform/assets/css/marketing/marketing.css` so `components/value_cards.css` (`@layer regents-product`) renders cleanly on `/`, and removed the interim custom `.card--product` rules.

@@ -10,7 +10,7 @@ defmodule RegentsWeb.HomeLive do
   use RegentsWeb, :live_view
 
   alias Phoenix.LiveView.JS
-  alias RegentsWeb.Components.{AgentTools, Marketing}
+  alias RegentsWeb.Components.{AgentTools, Marketing, ValueCards}
   alias RegentsWeb.Live.Session
   alias RegentsWeb.{PublicDocuments, RegentOpsLive, RouteCatalog}
   alias RegentsWeb.Stake.TokenLinks
@@ -90,6 +90,8 @@ defmodule RegentsWeb.HomeLive do
         Map.put(tool, :index, String.pad_leading(Integer.to_string(idx), 2, "0"))
       end)
 
+    {primary_products, secondary_products} = Enum.split(RegentOpsLive.products(), 4)
+
     {:ok,
      socket
      |> assign(route_spec: RouteCatalog.fetch!(:home))
@@ -98,6 +100,8 @@ defmodule RegentsWeb.HomeLive do
        agent_prompt: agent_prompt(),
        tool_count: length(tools),
        preview_tools: preview_tools,
+       primary_products: primary_products,
+       secondary_products: secondary_products,
        buy_url: TokenLinks.buy(),
        chart_url: TokenLinks.chart()
      )
@@ -216,208 +220,20 @@ defmodule RegentsWeb.HomeLive do
             <div class="shead">
               <h2 class="shead__title" id="products-title">Products</h2>
             </div>
-            <ul class="cards cards--products">
-              <li
-                id="home-product-techtree"
-                class="card-slot card-slot--product"
-                phx-hook="ValueCard"
-                phx-mounted={JS.ignore_attributes(["data-value-card-ready"])}
-                data-value-card="compare"
-              >
-                <a class="card card--product" data-id="techtree" href="/techtree">
-                  <div class="card__panel" aria-hidden="true">
-                    <img
-                      class="card__still"
-                      src={~p"/images/value-cards/compare.webp"}
-                      alt=""
-                      width="600"
-                      height="600"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <div id="home-product-techtree-stage" class="card__stage" phx-update="ignore">
-                      <canvas data-value-card-canvas></canvas>
-                    </div>
-                  </div>
-                  <div class="card__body">
-                    <div class="card__meta">
-                      <span class="card__pip" aria-hidden="true"></span>
-                      <span class="card__index">01 / 04</span>
-                    </div>
-                    <h3 class="card__name">Techtree</h3>
-                    <span class="card__title">Change one Skill. Compare.</span>
-                    <span class="card__line">
-                      Everything else stays fixed, so the difference is the Skill.
-                    </span>
-                  </div>
-                  <div class="card__foot">
-                    <span class="label">techtree.sh</span>
-                    <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
-                  </div>
-                </a>
-              </li>
-              <li
-                id="home-product-keyfleet"
-                class="card-slot card-slot--product"
-                phx-hook="ValueCard"
-                phx-mounted={JS.ignore_attributes(["data-value-card-ready"])}
-                data-value-card="fleet"
-              >
-                <a class="card card--product" data-id="keyfleet" href="/keyfleet">
-                  <div class="card__panel" aria-hidden="true">
-                    <img
-                      class="card__still"
-                      src={~p"/images/value-cards/fleet.webp"}
-                      alt=""
-                      width="600"
-                      height="600"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <div id="home-product-keyfleet-stage" class="card__stage" phx-update="ignore">
-                      <canvas data-value-card-canvas></canvas>
-                    </div>
-                  </div>
-                  <div class="card__body">
-                    <div class="card__meta">
-                      <span class="card__pip" aria-hidden="true"></span>
-                      <span class="card__index">02 / 04</span>
-                    </div>
-                    <h3 class="card__name">Keyfleet</h3>
-                    <span class="card__title">A lasting team for agents.</span>
-                    <span class="card__line">
-                      Agents and people join a fleet, pick their own work and share results.
-                    </span>
-                  </div>
-                  <div class="card__foot">
-                    <span class="label">keyfleet.ai</span>
-                    <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
-                  </div>
-                </a>
-              </li>
-              <li
-                id="home-product-autolaunch"
-                class="card-slot card-slot--product"
-                phx-hook="ValueCard"
-                phx-mounted={JS.ignore_attributes(["data-value-card-ready"])}
-                data-value-card="level"
-              >
-                <a class="card card--product" data-id="autolaunch" href="/autolaunch">
-                  <div class="card__panel" aria-hidden="true">
-                    <img
-                      class="card__still"
-                      src={~p"/images/value-cards/level.webp"}
-                      alt=""
-                      width="600"
-                      height="600"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <div id="home-product-autolaunch-stage" class="card__stage" phx-update="ignore">
-                      <canvas data-value-card-canvas></canvas>
-                    </div>
-                  </div>
-                  <div class="card__body">
-                    <div class="card__meta">
-                      <span class="card__pip" aria-hidden="true"></span>
-                      <span class="card__index">03 / 04</span>
-                    </div>
-                    <h3 class="card__name">Autolaunch</h3>
-                    <span class="card__title">One price for everyone.</span>
-                    <span class="card__line">
-                      Bids set a single clearing price, and every winner pays it.
-                    </span>
-                  </div>
-                  <div class="card__foot">
-                    <span class="label">autolaunch.sh</span>
-                    <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
-                  </div>
-                </a>
-              </li>
-              <li
-                id="home-product-patchbay"
-                class="card-slot card-slot--product"
-                phx-hook="ValueCard"
-                phx-mounted={JS.ignore_attributes(["data-value-card-ready"])}
-                data-value-card="blob"
-              >
-                <a class="card card--product" data-id="patchbay" href="/patchbay">
-                  <div class="card__panel" aria-hidden="true">
-                    <img
-                      class="card__still"
-                      src={~p"/images/value-cards/blob.webp"}
-                      alt=""
-                      width="600"
-                      height="600"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <div id="home-product-patchbay-stage" class="card__stage" phx-update="ignore">
-                      <canvas data-value-card-canvas></canvas>
-                    </div>
-                  </div>
-                  <div class="card__body">
-                    <div class="card__meta">
-                      <span class="card__pip" aria-hidden="true"></span>
-                      <span class="card__index">04 / 04</span>
-                    </div>
-                    <h3 class="card__name">Patchbay</h3>
-                    <span class="card__title">Find the fix that worked.</span>
-                    <span class="card__line">
-                      Paste an error or search, and read known fixes with no sign-in.
-                    </span>
-                  </div>
-                  <div class="card__foot">
-                    <span class="label">patchbay.help</span>
-                    <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
-                  </div>
-                </a>
-              </li>
-            </ul>
-            <ul class="quiet-cards">
-              <li class="card-slot">
-                <a class="quiet-card" href="/stake">
-                  <span class="tile" data-id="protocol" aria-hidden="true">
-                    <svg><use href="#mark-crown" /></svg>
-                  </span>
-                  <div class="quiet-card__words">
-                    <h3 class="quiet-card__name">Protocol</h3>
-                    <span class="quiet-card__title">Stake $REGENT on Base.</span>
-                    <span class="quiet-card__line">
-                      Your part of each deposit follows your part of the stake.
-                    </span>
-                  </div>
-                  <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
-                </a>
-              </li>
-              <li class="card-slot">
-                <a class="quiet-card" href="/siwa">
-                  <span class="tile" data-id="siwa" aria-hidden="true">
-                    <svg><use href="#mark-crown" /></svg>
-                  </span>
-                  <div class="quiet-card__words">
-                    <h3 class="quiet-card__name">SIWA</h3>
-                    <span class="quiet-card__title">Sign-in with Agent</span>
-                  </div>
-                  <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
-                </a>
-              </li>
-              <li class="card-slot">
-                <a class="quiet-card" href="/cloak">
-                  <span class="tile" data-id="cloak" aria-hidden="true">
-                    <svg><use href="#mark-crown" /></svg>
-                  </span>
-                  <div class="quiet-card__words">
-                    <h3 class="quiet-card__name">Cloak</h3>
-                    <span class="quiet-card__title">Rewritten before it leaves.</span>
-                    <span class="quiet-card__line">
-                      A model on your Mac rewrites each message before it leaves.
-                    </span>
-                  </div>
-                  <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
-                </a>
-              </li>
-            </ul>
+            <div class="home-products-grid">
+              <ValueCards.value_cards
+                id="home-products"
+                label="Products"
+                cards={@primary_products}
+              />
+            </div>
+            <div class="home-ecosystem-grid">
+              <ValueCards.value_cards
+                id="home-ecosystem"
+                label="Protocol and tools"
+                cards={@secondary_products}
+              />
+            </div>
           </section>
 
           <section class="section" id="agents" aria-labelledby="agents-title">
