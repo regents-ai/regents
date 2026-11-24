@@ -78,14 +78,19 @@ struct View {
 
 @group(0) @binding(0) var<uniform> view: View;
 
-// How much of the scene stays at this pixel: none inside the words' box or the top band
-// once they are fully quiet, all of it past their soft edges.
+// How much of the scene stays at this pixel: none inside the words' box, the top band,
+// or the bottom scroll-cue pocket once they are quiet, all of it past their soft edges.
 fn kept(position: vec4f) -> f32 {
   let css = position.xy / view.pixel;
   let page = css - view.viewport * 0.5 - view.hush.xy;
   let past = length(max(abs(page) - view.hush.zw, vec2f(0.0)));
   let below = css.y - view.band.x;
-  let clear = min(smoothstep(0.0, view.soft.x, past), smoothstep(0.0, view.band.y, below));
+  let cue = css - vec2f(view.viewport.x * 0.5, view.viewport.y - 46.0);
+  let pastCue = length(max(abs(cue) - vec2f(34.0, 24.0), vec2f(0.0)));
+  let clear = min(
+    min(smoothstep(0.0, view.soft.x, past), smoothstep(0.0, view.band.y, below)),
+    smoothstep(0.0, 76.0, pastCue),
+  );
   return mix(1.0, clear, view.soft.y);
 }
 

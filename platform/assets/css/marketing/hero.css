@@ -2,14 +2,16 @@
    click-to-reveal center hero area. Scoped to :root[data-marketing]. */
 
 :root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"])
-  :is(.hero__label, .hero__title, .hero__sentence, .hero__actions) {
+  :is(.hero__label, .hero__title, .hero__sentence, .hero__actions, .hero__scroll) {
   opacity: 0;
 }
 :root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"]) .hero__words {
   pointer-events: none;
 }
-:root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"]) .hero__actions {
+:root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"])
+  :is(.hero__actions, .hero__scroll) {
   visibility: hidden;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -24,6 +26,9 @@
   }
   :root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"]) .hero__actions {
     transform: translateY(6px);
+  }
+  :root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"]) .hero__scroll {
+    transform: translate(-50%, 8px);
   }
 
   :root[data-marketing][data-hero="opening"] .bar {
@@ -48,6 +53,11 @@
     transition:
       opacity 400ms var(--ease-out) 460ms,
       transform 400ms var(--ease-out) 460ms;
+  }
+  :root[data-marketing][data-hero="opening"] .hero__scroll {
+    transition:
+      opacity 360ms var(--ease-out) 500ms,
+      transform 360ms var(--ease-out) 500ms;
   }
 }
 
@@ -163,9 +173,81 @@
     fill: currentColor;
   }
 
+  /* Bottom double-chevron scroll cue: hidden before first press, reveals alongside
+     the center hero copy and swaps its Lucide fallback for the vgpu pixel chevron. */
+  .hero__scroll {
+    position: absolute;
+    inset-block-end: clamp(1rem, 3vh, 1.75rem);
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    display: inline-grid;
+    place-items: center;
+    inline-size: 5rem;
+    block-size: 3.75rem;
+    color: var(--color-fg);
+    text-decoration: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hero__scroll-inner {
+    position: relative;
+    display: grid;
+    place-items: center;
+    inline-size: 100%;
+    block-size: 100%;
+  }
+  .hero__scroll-still {
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    color: var(--color-fg);
+    opacity: 0.85;
+  }
+  .hero__scroll-stage,
+  .hero__scroll-canvas {
+    position: absolute;
+    inset: 0;
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+  }
+  .hero__scroll-stage {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .hero__scroll[data-hero-chevron-ready="true"] .hero__scroll-stage {
+    opacity: 1;
+  }
+  .hero__scroll[data-hero-chevron-ready="true"] .hero__scroll-still {
+    visibility: hidden;
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     .hero__canvas {
       transition: opacity 200ms var(--ease-out);
+    }
+    .hero__scroll-stage {
+      transition: opacity 320ms var(--ease-out);
+    }
+    .hero__scroll-still,
+    .hero__scroll-inner {
+      transition:
+        opacity var(--duration-fast) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out);
+    }
+    .hero__scroll:active .hero__scroll-inner {
+      transform: scale(var(--active-scale));
+    }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .hero__scroll:hover .hero__scroll-still,
+    .hero__scroll:focus-visible .hero__scroll-still {
+      opacity: 1;
+    }
+  }
+  @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .hero__scroll:hover .hero__scroll-still {
+      transform: translateY(2px);
     }
   }
 }

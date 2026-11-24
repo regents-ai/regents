@@ -8558,3 +8558,12 @@ seasons), on the shared Points library regents.sh was already on.
 
 - Added explicit `REGENTS_READ_ONLY="true"` serving override in `platform/config/runtime.exs` so a staging-role preview can run `/app/bin/bootstrap-staging` and `/app/bin/migrate` against an isolated database on `regents-staging-db` while serving strictly read-only (`Regents.read_only?/0 == true`, no sign-in, no Privy loading, no Oban jobs, no ErrorTracker writes, and `403 read_only` on all authenticated/mutation routes).
 - Added `platform/fly.mono.toml` for the new Fly app `mono-regents-sh` serving `https://mono.regents.sh`.
+
+
+
+## 2026-11-23 — Homepage vgpu hero double chevron and Datascape-matched subtle product cards (not released)
+
+- Added a bottom-of-hero `vgpu` double-chevron scroll cue (`HeroChevron` hook in `platform/assets/js/hooks/hero_chevron.ts`, `platform/assets/js/hero_chevron/renderer.ts`, `platform/assets/js/hero_chevron/shader.ts`, wired into `RegentsWeb.HomeLive` and `platform/assets/css/marketing/hero.css`):
+  - Hidden while `data-hero="closed"` / `"gathering"` and reveals right after the first click shows `Agent-native`, with a matching bottom hush pocket in `platform/assets/js/datascape/shaders.ts` so bright Datascape panels fade cleanly into the ruled obsidian ground behind the chevron.
+  - Built on `createCanvasIsland` + `vgpu 0.6` (`prepareShader` v2, validated with `npx vgpu check`) sharing `pageDevice`, with a Lucide `chevrons-down` still fallback for reduced motion or browsers without WebGPU, and smooth scrolling to `#products` on click.
+- Redesigned the four `#products` cards on `RegentsWeb.HomeLive` (`platform/lib/regents_web/live/home_live.ex`, `platform/assets/css/marketing/marketing.css`) into subtle dark obsidian instrument cards (`.card--product`) powered by the existing `ValueCard` `vgpu` islands (`compare`, `fleet`, `level`, `blob` panels and `.webp` stills), matching the Datascape hero while keeping Techtree's `.card--service` cards untouched.

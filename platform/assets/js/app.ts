@@ -30,6 +30,7 @@ import {
 } from "./shell_state"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {DatascapeHero} from "./hooks/datascape_hero"
+import {HeroChevron} from "./hooks/hero_chevron"
 import {MarketingPage} from "./hooks/marketing_page"
 import {MotionCount, MotionList, MotionNote, MotionRefusal, MotionTick} from "./hooks/motion/moments"
 import {MotionCascade, MotionTabs, ShellViews} from "./hooks/motion/reveals"
@@ -310,6 +311,7 @@ const hooks = {
   DatascapeHero,
   Docs,
   EnquiryForm,
+  HeroChevron,
   InfiniteScroll,
   InfoDialog,
   KeyfleetShell,

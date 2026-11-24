@@ -194,6 +194,21 @@ defmodule RegentsWeb.HomeLive do
               </button>
             </div>
           </div>
+          <a
+            id="hero-scroll-cue"
+            href="#products"
+            class="hero__scroll"
+            aria-label="Scroll to Products"
+            phx-hook="HeroChevron"
+            phx-mounted={JS.ignore_attributes(["data-hero-chevron-ready"])}
+          >
+            <span class="hero__scroll-inner" aria-hidden="true">
+              <Regent.Icons.icon name="chevrons-down" class="hero__scroll-still" />
+              <span id="hero-scroll-stage" class="hero__scroll-stage" phx-update="ignore">
+                <canvas class="hero__scroll-canvas" data-hero-chevron-canvas></canvas>
+              </span>
+            </span>
+          </a>
         </section>
 
         <div class="frame">
@@ -201,11 +216,34 @@ defmodule RegentsWeb.HomeLive do
             <div class="shead">
               <h2 class="shead__title" id="products-title">Products</h2>
             </div>
-            <ul class="cards">
-              <li class="card-slot">
-                <a class="card" data-id="techtree" href="/techtree">
-                  <Marketing.motif product="techtree" id_prefix="card-motif" class="card__motif" />
+            <ul class="cards cards--products">
+              <li
+                id="home-product-techtree"
+                class="card-slot card-slot--product"
+                phx-hook="ValueCard"
+                phx-mounted={JS.ignore_attributes(["data-value-card-ready"])}
+                data-value-card="compare"
+              >
+                <a class="card card--product" data-id="techtree" href="/techtree">
+                  <div class="card__panel" aria-hidden="true">
+                    <img
+                      class="card__still"
+                      src={~p"/images/value-cards/compare.webp"}
+                      alt=""
+                      width="600"
+                      height="600"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div id="home-product-techtree-stage" class="card__stage" phx-update="ignore">
+                      <canvas data-value-card-canvas></canvas>
+                    </div>
+                  </div>
                   <div class="card__body">
+                    <div class="card__meta">
+                      <span class="card__pip" aria-hidden="true"></span>
+                      <span class="card__index">01 / 04</span>
+                    </div>
                     <h3 class="card__name">Techtree</h3>
                     <span class="card__title">Change one Skill. Compare.</span>
                     <span class="card__line">
@@ -218,10 +256,33 @@ defmodule RegentsWeb.HomeLive do
                   </div>
                 </a>
               </li>
-              <li class="card-slot">
-                <a class="card" data-id="keyfleet" href="/keyfleet">
-                  <Marketing.motif product="keyfleet" id_prefix="card-motif" class="card__motif" />
+              <li
+                id="home-product-keyfleet"
+                class="card-slot card-slot--product"
+                phx-hook="ValueCard"
+                phx-mounted={JS.ignore_attributes(["data-value-card-ready"])}
+                data-value-card="fleet"
+              >
+                <a class="card card--product" data-id="keyfleet" href="/keyfleet">
+                  <div class="card__panel" aria-hidden="true">
+                    <img
+                      class="card__still"
+                      src={~p"/images/value-cards/fleet.webp"}
+                      alt=""
+                      width="600"
+                      height="600"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div id="home-product-keyfleet-stage" class="card__stage" phx-update="ignore">
+                      <canvas data-value-card-canvas></canvas>
+                    </div>
+                  </div>
                   <div class="card__body">
+                    <div class="card__meta">
+                      <span class="card__pip" aria-hidden="true"></span>
+                      <span class="card__index">02 / 04</span>
+                    </div>
                     <h3 class="card__name">Keyfleet</h3>
                     <span class="card__title">A lasting team for agents.</span>
                     <span class="card__line">
@@ -234,10 +295,33 @@ defmodule RegentsWeb.HomeLive do
                   </div>
                 </a>
               </li>
-              <li class="card-slot">
-                <a class="card" data-id="autolaunch" href="/autolaunch">
-                  <Marketing.motif product="autolaunch" id_prefix="card-motif" class="card__motif" />
+              <li
+                id="home-product-autolaunch"
+                class="card-slot card-slot--product"
+                phx-hook="ValueCard"
+                phx-mounted={JS.ignore_attributes(["data-value-card-ready"])}
+                data-value-card="level"
+              >
+                <a class="card card--product" data-id="autolaunch" href="/autolaunch">
+                  <div class="card__panel" aria-hidden="true">
+                    <img
+                      class="card__still"
+                      src={~p"/images/value-cards/level.webp"}
+                      alt=""
+                      width="600"
+                      height="600"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div id="home-product-autolaunch-stage" class="card__stage" phx-update="ignore">
+                      <canvas data-value-card-canvas></canvas>
+                    </div>
+                  </div>
                   <div class="card__body">
+                    <div class="card__meta">
+                      <span class="card__pip" aria-hidden="true"></span>
+                      <span class="card__index">03 / 04</span>
+                    </div>
                     <h3 class="card__name">Autolaunch</h3>
                     <span class="card__title">One price for everyone.</span>
                     <span class="card__line">
@@ -250,10 +334,33 @@ defmodule RegentsWeb.HomeLive do
                   </div>
                 </a>
               </li>
-              <li class="card-slot">
-                <a class="card" data-id="patchbay" href="/patchbay">
-                  <Marketing.motif product="patchbay" id_prefix="card-motif" class="card__motif" />
+              <li
+                id="home-product-patchbay"
+                class="card-slot card-slot--product"
+                phx-hook="ValueCard"
+                phx-mounted={JS.ignore_attributes(["data-value-card-ready"])}
+                data-value-card="blob"
+              >
+                <a class="card card--product" data-id="patchbay" href="/patchbay">
+                  <div class="card__panel" aria-hidden="true">
+                    <img
+                      class="card__still"
+                      src={~p"/images/value-cards/blob.webp"}
+                      alt=""
+                      width="600"
+                      height="600"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div id="home-product-patchbay-stage" class="card__stage" phx-update="ignore">
+                      <canvas data-value-card-canvas></canvas>
+                    </div>
+                  </div>
                   <div class="card__body">
+                    <div class="card__meta">
+                      <span class="card__pip" aria-hidden="true"></span>
+                      <span class="card__index">04 / 04</span>
+                    </div>
                     <h3 class="card__name">Patchbay</h3>
                     <span class="card__title">Find the fix that worked.</span>
                     <span class="card__line">
