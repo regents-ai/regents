@@ -8662,3 +8662,22 @@ seasons), on the shared Points library regents.sh was already on.
 - Overhauled `/siwa` (`RegentsWeb.SiwaLive`), `/docs/pairing`, `/docs/products`, and `/llms.txt` to remove the outdated per-request activity claim and legacy domain references, and added `/docs/mcp` and `/docs/cli` to unified `/docs` (`RegentsWeb.Docs.Pages`).
 - Applied Emil design engineering polish: removed the redundant `#shell-sidebar` on `/docs` routes (`RegentsWeb.RouteCatalog`), replaced the rubbery `outBack` post-release button `squish` with crisp tactile `120ms`/`140ms` ease-out (`platform/assets/js/hooks/motion/press.ts`), added origin-aware `@starting-style` transitions, touch-safe hover gating, `44px` touch targets, `46rem` reading measure, and `#app-shell-scroller`-relative scrollspy in `docs.css`/`docs.ts`, and made `<meta name="theme-color">` product-aware in `root.html.heex`.
 - Decoupled `Makefile` `check-required-fixes` from `regents-ai/ash-template` by moving `security/required-fixes.json` locally into `regents`, and published `docs/one-site-standard.md` as the cross-product convergence specification.
+
+## 2026-11-24 — Cross-product alignment primitives, capabilities API & agent entry points
+
+- Exported shared `RegentsWeb.Account.PairedAgent` and `RegentsWeb.Layouts` from the
+  `RegentsWeb` boundary, added canonical `RegentsWeb.Layouts.on_mount(:page, ...)` plus
+  `:put_current_path` on browser pipelines so controller and LiveView routes both assign
+  `@current_path` identically for active nav highlighting.
+- Added unified `GET /api/v1/<product>/capabilities` (`RegentsWeb.ProductCapabilitiesController`)
+  backed directly by each product's canonical `priv/<product>/tool_manifest.json` via
+  `Regents.SiteTools.manifest/1`, enriched `priv/techtree/tool_manifest.json` with full
+  schemas/annotations/HTTP descriptors, and updated `assets/js/product_webmcp.ts` to hydrate
+  browser WebMCP tools directly from `/api/v1/<product>/capabilities`.
+- Added consistent product agent entry points (`/<product>/llms.txt`, `/<product>/agents.md`,
+  `/<product>/skill.md`) via `RegentsWeb.ProductAgentDocsController` for Patchbay, Autolaunch,
+  and Techtree (`/techtree/llms.txt`), matching Keyfleet's existing guides under unified
+  `https://regents.sh` SIWA pairing.
+- Updated `docs/one-site-standard.md` to enshrine the 4-pillar cross-product alignment rule
+  and added `scripts/check-one-site-alignment.exs` (`make check-alignment`) to report exact
+  per-product convergence gaps.

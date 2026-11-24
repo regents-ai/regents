@@ -1,8 +1,9 @@
 defmodule Regents.SiteTools do
   @moduledoc """
   Every browser tool each Regents Labs product offers agents, loaded directly
-  from the committed tool manifests shipped in this single site so every
-  product's tool list answers immediately without remote HTTP calls.
+  from the committed canonical `priv/<product>/tool_manifest.json` manifests
+  shipped in this single site so every product's tool list and capabilities
+  endpoint answer immediately without remote HTTP calls.
   """
 
   use GenServer
@@ -30,12 +31,36 @@ defmodule Regents.SiteTools do
   @spec name(String.t()) :: String.t()
   def name(site), do: Map.fetch!(@sites, site).name
 
+  @doc "Relative priv path to a product's canonical `tool_manifest.json`."
+  @spec manifest_path(String.t()) :: {:ok, String.t()} | :error
+  def manifest_path(site) do
+    case Map.fetch(@sites, site) do
+      {:ok, %{manifest: manifest}} -> {:ok, manifest}
+      :error -> :error
+    end
+  end
+
+  @doc "The full decoded canonical `priv/<product>/tool_manifest.json` map."
+  @spec manifest(String.t()) :: {:ok, map()} | {:error, :unknown_site | :unreachable}
+  def manifest(site) do
+    case manifest_path(site) do
+      {:ok, relative_path} -> decode_manifest(relative_path)
+      :error -> {:error, :unknown_site}
+    end
+  end
+
   @doc "The product's tools, loaded from its committed manifest."
   @spec tools(String.t()) :: {:ok, [tool()]} | {:error, :unknown_site | :unreachable}
   def tools(site) do
-    case Map.fetch(@sites, site) do
-      {:ok, %{manifest: manifest}} -> read_manifest(manifest)
-      :error -> {:error, :unknown_site}
+    case manifest(site) do
+      {:ok, %{"tools" => tools}} when is_list(tools) ->
+        {:ok, for(tool when is_map(tool) <- tools, do: present(tool))}
+
+      {:error, _reason} = error ->
+        error
+
+      _malformed ->
+        {:error, :unreachable}
     end
   end
 
@@ -80,12 +105,12 @@ defmodule Regents.SiteTools do
     }
   end
 
-  defp read_manifest(relative_path) do
+  defp decode_manifest(relative_path) do
     path = Application.app_dir(:regents, relative_path)
 
     with {:ok, raw} <- File.read(path),
-         {:ok, %{"tools" => tools}} when is_list(tools) <- Jason.decode(raw) do
-      {:ok, for(tool when is_map(tool) <- tools, do: present(tool))}
+         {:ok, decoded} when is_map(decoded) <- Jason.decode(raw) do
+      {:ok, decoded}
     else
       _failure -> {:error, :unreachable}
     end

@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help check check-platform platform-precommit platform-web check-required-fixes check-cli check-siwa-latest check-contracts release deploy
+.PHONY: help check check-platform platform-precommit platform-web check-required-fixes check-alignment check-cli check-siwa-latest check-contracts release deploy
 
 help:
 	@echo "make check runs every component gate side by side, each writing its output to"
@@ -44,6 +44,10 @@ platform-web:
 # ash_postgres). No longer reaches out to ash-template on GitHub.
 check-required-fixes:
 	cd platform && elixir ../scripts/check-required-fixes.exs "local security/required-fixes.json" ../shared/SOURCE.json < ../security/required-fixes.json
+# Prints the cross-product one-site alignment matrix across patchbay, techtree,
+# autolaunch, and keyfleet (docs/one-site-standard.md).
+check-alignment:
+	elixir scripts/check-one-site-alignment.exs
 # The command description check is regents-cli's own checker at the commit pinned
 # here, run by uv straight from GitHub. Move the pin in a commit.
 REGENTS_CLI_REV := c12d8563c46e8b5229e32db76c1a104fb469b7b7

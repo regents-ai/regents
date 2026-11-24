@@ -1,30 +1,131 @@
 {
   "audience": "regents",
+  "product": "techtree",
   "tools": [
     {
       "name": "techtree_catalog",
       "title": "Read Techtree catalog",
-      "description": "Read the active Techtree catalog of Climbs and Skills."
+      "description": "Read the active Techtree catalog of Climbs and Skills.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "authentication": "public",
+      "effect": "read",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/catalog",
+        "accept": "application/json"
+      }
     },
     {
       "name": "techtree_bootstrap",
       "title": "Read Techtree bootstrap",
-      "description": "Read Techtree CLI bootstrap and install metadata."
+      "description": "Read Techtree CLI bootstrap and install metadata.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "authentication": "public",
+      "effect": "read",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/bootstrap",
+        "accept": "application/json"
+      }
     },
     {
       "name": "techtree_publications",
       "title": "List Techtree results",
-      "description": "List published Techtree evaluation results."
+      "description": "List published Techtree evaluation results.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "authentication": "public",
+      "effect": "read",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/publications",
+        "accept": "application/json"
+      }
     },
     {
       "name": "techtree_climb",
       "title": "Read a Techtree Climb",
-      "description": "Read the fixed task contract for one Techtree Climb by slug."
+      "description": "Read the fixed task contract for one Techtree Climb by slug.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "description": "Climb slug"
+          }
+        },
+        "required": ["slug"],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "authentication": "public",
+      "effect": "read",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/climbs/{slug}",
+        "accept": "application/json"
+      }
     },
     {
       "name": "techtree_docs_markdown",
       "title": "Read Techtree Docs",
-      "description": "Read Techtree's docs index as Markdown."
+      "description": "Read Techtree's docs index as Markdown.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "authentication": "public",
+      "effect": "read",
+      "http": {
+        "method": "GET",
+        "path": "/techtree/docs",
+        "accept": "text/markdown"
+      }
     }
   ]
 }

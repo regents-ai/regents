@@ -15,6 +15,7 @@ defmodule RegentsWeb.Router do
     plug RegentsWeb.Plugs.Theme
     plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
     plug :put_product, "regents"
+    plug :put_current_path
     plug RegentsWeb.Plugs.LaunchGate
     plug :protect_from_forgery
 
@@ -38,6 +39,7 @@ defmodule RegentsWeb.Router do
     plug RegentsWeb.Plugs.Theme
     plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
     plug :put_product, "regents"
+    plug :put_current_path
     plug RegentsWeb.Plugs.LaunchGate
     plug :protect_from_forgery
 
@@ -322,6 +324,8 @@ defmodule RegentsWeb.Router do
   # the home colour (`data-home`). A shell page names its own (`RouteCatalog`).
   def put_product(conn, product), do: assign(conn, :site_product, product)
 
+  def put_current_path(conn, _opts), do: assign(conn, :current_path, conn.request_path)
+
   def put_site_edition(conn, edition), do: assign(conn, :site_edition, edition)
 
   def put_harbour_sea(conn, _opts), do: assign(conn, :harbour_sea, true)
@@ -491,6 +495,11 @@ defmodule RegentsWeb.Router do
     get "/site-tools", RegentsWeb.SiteToolsController, :index
     get "/regents/:slug", RegentsWeb.Account.PublicRegentController, :show
     get "/site-tools/:site", RegentsWeb.SiteToolsController, :show
+
+    for product <- ~w(patchbay techtree autolaunch keyfleet) do
+      get "/#{product}/capabilities", RegentsWeb.ProductCapabilitiesController, :show,
+        private: %{product: product}
+    end
   end
 
   # Reads for the person a Privy sign-in names.
@@ -776,6 +785,10 @@ defmodule RegentsWeb.Router do
   # to any caller, as the site's own /agents.md is, each Skill comparison's report,
   # the exact committed bytes, a published Result's share picture, for whoever asks,
   # a site making a link preview included, and the Wallet Bench as Markdown.
+  scope "/techtree", RegentsWeb do
+    get "/llms.txt", ProductAgentDocsController, :llms, private: %{product: "techtree"}
+  end
+
   scope "/techtree", RegentsWeb.Techtree do
     get "/agents.md", AgentsController, :show
     get "/skill.md", PublicPagesController, :skill_guide
@@ -1090,6 +1103,12 @@ defmodule RegentsWeb.Router do
     post "/launches/:draft/steps", AgentLaunchController, :prepare
     post "/auctions/:auction_id/finish/steps", AgentFinishController, :prepare
     post "/tokens/:token_id/stake/steps", AgentStakeController, :prepare
+  end
+
+  scope "/autolaunch", RegentsWeb do
+    get "/llms.txt", ProductAgentDocsController, :llms, private: %{product: "autolaunch"}
+    get "/agents.md", ProductAgentDocsController, :agents, private: %{product: "autolaunch"}
+    get "/skill.md", ProductAgentDocsController, :skill, private: %{product: "autolaunch"}
   end
 
   scope "/autolaunch", RegentsWeb.Autolaunch do
@@ -1429,6 +1448,13 @@ defmodule RegentsWeb.Router do
     pipe_through [:api, :patchbay_wallet_author]
 
     post "/payment_intents/:id/complete", PaymentsAPI.PaymentIntentController, :complete
+  end
+
+  # Canonical product agent entry points for Patchbay (before the `/:host` site catch-all).
+  scope "/patchbay", RegentsWeb do
+    get "/llms.txt", ProductAgentDocsController, :llms, private: %{product: "patchbay"}
+    get "/agents.md", ProductAgentDocsController, :agents, private: %{product: "patchbay"}
+    get "/skill.md", ProductAgentDocsController, :skill, private: %{product: "patchbay"}
   end
 
   # A site's own page is its domain, as on patchbay.help. These stay the last

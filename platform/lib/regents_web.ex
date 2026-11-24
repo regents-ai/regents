@@ -29,9 +29,9 @@ defmodule RegentsWeb do
       Regents.Patchbay
     ],
     exports: [
-      # The only Account web modules the product pages may use: who the page acts
-      # for, and the Privy sign-in a signed-in read carries.
+      # The shared Account web modules every product boundary may use.
       Account.Identity,
+      Account.PairedAgent,
       Account.PrivyPair,
       Capabilities,
       ClientAddress,
@@ -49,6 +49,7 @@ defmodule RegentsWeb do
       EventInput,
       FormErrors,
       HomeLive,
+      Layouts,
       Live.Session,
       Motion,
       NotFoundError,

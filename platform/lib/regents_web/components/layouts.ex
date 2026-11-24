@@ -30,6 +30,24 @@ defmodule RegentsWeb.Layouts do
     end
   end
 
+  @doc """
+  Assigns `@current_path` on every LiveView navigation so product bars and
+  navigation links highlight the active route identically across controller
+  and LiveView pages.
+  """
+  def on_mount(:page, _params, _session, socket) do
+    {:cont,
+     Phoenix.LiveView.attach_hook(socket, :page, :handle_params, fn _params, uri, socket ->
+       path =
+         case URI.parse(uri).path do
+           value when is_binary(value) and value != "" -> value
+           _other -> "/"
+         end
+
+       {:cont, assign(socket, :current_path, path)}
+     end)}
+  end
+
   attr(:flash, :map, required: true)
   attr(:inner_content, :any, required: true)
 
