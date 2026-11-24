@@ -343,6 +343,13 @@ if broker = System.get_env("PATCHBAY_SIWA_URL") do
   config :regents, :wallet_author, broker_url: broker
 end
 
+config :regents, :escrow,
+  contract_address: System.get_env("ESCROW_CONTRACT_ADDRESS"),
+  operator_private_key: System.get_env("OPERATOR_PRIVATE_KEY"),
+  rpc_url: if(config_env() != :test, do: System.get_env("BASE_RPC_URL"))
+
+config :regents, :assist, staking_contract_address: System.get_env("STAKING_CONTRACT_ADDRESS")
+
 # The Privy accounts that run this site, comma separated (config/config.exs).
 if admins = System.get_env("REGENTS_ADMINS") do
   admins = admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)

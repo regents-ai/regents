@@ -941,6 +941,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   """
   def money(amount, rate, unit \\ nil)
   def money(nil, _rate, _unit), do: nil
+  def money(%Ash.NotLoaded{}, _rate, _unit), do: nil
 
   def money(%Decimal{} = amount, nil, unit),
     do: String.trim("#{TokenDisplay.short(amount)} #{unit}")

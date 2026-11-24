@@ -1,0 +1,57 @@
+{
+	auto_https off
+	admin off
+}
+
+(perm_redir) {
+	@non_get {
+		not method GET HEAD
+	}
+	redir @non_get {args[0]} 308
+	redir {args[0]} 301
+}
+
+:8080 {
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	handle / {
+		@has_query expression `{query} != ""`
+		handle @has_query {
+			import perm_redir "https://regents.sh/autolaunch?{query}"
+		}
+		import perm_redir "https://regents.sh/autolaunch"
+	}
+
+	@auth_x path /auth/x /auth/x/*
+	handle @auth_x {
+		import perm_redir "https://regents.sh/account/connections"
+	}
+
+	@shared_root path /account /account/* /pair /api/agents/v1/*
+	handle @shared_root {
+		uri strip_suffix /
+		import perm_redir "https://regents.sh{uri}"
+	}
+
+	@points path /points /points/*
+	handle @points {
+		import perm_redir "https://regents.sh/account/points"
+	}
+
+	handle_path /api/v1/* {
+		uri strip_suffix /
+		import perm_redir "https://regents.sh/api/v1/autolaunch{uri}"
+	}
+
+	handle_path /api/agent/v1/* {
+		uri strip_suffix /
+		import perm_redir "https://regents.sh/api/agent/v1/autolaunch{uri}"
+	}
+
+	handle {
+		uri strip_suffix /
+		import perm_redir "https://regents.sh/autolaunch{uri}"
+	}
+}
