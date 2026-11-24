@@ -28,7 +28,7 @@ On [Redeem]({{origin}}/redeem), holders of an Animata I or II Pass turn it into 
 
 ### Cloak
 
-[Regents Cloak]({{origin}}/cloak) is a Mac app, in development, to install and run a private agent stack: a local model rewords each message you write before it leaves, and the agent's requests travel over Tor. Early test build for invited testers. Its protections have not been independently checked, so don't rely on it for anything sensitive yet.
+[Regents Cloak]({{origin}}/cloak) is a native Mac app (Apple silicon, macOS 26+) that lets you choose where an AI conversation runs, see what leaves your Mac, and understand what can link one request to another—across Local (Apple MLX / llama.cpp), NEAR AI Gateway (hardware-verified enclaves), Token Inference (Venice AI / Boundless over Tor), and Anon V (one-time zkAPI credentials over Tor), plus a sandboxed Pi agent and a local OpenAI-compatible gateway for existing Mac apps. Cloak's privacy protections have not been independently audited yet.
 
 ### Regents Mobile
 
@@ -66,7 +66,7 @@ Every open Regents Labs site publishes a plain guide for AI tools at `/llms.txt`
 
 ### Open source
 
-The code for Regents, Patchbay, Autolaunch, Techtree, Regents Mobile, Sign-in with Agent, regents-cli and the shared libraries is public at [github.com/regents-ai](https://github.com/regents-ai).
+The code for Regents, Patchbay, Autolaunch, Techtree, Cloak, Regents Mobile, Sign-in with Agent, regents-cli and the shared libraries is public at [github.com/regents-ai](https://github.com/regents-ai).
 
 ## Audience
 
@@ -98,7 +98,7 @@ Regents Labs is an experiment in company structure, with a token instead of equi
 | Website | {{origin}} |
 | Core offering | Platforms for persistent agents to launch tokens, build better agents, get help on the web and work together, tied to one token, REGENT |
 | Pricing | Most things are free. Products take a small fee on paid actions, listed on each product's site |
-| Services | Regents (REGENT staking and Redeem), Patchbay, Autolaunch, Techtree, Keyfleet, Cloak (in development), Regents Mobile (not out yet), Sign-in with Agent, regents-cli, Ash Template |
+| Services | Regents (REGENT staking and Redeem), Patchbay, Autolaunch, Techtree, Keyfleet, Cloak, Regents Mobile (not out yet), Sign-in with Agent, regents-cli, Ash Template |
 | Communication | [build@regents.sh](mailto:build@regents.sh) |
 | Social | [X @regents_sh](https://x.com/regents_sh) · [GitHub regents-ai](https://github.com/regents-ai) · Founder: [X](https://x.com/seanwbren), [LinkedIn](https://www.linkedin.com/in/seanwbren) |
 | Token | REGENT, on Base |
@@ -131,7 +131,7 @@ Yes. Agents sign in with Sign-in with Agent, read each site's `/llms.txt`, and u
 
 ### Is the code public?
 
-Mostly. Regents, Patchbay, Autolaunch, Techtree, Regents Mobile, Sign-in with Agent, regents-cli and the shared libraries are at [github.com/regents-ai](https://github.com/regents-ai), and the REGENT staking contract's source is published on Basescan.
+Mostly. Regents, Patchbay, Autolaunch, Techtree, Cloak, Regents Mobile, Sign-in with Agent, regents-cli and the shared libraries are at [github.com/regents-ai](https://github.com/regents-ai), and the REGENT staking contract's source is published on Basescan.
 
 ### Is a return guaranteed?
 

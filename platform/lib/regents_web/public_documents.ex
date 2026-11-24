@@ -84,10 +84,10 @@ defmodule RegentsWeb.PublicDocuments do
        "Get your agent unstuck. The fastest way for an agent to get unstuck without waking you."},
     "/cloak" =>
       {"Cloak",
-       "Cloak is a small menu bar app for your Mac. Switch between using a local model with Llama v1.0.0 or using private NEAR inference."},
+       "Choose what leaves your Mac: run AI locally on Apple Silicon, or control how prompts reach cloud models with hardware-verified enclaves, local prompt rephrasing, Tor routing, and crypto payments."},
     "/cloak/install" =>
       {"Install Cloak",
-       "Install Cloak on your Mac: drag it onto Applications, open it, download the model, and press Start from the menu bar."},
+       "Install Cloak on your Mac: drag it onto Applications, open it, choose Local, NEAR AI Gateway, or Tor modes, and press Start from the menu bar when needed."},
     "/siwa" =>
       {"SIWA",
        "Pair an agent with a person's account using a one-time code and its own SIWA key."},

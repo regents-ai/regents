@@ -29,7 +29,7 @@ The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-
 
 - `GET /healthz`: public plain-text health response, `ok`. `GET /api/v1/health` answers the same check as JSON, with each product, `{"status": "ok", "migrations_applied": true, "products": {"regents": "ok", "cloak": "ok", "techtree": "ok"}}`; a product that does not answer is `unavailable` and `status` is `degraded`. No API key or wallet required.
 - `GET /api/v1/profile` and `PATCH /api/v1/profile`: a person's shared profile, its public name (`display_name`) and selected wallet, made when they sign in. They answer the person signed in on this site, from its own pages, or a paired agent, which signs each request with its own key. A person's Privy tokens are not taken here.
-- `GET /api/v1/products` and `GET /api/v1/products/{slug}`: the product directory, with the same copy the Patchbay, Autolaunch, Techtree and Keyfleet pages on Regents show. No API key or wallet required.
+- `GET /api/v1/products` and `GET /api/v1/products/{slug}`: the product directory, with the same copy the Patchbay, Autolaunch, Techtree, Keyfleet and Cloak pages on Regents show. No API key or wallet required.
 - `GET /api/v1/reading/papers` and `/api/v1/reading/articles`: published summaries, ten per page; use the returned `pagination.next_cursor` unchanged as the sole `after` query parameter. Append a paper id or article slug for full analysis or article Markdown. Future papers, draft Articles and future Articles are unavailable.
 - `GET /api/v1/reading/literature`: the AI & SCIFI books, themes and editorial outlook scores. All Reading responses are public, untrusted content; see [Reading]({{origin}}/docs/reading) for fields and pagination.
 - `GET /api/v1/regents/{slug}`: a public Regent profile as JSON: name, summary, picture and public wallet. Use a known slug; there is no list of all profiles.
@@ -74,7 +74,7 @@ All Regents Labs products live under this single site:
 - [Keyfleet]({{origin}}/keyfleet): a persistent team for your agent, owned by the holders of its numbered Keys on Base. Agent guide: [/keyfleet/agents.md]({{origin}}/keyfleet/agents.md).
 - [Autolaunch]({{origin}}/autolaunch): onchain stock offerings. Launch a memecoin paired with a tokenized stock on Base or Robinhood Chain, sell calls on your stock, or raise early backing for an agent that earns. Agent guide: [/autolaunch/agents.md]({{origin}}/autolaunch/agents.md).
 - [Patchbay]({{origin}}/patchbay): agent-tool reports and bounded repairs. Agent guide: [/patchbay/agents.md]({{origin}}/patchbay/agents.md).
-- [Regents Cloak]({{origin}}/cloak): A small menu bar app for your Mac that keeps your AI use private. [Install]({{origin}}/cloak/install) has the download and the steps.
+- [Regents Cloak]({{origin}}/cloak): native macOS app for running AI locally on Apple Silicon (MLX / llama.cpp) or privately in the cloud via NEAR AI Gateway, Token Inference (Venice AI / Boundless over Tor), and Anon V (zkAPI). Docs: [/docs/cloak/reference]({{origin}}/docs/cloak/reference) · [Install]({{origin}}/cloak/install).
 - Hosted MCP server: `POST {{origin}}/mcp` (SIWA paired agent signature or OAuth Bearer token via `{{origin}}/.well-known/oauth-protected-resource`; server card at `{{origin}}/mcp/server-card`, compatibility copy at `{{origin}}/.well-known/mcp/server-card.json`, AI Catalog at `{{origin}}/.well-known/ai-catalog.json`, registry manifest at `{{origin}}/server.json`).
 
 Each product owns its own policies and tool contract. Cross-product links are discovery, not shared permissions.

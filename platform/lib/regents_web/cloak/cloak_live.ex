@@ -1,9 +1,10 @@
 defmodule RegentsWeb.Cloak.CloakLive do
   @moduledoc """
   The `/cloak` product page, with the words from `RegentsWeb.Cloak`: the app's
-  icon, the heading and subtitle, Watch, which plays the intro film in a
-  dialog, then the four modes beside a drawn picture of the chat window, and
-  the notes.
+  icon, the heading and subtitle, Watch, releases/docs/source actions, then the
+  four modes beside a drawn picture of the chat window, the Local Agent Box &
+  Connected Apps showcase, agent reference notes, and the details/feedback
+  section.
 
   `install/1` is `/cloak/install`: the steps that follow a download, beside two
   pictures from the app, the window the download opens and the menu. It offers
@@ -56,11 +57,30 @@ defmodule RegentsWeb.Cloak.CloakLive do
             <span>{Cloak.watch_label()}</span>
             <span class="cloak-button__time">{Cloak.watch_time()}</span>
           </button>
+          <a
+            class="cloak-button"
+            href={Cloak.releases_url()}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span>View releases</span>
+          </a>
+          <a class="cloak-button" href={Cloak.docs_path()}>
+            <span>Read docs</span>
+          </a>
+          <a
+            class="cloak-button"
+            href={Cloak.source_url()}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span>View source</span>
+          </a>
         </div>
         <p class="cloak-hero__facts">{Cloak.facts()}</p>
       </header>
 
-      <section class="cloak-show" aria-labelledby="cloak-modes-heading">
+      <section id="modes" class="cloak-show" aria-labelledby="cloak-modes-heading">
         <div>
           <h2 id="cloak-modes-heading" class="cloak-show__title">{Cloak.modes_title()}</h2>
           <ol class="cloak-modes">
@@ -80,12 +100,19 @@ defmodule RegentsWeb.Cloak.CloakLive do
         <div
           class="cloak-window"
           role="img"
-          aria-label="The Cloak chat window with its mode switch: V, Token Inference, NEAR Private AI, Local Llama and Agent."
+          aria-label="The Cloak chat window showing an Original to Sent local prompt rephrasing in Anon V mode, with mode switch: Local, NEAR AI Gateway, Token Inference, Anon V, and Agent."
         >
           <div class="cloak-window__bar"><i></i><i></i><i></i><span>{@window.title}</span></div>
           <div class="cloak-window__state"><b>{@window.mode}</b>{@window.mode_note}</div>
           <div class="cloak-window__chat">
-            <div class="cloak-bubble cloak-bubble--mine">{@window.asked}</div>
+            <div class="cloak-bubble cloak-bubble--mine">
+              <span class="cloak-bubble__label">{@window.original_label}</span>
+              {@window.original}
+            </div>
+            <div class="cloak-bubble cloak-bubble--sent">
+              <span class="cloak-bubble__label">{@window.sent_label}</span>
+              {@window.sent}
+            </div>
             <div class="cloak-bubble">{@window.answered}</div>
           </div>
           <div class="cloak-window__compose">
@@ -100,6 +127,21 @@ defmodule RegentsWeb.Cloak.CloakLive do
             </div>
             <p class="cloak-window__hint">{@window.hint}</p>
           </div>
+        </div>
+      </section>
+
+      <section id="agent" class="cloak-agent" aria-labelledby="cloak-agent-heading">
+        <div class="cloak-agent__head">
+          <h2 id="cloak-agent-heading">{Cloak.agent().title}</h2>
+          <p>{Cloak.agent().summary}</p>
+        </div>
+        <ul class="cloak-agent__list">
+          <li :for={bullet <- Cloak.agent().bullets}>{bullet}</li>
+        </ul>
+        <div class="cloak-agent__actions">
+          <a class="cloak-button" href={Cloak.agent().docs_href}>
+            <span>{Cloak.agent().docs_label}</span>
+          </a>
         </div>
       </section>
 
@@ -135,7 +177,15 @@ defmodule RegentsWeb.Cloak.CloakLive do
             href={Cloak.feedback().href}
             target="_blank"
             rel="noopener noreferrer"
-          >{Cloak.feedback().link}</a>{Cloak.feedback().after}
+          >{Cloak.feedback().link}</a>{Cloak.feedback().github_middle}<a
+            href={Cloak.feedback().github_href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >{Cloak.feedback().github_link}</a>{Cloak.feedback().middle}<a
+            href={Cloak.feedback().social_href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >{Cloak.feedback().social_link}</a>{Cloak.feedback().after}
         </p>
       </section>
 
@@ -243,7 +293,15 @@ defmodule RegentsWeb.Cloak.CloakLive do
             href={Cloak.feedback().href}
             target="_blank"
             rel="noopener noreferrer"
-          >{Cloak.feedback().link}</a>{Cloak.feedback().after}
+          >{Cloak.feedback().link}</a>{Cloak.feedback().github_middle}<a
+            href={Cloak.feedback().github_href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >{Cloak.feedback().github_link}</a>{Cloak.feedback().middle}<a
+            href={Cloak.feedback().social_href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >{Cloak.feedback().social_link}</a>{Cloak.feedback().after}
         </p>
       </section>
     </section>

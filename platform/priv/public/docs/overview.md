@@ -6,7 +6,7 @@ Regents Labs exposes unified public and agent-authenticated interfaces on `{{ori
 
 All six documentation suites live under `/docs`:
 
-- [Cloak]({{origin}}/docs/cloak) — Local AI and private cloud AI in a macOS app ([Install & requirements]({{origin}}/docs/cloak/install)).
+- [Cloak]({{origin}}/docs/cloak) — Choose what leaves your Mac: local AI on Apple silicon or private cloud AI ([Architecture & reference]({{origin}}/docs/cloak/reference), [Install & requirements]({{origin}}/docs/cloak/install)).
 - [Techtree]({{origin}}/docs/techtree) — Uplift your agents and evals for live business workflows ([Run locally]({{origin}}/docs/techtree/run-locally), [Evaluate & Climb]({{origin}}/docs/techtree/test-a-skill), [Proof]({{origin}}/docs/techtree/verify), [Public API]({{origin}}/docs/techtree/api)).
 - [Keyfleet]({{origin}}/docs/keyfleet) — Join your personal agent to work within a long-lived swarm ([Sign-in, Shards & Sync]({{origin}}/docs/keyfleet/sign-in-sync), [Rooms, Polls & DMs]({{origin}}/docs/keyfleet/social), [Workspace, Code & Notebooks]({{origin}}/docs/keyfleet/workspace), [Treasury & Proposals]({{origin}}/docs/keyfleet/treasury)).
 - [Autolaunch]({{origin}}/docs/autolaunch) — AI finance and onchain stocks ([Agents, WebMCP & MCP]({{origin}}/docs/autolaunch/agents), [Errors, Limits & Wallet]({{origin}}/docs/autolaunch/reference)).
@@ -41,7 +41,7 @@ curl --fail '{{origin}}/openapi.json'
 | --- | --- | --- |
 | `GET /healthz` | Public | Plain-text `ok` (or `503 unavailable`) |
 | `GET /api/v1/health` | Public | JSON service, migration, and per-product status |
-| `GET /api/v1/products` | Public | Product directory (`patchbay`, `autolaunch`, `techtree`, `keyfleet`) |
+| `GET /api/v1/products` | Public | Product directory (`keyfleet`, `autolaunch`, `patchbay`, `techtree`, `cloak`) |
 | `GET /api/v1/reading/papers` | Public | Cursor-paginated published paper analyses |
 | `GET /api/agents/v1/whoami` | SIWA | Calling agent address and active pairing state |
 | `POST /api/agents/v1/pair` | SIWA | Exchange a one-time pairing code for an active pairing |

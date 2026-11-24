@@ -49,7 +49,7 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /about, GET /docs, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /privacy, GET /terms",
+      "route": "GET /about, GET /docs, GET /docs/cloak, GET /docs/cloak/reference, GET /docs/cloak/install, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /privacy, GET /terms",
       "scope": "site",
       "authentication": "public",
       "availability": "available",
@@ -57,13 +57,13 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "regents_about",
-        "http": "GET /about, GET /docs, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /privacy, GET /terms"
+        "http": "GET /about, GET /docs, GET /docs/cloak, GET /docs/cloak/reference, GET /docs/cloak/install, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /privacy, GET /terms"
       }
     },
     {
       "name": "regents_products",
       "title": "List Regents products",
-      "description": "List the products in the Regents family, in the order the site lists them: Keyfleet, Autolaunch, Patchbay and Techtree. Each gives its slug, name, summary, website, source on GitHub and its page on regents.sh. The same copy the /keyfleet, /autolaunch, /patchbay and /techtree pages show; read one in full with regents_product.",
+      "description": "List the products in the Regents family, in the order the site lists them: Keyfleet, Autolaunch, Patchbay, Techtree and Cloak. Each gives its slug, name, summary, website, source on GitHub and its page on regents.sh. The same copy the /keyfleet, /autolaunch, /patchbay, /techtree and /cloak pages show; read one in full with regents_product.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -102,7 +102,8 @@
               "patchbay",
               "autolaunch",
               "techtree",
-              "keyfleet"
+              "keyfleet",
+              "cloak"
             ]
           }
         },

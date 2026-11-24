@@ -338,6 +338,23 @@
   color: #fff;
 }
 
+.cloak-bubble--sent {
+  justify-self: end;
+  border: 1px solid rgb(125 180 255 / 0.35);
+  background: #1b2842;
+  color: #e6eefc;
+}
+
+.cloak-bubble__label {
+  display: block;
+  margin-block-end: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.78;
+  text-transform: uppercase;
+}
+
 .cloak-window__compose {
   padding: 0 18px 18px;
 }
@@ -434,6 +451,59 @@
   border-radius: 0;
   -webkit-mask-image: linear-gradient(#000 82%, transparent);
   mask-image: linear-gradient(#000 82%, transparent);
+}
+
+/* ---- Local Agent Box & Docs ---- */
+
+.cloak-agent {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 1240px;
+  margin: var(--space-6) auto 0;
+  padding: var(--space-6) var(--space-8);
+  border: 1px solid var(--hairline);
+  border-radius: var(--cloak-round-panel);
+  background: color-mix(in srgb, var(--color-fg) 3%, var(--color-bg));
+  scroll-margin-top: 84px;
+}
+
+.cloak-agent__head {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 68ch;
+}
+
+.cloak-agent h2 {
+  margin: 0;
+  font-family: var(--cloak-sans);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.cloak-agent__head p {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.cloak-agent__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline-start: 1.25rem;
+  color: var(--color-fg);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.cloak-agent__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 /* ---- Docs for agents ---- */

@@ -1,6 +1,6 @@
 ## List
 
-`GET /api/v1/products` lists Keyfleet, Autolaunch, Patchbay and Techtree, in the order the site lists them, with each one's summary and links.
+`GET /api/v1/products` lists Keyfleet, Autolaunch, Patchbay, Techtree and Cloak, in the order the site lists them, with each one's summary and links.
 
 ```sh
 curl --fail '{{origin}}/api/v1/products'
@@ -16,4 +16,4 @@ curl --fail '{{origin}}/api/v1/products/techtree'
 
 ## Other surfaces
 
-In a browser that supports WebMCP, use `regents_products` and `regents_product`. Each product runs its own site and owns its own integration contract: [Keyfleet](https://keyfleet.ai/llms.txt), [Autolaunch](https://autolaunch.sh/llms.txt), [Patchbay](https://patchbay.help/llms.txt) and [Techtree](https://techtree.sh/llms.txt).
+In a browser that supports WebMCP, use `regents_products` and `regents_product`. Each web product owns its integration contract: [Keyfleet]({{origin}}/keyfleet/agents.md), [Autolaunch]({{origin}}/autolaunch/agents.md), [Patchbay]({{origin}}/patchbay/agents.md) and [Techtree]({{origin}}/techtree/agents.md). For [Cloak]({{origin}}/cloak) (native macOS app), request `{{origin}}/cloak`, `{{origin}}/cloak/install`, or `{{origin}}/docs/cloak/reference` with `Accept: text/markdown`.

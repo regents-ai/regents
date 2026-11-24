@@ -1,74 +1,114 @@
 defmodule RegentsWeb.Cloak do
   @moduledoc """
   Regents Cloak's words, in the order `/cloak` shows them. The page
-  (`RegentsWeb.CloakLive`) and its Markdown version (`markdown/0`) both read them
-  from here.
+  (`RegentsWeb.Cloak.CloakLive`) and its Markdown version (`markdown/0`) both
+  read them from here.
   """
   use Boundary, deps: [RegentsWeb], exports: [CloakLive]
 
-  # The heading's two lines (the second is set smaller) and the subtitle: change their words here. The subtitle's
-  # first two sentences are also the page's description in `RegentsWeb.PublicDocuments`;
-  # change them there too.
-  @heading ["Cloak your local AI.", "Always private, full anon is optional."]
-  @subtitle "Cloak is a small menu bar app for your Mac. Switch between using a local model with Llama v1.0.0 or using private NEAR inference. Then go “paranoid mode” with Tor, cover traffic, zkAPI, and message rewording when you need Vitalik-level privacy."
+  # The heading's two lines (the second is set smaller) and the subtitle: change their words here.
+  # The subtitle's first sentence is also the page's description in `RegentsWeb.PublicDocuments`;
+  # change it there too.
+  @heading [
+    "Choose what leaves your Mac.",
+    "Run locally, or control how prompts reach the cloud."
+  ]
+  @subtitle "Run a model on your Mac, or choose how a conversation reaches a cloud model. Cloak gives you controls for hardware-verified enclaves, local prompt rephrasing, Tor routing, and accountless crypto payments—so you can see what leaves your Mac and what can link one request to another."
 
   @pill %{
-    before: "Built on ",
+    before: "Built on Apple MLX, ",
     link: "llama.cpp",
     href: "https://github.com/ggml-org/llama.cpp",
     after: ", Tor and NEAR AI"
   }
 
   @watch_label "Watch the intro"
-  @watch_time "0:20"
+  @watch_time "0:35"
   @film "/images/cloak/intro.mp4"
-  @facts "Apple silicon · macOS 26"
+  @releases_url "https://github.com/regents-ai/cloak-releases/releases"
+  @source_url "https://github.com/regents-ai/cloak"
+  @docs_path "/docs/cloak/reference"
+  @facts "Apple silicon · macOS 26 or later · Cloak's privacy protections have not been independently audited."
+
+  @agent %{
+    title: "Local Agent Box & Connected Apps",
+    summary:
+      "Toggle the hammer in Token Inference or Anon V to run Cloak's built-in Pi coding agent inside an ephemeral, NIC-less Linux microVM—shell and file tools never touch your Mac, and every web or model request leaves through Tor with local prompt rephrasing. You can also connect Cursor, Cline, Aider, or any OpenAI-compatible Mac app via CloakDoor at http://127.0.0.1:8742/v1.",
+    bullets: [
+      "Isolated Linux VM: Pi's bash, read, edit, and write tools run inside a throwaway arm64 Linux microVM with zero access to your macOS files.",
+      "Tor-only egress: All agent web traffic goes through torsocks, and model calls route through Cloak's local prompt rewriter and Anon V (zkAPI) or Boundless/Tempo (USDC.e).",
+      "Clear boundaries: Connecting an external Mac app changes its inference endpoint (not its macOS permissions), and CloakDoor rephrases user-message text only—tool results and code pass through unchanged."
+    ],
+    docs_label: "Read the Cloak documentation",
+    docs_href: "/docs/cloak/reference"
+  }
 
   @modes_title "4 modes of operation"
 
-  # Each mode, in the app's order: its name, the quieter line under the name with
-  # its link (or nil), its sentence.
+  # Each mode, in the order a new user decides: local first, then each remote
+  # option with what the provider can see and what can link requests.
   @modes [
-    {"V",
+    {"Local", nil,
+     "The model answers on your Mac using Apple MLX or llama.cpp. Once weights are downloaded, your conversation does not go to an inference provider—no account and nothing to pay."},
+    {"NEAR AI Gateway",
+     %{
+       before: "Hardware-verified on ",
+       link: "NEAR AI Cloud",
+       href: "https://cloud.near.ai",
+       after: "."
+     },
+     "Cloak verifies Intel TDX and NVIDIA GPU attestation on your Mac before encrypting your prompt end-to-end. Messages are sent as written, your NEAR API key still identifies your account, and Tor is optional. Opt-in trace exports stay local until you share them in the NEAR AI Gateway app."},
+    {"Token Inference",
+     %{
+       before: "Served by ",
+       link: "Venice AI",
+       href: "https://venice.ai",
+       after: " (default) or Boundless."
+     },
+     "User text is rephrased locally and sent over a per-conversation Tor circuit. Pay from a local Base USDC wallet (x402), a Venice API key, or Tempo USDC.e via Boundless. Venice's Private and TEE tiers are provider-reported, and a reused wallet or key can link chats."},
+    {"Anon V",
      %{
        before: "Inspired by Vitalik's ",
        link: "X post",
        href: "https://x.com/VitalikButerin/status/2111046730959433793",
-       after: " about his preferred AI usage."
-     }, "Tor routing, cover traffic, prompt rewording, and zkAPI inference"},
-    {"Token Inference",
-     %{
-       before: "Served by ",
-       link: "Boundless",
-       href: "https://boundless.network/news/mpp-payments",
-       after: "."
-     }, "Reworded on your Mac and sent through Tor. Pay per request with USDC.e on Tempo."},
-    {"NEAR Private AI", nil,
-     "Verifiably private AI models. Opt in to earn NEAR AI Cloud credits for shared traces."},
-    {"Local Llama", nil,
-     "Answered fully on your Mac with recommended best-in-class local models. Zero traffic is sent over the web."}
+       after: " on private AI payments."
+     },
+     "Rephrased locally, routed over Tor with optional live cover traffic, and paid with a fresh one-time zkAPI credential from an ETH deposit—avoiding a reusable wallet or key on each model call. Identifying text, conversation history, and timing can still connect requests."}
   ]
 
-  # The drawn chat window: the app's own words and one sample exchange.
+  # The drawn chat window: a synthetic Original -> Sent exchange that shows both
+  # what local rephrasing changes (style and irrelevant framing) and what it
+  # intentionally keeps (necessary identifiers such as PR #418).
   @window %{
     title: "Chat",
-    mode: "Local Llama",
-    mode_note: "Answered on this Mac, with nothing to pay and no need to start Cloak.",
-    asked: "Plan a quiet weekend in Lisbon.",
+    mode: "Anon V",
+    mode_note: "Rephrased locally · Tor circuit · One-time zkAPI credential",
+    original_label: "Original (stays on your Mac)",
+    original:
+      "Ugh, totally fried after my train into Zurich—can you draft a short note pushing my 3pm review on PR #418 to Thursday?",
+    sent_label: "Sent to model",
+    sent:
+      "Draft a brief message requesting to reschedule the 3:00 PM review of PR #418 to Thursday.",
     answered:
-      "Start with a slow morning in Alfama, then take the tram up to the viewpoint before lunch.",
+      "Hi — could we move the 3:00 PM review of PR #418 to Thursday? Let me know what time works best.",
     field: "Message",
-    switch: ["V", "Token Inference", "NEAR Private AI", "Local Llama", "Agent"],
-    hint: "The model on this Mac answers. Nothing is sent."
+    switch: ["Local", "NEAR AI Gateway", "Token Inference", "Anon V", "Agent"],
+    hint: "Phrasing changes locally while necessary identifiers like PR #418 stay intact."
   }
 
-  @needs "16 GB of memory and 10 GB free; the app downloads a 5.7 GB model on first run. V takes a deposit of ETH, Token Inference takes USDC.e on Tempo, and NEAR Private AI takes a NEAR AI Cloud key. Cards are not accepted."
-  @caution "This build is for testing. Its protections have not been independently checked, so don't rely on it for anything sensitive yet."
+  @needs "Requirements depend on the mode. NEAR AI Gateway needs 8 GB+ RAM, 0 GB of model downloads, and a NEAR AI Cloud key. Local Mode (Fast MLX) needs a 16 GB+ Mac and downloads 10.21 GB (optional GGUF tiers: 13.63–17.63 GB on 24 GB+ Macs). Token Inference, Anon V, Connected Apps, and the sandboxed Pi agent need a 16 GB+ Mac and the 5.69 GB Qwen 3.5 9B local rewriter. Paid modes use Base USDC, Tempo USDC.e, ETH on Ethereum Mainnet, or your own Venice/NEAR API key."
+  @caution "Cloak's privacy protections have not been independently audited. Understand each mode's limits—including what stays intact during prompt rephrasing and what passes through unchanged in Connected Apps—before relying on it for sensitive work."
   @feedback %{
-    before: "Something broke? Tell us at ",
-    link: "patchbay.help/regents.sh",
-    href: "https://patchbay.help/regents.sh",
-    after: "."
+    before: "Questions or bug reports? Post on ",
+    link: "regents.sh/patchbay/cloak",
+    href: "https://regents.sh/patchbay/cloak",
+    github_middle: ", open an issue on ",
+    github_link: "GitHub",
+    github_href: "https://github.com/regents-ai/cloak",
+    middle: ", or follow ",
+    social_link: "@regents_sh",
+    social_href: "https://x.com/regents_sh",
+    after: " on X."
   }
 
   # Expandable reference notes on `/cloak` written for agents reading the page
@@ -80,45 +120,43 @@ defmodule RegentsWeb.Cloak do
       id: "runtime-boundary",
       summary: "Runtime boundary: macOS desktop app (no live web chat backend)",
       body:
-        "Cloak is a native macOS menu bar application for Apple silicon; this page is product documentation and the chat window shown above is a static illustration of the Mac app, not a live hosted chat endpoint. Local Llama runs entirely on the user's Mac through llama.cpp with zero network traffic, while V, Token Inference, and NEAR Private AI send requests through external privacy-preserving inference backends."
+        "Cloak is a native macOS menu bar application for Apple silicon; this page is product documentation and the chat window shown above is a static illustration of the Mac app, not a live hosted chat endpoint. Local runs entirely on the user's Mac through Apple MLX (vmlx-swift) or Metal llama.cpp with zero inference network traffic once model weights are downloaded, while NEAR AI Gateway, Token Inference, and Anon V send requests through external privacy-preserving inference backends. Every thread is isolated and locked to its mode on turn 1, and opt-in Local Access context (memory, approved folders, attachments, Calendar/Reminders/Contacts) stays strictly offline in Local Mode."
     },
     %{
       id: "modes-and-payments",
       summary: "Comparing the 4 modes, routing, and payment rails",
       body:
-        "1) V: routes through Tor with cover traffic, prompt rewording, and zkAPI inference; requires an ETH deposit. 2) Token Inference (Boundless): rewords prompts on the Mac and routes over Tor; pays per request with USDC.e on Tempo. 3) NEAR Private AI: verifiably private hosted models using a NEAR AI Cloud key, with optional trace sharing for NEAR AI Cloud credits. 4) Local Llama: runs recommended local models directly on the Mac for free with no web requests and no Tor startup required. Credit cards are not accepted."
+        "1) Local: runs Apple MLX (default Inkling 2 Mini JANGH2, 10.21 GB) or llama.cpp GGUF + optional uncensored LoRA directly on the Mac for free with no account, no inference network traffic, and no Tor startup required. 2) NEAR AI Gateway: verifies Intel TDX and NVIDIA GPU attestation locally on your Mac before encrypting prompts end-to-end (E2EE v2) to NEAR AI Cloud (Qwen3.8-27B) using a NEAR API key; Tor routing is optional, and opt-in Letta Trajectory v1 trace exports stay local until shared in the NEAR AI Gateway app. 3) Token Inference: rephrases user text locally and routes over per-conversation Tor circuits; defaults to Venice AI (local Base USDC wallet via x402, or optional Venice API key) and also supports Boundless (USDC.e on Tempo via MPP). 4) Anon V (zkAPI): rephrases user text locally, routes over Tor with optional live cover traffic, and pays each turn with a fresh one-time zero-knowledge credential from an Ethereum Mainnet ETH deposit. Cloak also includes the sandboxed Pi Local Agent Box (ephemeral NIC-less Linux microVM), Connected Apps (CloakDoor at http://127.0.0.1:8742/v1), Offline Data kits, and optional Darkbloom Inference Serving."
     },
     %{
       id: "requirements-and-install",
-      summary: "Hardware requirements, model download, and install steps",
+      summary: "Hardware requirements, model downloads, and install steps",
       body:
-        "Requires an Apple silicon Mac running macOS 26 with 16 GB memory and 10 GB free disk space. First run downloads a 5.7 GB local model before Local Llama can answer offline. Installation steps (drag Regents-Cloak.dmg into Applications, open, download the model, and optionally click Start in the menu bar for Tor-backed modes) are documented at /cloak/install. Neither /cloak nor /cloak/install serves the .dmg file directly."
+        "Requires an Apple silicon Mac running macOS 26 or later (macOS 27+ for optional Darkbloom Inference Serving). NEAR AI Gateway works on 8 GB+ Macs with 0 GB of model downloads. Local (Fast MLX) needs 16 GB+ RAM and downloads 10.21 GB (optional GGUF tiers: 13.63–17.63 GB on 24 GB+/32 GB+ Macs). Token Inference, Anon V, Connected Apps, and the sandboxed Pi agent need 16 GB+ RAM and the 5.69 GB Qwen 3.5 9B local prompt rewriter. Signed, notarized .dmg builds are published at https://github.com/regents-ai/cloak-releases/releases (source at https://github.com/regents-ai/cloak), and install steps are at /cloak/install. Neither /cloak nor /cloak/install serves the .dmg file directly."
     },
     %{
       id: "agent-discovery",
       summary: "How agents should read this page and report Cloak bugs",
       body:
-        "Request /cloak or /cloak/install with Accept: text/markdown for plain Markdown output. For site-wide tools, OAuth/MCP endpoints, and agent pairing, read /llms.txt and /agents.md (or connect to /mcp). Report bugs or regressions in Cloak on Patchbay at /patchbay/regents.sh (or patchbay.help/regents.sh)."
+        "Request /cloak, /cloak/install, /docs/cloak, or /docs/cloak/reference with Accept: text/markdown for plain Markdown output. For site-wide tools, OAuth/MCP endpoints, and agent pairing, read /llms.txt and /agents.md (or connect to /mcp). Report bugs, regressions, or feedback on Patchbay at https://regents.sh/patchbay/cloak, open an issue at https://github.com/regents-ai/cloak, or email build@regents.sh."
     }
   ]
 
   # The install page, at `/cloak/install`: what to do with the app's file once a
-  # person has it. The page offers no file. Each step: its one-word title, its
-  # sentence.
-  # The app's chief checks these against each build.
+  # person has it. Each step: its one-word title and its sentence.
   @install_path "/cloak/install"
   @install_heading "Install Cloak"
   @install_steps [
     {"Drag",
      "Open Regents-Cloak.dmg from your Downloads folder and drag Cloak onto Applications."},
     {"Open",
-     "Open Cloak from Applications. Apple has checked and signed it, so your Mac only asks its usual question about apps from the internet."},
-    {"Model",
-     "Cloak opens its Chat window and shows its modes once. Press Download Model and let the 5.7 GB model finish. Local Llama then answers on your Mac with nothing to pay."},
+     "Open Cloak from Applications. Apple has checked and notarized it, so your Mac only asks its usual question about apps from the internet."},
+    {"Choose",
+     "Cloak opens its Welcome Tour and checks your Mac's memory. Pick Local (10.21 GB MLX download on 16 GB+ Macs) or NEAR AI Gateway (0 GB download, works on 8 GB+ Macs); Tor modes download the 5.69 GB Qwen 3.5 9B rewriter."},
     {"Start",
-     "Cloak lives in the menu bar and stays paused until you press Start. Click the small crown at the top right of your screen. Start is for the modes that send through Tor; Local Llama doesn't need it."}
+     "Cloak lives in the menu bar and stays paused until you press Start. Local and direct NEAR AI Gateway work immediately; press Start in the crown menu for Tor routing, Token Inference, Anon V, Connected Apps, or the sandboxed Pi agent."}
   ]
-  @updates "Cloak keeps itself up to date, unless you turn that off in Settings."
+  @updates "Cloak checks for signed Sparkle updates automatically unless you turn that off in Settings."
 
   def heading, do: @heading
   def subtitle, do: @subtitle
@@ -126,6 +164,10 @@ defmodule RegentsWeb.Cloak do
   def watch_label, do: @watch_label
   def watch_time, do: @watch_time
   def film, do: @film
+  def releases_url, do: @releases_url
+  def source_url, do: @source_url
+  def docs_path, do: @docs_path
+  def agent, do: @agent
   def facts, do: @facts
   def modes_title, do: @modes_title
   def modes, do: @modes
@@ -168,13 +210,32 @@ defmodule RegentsWeb.Cloak do
 
     #{@subtitle}
 
-    [#{@watch_label} #{@watch_time}](#{film})
+    - [#{@watch_label} (#{@watch_time})](#{film})
+    - [View releases](#{@releases_url})
+    - [View source](#{@source_url})
+    - [#{@agent.docs_label}](#{RegentsWeb.PublicDocuments.url(@docs_path)})
 
     #{@facts}
 
     ## #{@modes_title}
 
     #{modes}
+
+    ## #{@agent.title}
+
+    #{@agent.summary}
+
+    #{Enum.map_join(@agent.bullets, "\n", &"- #{&1}")}
+
+    [#{@agent.docs_label}](#{RegentsWeb.PublicDocuments.url(@docs_path)})
+
+    ## Example: Original → Sent
+
+    - **#{@window.original_label}:** #{@window.original}
+    - **#{@window.sent_label} (#{@window.mode} — #{@window.mode_note}):** #{@window.sent}
+    - **Answer:** #{@window.answered}
+
+    #{@window.hint}
 
     ## #{@agent_docs_title}
 
@@ -190,7 +251,7 @@ defmodule RegentsWeb.Cloak do
 
     #{@caution}
 
-    #{@feedback.before}[#{@feedback.link}](#{@feedback.href})#{@feedback.after}
+    #{@feedback.before}[#{@feedback.link}](#{@feedback.href})#{@feedback.github_middle}[#{@feedback.github_link}](#{@feedback.github_href})#{@feedback.middle}[#{@feedback.social_link}](#{@feedback.social_href})#{@feedback.after}
     """
   end
 
@@ -206,6 +267,9 @@ defmodule RegentsWeb.Cloak do
 
     #{@facts}
 
+    - [View releases](#{@releases_url})
+    - [View source](#{@source_url})
+
     #{steps}
 
     ## Updates
@@ -216,7 +280,7 @@ defmodule RegentsWeb.Cloak do
 
     #{@caution}
 
-    #{@feedback.before}[#{@feedback.link}](#{@feedback.href})#{@feedback.after}
+    #{@feedback.before}[#{@feedback.link}](#{@feedback.href})#{@feedback.github_middle}[#{@feedback.github_link}](#{@feedback.github_href})#{@feedback.middle}[#{@feedback.social_link}](#{@feedback.social_href})#{@feedback.after}
     """
   end
 end

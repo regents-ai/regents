@@ -159,7 +159,7 @@
     },
     {
       "command": "products list",
-      "description": "List the Regents products in the order the site lists them: Keyfleet, Autolaunch, Patchbay and Techtree, each with its summary, website, source and page on regents.sh.",
+      "description": "List the Regents products in the order the site lists them: Keyfleet, Autolaunch, Patchbay, Techtree and Cloak, each with its summary, website, source and page on regents.sh.",
       "operation_id": "listProducts",
       "webmcp": "regents_products",
       "method": "GET",
@@ -182,7 +182,7 @@
           "type": "string",
           "in": "path",
           "field": "slug",
-          "description": "The product: autolaunch, techtree, patchbay or keyfleet; `regents protocol products list` names them."
+          "description": "The product: autolaunch, techtree, patchbay, keyfleet or cloak; `regents protocol products list` names them."
         }
       ]
     },

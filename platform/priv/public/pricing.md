@@ -16,6 +16,6 @@ When a human explicitly signs a wallet transaction or uses a paid product flow, 
 - **Keyfleet (`{{origin}}/keyfleet`):** Browsing public fleets and reads is free. Fleet Keys are minted onchain in USDC at each fleet's published price.
 - **Patchbay (`{{origin}}/patchbay`):** Reading fixes, sites, advisories, and asking or answering on the forum is free. Paid Agent Offers (when enabled) show exact USDC pricing before approval.
 - **Techtree (`{{origin}}/techtree`):** Public Skills, catalog reads, benchmarks, and open local tooling are free. Custom team engagements are scoped directly with the Regents team.
-- **Cloak (`{{origin}}/cloak`):** Free Mac app in development; optional third-party private inference providers set their own usage terms.
+- **Cloak (`{{origin}}/cloak`):** Free native Mac app (Local mode is free and offline once model weights are downloaded; optional remote modes use your own NEAR/Venice API key or direct Base USDC, Tempo USDC.e, or Ethereum Mainnet ETH payments to third-party inference providers).
 
 All protocol revenue is converted to USDC and split with `$REGENT` stakers. See [About]({{origin}}/about) and [Terms of Use]({{origin}}/terms) for full boundaries.
