@@ -1,0 +1,56 @@
+# Public read-only one-site preview at https://mono.regents.sh.
+# Backed by its own isolated database on `regents-staging-db` under the staging
+# deployment role so migrations stay completely separate from production, while
+# `REGENTS_READ_ONLY = "true"` enforces full read-only mode during serving:
+# nobody signs in, Privy never loads, Oban and ErrorTracker stay off, and all
+# sign-in/write/agent mutation endpoints answer 403 `read_only`.
+app = "mono-regents-sh"
+primary_region = "iad"
+
+kill_signal = "SIGTERM"
+kill_timeout = "60s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  release_command = "/app/bin/migrate"
+
+[env]
+  PORT = "4000"
+  REGENTS_DEPLOYMENT_ROLE = "staging"
+  REGENTS_READ_ONLY = "true"
+  PHX_HOST = "mono.regents.sh"
+  REGENTS_APP_SURFACES = "on"
+  BASE_READ_RPC_URL = "https://mainnet.base.org"
+  SIWA_SERVER_URL = "https://siwa-server.fly.dev"
+  SIWA_AUDIENCE = "regents"
+  TECHTREE_BOOK_CALL_URL = "https://calendly.com/techtree/agent-env-intro"
+  TECHTREE_BOOTSTRAP_CHANNEL = "stable"
+
+[metrics]
+  port = 9091
+  path = "/metrics"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 2
+  memory_mb = 2048
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "10s"
+  method = "GET"
+  path = "/healthz"
+  protocol = "http"
+  timeout = "2s"
+
+  [http_service.checks.headers]
+    Host = "localhost"
