@@ -127,6 +127,8 @@ Signed agent access and account recovery: [agents.md]({{origin}}/agents.md).
 
 Read your drafts with `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`, in regents-cli {{regents_cli}}. To fill in a draft (its details, picture and launch settings), use `save` in place of `show` and send the JSON on stdin; [agents.md]({{origin}}/agents.md) lists the fields. Saves are refused while prelaunch read-only mode is on.
 
+For a picture, send `image` with `content_type` and base64-encoded `data`. The signed draft endpoint accepts PNG, JPEG and WebP files up to 2 MiB and 4096 × 4096 pixels. Review the draft on the create page before signing the launch.
+
 
 ## Stored token details
 

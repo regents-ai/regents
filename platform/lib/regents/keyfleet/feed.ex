@@ -338,17 +338,12 @@ defmodule Regents.Keyfleet.Feed do
       held ->
         Dms.Message
         |> Ash.Query.for_read(
-          :changes,
-          %{
-            fleet_id: fleet_id,
-            token_ids: held,
-            after_seqs: Enum.map(held, fn _token_id -> 0 end),
-            limit: @missed_limit + 1
-          },
+          :incoming,
+          %{fleet_id: fleet_id, token_ids: held},
           actor: actor
         )
-        |> Ash.Query.filter(to_token_id in ^held and from_token_id not in ^held)
         |> within(scope)
+        |> Ash.Query.limit(@missed_limit + 1)
         |> Ash.read()
         |> case do
           {:ok, messages} -> {:ok, Enum.map(messages, &dm(fleet_id, &1))}

@@ -13,7 +13,7 @@ defmodule RegentsWeb.Autolaunch.OnchainCalls do
   A press sends every step of the review in one `wallet_sendCalls` request with
   `atomicRequired`. The page reports the wallet's batch id (`sent/3`), then the
   one transaction the wallet's `wallet_getCallsStatus` receipts name, asking
-  the wallet every quarter second (`landed/2`), or that the wallet sent nothing (`failed/2`) or gave no receipt
+  the wallet every second (`landed/2`), or that the wallet sent nothing (`failed/2`) or gave no receipt
   in time (`unconfirmed/2`). From the hash on, the server reads that
   transaction at the latest block every two seconds, and only it says what
   happened (`Regents.Autolaunch.Chain.Calls.outcome/4`). Nothing is kept beyond the

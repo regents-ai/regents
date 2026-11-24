@@ -42,8 +42,8 @@ defmodule Regents.Techtree.Catalog.Query do
   """
   @spec get_climb_by_slug(String.t()) :: {:ok, CatalogEntry.t()} | {:error, Error.t()}
   def get_climb_by_slug(slug) when is_binary(slug) do
-    list_climbs()
-    |> Enum.filter(&(&1.projection["slug"] == slug))
+    slug
+    |> Catalog.climbs_for_slug!()
     |> Enum.max_by(&version(&1.projection), fn -> nil end)
     |> case do
       nil ->
@@ -67,22 +67,18 @@ defmodule Regents.Techtree.Catalog.Query do
   """
   @spec get_climb_by_campaign_digest(String.t()) :: {:ok, CatalogEntry.t()} | {:error, Error.t()}
   def get_climb_by_campaign_digest(digest) when is_binary(digest) do
-    list_climbs()
-    |> find_climb_by_campaign_digest(digest)
+    find_climb_by_campaign_digest(digest, false)
   end
 
   @doc "Resolve a published Result's Climb, including retired catalog entries."
   @spec get_any_climb_by_campaign_digest(String.t()) ::
           {:ok, CatalogEntry.t()} | {:error, Error.t()}
   def get_any_climb_by_campaign_digest(digest) when is_binary(digest) do
-    Catalog.list_catalog_entries!(%{}, query: [filter: [kind: :climb], sort: [active: :desc]])
-    |> find_climb_by_campaign_digest(digest)
+    find_climb_by_campaign_digest(digest, true)
   end
 
-  defp find_climb_by_campaign_digest(climbs, digest) do
-    climbs
-    |> Enum.find(&(digest in campaign_digests(&1)))
-    |> case do
+  defp find_climb_by_campaign_digest(digest, include_retired) do
+    case Catalog.climb_for_campaign!(digest, include_retired, not_found_error?: false) do
       nil ->
         {:error,
          Error.object_missing("this release publishes no campaign under that digest", %{
@@ -101,11 +97,6 @@ defmodule Regents.Techtree.Catalog.Query do
   @spec held_out_campaign?(CatalogEntry.t(), String.t()) :: boolean()
   def held_out_campaign?(%CatalogEntry{projection: projection}, digest) do
     projection["held_out_campaign_spec_digest"] == digest
-  end
-
-  defp campaign_digests(%CatalogEntry{projection: projection}) do
-    [projection["campaign_spec_digest"], projection["held_out_campaign_spec_digest"]]
-    |> Enum.reject(&is_nil/1)
   end
 
   @doc """

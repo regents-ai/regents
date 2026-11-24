@@ -19,13 +19,12 @@ defmodule RegentsWeb.Autolaunch.OnchainSteps do
   import Phoenix.Component, only: [assign: 2, assign_new: 3]
   import Phoenix.LiveView, only: [push_event: 3, send_update_after: 4, start_async: 3]
 
-  alias RegentChain.{Address, Outcome, Presses, Review}
+  alias RegentChain.{Address, Presses, Review}
   alias Regents.Account.Accounts.SessionAuthority
   alias Regents.Account.Actors.Human
   alias Regents.Autolaunch.Chain.Client
   alias Regents.Autolaunch.{ReadFailedError, ReadFailure}
-
-  @recheck_ms 2_000
+  alias RegentsWeb.Chain.ReceiptCheck
 
   # A review's deadlines and allowance windows are fifteen minutes long, so one
   # is built again once it is ten minutes old.
@@ -548,12 +547,7 @@ defmodule RegentsWeb.Autolaunch.OnchainSteps do
 
   defp check(socket, %{step: nil}), do: socket
 
-  defp check(socket, %{hash: hash, reads: reads, review: review, step: step}) do
-    start_async(socket, {:onchain_step, hash}, fn ->
-      if reads > 0, do: Process.sleep(@recheck_ms)
-      Outcome.of(Client, review, step, hash)
-    end)
-  end
+  defp check(socket, press), do: ReceiptCheck.start(socket, Client, press)
 
   defp review_id(nil), do: nil
   defp review_id(%{id: id}), do: id

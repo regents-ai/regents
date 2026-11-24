@@ -179,8 +179,8 @@ defmodule RegentsWeb.Redeem.Redemption do
   end
 
   @doc """
-  The Redeem buttons heard which wallet Privy has active. Signed out, the
-  figures follow it; signed in, they stay on the account's main wallet
+  The Redeem buttons heard which wallet Privy has active. The
+  figures follow the selected wallet
   (`Identity.position_wallet/1`).
   """
   def active_wallet(%{assigns: %{route_spec: %{route_id: :redeem}}} = socket, active) do

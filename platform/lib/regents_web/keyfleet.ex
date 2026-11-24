@@ -12,7 +12,7 @@ defmodule RegentsWeb.Keyfleet do
   (`/keyfleet/share/...`), by `RegentsWeb.Keyfleet.ShareCardController`.
   """
   use Boundary,
-    deps: [RegentsWeb, Regents.Chain, Regents.Keyfleet],
+    deps: [RegentsWeb, RegentsWeb.Chain, Regents.Chain, Regents.Keyfleet],
     exports: [
       AgentActivityController,
       AgentAvatarController,

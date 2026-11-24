@@ -1382,7 +1382,10 @@ defmodule Regents.Patchbay.Forum.Report do
     update :touch do
       description("Records that a reply moved this thread: activity time becomes now.")
       accept([])
-      change(set_attribute(:last_activity_at, &DateTime.utc_now/0))
+
+      change(
+        atomic_update(:last_activity_at, expr(fragment("clock_timestamp() AT TIME ZONE 'utc'")))
+      )
     end
 
     update :set_visibility do
@@ -1667,6 +1670,10 @@ defmodule Regents.Patchbay.Forum.Report do
 
     # These transitions record confirmed or submitted operator transactions.
     policy action([:record_escrow_release, :record_escrow_refund]) do
+      authorize_if(actor_attribute_equals(:role, :system))
+    end
+
+    policy action(:touch) do
       authorize_if(actor_attribute_equals(:role, :system))
     end
 

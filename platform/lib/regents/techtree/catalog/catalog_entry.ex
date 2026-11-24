@@ -58,6 +58,35 @@ defmodule Regents.Techtree.Catalog.CatalogEntry do
       prepare build(sort: [reference: :asc])
     end
 
+    read :climbs_for_slug do
+      argument :slug, :string, allow_nil?: false
+
+      filter expr(
+               kind == :climb and active and fragment("? ->> 'slug' = ?", projection, ^arg(:slug))
+             )
+
+      prepare build(sort: [reference: :asc])
+    end
+
+    read :climb_for_campaign do
+      get? true
+
+      argument :digest, :string, allow_nil?: false
+      argument :include_retired, :boolean, default: false, allow_nil?: false
+
+      filter expr(
+               kind == :climb and (active or ^arg(:include_retired)) and
+                 (fragment("? ->> 'campaign_spec_digest' = ?", projection, ^arg(:digest)) or
+                    fragment(
+                      "? ->> 'held_out_campaign_spec_digest' = ?",
+                      projection,
+                      ^arg(:digest)
+                    ))
+             )
+
+      prepare build(sort: [active: :desc, reference: :asc, id: :asc], limit: 1)
+    end
+
     create :upsert_from_import do
       description "Stage one object from a verified bundle. Import machinery only."
 

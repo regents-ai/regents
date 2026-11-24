@@ -8696,3 +8696,5 @@ seasons), on the shared Points library regents.sh was already on.
 - Keep durable chain history current when pages are quiet, and bring scheduled reads forward without postponing reads already due sooner.
 - Correct account overview Points and solved flags, preserve Techtree Results filters, and distinguish an unread product from an empty one.
 - Update product documentation, tool discovery, and legacy redirects for the consolidated site. Load the docs search index on demand.
+- Show linked active wallets on Stake and Redeem, restore compatible wallet batching for Autolaunch rewards, and use one interval for browser receipt checks.
+- Accept full-size pictures on Autolaunch's signed draft endpoint. Read Keyfleet project tasks and Techtree catalog matches in PostgreSQL with the selection applied before returning records.

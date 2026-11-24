@@ -240,6 +240,26 @@ defmodule Regents.Keyfleet.Dms.Message do
       metadata :more_after, :boolean, allow_nil?: false
     end
 
+    # Incoming messages for feed catch-up. The caller adds its time window or
+    # the sequence from a live notice and bounds the page.
+    read :incoming do
+      argument :fleet_id, :string, allow_nil?: false
+
+      argument :token_ids, {:array, :integer},
+        allow_nil?: false,
+        constraints: [items: [min: 1, max: @bigint]]
+
+      validate Regents.Keyfleet.Graph.Validations.KnownFleet
+
+      filter expr(
+               fleet_id == ^arg(:fleet_id) and to_token_id in ^arg(:token_ids) and
+                 from_token_id not in ^arg(:token_ids) and received_in_current_epoch and
+                 kept_by_recipient and not sender_blocked
+             )
+
+      prepare build(sort: [seq: :asc])
+    end
+
     # The messages to or from any of the Keys whose words match a search, a
     # page at a time (`Regents.Keyfleet.Search`), as each Key's holder sees them in
     # `:changes`: in the Key's current ownership epoch, kept on its side, and
@@ -349,7 +369,7 @@ defmodule Regents.Keyfleet.Dms.Message do
       authorize_if {Regents.Keyfleet.Dms.Checks.KeyHolder, keys: [:token_id]}
     end
 
-    policy action([:changes, :search]) do
+    policy action([:changes, :incoming, :search]) do
       authorize_if {Regents.Keyfleet.Dms.Checks.KeyHolder, keys: [:token_ids]}
     end
 

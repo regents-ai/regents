@@ -9,10 +9,9 @@ defmodule RegentsWeb.Stake.StakeActions do
   `RegentsWeb.Chain.OnchainSteps` the shared half.
 
   The page passes the readings (`staking`, for `wallet`) and `account`, the
-  signed-in account (`nil` signed out). Every step is built for the account's
-  main wallet, and the page sends only from it. The component tells the page
-  which wallet Privy has active, so the figures follow it while signed out, and
-  when a step lands, so they are read again.
+  signed-in account (`nil` signed out). The component reviews steps for the
+  account's signing wallet and tells the page when the active wallet changes
+  or a step lands, so it can refresh the figures.
   """
   use RegentsWeb, :live_component
 
@@ -98,7 +97,10 @@ defmodule RegentsWeb.Stake.StakeActions do
   # each background result (`RegentsWeb.Live.Session.check_component_lease/2`):
   # the wallet that acts and the review follow it.
   defp take_account(socket, account),
-    do: socket |> assign(main: Identity.main_wallet(account)) |> sync()
+    do:
+      socket
+      |> assign(account: account, main: Identity.signing_wallet(account, socket.assigns.active))
+      |> sync()
 
   @impl true
   def handle_event("onchain_active_wallet", params, socket) do
@@ -108,7 +110,7 @@ defmodule RegentsWeb.Stake.StakeActions do
     socket =
       if active == socket.assigns.active, do: socket, else: assign(socket, press_note: nil)
 
-    {:noreply, assign(socket, active: active)}
+    {:noreply, socket |> assign(active: active) |> take_account(socket.assigns.account)}
   end
 
   def handle_event("select_staking_action", %{"mode" => mode}, socket)
@@ -247,13 +249,13 @@ defmodule RegentsWeb.Stake.StakeActions do
     {:reply, %{review: review, send: send}, socket}
   end
 
-  # The review is for the account's main wallet and follows the form. Signed
+  # The review is for the signing wallet and follows the form. Signed
   # out there is no review, and every press says to sign in.
   defp sync(socket) do
     %{main: signer, staking: staking} = socket.assigns
 
     review =
-      if signer,
+      if signer && signer == socket.assigns.wallet,
         do:
           Review.new(
             socket.assigns.id,
@@ -981,8 +983,6 @@ defmodule RegentsWeb.Stake.StakeActions do
   attr :id, :string, required: true
   attr :note, :list, default: nil
 
-  # Only the account's main wallet acts. While the wallet app has another open,
-  # both are named so the person can switch.
   defp mismatch(assigns) do
     ~H"""
     <p :if={@note} class="shell-sending-wallet" role="note">

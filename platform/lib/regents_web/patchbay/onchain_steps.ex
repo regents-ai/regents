@@ -19,12 +19,10 @@ defmodule RegentsWeb.Patchbay.OnchainSteps do
 
   use Phoenix.Component
 
-  import Phoenix.LiveView, only: [start_async: 3]
-
-  alias RegentChain.{Outcome, Presses}
+  alias RegentChain.Presses
   alias Regents.Chain.Client, as: ChainClient
+  alias RegentsWeb.Chain.ReceiptCheck
 
-  @recheck_ms 250
   # What the hook reports when nothing was sent, or may have been: Patchbay's
   # buttons send transactions only, so no signature is ever left unconfirmed.
   @reasons ~w(step_unknown wallet_unavailable switch_declined network_mismatch wallet_declined insufficient_funds send_unconfirmed)
@@ -158,10 +156,5 @@ defmodule RegentsWeb.Patchbay.OnchainSteps do
 
   defp check(socket, %{step: nil}), do: socket
 
-  defp check(socket, %{hash: hash, reads: reads, review: review, step: step}) do
-    start_async(socket, {:onchain_step, hash}, fn ->
-      if reads > 0, do: Process.sleep(@recheck_ms)
-      Outcome.of(ChainClient, review, step, hash)
-    end)
-  end
+  defp check(socket, press), do: ReceiptCheck.start(socket, ChainClient, press)
 end
