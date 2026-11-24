@@ -26,6 +26,20 @@
   ],
   "fixes": [
     {
+      "id": "EEF-CVE-2026-124283",
+      "summary": "Ash before 3.38.1 allowed code execution and SQL injection via struct-wrapped values in a forged keyset pagination cursor (plus EEF-CVE-2026-120299 in Ash.Type.Keyword); 3.38.1 fixes both.",
+      "kind": "hex",
+      "package": "ash",
+      "requirement": ">= 3.38.1"
+    },
+    {
+      "id": "EEF-CVE-2026-133555",
+      "summary": "db_connection before 2.10.3 allowed code execution via the :log option of forged DBConnection.Stream structs; 2.10.3 fixes it.",
+      "kind": "hex",
+      "package": "db_connection",
+      "requirement": ">= 2.10.3"
+    },
+    {
       "id": "EEF-CVE-2026-119613",
       "summary": "ash_ai before 1.5.1 sent the text of a tool error that ToToolError does not describe to the agent word for word, disclosing internal details; 1.5.1 sends an error id instead.",
       "kind": "hex",

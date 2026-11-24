@@ -8681,3 +8681,10 @@ seasons), on the shared Points library regents.sh was already on.
 - Updated `docs/one-site-standard.md` to enshrine the 4-pillar cross-product alignment rule
   and added `scripts/check-one-site-alignment.exs` (`make check-alignment`) to report exact
   per-product convergence gaps.
+
+## 2026-11-24 — Security advisory lockfile bump (`ash 3.38.1`, `db_connection 2.10.3`)
+
+- Upgraded `ash` (`3.37.7` -> `3.38.1`, closing `EEF-CVE-2026-124283` HIGH and
+  `EEF-CVE-2026-120299` LOW) and `db_connection` (`2.10.2` -> `2.10.3`, closing
+  `EEF-CVE-2026-133555` HIGH) in `platform/mix.lock` so `mix hex.audit` is clean.
+- Recorded both fixes in `security/required-fixes.json`.
