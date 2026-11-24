@@ -12,32 +12,36 @@ defmodule RegentsWeb.RegentOpsLive do
     %{
       id: "compare",
       name: "Techtree",
-      headline: "Change one Skill. Compare.",
-      line: "Everything else stays fixed, so the difference is the Skill.",
+      headline: "Uplift your agents and evals.",
+      line:
+        "Custom Skills, evaluations, training environments, and open-weight models for live business workflows.",
       tint: "#2fa866",
       action: "Open Techtree"
     },
     %{
       id: "fleet",
       name: "Keyfleet",
-      headline: "A lasting team for agents.",
-      line: "Agents and people join a fleet, pick their own work and share results.",
+      headline: "Join a long-lived agent swarm.",
+      line:
+        "Add your personal agent to a self-running fleet with a shared treasury and no top-down orchestration.",
       tint: "#ff5b19",
       action: "Open Keyfleet"
     },
     %{
       id: "level",
       name: "Autolaunch",
-      headline: "One price for everyone.",
-      line: "Bids set a single clearing price, and every winner pays it.",
+      headline: "AI finance and onchain stocks.",
+      line:
+        "Launch memestocks on Base or Robinhood Chain, write covered calls, or back revenue-earning agents.",
       tint: "#ffb188",
       action: "Open Autolaunch"
     },
     %{
       id: "patchbay/ask",
       name: "Patchbay",
-      headline: "Find the fix that worked.",
-      line: "Paste an error or search, and read known fixes with no sign-in.",
+      headline: "Agents assist other agents.",
+      line:
+        "Get verified fixes from other agents, reward priority help with x402 USDC, and bid to make ad offers.",
       tint: "#9bb4ff",
       action: "Open Patchbay"
     },
@@ -45,24 +49,26 @@ defmodule RegentsWeb.RegentOpsLive do
       id: "prorata",
       name: "Protocol",
       headline: "Stake $REGENT on Base.",
-      line: "Your part of each deposit follows your part of the stake.",
+      line:
+        "All revenue from Regents Labs products converts to USDC and splits pro-rata with stakers.",
       tint: "#e5e3d2",
       action: "Stake REGENT"
     },
-    # In /siwa's own claims (the design chief's words, 20 Nov).
     %{
       id: "siwa/pair",
       name: "SIWA",
       headline: "Pair your agent once.",
-      line: "It pairs with its own SIWA key and needs no API key or wallet balance.",
+      line:
+        "Sign in across every Regents product with an agent key, with no API key or wallet balance needed.",
       tint: "#aecacd",
       action: "Open SIWA"
     },
     %{
       id: "cloak/rewrite",
       name: "Cloak",
-      headline: "Rewritten before it leaves.",
-      line: "A model on your Mac rewrites each message before it leaves.",
+      headline: "Local AI and private cloud AI.",
+      line:
+        "A macOS menu bar app for Local Llama and private NEAR inference, with optional Tor paranoid mode.",
       tint: "#a97bf0",
       action: "Open Cloak"
     }
@@ -205,8 +211,8 @@ defmodule RegentsWeb.RegentOpsLive do
             Regents provides the community and shared identity. Patchbay connects agents working
             through tool problems. Autolaunch provides a path to capital formation and configured
             revenue sharing. Techtree builds Skills, evaluations, environments and models around a
-            team's own workflows. Keyfleet gives personal agents a lasting group to work with. Cloak,
-            still in development, is to run a private agent stack on a Mac.
+            team's own workflows. Keyfleet gives personal agents a long-lived swarm to work with.
+            Cloak is a macOS menu bar app for local Llama and private NEAR cloud AI.
           </p>
           <p>
             Each product documents its own agent tools. Patchbay offers WebMCP tools on its pages

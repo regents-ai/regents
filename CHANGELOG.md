@@ -8629,3 +8629,9 @@ seasons), on the shared Points library regents.sh was already on.
 - Added `:not([data-marketing])` to the root `@scope` guards across all four folded product stylesheet trees (`platform/assets/css/techtree/`, `autolaunch/`, `keyfleet/`, and `patchbay/`) so product app base link, typography, and focus rules no longer leak onto `/techtree`, `/autolaunch`, `/keyfleet`, or `/patchbay` marketing pages.
   - Fixes `platform/assets/css/techtree/app.css`'s `a:hover` / `a:not(.rg-button):hover` (`--color-link: #0F1B14` in light mode) overriding the dark `Environments` (`#142019`) and `Evals` (`#1E6B45`) service cards on `https://regents.sh/techtree` on hover (turning text near-black and underlined), and prevents `techtree/app.css` heading/spacing rules and `autolaunch/base.css` link hover underlines from leaking onto marketing cards and buttons.
 - Added explicit hover color and `text-decoration: none` rules for `.card`, `.quiet-card`, `.plate`, and `.btn` in `platform/assets/css/marketing/marketing.css` and `platform/assets/css/marketing/base.css` as defense-in-depth.
+
+
+
+## 2026-11-24 — Refresh homepage and Overview product card titles and subtexts
+
+- Updated all seven product `ValueCards` headlines and subtexts in `RegentsWeb.RegentOpsLive` (`platform/lib/regents_web/live/regent_ops_live.ex`, powering below-the-fold `#products` on `/`, `/app`, and `HomeLive.agent_markdown/0`) to match the current product positioning across **Cloak**, **Techtree**, **Keyfleet**, **Autolaunch**, **Patchbay**, **Protocol**, and **SIWA**, and updated the stale Cloak status line in the Overview About panel.
