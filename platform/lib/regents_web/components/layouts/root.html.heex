@@ -73,18 +73,29 @@
     <link rel="icon" type="image/png" sizes="32x32" href={~p"/favicon-32.png?v=2"} />
     <link rel="icon" type="image/svg+xml" sizes="any" href={~p"/favicon.svg?v=2"} />
     <link rel="apple-touch-icon" href={~p"/apple-touch-icon.png"} />
+    <% {theme_dark, theme_light} =
+      case @site_product do
+        "techtree" -> {"#0d1611", "#f3f5ef"}
+        "patchbay" -> {"#111726", "#f6f7fa"}
+        _other -> {"#161616", "#e5e3d2"}
+      end %>
     <meta
       :if={@theme}
       name="theme-color"
-      content={if @theme == "dark", do: "#161616", else: "#e5e3d2"}
+      content={if @theme == "dark", do: theme_dark, else: theme_light}
     />
     <meta
       :if={!@theme}
       name="theme-color"
       media="(prefers-color-scheme: light)"
-      content="#e5e3d2"
+      content={theme_light}
     />
-    <meta :if={!@theme} name="theme-color" media="(prefers-color-scheme: dark)" content="#161616" />
+    <meta
+      :if={!@theme}
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content={theme_dark}
+    />
     <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
     <script defer phx-track-static type="module" src={~p"/assets/js/app.js"}>
     </script>

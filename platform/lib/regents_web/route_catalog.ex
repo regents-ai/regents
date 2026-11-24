@@ -363,7 +363,7 @@ defmodule RegentsWeb.RouteCatalog do
       app_display_label: app_label,
       page_display_label: page_label,
       canonical_root: root,
-      sidebar_model: sidebar_model(app_id, product),
+      sidebar_model: sidebar_model(app_id, product, route_id),
       tabs: Map.get(@tabs, route_id, []),
       header_controls: controls,
       background_slot: background,
@@ -372,12 +372,15 @@ defmodule RegentsWeb.RouteCatalog do
     }
   end
 
-  defp sidebar_model(nil, _product), do: %SidebarModel{id: :public, targets: []}
+  defp sidebar_model(nil, _product, _route_id), do: %SidebarModel{id: :public, targets: []}
 
-  defp sidebar_model(:regent_ops, product) when product not in @app_menu_products,
+  defp sidebar_model(:regent_ops, _product, :docs),
     do: %SidebarModel{id: :none, targets: []}
 
-  defp sidebar_model(:regent_ops, _product) do
+  defp sidebar_model(:regent_ops, product, _route_id) when product not in @app_menu_products,
+    do: %SidebarModel{id: :none, targets: []}
+
+  defp sidebar_model(:regent_ops, _product, _route_id) do
     %SidebarModel{
       id: :regent_ops,
       targets: [

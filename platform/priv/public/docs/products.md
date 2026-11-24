@@ -16,4 +16,4 @@ curl --fail '{{origin}}/api/v1/products/techtree'
 
 ## Other surfaces
 
-In a browser that supports WebMCP, use `regents_products` and `regents_product`. Each product runs its own site and owns its own integration contract: [Keyfleet](https://keyfleet.ai/llms.txt), [Autolaunch](https://autolaunch.sh/llms.txt), [Patchbay](https://patchbay.help/llms.txt) and [Techtree](https://techtree.sh/llms.txt).
+In a browser that supports WebMCP, use `regents_products` and `regents_product`. All Regents Labs products live under `{{origin}}` with unified docs under `/docs`: [Cloak]({{origin}}/docs/cloak), [Techtree]({{origin}}/docs/techtree), [Keyfleet]({{origin}}/docs/keyfleet), [Autolaunch]({{origin}}/docs/autolaunch), and [Patchbay]({{origin}}/docs/patchbay).

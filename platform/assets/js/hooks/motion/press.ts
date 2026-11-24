@@ -8,7 +8,7 @@
 import {play, still} from "./shared"
 
 export const squish = (el: Element) =>
-  play(el, {scale: [{to: 0.9, duration: 90, ease: "out(3)"}, {to: 1, duration: 360, ease: "outBack(3)"}]})
+  play(el, {scale: [{to: 0.97, duration: 90, ease: "out(3)"}, {to: 1, duration: 140, ease: "out(3)"}]})
 
 export const nope = (el: Element) =>
   play(el, {x: [0, -7, 6, -4, 2, 0], duration: 380, ease: "inOut(2)"})

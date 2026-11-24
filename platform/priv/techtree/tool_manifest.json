@@ -1,0 +1,30 @@
+{
+  "audience": "regents",
+  "tools": [
+    {
+      "name": "techtree_catalog",
+      "title": "Read Techtree catalog",
+      "description": "Read the active Techtree catalog of Climbs and Skills."
+    },
+    {
+      "name": "techtree_bootstrap",
+      "title": "Read Techtree bootstrap",
+      "description": "Read Techtree CLI bootstrap and install metadata."
+    },
+    {
+      "name": "techtree_publications",
+      "title": "List Techtree results",
+      "description": "List published Techtree evaluation results."
+    },
+    {
+      "name": "techtree_climb",
+      "title": "Read a Techtree Climb",
+      "description": "Read the fixed task contract for one Techtree Climb by slug."
+    },
+    {
+      "name": "techtree_docs_markdown",
+      "title": "Read Techtree Docs",
+      "description": "Read Techtree's docs index as Markdown."
+    }
+  ]
+}

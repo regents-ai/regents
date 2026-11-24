@@ -233,10 +233,13 @@ function installSpy(root: HTMLElement): IntersectionObserver | undefined {
     .filter((heading): heading is HTMLElement => heading !== null)
   if (!headings.length) return
 
-  const band = Math.round(root.querySelector(".docs-bar")?.getBoundingClientRect().bottom ?? 120)
+  const scroller = root.closest<HTMLElement>("#app-shell-scroller")
+  const scrollerTop = scroller ? scroller.getBoundingClientRect().top : 0
+  const barBottom = root.querySelector(".docs-bar")?.getBoundingClientRect().bottom ?? scrollerTop + 120
+  const band = Math.max(0, Math.round(barBottom - scrollerTop))
   const visible = new Set<Element>()
   const mark = () => {
-    const current = headings.find(heading => visible.has(heading)) ?? above(headings, band)
+    const current = headings.find(heading => visible.has(heading)) ?? above(headings, barBottom)
     links.forEach((link, id) => {
       if (current && id === current.id) link.setAttribute("aria-current", "true")
       else link.removeAttribute("aria-current")
@@ -248,7 +251,7 @@ function installSpy(root: HTMLElement): IntersectionObserver | undefined {
       entries.forEach(entry => (entry.isIntersecting ? visible.add(entry.target) : visible.delete(entry.target)))
       mark()
     },
-    {rootMargin: `-${band}px 0px -60% 0px`},
+    {root: scroller, rootMargin: `-${band}px 0px -60% 0px`},
   )
   headings.forEach(heading => observer.observe(heading))
   return observer

@@ -163,6 +163,22 @@
   background: var(--color-surface-elevated);
   box-shadow: var(--rg-layer-tip-shadow);
   list-style: none;
+  transform-origin: top center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .docs-search__results:not([hidden]) {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition:
+      opacity 150ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+      transform 150ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+
+    @starting-style {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.97);
+    }
+  }
 }
 
 .docs-search__results a {
@@ -242,10 +258,26 @@
   background: var(--color-surface-elevated);
   color: var(--color-fg);
   box-shadow: var(--rg-layer-tip-shadow);
+  transform-origin: top right;
 }
 
 .docs-menu:popover-open {
   display: grid;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .docs-menu:popover-open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition:
+      opacity 160ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+      transform 160ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+
+    @starting-style {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.96);
+    }
+  }
 }
 
 .docs-menu a {
@@ -254,6 +286,7 @@
   min-height: 2.5rem;
   padding-inline: var(--space-2);
   text-decoration: none;
+  transition: background-color 140ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
 .docs-menu a::after {
@@ -263,8 +296,10 @@
   color: var(--color-fg-muted);
 }
 
-.docs-menu a:hover {
-  background: var(--ash-raised);
+@media (hover: hover) and (pointer: fine) {
+  .docs-menu a:hover {
+    background: var(--ash-raised);
+  }
 }
 
 .docs-menu-button.rg-button {
@@ -392,7 +427,7 @@
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   transform: rotate(-45deg);
-  transition: transform 150ms ease;
+  transition: transform 160ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
 .docs-nav__group[open] summary::after {
@@ -415,10 +450,15 @@
   font-size: 0.875rem;
   line-height: 1.35;
   text-decoration: none;
+  transition:
+    color 140ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    border-color 140ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
-.docs-nav li a:hover {
-  color: var(--color-fg);
+@media (hover: hover) and (pointer: fine) {
+  .docs-nav li a:hover {
+    color: var(--color-fg);
+  }
 }
 
 .docs-nav li a[aria-current="page"] {
@@ -446,7 +486,7 @@
 
 .docs-article {
   min-width: 0;
-  max-width: 50rem;
+  max-width: 46rem;
   border-inline-start: 1px solid var(--docs-rule);
   padding: var(--space-4) var(--space-5) var(--space-6);
   outline: none;
@@ -519,19 +559,23 @@
   color: var(--color-fg);
   text-decoration: none;
   transition:
-    border-color 140ms ease,
-    background-color 140ms ease,
-    transform 120ms ease;
+    border-color 150ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    background-color 150ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    transform 120ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
-.docs-hub__card:hover {
-  border-color: var(--ash-quiet);
-  border-inline-start-color: var(--docs-product-accent);
-  background: var(--color-surface-elevated);
+@media (hover: hover) and (pointer: fine) {
+  .docs-hub__card:hover {
+    border-color: var(--ash-quiet);
+    border-inline-start-color: var(--docs-product-accent);
+    background: var(--color-surface-elevated);
+  }
 }
 
-.docs-hub__card:active {
-  transform: translateY(1px);
+@media (prefers-reduced-motion: no-preference) {
+  .docs-hub__card:active {
+    transform: scale(0.985);
+  }
 }
 
 .docs-hub__head {
@@ -786,10 +830,23 @@
   padding: var(--space-2);
   border: 1px solid var(--docs-rule);
   text-decoration: none;
+  transition:
+    border-color 150ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    background-color 150ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    transform 120ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
-.docs-pager a:hover {
-  border-color: var(--color-fg);
+@media (hover: hover) and (pointer: fine) {
+  .docs-pager a:hover {
+    border-color: var(--color-fg);
+    background: var(--color-surface);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .docs-pager a:active {
+    transform: scale(0.985);
+  }
 }
 
 .docs-pager span {
@@ -842,7 +899,7 @@
     border-right: 1.5px solid currentColor;
     border-bottom: 1.5px solid currentColor;
     transform: rotate(45deg);
-    transition: transform 150ms ease;
+    transition: transform 160ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
   }
 
   .docs-toc-phone[open] summary::after {
@@ -984,6 +1041,8 @@
 }
 
 @media (hover: none), (pointer: coarse) {
+  .docs-search input,
+  .docs-menu a,
   .docs-nav li a,
   .docs-toc__list a,
   .docs-nav__foot a {

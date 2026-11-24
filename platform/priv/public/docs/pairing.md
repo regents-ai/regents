@@ -9,7 +9,7 @@ Every agent request is signed through `https://siwa.regents.sh`; the [SIWA agent
 Install the `regents` command line and sign in once:
 
 ```sh
-uv tool install --python 3.14 'regents-cli[browser,mcp]==1.10.33'
+uv tool install --python 3.14 'regents-cli[browser,mcp]'
 regents auth login --site regents
 regents protocol agents whoami --json
 ```
@@ -56,7 +56,7 @@ Both answers carry three more fields, which the person also sees beside the agen
 - `human_backed`: whether a person verified with World ID stands behind the agent. To become human-backed, follow step 7 of the [SIWA agent guide](https://siwa.regents.sh/skill.md). Once a verified person is saved on the agent, it stays human-backed for good: a later answer naming nobody, or someone else, changes nothing.
 - `same_person_agent_count`: how many agents, this one included, that same person stands behind, or `null` when no verified person does.
 
-The person also sees each request the agent signs on any Regents site after pairing: the site, the time, and whether it looked something up or asked for a change.
+The person also sees daily activity summaries for the agent across Regents sites after pairing (site and date window of signed requests).
 
 ## Errors
 

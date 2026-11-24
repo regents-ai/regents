@@ -102,6 +102,20 @@ defmodule RegentsWeb.Docs.Pages do
              name: "WebMCP",
              description: "Every page offers read tools to browsers that support WebMCP.",
              source: {:regents_file, "webmcp"}
+           },
+           %{
+             key: "mcp",
+             name: "Hosted MCP",
+             description:
+               "Connect Streamable HTTP MCP clients and OAuth connectors to POST /mcp.",
+             source: {:regents_file, "mcp"}
+           },
+           %{
+             key: "cli",
+             name: "CLI",
+             description:
+               "Install regents-cli for cross-product commands, WebMCP browser sessions, and MCP.",
+             source: {:regents_file, "cli"}
            }
          ]},
         {"Account",

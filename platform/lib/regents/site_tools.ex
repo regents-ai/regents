@@ -1,98 +1,53 @@
 defmodule Regents.SiteTools do
   @moduledoc """
-  Every browser tool each Regent site offers agents, read from the site's own
-  published tool list and kept for five minutes, so each site is asked at most
-  once in five minutes and a tool a site adds or removes shows here within that
-  time. A site that could not be read is asked again a minute later, never
-  sooner, however often its tools are asked for.
-
-  Only the five addresses below are ever asked, and a redirect is not followed.
-
-  A kept copy is read straight from the table. When there is none, this process
-  starts one read of the site and every caller asking meanwhile waits for that
-  read's answer, so a burst of requests asks a site once. Reads of different
-  sites run side by side.
+  Every browser tool each Regents Labs product offers agents, loaded directly
+  from the committed tool manifests shipped in this single site so every
+  product's tool list answers immediately without remote HTTP calls.
   """
 
   use GenServer
 
-  @table __MODULE__
-  @keep_ms :timer.minutes(5)
-  @again_ms :timer.minutes(1)
-  # A read still under way after this is stopped and counts as a failed read,
-  # since Req's receive_timeout bounds each wait for more of the answer, not the
-  # whole read; callers wait a little longer, so every caller gets an answer.
-  @read_ms 10_000
-  @wait_ms 12_000
-
   @sites %{
-    "regents" => %{name: "regents.sh", url: "https://regents.sh/capabilities.json"},
-    "patchbay" => %{name: "patchbay.help", url: "https://patchbay.help/forum/capabilities"},
-    "techtree" => %{name: "techtree.sh", url: "https://techtree.sh/capabilities.json"},
-    "autolaunch" => %{name: "autolaunch.sh", url: "https://autolaunch.sh/capabilities.json"},
-    "keyfleet" => %{name: "keyfleet.ai", url: "https://keyfleet.ai/capabilities.json"}
+    "regents" => %{name: "regents.sh", manifest: "priv/tool_manifest.json"},
+    "patchbay" => %{name: "regents.sh/patchbay", manifest: "priv/patchbay/tool_manifest.json"},
+    "techtree" => %{name: "regents.sh/techtree", manifest: "priv/techtree/tool_manifest.json"},
+    "autolaunch" => %{
+      name: "regents.sh/autolaunch",
+      manifest: "priv/autolaunch/tool_manifest.json"
+    },
+    "keyfleet" => %{name: "regents.sh/keyfleet", manifest: "priv/keyfleet/tool_manifest.json"}
   }
 
-  @type tool :: %{name: String.t(), title: String.t(), description: String.t()}
+  @type tool :: %{name: String.t(), title: String.t() | nil, description: String.t() | nil}
 
   def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 
-  @doc "The keys of the sites whose tools can be read, in the order they are listed."
+  @doc "The keys of the products whose tools can be read, in the order they are listed."
   @spec sites() :: [String.t()]
   def sites, do: ~w(regents patchbay autolaunch techtree keyfleet)
 
-  @doc "A site's address as people know it, such as patchbay.help."
+  @doc "A product's address as people know it, such as regents.sh/patchbay."
   @spec name(String.t()) :: String.t()
   def name(site), do: Map.fetch!(@sites, site).name
 
-  @doc "The site's tools, from the last day's copy or read from the site now."
+  @doc "The product's tools, loaded from its committed manifest."
   @spec tools(String.t()) :: {:ok, [tool()]} | {:error, :unknown_site | :unreachable}
   def tools(site) do
-    if Map.has_key?(@sites, site) do
-      with :miss <- kept(site), do: GenServer.call(__MODULE__, {:read, site}, @wait_ms)
-    else
-      {:error, :unknown_site}
+    case Map.fetch(@sites, site) do
+      {:ok, %{manifest: manifest}} -> read_manifest(manifest)
+      :error -> {:error, :unknown_site}
     end
   end
 
-  @doc "Every site's tools as `tools/1` answers them, each site asked side by side, in the order of `sites/0`."
+  @doc "Every product's tools as `tools/1` answers them, in the order of `sites/0`."
   @spec every_site() :: [{String.t(), {:ok, [tool()]} | {:error, :unreachable}}]
   def every_site do
-    sites()
-    |> Task.async_stream(&{&1, tools(&1)}, timeout: :infinity)
-    |> Enum.map(fn {:ok, read} -> read end)
-  end
-
-  defp kept(site) do
-    now = System.monotonic_time(:millisecond)
-
-    case :ets.lookup(@table, site) do
-      [{^site, answer, until}] when until > now -> answer
-      _none_or_old -> :miss
-    end
-  end
-
-  defp ask(config) do
-    options = [
-      headers: [accept: "application/json"],
-      redirect: false,
-      retry: false,
-      connect_options: [timeout: 3_000],
-      receive_timeout: 5_000
-    ]
-
-    case Req.get(config.url, options) do
-      {:ok, %Req.Response{status: 200, body: %{"tools" => tools}}} when is_list(tools) ->
-        {:ok, for(tool when is_map(tool) <- tools, do: present(tool))}
-
-      _failure ->
-        {:error, :unreachable}
-    end
+    Enum.map(sites(), &{&1, tools(&1)})
   end
 
   @doc """
-  How an agent connects to siwa-server, the one sign-in every Regent site
-  shares, in the steps of its guide.
+  How an agent connects to siwa-server, the one sign-in every Regents Labs
+  product shares, in the steps of its guide.
   """
   @spec connection_help() :: map()
   def connection_help do
@@ -125,55 +80,21 @@ defmodule Regents.SiteTools do
     }
   end
 
+  defp read_manifest(relative_path) do
+    path = Application.app_dir(:regents, relative_path)
+
+    with {:ok, raw} <- File.read(path),
+         {:ok, %{"tools" => tools}} when is_list(tools) <- Jason.decode(raw) do
+      {:ok, for(tool when is_map(tool) <- tools, do: present(tool))}
+    else
+      _failure -> {:error, :unreachable}
+    end
+  end
+
   defp present(tool) do
     %{name: tool["name"], title: tool["title"], description: tool["description"]}
   end
 
   @impl true
-  def init(nil) do
-    :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
-    # Each site being read: its read's reference and the callers waiting for it.
-    {:ok, %{}}
-  end
-
-  @impl true
-  def handle_call({:read, site}, from, reads) do
-    case {kept(site), reads} do
-      {:miss, %{^site => {ref, waiting}}} ->
-        {:noreply, Map.put(reads, site, {ref, [from | waiting]})}
-
-      {:miss, _reads} ->
-        config = Map.fetch!(@sites, site)
-        task = Task.Supervisor.async_nolink(__MODULE__.Reads, fn -> ask(config) end)
-        Process.send_after(self(), {:too_long, task}, @read_ms)
-        {:noreply, Map.put(reads, site, {task.ref, [from]})}
-
-      {answer, _reads} ->
-        {:reply, answer, reads}
-    end
-  end
-
-  @impl true
-  def handle_info({ref, answer}, reads) when is_reference(ref) do
-    Process.demonitor(ref, [:flush])
-    {:noreply, finish(reads, ref, answer)}
-  end
-
-  def handle_info({:DOWN, ref, :process, _pid, _reason}, reads) do
-    {:noreply, finish(reads, ref, {:error, :unreachable})}
-  end
-
-  # The read's own answer or :DOWN follows the stop, or has already arrived.
-  def handle_info({:too_long, task}, reads) do
-    Task.Supervisor.terminate_child(__MODULE__.Reads, task.pid)
-    {:noreply, reads}
-  end
-
-  defp finish(reads, ref, answer) do
-    {site, {^ref, waiting}} = Enum.find(reads, fn {_site, {read, _waiting}} -> read == ref end)
-    keep = if match?({:ok, _tools}, answer), do: @keep_ms, else: @again_ms
-    :ets.insert(@table, {site, answer, System.monotonic_time(:millisecond) + keep})
-    Enum.each(waiting, &GenServer.reply(&1, answer))
-    Map.delete(reads, site)
-  end
+  def init(nil), do: {:ok, %{}}
 end

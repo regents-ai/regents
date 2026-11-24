@@ -46,7 +46,7 @@ siwa_url =
 siwa_audience =
   case System.get_env("SIWA_AUDIENCE") do
     value when is_binary(value) and value != "" -> value
-    _unset -> if config_env() == :dev, do: "regents.sh", else: nil
+    _unset -> if config_env() == :dev, do: "regents", else: nil
   end
 
 config :regent_agents, :siwa,
@@ -339,7 +339,7 @@ if market = System.get_env("PATCHBAY_OFFERS_MARKET") do
     publisher_private_key: System.get_env("PATCHBAY_OFFERS_PUBLISHER_KEY")
 end
 
-if broker = System.get_env("PATCHBAY_SIWA_URL") do
+if broker = System.get_env("PATCHBAY_SIWA_URL") || siwa_url do
   config :regents, :wallet_author, broker_url: broker
 end
 

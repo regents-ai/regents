@@ -133,7 +133,7 @@ defmodule RegentsWeb.Patchbay.Plugs.PairedAgent do
       {"The person this agent is paired with hasn't signed in on this site yet.",
        "Ask your person to sign in on this site once, then send the request again. Help: #{help(edition)}/errors/person_not_here"}
 
-  defp help(:main), do: "https://patchbay.help"
+  defp help(:main), do: "https://regents.sh/patchbay"
   defp help(:open), do: SiteEdition.url(:open)
 
   @impl Siwa.AgentAuthPlug.Hooks
