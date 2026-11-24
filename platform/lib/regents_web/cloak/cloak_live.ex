@@ -20,7 +20,8 @@ defmodule RegentsWeb.Cloak.CloakLive do
       assign(assigns,
         pill: Cloak.pill(),
         window: Cloak.window(),
-        modes: Enum.with_index(Cloak.modes(), 1)
+        modes: Enum.with_index(Cloak.modes(), 1),
+        checksums: Cloak.release_checksums()
       )
 
     ~H"""
@@ -163,6 +164,48 @@ defmodule RegentsWeb.Cloak.CloakLive do
         </div>
       </section>
 
+      <section id="verify" class="cloak-verify" aria-labelledby="cloak-verify-heading">
+        <div class="cloak-verify__head">
+          <h2 id="cloak-verify-heading">Verify your download</h2>
+          <p>
+            Verify every build independently using macOS's built-in Terminal tools and compare the output across
+            this page,
+            <a href={@checksums.release_url} target="_blank" rel="noopener noreferrer">
+              GitHub Releases
+            </a>
+            (<a href={@checksums.sums_url} target="_blank" rel="noopener noreferrer">SHA256SUMS.txt</a>),
+            and Cloak's <strong>Settings → Status</strong>
+            pane.
+          </p>
+        </div>
+
+        <dl class="cloak-verify__facts">
+          <div>
+            <dt>Published release</dt>
+            <dd><code>{@checksums.tag}</code></dd>
+          </div>
+          <div>
+            <dt>Apple Developer ID Team</dt>
+            <dd><code>{@checksums.team_id}</code></dd>
+          </div>
+          <div class="cloak-verify__wide">
+            <dt>DMG SHA-256 ({@checksums.dmg_filename})</dt>
+            <dd><code>{@checksums.dmg_sha256}</code></dd>
+          </div>
+          <div :for={{label, value} <- @checksums.extra_hashes} class="cloak-verify__wide">
+            <dt>{label}</dt>
+            <dd><code>{value}</code></dd>
+          </div>
+        </dl>
+
+        <div class="cloak-verify__commands">
+          <div :for={{label, cmd} <- @checksums.commands} class="cloak-verify__cmd">
+            <span class="cloak-verify__cmd-label">{label}</span>
+            <pre><code>{cmd}</code></pre>
+          </div>
+        </div>
+      </section>
+
       <section class="cloak-notes" aria-label="Details">
         <div>
           <h2>Needs</h2>
@@ -233,7 +276,11 @@ defmodule RegentsWeb.Cloak.CloakLive do
   end
 
   def install(assigns) do
-    assigns = assign(assigns, steps: Enum.with_index(Cloak.install_steps(), 1))
+    assigns =
+      assign(assigns,
+        steps: Enum.with_index(Cloak.install_steps(), 1),
+        checksums: Cloak.release_checksums()
+      )
 
     ~H"""
     <section id="cloak-install" class="cloak" aria-labelledby="cloak-install-heading">
@@ -276,6 +323,48 @@ defmodule RegentsWeb.Cloak.CloakLive do
             loading="lazy"
             alt="Cloak's crown in the menu bar with its menu open: Paused, then Start, Chat, Agents, Details and Settings."
           />
+        </div>
+      </section>
+
+      <section id="verify" class="cloak-verify" aria-labelledby="cloak-verify-heading">
+        <div class="cloak-verify__head">
+          <h2 id="cloak-verify-heading">Verify your download</h2>
+          <p>
+            Verify every build independently using macOS's built-in Terminal tools and compare the output across
+            this page,
+            <a href={@checksums.release_url} target="_blank" rel="noopener noreferrer">
+              GitHub Releases
+            </a>
+            (<a href={@checksums.sums_url} target="_blank" rel="noopener noreferrer">SHA256SUMS.txt</a>),
+            and Cloak's <strong>Settings → Status</strong>
+            pane.
+          </p>
+        </div>
+
+        <dl class="cloak-verify__facts">
+          <div>
+            <dt>Published release</dt>
+            <dd><code>{@checksums.tag}</code></dd>
+          </div>
+          <div>
+            <dt>Apple Developer ID Team</dt>
+            <dd><code>{@checksums.team_id}</code></dd>
+          </div>
+          <div class="cloak-verify__wide">
+            <dt>DMG SHA-256 ({@checksums.dmg_filename})</dt>
+            <dd><code>{@checksums.dmg_sha256}</code></dd>
+          </div>
+          <div :for={{label, value} <- @checksums.extra_hashes} class="cloak-verify__wide">
+            <dt>{label}</dt>
+            <dd><code>{value}</code></dd>
+          </div>
+        </dl>
+
+        <div class="cloak-verify__commands">
+          <div :for={{label, cmd} <- @checksums.commands} class="cloak-verify__cmd">
+            <span class="cloak-verify__cmd-label">{label}</span>
+            <pre><code>{cmd}</code></pre>
+          </div>
         </div>
       </section>
 

@@ -594,6 +594,107 @@
   text-wrap: pretty;
 }
 
+/* ---- Verify your download (/cloak/install) ---- */
+
+.cloak-verify {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 1240px;
+  margin: var(--space-6) auto 0;
+  padding: var(--space-6) var(--space-8);
+  border: 1px solid var(--hairline);
+  border-radius: var(--cloak-round-panel);
+  background: color-mix(in srgb, var(--color-fg) 3%, var(--color-bg));
+  scroll-margin-top: 84px;
+}
+
+.cloak-verify__head {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 72ch;
+}
+
+.cloak-verify__head h2 {
+  margin: 0;
+  font-family: var(--cloak-sans);
+  font-size: clamp(1.375rem, 2.2vw, 1.75rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.cloak-verify__head p {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.cloak-verify__head a {
+  color: inherit;
+  text-underline-offset: 0.18em;
+}
+
+.cloak-verify__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.cloak-verify__facts > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--color-bg);
+}
+
+.cloak-verify__wide {
+  grid-column: 1 / -1;
+}
+
+.cloak-verify__facts dt {
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cloak-verify__facts dd {
+  margin: 0;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.cloak-verify__commands {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.cloak-verify__cmd {
+  display: grid;
+  gap: 4px;
+}
+
+.cloak-verify__cmd-label {
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cloak-verify__cmd pre {
+  margin: 0;
+  padding: 10px 14px;
+  overflow-x: auto;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--color-bg);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
 /* ---- Notes ---- */
 
 .cloak-notes {
@@ -770,6 +871,16 @@
   .cloak-agent-docs {
     margin-block-start: 36px;
     padding: 0;
+  }
+
+  .cloak-verify {
+    margin-block-start: 36px;
+    padding: var(--space-4);
+    border-radius: 22px;
+  }
+
+  .cloak-verify__facts {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .cloak-notes {

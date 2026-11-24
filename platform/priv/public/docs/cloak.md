@@ -151,6 +151,8 @@ Cloak integrates **Inference Serving** via [Darkbloom](https://darkbloom.dev) ([
 - **Encrypted local storage:** Saved chats, Connected App hashes, and Tempo deposit state are authenticated with ChaCha20-Poly1305 inside owner-only (`0700`) Application Support folders. Ephemeral mode (`Save chat history: Off`) keeps new threads strictly in RAM.
 - **Menu bar, Quick Prompt, Widgets & CLI:** Native Liquid Glass menu bar panel, Carbon-hotkey Quick Prompt (zero Accessibility permission required), Control Center toggles, Desktop widgets, `cloak` CLI over an owner-only Unix socket, EdDSA-signed updates via [Sparkle 2.8.1](https://sparkle-project.org), and an **Offline Data** pointer to [Tinfoil Kit](https://github.com/tudor-city-ventures/tinfoil-kit).
 
+- **Release verification:** Every release publishes SHA-256 checksums for the `.dmg` and installed `Cloak.app/Contents/MacOS/RegentsCloak` binary plus its Apple Developer ID `CDHash` (Team `367G3Z7G3J`) on GitHub Releases (`SHA256SUMS.txt` and `checksums.json`) and at [regents.sh/cloak/install]({{origin}}/cloak/install#verify). Cloak's **Settings → Status** pane displays the running bundle's live SHA-256 and `CDHash` alongside copy-paste `shasum`, `codesign`, and `spctl` commands so you can verify independently using built-in macOS tools.
+
 ## Links & Source Code
 
 - Product page: [regents.sh/cloak]({{origin}}/cloak) · Install guide: [regents.sh/cloak/install]({{origin}}/cloak/install)

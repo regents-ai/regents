@@ -132,7 +132,7 @@ defmodule RegentsWeb.Cloak do
       id: "requirements-and-install",
       summary: "Hardware requirements, model downloads, and install steps",
       body:
-        "Requires an Apple silicon Mac running macOS 26 or later (macOS 27+ for optional Darkbloom Inference Serving). NEAR AI Gateway works on 8 GB+ Macs with 0 GB of model downloads. Local (Fast MLX) needs 16 GB+ RAM and downloads 10.21 GB (optional GGUF tiers: 13.63–17.63 GB on 24 GB+/32 GB+ Macs). Token Inference, Anon V, Connected Apps, and the sandboxed Pi agent need 16 GB+ RAM and the 5.69 GB Qwen 3.5 9B local prompt rewriter. Signed, notarized .dmg builds are published at https://github.com/regents-ai/cloak-releases/releases (source at https://github.com/regents-ai/cloak), and install steps are at /cloak/install. Neither /cloak nor /cloak/install serves the .dmg file directly."
+        "Requires an Apple silicon Mac running macOS 26 or later (macOS 27+ for optional Darkbloom Inference Serving). NEAR AI Gateway works on 8 GB+ Macs with 0 GB of model downloads. Local (Fast MLX) needs 16 GB+ RAM and downloads 10.21 GB (optional GGUF tiers: 13.63–17.63 GB on 24 GB+/32 GB+ Macs). Token Inference, Anon V, Connected Apps, and the sandboxed Pi agent need 16 GB+ RAM and the 5.69 GB Qwen 3.5 9B local prompt rewriter. Signed, notarized .dmg builds (Apple Developer ID Team 367G3Z7G3J) and SHA-256 checksums (SHA256SUMS.txt / checksums.json) are published at https://github.com/regents-ai/cloak-releases/releases (source at https://github.com/regents-ai/cloak), and install and verification steps are at /cloak/install. Neither /cloak nor /cloak/install serves the .dmg file directly."
     },
     %{
       id: "agent-discovery",
@@ -158,6 +158,32 @@ defmodule RegentsWeb.Cloak do
   ]
   @updates "Cloak checks for signed Sparkle updates automatically unless you turn that off in Settings."
 
+  # Official release checksums published alongside every signed build in
+  # regents-ai/cloak-releases (`SHA256SUMS.txt` and `checksums.json`). Update
+  # these values whenever a new release is published by `app/publish.sh`.
+  @release_checksums %{
+    tag: "0.5.4-179",
+    dmg_filename: "Regents-Cloak-0.5.4-179.dmg",
+    dmg_sha256: "f113bb85e9ab27504232b6999ebd807ef27546938442b2d3b2cf9995a3db2f5e",
+    # Populated on releases published by the updated app/release.sh + app/publish.sh
+    # (e.g. {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)", "..."},
+    # {"Apple Code Signature CDHash", "..."}).
+    extra_hashes: [],
+    team_id: "367G3Z7G3J",
+    release_url: "https://github.com/regents-ai/cloak-releases/releases/latest",
+    sums_url: "https://raw.githubusercontent.com/regents-ai/cloak-releases/main/SHA256SUMS.txt",
+    commands: [
+      {"Verify downloaded DMG SHA-256 (macOS built-in shasum)",
+       "shasum -a 256 ~/Downloads/Regents-Cloak.dmg"},
+      {"Verify installed app binary SHA-256 (compare with Settings → Status)",
+       "shasum -a 256 \"/Applications/Cloak.app/Contents/MacOS/RegentsCloak\""},
+      {"Verify Apple Developer ID signature & CDHash (Team 367G3Z7G3J)",
+       "codesign -dvv --strict \"/Applications/Cloak.app\""},
+      {"Verify Apple Notarization & Gatekeeper",
+       "spctl --assess --type execute -vv \"/Applications/Cloak.app\""}
+    ]
+  }
+
   def heading, do: @heading
   def subtitle, do: @subtitle
   def pill, do: @pill
@@ -182,6 +208,7 @@ defmodule RegentsWeb.Cloak do
   def install_heading, do: @install_heading
   def install_steps, do: @install_steps
   def updates, do: @updates
+  def release_checksums, do: @release_checksums
 
   @doc "The page as Markdown, what `/cloak` answers when Markdown is asked for."
   def markdown do
@@ -262,6 +289,25 @@ defmodule RegentsWeb.Cloak do
       |> Enum.with_index(1)
       |> Enum.map_join("\n", fn {{title, sentence}, n} -> "#{n}. **#{title}.** #{sentence}" end)
 
+    checksums = release_checksums()
+
+    extra_lines =
+      Enum.map(checksums.extra_hashes, fn {label, value} -> "- **#{label}:** `#{value}`" end)
+
+    verify_lines =
+      ([
+         "- **Latest published release:** `#{checksums.tag}` ([GitHub Releases](#{checksums.release_url}) · [SHA256SUMS.txt](#{checksums.sums_url}))",
+         "- **DMG (`#{checksums.dmg_filename}` / `Regents-Cloak.dmg`) SHA-256:** `#{checksums.dmg_sha256}`"
+       ] ++
+         extra_lines ++
+         ["- **Apple Developer ID Team:** `#{checksums.team_id}`"])
+      |> Enum.join("\n")
+
+    commands =
+      Enum.map_join(checksums.commands, "\n\n", fn {label, cmd} ->
+        "# #{label}\n#{cmd}"
+      end)
+
     """
     # #{@install_heading}
 
@@ -271,6 +317,16 @@ defmodule RegentsWeb.Cloak do
     - [View source](#{@source_url})
 
     #{steps}
+
+    ## Verify your download
+
+    Compare checksums across three independent places — this page, [GitHub Releases](#{@release_checksums.release_url}), and Cloak's **Settings → Status** pane — using macOS's built-in Terminal tools:
+
+    #{verify_lines}
+
+    ```sh
+    #{commands}
+    ```
 
     ## Updates
 
