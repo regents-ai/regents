@@ -67,6 +67,7 @@ defmodule Regents.Techtree.Network.Query do
         challenge: Keyword.get(options, :challenge),
         provider: Keyword.get(options, :provider)
       })
+      |> Ash.Query.deselect([:submission_bytes, :receipt_bytes, :withdrawal_receipt_bytes])
       |> Ash.Query.limit(limit + 1)
       |> Ash.read!()
 

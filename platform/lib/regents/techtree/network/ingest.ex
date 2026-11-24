@@ -217,18 +217,31 @@ defmodule Regents.Techtree.Network.Ingest do
   about database backups. Every record carrying that address is removed, while
   the append-only log remains untouched.
   """
-  @spec forget_contributor_address(String.t()) :: :ok
+  @spec forget_contributor_address(String.t()) :: :ok | {:error, term()}
   def forget_contributor_address(address) do
-    contributor_address(address)
-    |> Enum.each(&Network.forget_contributor_address!(&1, @internal))
+    with {:ok, canonical} <- Address.canonicalize(address),
+         {:ok, :ok} <-
+           Ash.transact(ContributorAddress, fn -> forget_matching_addresses(canonical) end) do
+      :ok
+    end
+  end
 
-    :ok
+  defp forget_matching_addresses(address) do
+    with {:ok, records} <- Network.find_contributor_addresses(address, @internal) do
+      Enum.reduce_while(records, :ok, &forget_address/2)
+    end
+  end
+
+  defp forget_address(record, :ok) do
+    case Network.forget_contributor_address(record, @internal) do
+      :ok -> {:cont, :ok}
+      {:error, _reason} = failure -> {:halt, failure}
+    end
   end
 
   @doc """
   The records for one address, for an operator answering a question about
-  somebody's own record. Nothing on the public surface calls this, and nothing
-  else in this application can.
+  somebody's own record. Nothing on the public surface calls this.
   """
   @spec contributor_address(String.t()) :: [ContributorAddress.t()]
   def contributor_address(address) do

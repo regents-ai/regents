@@ -8,9 +8,9 @@ defmodule Regents.Patchbay.Forum.EscrowRevenuePush do
 
   A push hands over everything the escrow keeps, other bounties' shares
   included, so a bounty is done once its payout is on Base and the escrow
-  keeps nothing any more. A release is written as soon as Base has taken it,
-  so its payout is waited for first; a refund is only written once the
-  contract says it happened. Running twice is safe: the second run finds
+  keeps nothing any more. A release is checked against the contract, including
+  reports written by older releases before Base confirmed the payout. Running
+  twice is safe: the second run finds
   nothing kept and sends nothing.
 
   A push that would not go through, such as while the staking contract is
@@ -35,8 +35,13 @@ defmodule Regents.Patchbay.Forum.EscrowRevenuePush do
     end
   end
 
-  defp payout_landed(%{escrow_status: :released} = report),
-    do: Escrow.await_landed(report.escrow_release_tx_hash)
+  defp payout_landed(%{escrow_status: :released} = report) do
+    case Escrow.post(report.id) do
+      {:ok, %{status: :released}} -> :ok
+      {:ok, _post} -> {:error, :payout_unconfirmed}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
   defp payout_landed(_refunded), do: :ok
 

@@ -22,13 +22,17 @@ defmodule RegentAgents.Agent do
   """
   @enforce_keys [:wallet]
   @derive {Inspect, except: [:human_id]}
-  defstruct [:wallet, :registry_listing, :human_id, :same_person_agent_count]
+  defstruct [:wallet, :registry_listing, :human_id, :same_person_agent_count, :chain_id,
+             :verification_method, :receipt_expires_at]
 
   @type t :: %__MODULE__{
           wallet: String.t(),
           registry_listing: String.t() | nil,
           human_id: String.t() | nil,
-          same_person_agent_count: pos_integer() | nil
+          same_person_agent_count: pos_integer() | nil,
+          chain_id: pos_integer() | nil,
+          verification_method: String.t() | nil,
+          receipt_expires_at: String.t() | nil
         }
 end
 

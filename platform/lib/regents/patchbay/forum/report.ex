@@ -157,7 +157,11 @@ defmodule Regents.Patchbay.Forum.Report do
       trigger :read_escrow_refund do
         action(:read_escrow_refund)
         queue(:patchbay_escrow_reads)
-        where(expr(escrow_status == :credited))
+
+        where(
+          expr(escrow_status in [:credited, :refund_failed, :release_submitted, :release_failed])
+        )
+
         sort(escrow_funded_at: :asc)
         scheduler_cron("*/5 * * * *")
         max_attempts(1)
@@ -201,6 +205,20 @@ defmodule Regents.Patchbay.Forum.Report do
     )
 
     publish(:accept_reply, ["post", :id],
+      event: "changed",
+      load: LivePost.thread_loads(),
+      returns: :map,
+      transform: &LivePost.thread_changed/1
+    )
+
+    publish(:record_escrow_release, ["post", :id],
+      event: "changed",
+      load: LivePost.thread_loads(),
+      returns: :map,
+      transform: &LivePost.thread_changed/1
+    )
+
+    publish(:record_escrow_refund, ["post", :id],
       event: "changed",
       load: LivePost.thread_loads(),
       returns: :map,
@@ -1474,7 +1492,7 @@ defmodule Regents.Patchbay.Forum.Report do
     update :record_escrow_release do
       description("Whether the accepted reply's author was paid out of escrow.")
       accept([:escrow_status, :escrow_release_tx_hash])
-      validate(one_of(:escrow_status, [:released, :release_failed]))
+      validate(one_of(:escrow_status, [:release_submitted, :released, :release_failed]))
     end
 
     update :request_refund do
@@ -1647,8 +1665,13 @@ defmodule Regents.Patchbay.Forum.Report do
       authorize_if(expr(is_nil(beneficiary_profile_id) and author_profile_id == ^actor(:id)))
     end
 
+    # These transitions record confirmed or submitted operator transactions.
+    policy action([:record_escrow_release, :record_escrow_refund]) do
+      authorize_if(actor_attribute_equals(:role, :system))
+    end
+
     # `claim_escrow_credit`, `record_escrow_credit`, `confirm_escrow_credit`,
-    # `record_escrow_release`, `record_escrow_refund`, `push_escrow_revenue`,
+    # `push_escrow_revenue`,
     # `record_escrow_revenue_pushed`, `read_escrow_credit`,
     # `read_escrow_refund`, `read_by_jev` and `give_up_on_jev` are named by no
     # policy, so nothing that arrives over HTTP can reach them. The settlement,

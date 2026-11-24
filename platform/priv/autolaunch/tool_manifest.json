@@ -80,7 +80,7 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Safe integer; the API clamps it to 1\u201350. Defaults to 50."
+            "description": "Safe integer; the API clamps it to 1–50. Defaults to 50."
           }
         },
         "required": [],
@@ -94,8 +94,13 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/v1/auctions",
-      "scope": "site"
+      "route": "GET /api/v1/autolaunch/auctions",
+      "scope": "site",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/autolaunch/auctions",
+        "accept": "application/json"
+      }
     },
     {
       "name": "autolaunch_auction",
@@ -122,8 +127,13 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/v1/auctions/{id}",
-      "scope": "site"
+      "route": "GET /api/v1/autolaunch/auctions/{id}",
+      "scope": "site",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/autolaunch/auctions/{id}",
+        "accept": "application/json"
+      }
     },
     {
       "name": "autolaunch_auction_counts",
@@ -143,8 +153,13 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/v1/auction-counts",
-      "scope": "site"
+      "route": "GET /api/v1/autolaunch/auction-counts",
+      "scope": "site",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/autolaunch/auction-counts",
+        "accept": "application/json"
+      }
     },
     {
       "name": "autolaunch_tokens",
@@ -194,7 +209,7 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Safe integer; the API clamps it to 1\u2013100. Defaults to 100."
+            "description": "Safe integer; the API clamps it to 1–100. Defaults to 100."
           }
         },
         "required": [],
@@ -208,8 +223,13 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/v1/tokens",
-      "scope": "site"
+      "route": "GET /api/v1/autolaunch/tokens",
+      "scope": "site",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/autolaunch/tokens",
+        "accept": "application/json"
+      }
     },
     {
       "name": "autolaunch_token",
@@ -236,8 +256,13 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/v1/tokens/{id}",
-      "scope": "site"
+      "route": "GET /api/v1/autolaunch/tokens/{id}",
+      "scope": "site",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/autolaunch/tokens/{id}",
+        "accept": "application/json"
+      }
     },
     {
       "name": "autolaunch_treasury",
@@ -264,8 +289,13 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/v1/treasury-security/{address}",
-      "scope": "site"
+      "route": "GET /api/v1/autolaunch/treasury-security/{address}",
+      "scope": "site",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/autolaunch/treasury-security/{address}",
+        "accept": "application/json"
+      }
     },
     {
       "name": "autolaunch_bid_quote",
@@ -302,7 +332,7 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/v1/auctions/{id}/bid-quote",
+      "route": "POST /api/v1/autolaunch/auctions/{id}/bid-quote",
       "scope": "site"
     },
     {

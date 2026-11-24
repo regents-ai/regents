@@ -57,9 +57,9 @@ defmodule Regents.Patchbay.Offers.Scanner do
          {:ok, reading} <- reread(client, reading, head),
          {:ok, %{cursor: cursor}} <- read_forward(client, reading, head) do
       :telemetry.execute(
-        [:patchbay, :indexer, :lag],
+        [:regents, :indexer, :lag],
         %{blocks: max(head.number - (cursor.next_block - 1), 0)},
-        %{indexer: "offers", chain_id: cursor.chain_id}
+        %{indexer: "patchbay_offers", chain_id: cursor.chain_id}
       )
 
       :ok

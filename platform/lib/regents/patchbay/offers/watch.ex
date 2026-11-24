@@ -1,18 +1,15 @@
 defmodule Regents.Patchbay.Offers.Watch do
   @moduledoc """
-  Every five minutes, while a market is set (the line is added to the Oban
-  cron only then, in `config/runtime.exs`), makes sure the market has its
+  Every five minutes, if a market is configured, makes sure the market has its
   reading job (`Regents.Patchbay.Offers.ReadMarket`). After a person's purchase or
   claim lands, `refresh/0` brings that job forward, so the page shows it soon.
   """
 
   use Oban.Worker, queue: :patchbay_default, max_attempts: 1
 
+  alias Regents.Chain.Refresh
   alias Regents.Patchbay.Offers
   alias Regents.Patchbay.Offers.ReadMarket
-
-  # The least time between two early reads, so a crowd pressing costs one.
-  @gap_seconds 10
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
@@ -24,19 +21,10 @@ defmodule Regents.Patchbay.Offers.Watch do
   Brings the market's next read to ten seconds from now, unless it was already
   due sooner, so presses that keep coming never put the read off.
   """
-  @spec refresh() :: :ok
+  @spec refresh() :: :ok | {:error, term()}
   def refresh do
-    if Offers.enabled?(), do: bring_forward(Oban.insert!(job()))
-    :ok
+    if Offers.enabled?(), do: Refresh.soon(job()), else: :ok
   end
-
-  defp bring_forward(%Oban.Job{state: state, scheduled_at: at} = job)
-       when state in ["scheduled", "retryable"] do
-    soon = DateTime.add(DateTime.utc_now(), @gap_seconds)
-    if DateTime.after?(at, soon), do: {:ok, _job} = Oban.update_job(job, %{scheduled_at: soon})
-  end
-
-  defp bring_forward(%Oban.Job{}), do: nil
 
   defp job,
     do: ReadMarket.new(%{chain_id: Offers.chain().chain_id, market: Offers.market()})

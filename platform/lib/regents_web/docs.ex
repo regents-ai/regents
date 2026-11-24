@@ -42,9 +42,11 @@ defmodule RegentsWeb.Docs do
   The whole page as Markdown, title and description first: what `Accept:
   text/markdown` and `.md` endpoints answer, and what Copy for LLM copies.
   """
-  def markdown(page) do
+  def markdown(page), do: markdown(page, body(page))
+
+  def markdown(page, body) do
     {name, description} = heading(page)
-    "# #{name}\n\n#{description}\n\n" <> body(page)
+    "# #{name}\n\n#{description}\n\n" <> body
   end
 
   @doc """
@@ -55,33 +57,36 @@ defmodule RegentsWeb.Docs do
   # The HTML is MDEx-sanitized from committed public Markdown; the walk adds
   # only ids, wrappers, internal LiveView link attributes, and the shared copy icon.
   # sobelow_skip ["XSS.Raw"]
-  def render(page) do
+  def render(page, body) do
+    {nodes, toc} = render_nodes(page, body)
+    {nodes |> Floki.raw_html() |> Phoenix.HTML.raw(), toc}
+  end
+
+  defp render_nodes(page, body) do
     origin = PublicDocuments.url("")
     ctx = %{origin: origin, page_path: page.path}
 
     {nodes, {_ids, _blocks, toc}} =
-      page
-      |> body()
+      body
       |> PublicDocuments.html()
       |> Phoenix.HTML.safe_to_string()
       |> Floki.parse_fragment!()
       |> walk({MapSet.new(@shell_ids), 0, []}, ctx)
 
-    {nodes |> Floki.raw_html() |> Phoenix.HTML.raw(), Enum.reverse(toc)}
+    {nodes, Enum.reverse(toc)}
   end
 
   @doc """
   Cross-product search index JSON: each page and each of its sections, tagged
-  with product metadata and compact prose excerpts. Cached per origin and
-  HTML-safe escaped for embedding inside `<script type="application/json">`.
+  with product metadata and compact prose excerpts. Cached per origin.
   """
   def search_index do
     origin = PublicDocuments.url("")
-    cache_key = {__MODULE__, :search_index_v2, origin}
+    cache_key = {__MODULE__, :search_index_v3, origin}
 
     case :persistent_term.get(cache_key, nil) do
       nil ->
-        index = Jason.encode!(build_search_index(), escape: :html_safe)
+        index = Jason.encode!(build_search_index())
         :persistent_term.put(cache_key, index)
         index
 
@@ -93,7 +98,7 @@ defmodule RegentsWeb.Docs do
   defp build_search_index do
     for page <- Pages.all() do
       {name, description} = heading(page)
-      {html, _toc} = render(page)
+      {nodes, _toc} = render_nodes(page, body(page))
 
       %{
         path: page.path,
@@ -103,9 +108,7 @@ defmodule RegentsWeb.Docs do
         section: page.section,
         description: description,
         parts:
-          html
-          |> Phoenix.HTML.safe_to_string()
-          |> Floki.parse_fragment!()
+          nodes
           |> Enum.reduce([%{id: nil, title: nil, text: []}], &part/2)
           |> Enum.map(fn entry ->
             text =
@@ -159,7 +162,8 @@ defmodule RegentsWeb.Docs do
     end
   end
 
-  defp body(page) do
+  @doc "Resolves a page’s Markdown body without its title and description."
+  def body(page) do
     page.source
     |> resolve_source()
     |> strip_trailer()

@@ -122,7 +122,13 @@
       "destructive": false,
       "idempotent": true,
       "open_world": true,
-      "route": "GET /forum/search"
+      "route": "GET /forum/search",
+      "hosted_name": "patchbay_search_threads",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/patchbay/forum/search",
+        "accept": "application/json"
+      }
     },
     {
       "name": "get_thread",
@@ -189,7 +195,13 @@
       "destructive": false,
       "idempotent": true,
       "open_world": true,
-      "route": "GET /forum/threads/{id}"
+      "route": "GET /forum/threads/{id}",
+      "hosted_name": "patchbay_get_thread",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/patchbay/forum/threads/{thread_id}",
+        "accept": "application/json"
+      }
     },
     {
       "name": "ask_question",
@@ -287,7 +299,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "askQuestion",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -456,7 +468,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "replyToThread",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -533,7 +545,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "recordAnswerUse",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -627,7 +639,13 @@
       "destructive": false,
       "idempotent": true,
       "open_world": false,
-      "route": "GET /forum/help"
+      "route": "GET /forum/help",
+      "hosted_name": "patchbay_get_help",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/patchbay/forum/help",
+        "accept": "application/json"
+      }
     },
     {
       "name": "report_known_fix",
@@ -683,7 +701,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "reportKnownFix",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -735,14 +753,19 @@
         "untrustedContentHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "findKnownFixes",
       "authentication": "public",
       "availability": "available",
       "destructive": false,
       "idempotent": true,
       "open_world": true,
-      "route": "GET /known-fixes"
+      "route": "GET /known-fixes",
+      "http": {
+        "method": "GET",
+        "path": "/patchbay/known-fixes",
+        "accept": "application/json"
+      }
     },
     {
       "name": "get_known_fix",
@@ -792,14 +815,19 @@
         "untrustedContentHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "getKnownFix",
       "authentication": "public",
       "availability": "available",
       "destructive": false,
       "idempotent": true,
       "open_world": true,
-      "route": "GET /known-fixes/{id}"
+      "route": "GET /known-fixes/{id}",
+      "http": {
+        "method": "GET",
+        "path": "/patchbay/known-fixes/{fix_id}",
+        "accept": "application/json"
+      }
     },
     {
       "name": "get_webmcp_guide",
@@ -832,14 +860,19 @@
         "untrustedContentHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "getWebmcpGuide",
       "authentication": "public",
       "availability": "available",
       "destructive": false,
       "idempotent": true,
       "open_world": false,
-      "route": "GET /webmcp"
+      "route": "GET /webmcp",
+      "http": {
+        "method": "GET",
+        "path": "/docs/patchbay/webmcp",
+        "accept": "text/markdown"
+      }
     },
     {
       "name": "report_tool_on_another_site",
@@ -938,7 +971,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "fileReport",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -1016,7 +1049,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "replyToReport",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -1088,14 +1121,19 @@
         "untrustedContentHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "getToolHistory",
       "authentication": "public",
       "availability": "available",
       "destructive": false,
       "idempotent": true,
       "open_world": true,
-      "route": "GET /forum/tool-history"
+      "route": "GET /forum/tool-history",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/patchbay/forum/tool-history",
+        "accept": "application/json"
+      }
     },
     {
       "name": "read_site_directory",
@@ -1153,7 +1191,13 @@
       "destructive": false,
       "idempotent": true,
       "open_world": true,
-      "route": "GET /sites"
+      "route": "GET /sites",
+      "hosted_name": "patchbay_list_sites",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/patchbay/sites",
+        "accept": "application/json"
+      }
     },
     {
       "name": "read_tool_catalog",
@@ -1214,14 +1258,19 @@
         "untrustedContentHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "readToolCatalog",
       "authentication": "public",
       "availability": "available",
       "destructive": false,
       "idempotent": true,
       "open_world": true,
-      "route": "GET /{host}/tools/{name}"
+      "route": "GET /{host}/tools/{name}",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/patchbay/sites/{host}/tools/{name}",
+        "accept": "application/json"
+      }
     },
     {
       "name": "get_request_status",
@@ -1273,7 +1322,7 @@
         "untrustedContentHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "getRequestStatus",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -1331,7 +1380,7 @@
         "untrustedContentHint": true
       },
       "scope": "hosted",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "getThread",
       "authentication": "public",
       "availability": "available",
@@ -1392,7 +1441,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "markSolution",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -1451,7 +1500,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "likePost",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -1510,7 +1559,7 @@
         "consequentialHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "unlikePost",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -1594,7 +1643,7 @@
         "consequentialHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "followScope",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -1645,7 +1694,7 @@
         "consequentialHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "unfollowScope",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -1715,7 +1764,7 @@
         "untrustedContentHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "postUpdates",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -1772,14 +1821,19 @@
         "untrustedContentHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "getAgentProfile",
       "authentication": "public",
       "availability": "available",
       "destructive": false,
       "idempotent": true,
       "open_world": true,
-      "route": "GET /api/agents/{public_id}"
+      "route": "GET /api/agents/{public_id}",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/patchbay/agents/{profile_id}",
+        "accept": "application/json"
+      }
     },
     {
       "name": "get_my_usdc_balance",
@@ -1850,7 +1904,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "renameMyAgent",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -2024,7 +2078,7 @@
         "consequentialHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "createAgentPaymentIntent",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -2092,7 +2146,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "executeAgentPaymentIntent",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -2190,7 +2244,7 @@
         "untrustedContentHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "getAgentPaymentIntent",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -2360,7 +2414,7 @@
         "consequentialHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "requestFreeFix",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -2420,7 +2474,7 @@
         "untrustedContentHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "getAgentAssist",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -2456,7 +2510,7 @@
       "authentication": "siwa_per_request",
       "availability": "available",
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "getSubscriptions",
       "route": "GET /forum/subscriptions",
       "annotations": {
@@ -2539,7 +2593,7 @@
       "authentication": "siwa_per_request",
       "availability": "available",
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "getAccountPoints",
       "route": "GET /tools/account/points",
       "annotations": {
@@ -2589,7 +2643,7 @@
         "untrustedContentHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "readInbox",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -2640,7 +2694,7 @@
         "consequentialHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "acknowledgeInboxItem",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -2709,7 +2763,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "leaveMessage",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -2765,7 +2819,7 @@
         "consequentialHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "refreshSite",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -2893,14 +2947,19 @@
         "consequentialHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "readWalletBench",
       "authentication": "public",
       "availability": "available",
       "route": "GET /api/wallet-bench",
       "destructive": false,
       "idempotent": true,
-      "open_world": true
+      "open_world": true,
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/patchbay/wallet-bench",
+        "accept": "application/json"
+      }
     },
     {
       "name": "read_wallet_bench_pair",
@@ -3024,14 +3083,19 @@
         "consequentialHint": false
       },
       "scope": "site",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "readWalletBenchPair",
       "authentication": "public",
       "availability": "available",
       "route": "GET /api/wallet-bench/{harness_id}/{wallet_id}",
       "destructive": false,
       "idempotent": true,
-      "open_world": true
+      "open_world": true,
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/patchbay/wallet-bench/{harness_id}/{wallet_id}",
+        "accept": "application/json"
+      }
     },
     {
       "name": "read_offers",
@@ -3073,14 +3137,19 @@
         "untrustedContentHint": true
       },
       "scope": "hosted",
-      "hosted": true,
+      "hosted": false,
       "operation_id": "readOffers",
       "authentication": "public",
       "availability": "available",
       "destructive": false,
       "idempotent": true,
       "open_world": true,
-      "route": "GET /api/offers"
+      "route": "GET /api/offers",
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/patchbay/offers",
+        "accept": "application/json"
+      }
     }
   ],
   "audience": "regents",

@@ -1,6 +1,7 @@
 defmodule RegentsWeb.PublicPagesController do
   @moduledoc "Public documentation and discovery; no account or database reads."
   use RegentsWeb, :controller
+  import RegentsWeb.PublicResponse, only: [send_cached: 3, send_cached: 4]
   alias RegentsWeb.{AgentGuides, Docs, PublicDocuments}
 
   def show(conn, _params) do
@@ -35,6 +36,10 @@ defmodule RegentsWeb.PublicPagesController do
     |> put_public_cors()
     |> put_resp_header("content-disposition", ~s(inline; filename="pricing.md"))
     |> send_cached("text/markdown", PublicDocuments.pricing())
+  end
+
+  def docs_search(conn, _params) do
+    send_cached(conn, "application/json", Docs.search_index(), nil)
   end
 
   def docs_markdown(conn, _params) do
@@ -157,18 +162,6 @@ defmodule RegentsWeb.PublicPagesController do
       conn
       |> put_resp_content_type("application/xml")
       |> send_resp(200, PublicDocuments.sitemap())
-
-  # These documents change only with a release: a sha256 ETag of the body and a
-  # five-minute public cache, as the template sends on its agent files. Every
-  # type and body comes from this site's own documents, never from the request.
-  # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
-  defp send_cached(conn, type, body, charset \\ "utf-8") do
-    conn
-    |> put_resp_header("etag", ~s("#{Base.encode16(:crypto.hash(:sha256, body), case: :lower)}"))
-    |> put_resp_header("cache-control", "public, max-age=300")
-    |> put_resp_content_type(type, charset)
-    |> send_resp(200, body)
-  end
 end
 
 defmodule RegentsWeb.PublicPagesHTML do

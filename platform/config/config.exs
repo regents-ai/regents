@@ -194,6 +194,8 @@ config :regents, :home_colour, "blue"
 # this site.
 config :ash_oban, pro?: false, authorize?: false
 
+config :regents, RegentsWeb.Keyfleet.FeedController, max_open: 200, keep_alive_ms: 25_000
+
 config :regents, Oban,
   repo: Regents.Repo,
   prefix: "regents_app",
@@ -253,6 +255,7 @@ config :regents, Oban,
       {"47 4 * * *", Regents.Patchbay.Forum.PostCheckPruner},
       {"*/5 * * * *", Regents.Patchbay.Forum.SiteCheckSweep},
       {"*/5 * * * *", Regents.Patchbay.Forum.ListedSitePictureSweep},
+      {"*/5 * * * *", Regents.Patchbay.Offers.Watch},
       {"0 6 * * 1", Regents.Patchbay.AnswerWatch.Ask},
       {"@hourly", Regents.Patchbay.IndexNow},
       {"0 * * * *", Regents.Patchbay.Incidents.CveNow},

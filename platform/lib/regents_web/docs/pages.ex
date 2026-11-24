@@ -38,6 +38,13 @@ defmodule RegentsWeb.Docs.Pages do
              source: {:regents_file, "overview"}
            },
            %{
+             key: "cutover",
+             name: "Migration",
+             description:
+               "Move existing product integrations to the shared Regents address and SIWA audience.",
+             source: {:regents_file, "cutover"}
+           },
+           %{
              key: "limits",
              name: "Limits",
              description:
@@ -58,7 +65,7 @@ defmodule RegentsWeb.Docs.Pages do
              key: "products",
              name: "Products",
              description:
-               "Cloak, Techtree, Keyfleet, Autolaunch and Patchbay as JSON, with each one's summary and links.",
+               "Techtree, Keyfleet, Autolaunch and Patchbay as JSON, with summaries and links.",
              source: {:regents_file, "products"}
            },
            %{

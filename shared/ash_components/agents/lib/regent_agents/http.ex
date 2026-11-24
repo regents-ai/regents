@@ -329,7 +329,15 @@ defmodule RegentAgents.HTTP do
            true <- Regex.match?(~r/\A0x[0-9a-f]{40}\z/, wallet),
            {:ok, listing} <- registry_listing(registration),
            {:ok, backing} <- HumanBacking.read(book) do
-        agent = struct!(Agent, Map.merge(backing, %{wallet: wallet, registry_listing: listing}))
+        proof = %{
+          wallet: wallet,
+          registry_listing: listing,
+          chain_id: @base_chain_id,
+          verification_method: data["verificationMethod"],
+          receipt_expires_at: data["receiptExpiresAt"]
+        }
+
+        agent = struct!(Agent, Map.merge(backing, proof))
 
         {:ok,
          conn

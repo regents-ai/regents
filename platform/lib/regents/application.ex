@@ -34,8 +34,6 @@ defmodule Regents.Application do
         {Regents.RateLimiter, []},
         {Cachex, name: Regents.Account.Agents.HostedAddress.cache()},
         {Regents.OpenSea.HoldingsCache, []},
-        {Task.Supervisor, name: Regents.SiteTools.Reads},
-        Regents.SiteTools,
         # Each paired agent's reading from the sign-in service, kept five minutes
         # and shared by the account menu and the Agents page.
         Regents.Account.Agents.ActivityReading,

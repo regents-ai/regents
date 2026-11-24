@@ -8688,3 +8688,11 @@ seasons), on the shared Points library regents.sh was already on.
   `EEF-CVE-2026-120299` LOW) and `db_connection` (`2.10.2` -> `2.10.3`, closing
   `EEF-CVE-2026-133555` HIGH) in `platform/mix.lock` so `mix hex.audit` is clean.
 - Recorded both fixes in `security/required-fixes.json`.
+
+## 2026-11-24 — Consolidation audit fixes
+
+- Restore the Autolaunch session and auction-list limits, and carry verified SIWA proof through to the Keyfleet feed and paired actions.
+- Align Patchbay Offers with the shared wallet hook. Index Offers on a schedule, queue bounty payouts with answer acceptance, and record the result after confirmation. Keep stale refund refusals from overriding confirmed outcomes.
+- Keep durable chain history current when pages are quiet, and bring scheduled reads forward without postponing reads already due sooner.
+- Correct account overview Points and solved flags, preserve Techtree Results filters, and distinguish an unread product from an empty one.
+- Update product documentation, tool discovery, and legacy redirects for the consolidated site. Load the docs search index on demand.

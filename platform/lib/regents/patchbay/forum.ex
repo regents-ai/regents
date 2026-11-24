@@ -434,4 +434,19 @@ defmodule Regents.Patchbay.Forum do
       %Ash.BulkResult{errors: errors} -> {:error, errors}
     end
   end
+
+  @doc "Counts the published threads and replies attributed to this account."
+  def account_counts!(profile_id, account_id) do
+    arguments = %{profile_id: profile_id, human_account_id: account_id}
+
+    {count_account_rows!(Regents.Patchbay.Forum.Report, arguments),
+     count_account_rows!(Regents.Patchbay.Forum.Reply, arguments)}
+  end
+
+  defp count_account_rows!(resource, arguments) do
+    resource
+    |> Ash.Query.for_read(:for_account, arguments)
+    |> Ash.Query.unset([:limit, :sort])
+    |> Ash.count!()
+  end
 end

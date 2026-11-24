@@ -1667,6 +1667,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
     """
   end
 
+  defp escrow_standing_said(%{escrow_status: :release_submitted}),
+    do: "Payout sent to Base. Confirmation is pending."
+
   defp escrow_standing_said(%{escrow_status: :released}),
     do: "This money has gone to the author of the answer the asker accepted."
 

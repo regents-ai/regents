@@ -8,7 +8,7 @@ curl --fail '{{origin}}/api/v1/products'
 
 ## One product
 
-`GET /api/v1/products/{slug}` returns everything that product's page on Regents shows. An unknown slug answers `404`.
+`GET /api/v1/products/{slug}` returns everything that product's page on Regents shows. The four slugs above are available here. Cloak is documented on its [desktop app guide]({{origin}}/docs/cloak). An unknown slug answers `404`.
 
 ```sh
 curl --fail '{{origin}}/api/v1/products/techtree'

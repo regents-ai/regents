@@ -57,6 +57,7 @@ defmodule RegentsWeb do
       PaperProDaily.Reading,
       ProductLive,
       PublicDocuments,
+      PublicResponse,
       Read,
       RouteCatalog,
       Telemetry,

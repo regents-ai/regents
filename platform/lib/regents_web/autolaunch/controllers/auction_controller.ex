@@ -1,9 +1,12 @@
 defmodule RegentsWeb.Autolaunch.AuctionController do
   use RegentsWeb, :controller
 
-  alias Autolaunch
+  alias RegentAgentAccess.RateLimit
   alias Regents.Autolaunch.ReadFailure
   alias RegentsWeb.Autolaunch.{ApiError, MarketAnswer}
+  alias RegentsWeb.ClientAddress
+
+  plug :limit_list when action == :index
 
   # Each answer is the one its hosted MCP tool gives too (`RegentsWeb.Autolaunch.MarketAnswer`).
   def index(conn, params), do: ApiError.answer(conn, MarketAnswer.auctions(params))
@@ -27,6 +30,16 @@ defmodule RegentsWeb.Autolaunch.AuctionController do
   end
 
   def bid_quote(conn, params), do: ApiError.answer(conn, MarketAnswer.bid_quote(params))
+
+  defp limit_list(conn, _opts) do
+    RateLimit.call(
+      conn,
+      MarketAnswer.list_limit(fn request ->
+        {key, _source} = ClientAddress.key(request)
+        key
+      end)
+    )
+  end
 
   # A read that failed is logged by its kind and module only, then answered
   # with the generic error (`Regents.Autolaunch.ReadFailure`).

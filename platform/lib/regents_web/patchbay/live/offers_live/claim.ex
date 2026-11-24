@@ -46,7 +46,7 @@ defmodule RegentsWeb.Patchbay.OffersLive.Claim do
   defp take_profile(socket, profile), do: assign(socket, profile: profile)
 
   @impl true
-  def handle_event("prepare_and_send", %{"step" => "claim", "address" => address}, socket)
+  def handle_event("prepare_and_send", %{"step" => "claim", "wallet" => address}, socket)
       when is_binary(address) do
     if String.downcase(address) == socket.assigns.wallet do
       prepare_claim(socket)
@@ -56,6 +56,9 @@ defmodule RegentsWeb.Patchbay.OffersLive.Claim do
   end
 
   def handle_event("prepare_and_send", _params, socket), do: {:reply, %{}, socket}
+
+  # The campaign or claim still names the wallet while the browser selection changes.
+  def handle_event("onchain_active_wallet", _params, socket), do: {:noreply, socket}
 
   def handle_event("step_sent", params, socket), do: {:noreply, OnchainSteps.sent(socket, params)}
   def handle_event("step_failed", params, socket), do: {:noreply, failed(socket, params)}
@@ -108,7 +111,7 @@ defmodule RegentsWeb.Patchbay.OffersLive.Claim do
     %{wallet: wallet, profile: profile} = socket.assigns
 
     start_async(socket, :claimable, fn ->
-      case Regents.Limits.spend(:wallet_read, {:profile, profile.id}) do
+      case Regents.Limits.spend(:patchbay_wallet_read, {:profile, profile.id}) do
         :ok -> Market.claimable(wallet)
         :limited -> {:error, :limited}
       end

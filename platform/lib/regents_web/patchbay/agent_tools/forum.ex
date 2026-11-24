@@ -9,6 +9,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
 
   alias Regents.Patchbay.Forum
   alias RegentsWeb.Patchbay.Forum.Readiness
+  alias RegentsWeb.Patchbay.ForumAPI.Reads
   alias RegentsWeb.Patchbay.Help
 
   actions do
@@ -24,24 +25,13 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
         default: 10,
         constraints: [min: 1, max: 25]
 
-      run fn %{arguments: %{query: query, limit: limit}}, _context ->
-        case Forum.search_threads(query, page: [limit: limit]) do
-          {:ok, %{results: reports}} ->
-            {:ok,
-             %{
-               threads:
-                 Enum.map(reports, fn report ->
-                   %{
-                     id: report.id,
-                     title: report.title,
-                     kind: to_string(report.thread_kind),
-                     url: "/patchbay/posts/#{report.id}"
-                   }
-                 end)
-             }}
+      argument :offset, :integer, constraints: [min: 0]
 
-          {:error, error} ->
-            {:error, error}
+      run fn %{arguments: args}, _context ->
+        params = %{"q" => args.query, "offset" => args[:offset] && to_string(args.offset)}
+
+        with {:ok, page} <- Reads.search(params, :free) do
+          {:ok, Map.put(page, :threads, Enum.take(page.results, args.limit || 10))}
         end
       end
     end
@@ -51,24 +41,11 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
 
       argument :id, :string, allow_nil?: false
 
-      run fn %{arguments: %{id: id}}, _context ->
-        case Forum.get_report(id, load: [:replies]) do
-          {:ok, report} ->
-            {:ok,
-             %{
-               id: report.id,
-               title: report.title,
-               body: report.body_markdown,
-               kind: to_string(report.thread_kind),
-               url: "/patchbay/posts/#{report.id}",
-               replies:
-                 Enum.map(report.replies || [], fn reply ->
-                   %{id: reply.id, body: reply.body_markdown, inserted_at: reply.inserted_at}
-                 end)
-             }}
+      argument :after, :string
 
-          {:error, error} ->
-            {:error, error}
+      run fn %{arguments: args}, _context ->
+        with {:ok, page} <- Reads.thread(args.id, %{"after" => args[:after]}, :free) do
+          {:ok, Map.merge(Map.take(page.report, [:id, :title, :body, :kind, :url]), page)}
         end
       end
     end

@@ -10,6 +10,15 @@ read! = fn rel -> File.read!(Path.join(root, rel)) end
 exists? = fn rel -> File.exists?(Path.join(root, rel)) end
 
 router = read!.("platform/lib/regents_web/router.ex")
+
+{_, scopes} =
+  Macro.prewalk(Code.string_to_quoted!(router), [], fn
+    {:scope, _, [path | _]} = node, scopes when is_binary(path) ->
+      {node, [{path, Macro.to_string(node)} | scopes]}
+
+    node, scopes ->
+      {node, scopes}
+  end)
 config = read!.("platform/config/config.exs")
 products_ex = read!.("platform/lib/regents/products.ex")
 site_tools_ex = read!.("platform/lib/regents/site_tools.ex")
@@ -31,9 +40,16 @@ check_product = fn p ->
       exists?.("platform/lib/regents_web/#{p}.ex") and
       String.contains?(products_ex, ~s(name: "#{p}"))
 
+  product_scopes =
+    for {path, source} <- scopes,
+        Enum.any?(["/#{p}", "/api/v1/#{p}", "/api/agent/v1/#{p}"], fn prefix ->
+          path == prefix or String.starts_with?(path, prefix <> "/")
+        end),
+        do: source
+
   shared_agent_plug_ok =
-    length(grep_files.("lib/regents_web/#{p}/**/*.ex", ~r/RegentsWeb\.Account\.PairedAgent/)) > 0 or
-      String.contains?(router, "paired_agent")
+    Enum.any?(product_scopes, &Regex.match?(~r/pipe_through[^\n]*:paired_agent\b/, &1)) and
+      not Enum.any?(product_scopes, &Regex.match?(~r/pipe_through[^\n]*:[a-z_]+_paired_agent\b/, &1))
 
   actors_agent_ok =
     length(grep_files.("lib/{regents,regents_web}/#{p}/**/*.ex", ~r/Actors\.Agent/)) > 0
@@ -91,8 +107,7 @@ check_product = fn p ->
 
   docs_routes_ok =
     Enum.all?(~w(skill.md llms.txt agents.md), fn doc ->
-      String.contains?(router, ~s("/#{doc}")) and
-        (String.contains?(router, ~s(scope "/#{p}")) or String.contains?(router, ~s(product: "#{p}")))
+      Enum.any?(product_scopes, &String.contains?(&1, ~s("/#{doc}")))
     end)
 
   # 4. Database

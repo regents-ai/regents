@@ -109,6 +109,8 @@ defmodule RegentsWeb.Cloak do
   @install_path "/cloak/install"
   @install_heading "Install Cloak"
   @install_steps [
+    {"Build",
+     "Start with the signed Regents-Cloak.dmg provided with your build. The install page guides you once you have that file."},
     {"Drag",
      "Open Regents-Cloak.dmg from your Downloads folder and drag Cloak onto Applications."},
     {"Open",

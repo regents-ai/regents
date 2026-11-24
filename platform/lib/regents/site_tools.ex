@@ -6,8 +6,6 @@ defmodule Regents.SiteTools do
   endpoint answer immediately without remote HTTP calls.
   """
 
-  use GenServer
-
   @sites %{
     "regents" => %{name: "regents.sh", manifest: "priv/tool_manifest.json"},
     "patchbay" => %{name: "regents.sh/patchbay", manifest: "priv/patchbay/tool_manifest.json"},
@@ -19,9 +17,15 @@ defmodule Regents.SiteTools do
     "keyfleet" => %{name: "regents.sh/keyfleet", manifest: "priv/keyfleet/tool_manifest.json"}
   }
 
-  @type tool :: %{name: String.t(), title: String.t() | nil, description: String.t() | nil}
+  for %{manifest: path} <- Map.values(@sites) do
+    @external_resource Application.app_dir(:regents, path)
+  end
 
-  def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
+  @manifests Map.new(@sites, fn {site, %{manifest: path}} ->
+               {site, :regents |> Application.app_dir(path) |> File.read!() |> Jason.decode!()}
+             end)
+
+  @type tool :: %{name: String.t(), title: String.t() | nil, description: String.t() | nil}
 
   @doc "The keys of the products whose tools can be read, in the order they are listed."
   @spec sites() :: [String.t()]
@@ -43,8 +47,8 @@ defmodule Regents.SiteTools do
   @doc "The full decoded canonical `priv/<product>/tool_manifest.json` map."
   @spec manifest(String.t()) :: {:ok, map()} | {:error, :unknown_site | :unreachable}
   def manifest(site) do
-    case manifest_path(site) do
-      {:ok, relative_path} -> decode_manifest(relative_path)
+    case Map.fetch(@manifests, site) do
+      {:ok, manifest} -> {:ok, manifest}
       :error -> {:error, :unknown_site}
     end
   end
@@ -105,21 +109,7 @@ defmodule Regents.SiteTools do
     }
   end
 
-  defp decode_manifest(relative_path) do
-    path = Application.app_dir(:regents, relative_path)
-
-    with {:ok, raw} <- File.read(path),
-         {:ok, decoded} when is_map(decoded) <- Jason.decode(raw) do
-      {:ok, decoded}
-    else
-      _failure -> {:error, :unreachable}
-    end
-  end
-
   defp present(tool) do
     %{name: tool["name"], title: tool["title"], description: tool["description"]}
   end
-
-  @impl true
-  def init(nil), do: {:ok, %{}}
 end

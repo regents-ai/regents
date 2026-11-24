@@ -271,7 +271,7 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
       if history.versions == [] and is_nil(params["after"]) do
         {:error,
          {404, "not_found", "Tool not found.",
-          "Check the tool_name against the tools on the site's page, /#{site.origin}."}}
+          "Check the tool_name against the tools on the site's page, /patchbay/#{site.origin}."}}
       else
         {:ok,
          %{
@@ -285,7 +285,7 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
       true ->
         {:error,
          {404, "not_found", "Site not found.",
-          "Check the origin against the directory at /sites."}}
+          "Check the origin against the directory at /patchbay/sites."}}
 
       false ->
         {:error,
@@ -702,7 +702,7 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
   defp site_page(origin) do
     case origin && Origin.normalize(origin) do
       {:ok, host} ->
-        "Read #{MD.absolute("/" <> host)} for the tool names Patchbay knows there. "
+        "Read #{MD.absolute("/patchbay/" <> host)} for the tool names Patchbay knows there. "
 
       _none ->
         ""

@@ -23,7 +23,8 @@ defmodule RegentsWeb.DocsLive do
     page = Pages.page(path)
     product = Pages.product(page.product)
     products = Pages.products()
-    {html, toc} = Docs.render(page)
+    body = Docs.body(page)
+    {html, toc} = Docs.render(page, body)
     {name, description} = Docs.heading(page)
     {previous, next} = Pages.neighbours(page)
     ask = "Read #{PublicDocuments.url(page.path)} so you can answer questions about it."
@@ -53,7 +54,8 @@ defmodule RegentsWeb.DocsLive do
       hub_cards: hub_cards,
       html: html,
       toc: toc,
-      markdown: Docs.markdown(page),
+      markdown: Docs.markdown(page, body),
+      search_url: "/docs-search.json?" <> URI.encode_query(build: build_commit()),
       markdown_path: page.path <> ".md",
       name: name,
       heading: if(page.path == "/docs", do: "Regents Labs Docs", else: name),
@@ -63,6 +65,10 @@ defmodule RegentsWeb.DocsLive do
       claude: "https://claude.ai/new?" <> URI.encode_query(q: ask),
       chatgpt: "https://chatgpt.com/?" <> URI.encode_query(q: ask)
     }
+  end
+
+  defp build_commit do
+    Application.fetch_env!(:regents, :build).commit || "dev"
   end
 
   defp page_count_label(1), do: "1 page"
@@ -76,6 +82,7 @@ defmodule RegentsWeb.DocsLive do
       id={@docs.dom_id}
       class="docs"
       data-docs-product={@docs.product.id}
+      data-docs-search-url={@docs.search_url}
       phx-hook="Docs"
     >
       <div class="docs-bar">
@@ -297,10 +304,6 @@ defmodule RegentsWeb.DocsLive do
           <.toc id="docs-toc-spy" toc={@docs.toc} spy />
         </aside>
       </div>
-
-      <script type="application/json" id="docs-search-index">
-        <%= search_index() %>
-      </script>
     </div>
     """
   end
@@ -319,7 +322,4 @@ defmodule RegentsWeb.DocsLive do
     </ul>
     """
   end
-
-  # sobelow_skip ["XSS.Raw"]
-  defp search_index, do: Phoenix.HTML.raw(Docs.search_index())
 end

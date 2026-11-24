@@ -158,8 +158,7 @@ export const OnchainSteps: Hook = {
 /**
  * Sends or signs the named step from the review's signer, the account's main
  * wallet, when it is Privy's active wallet. While another wallet or none is
- * active, the press sends nothing and opens Privy's connect window, and the
- * server's note says which wallet to connect. Reports only what the wallet
+ * active, the press sends nothing and the server's note names the right wallet. Reports only what the wallet
  * answered, against the review it sent from: the hash or signature, or why
  * nothing was sent. The server decides what the hash did.
  */
@@ -176,10 +175,7 @@ export async function press(review: Review | undefined, name: string, push: Push
       const active = activeEthereumWallet()
       return active?.address.toLowerCase() === review.signer.toLowerCase() ? active : null
     }
-    if (!wallet()) {
-      window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
-      throw new NothingSent("wallet_unavailable")
-    }
+    if (!wallet()) throw new NothingSent("wallet_unavailable")
     if (!step) throw new NothingSent("step_unknown")
 
     if (step.kind === "signature") {

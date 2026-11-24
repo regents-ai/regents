@@ -139,6 +139,13 @@ defmodule RegentsWeb.Router do
     plug RegentsWeb.Account.PairedAgent
   end
 
+  pipeline :human_api do
+    plug :fetch_session
+    plug :enforce_session_authority
+    plug :protect_from_forgery
+    plug :private_response
+  end
+
   # Signing in, agents' own requests and signed-in reads, refused plainly where
   # the site only reads (`Regents.read_only?/0`).
   pipeline :read_only do
@@ -319,6 +326,9 @@ defmodule RegentsWeb.Router do
     RegentsWeb.Account.PrivySessionController.enforce_authority(conn)
   end
 
+  defp private_response(conn, _opts),
+    do: put_resp_header(conn, "cache-control", "private, no-store")
+
   # The product a page belongs to, one of `Regent.Site.products/0`'s ids. The root
   # layout puts it on the page as `data-product`, with its brand (`data-brand`) and
   # the home colour (`data-home`). A shell page names its own (`RouteCatalog`).
@@ -387,6 +397,7 @@ defmodule RegentsWeb.Router do
     get "/skill.md", PublicPagesController, :skill
     get "/pricing.md", PublicPagesController, :pricing
     get "/docs.md", PublicPagesController, :docs_markdown
+    get "/docs-search.json", PublicPagesController, :docs_search
 
     for %{key: key} <- RegentsWeb.Docs.Pages.all(), is_binary(key) do
       get "/docs/#{key}.md", PublicPagesController, :docs_markdown, assigns: %{docs_key: key}
@@ -1075,7 +1086,7 @@ defmodule RegentsWeb.Router do
   end
 
   scope "/api/v1/autolaunch", RegentsWeb.Autolaunch do
-    pipe_through [:api, :read_only]
+    pipe_through [:api, :read_only, :human_api]
 
     get "/me/positions", MyPositionsController, :show
     get "/me/covered-calls/:symbol", CoveredCallsController, :mine

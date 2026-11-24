@@ -81,16 +81,12 @@ defmodule Regents.Autolaunch.CoveredCalls.Sales do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"contract" => contract}}) do
-    if Regents.ProductActivity.active?(:autolaunch) do
-      with {:ok, config} <- Deployment.current(),
-           %{} = market <-
-             Enum.find(config.markets, &(&1.contract == contract)) || {:error, :unknown_market} do
-        market |> read(config.lab) |> next(market)
-      else
-        {:error, reason} -> {:cancel, reason}
-      end
+    with {:ok, config} <- Deployment.current(),
+         %{} = market <-
+           Enum.find(config.markets, &(&1.contract == contract)) || {:error, :unknown_market} do
+      market |> read(config.lab) |> next(market)
     else
-      :ok
+      {:error, reason} -> {:cancel, reason}
     end
   end
 

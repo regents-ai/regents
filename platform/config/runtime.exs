@@ -188,6 +188,7 @@ robinhood_deployment =
 robinhood_read_rpc_url = String.trim(System.get_env("ROBINHOOD_READ_RPC_URL", ""))
 
 if robinhood_read_rpc_url != "" do
+  config :regents, :robinhood_read_rpc_url, robinhood_read_rpc_url
   config :regents, :autolaunch_robinhood_rpc_url, robinhood_read_rpc_url
   Logger.info("Robinhood read endpoint host #{URI.parse(robinhood_read_rpc_url).host}")
 end
@@ -333,13 +334,24 @@ if shots = System.get_env("PATCHBAY_SHOTS_URL") do
   config :regents, :shots_url, shots
 end
 
-if market = System.get_env("PATCHBAY_OFFERS_MARKET") do
-  config :regents, Regents.Patchbay.Offers,
-    market_address: market,
-    publisher_private_key: System.get_env("PATCHBAY_OFFERS_PUBLISHER_KEY")
+case System.get_env("PATCHBAY_OFFERS_MARKET") do
+  value when value in [nil, ""] ->
+    :ok
+
+  value ->
+    market = value |> String.trim() |> String.downcase()
+
+    unless Regex.match?(~r/\A0x[0-9a-f]{40}\z/, market),
+      do: raise("PATCHBAY_OFFERS_MARKET must be an Ethereum address")
+
+    config :regents, Regents.Patchbay.Offers,
+      market_address: market,
+      publisher_private_key: System.get_env("PATCHBAY_OFFERS_PUBLISHER_KEY")
 end
 
-if broker = System.get_env("PATCHBAY_SIWA_URL") || siwa_url do
+broker = System.get_env("PATCHBAY_SIWA_URL") || siwa_url
+
+if is_binary(broker) do
   config :regents, :wallet_author, broker_url: broker
 end
 
@@ -453,9 +465,9 @@ if config_env() != :test do
     []
     |> then(&if(hub_fleets != %{}, do: Keyword.put(&1, :fleets, hub_fleets), else: &1))
     |> then(
-      &if(hub_signing_keys not in [nil, ""],
-        do: Keyword.put(&1, :signing_keys, hub_signing_keys),
-        else: &1
+      &if(hub_signing_keys in [nil, ""],
+        do: &1,
+        else: Keyword.put(&1, :signing_keys, hub_signing_keys)
       )
     )
 

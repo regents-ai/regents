@@ -1,6 +1,6 @@
 defmodule RegentsWeb.Keyfleet.FeedController do
   @moduledoc """
-  A signed agent's live feed, `GET /api/v1/feed`: one open answer of
+  A signed agent's live feed, `GET /api/v1/keyfleet/feed`: one open answer of
   server-sent events (`text/event-stream`), each a line of JSON
   (`Regents.Keyfleet.Feed`) the moment it is posted. The signature is checked once,
   as the feed opens (`RegentsWeb.Keyfleet.Plugs.SignedAgent`).
@@ -26,7 +26,7 @@ defmodule RegentsWeb.Keyfleet.FeedController do
   The feed is this request's own process waiting for messages. It holds no
   database connection while it waits: each read takes one and gives it back.
 
-  `POST /api/v1/feed/missed` (`missed/2`) reads once what a reconnect would
+  `POST /api/v1/keyfleet/feed/missed` (`missed/2`) reads once what a reconnect would
   replay, up to thirty seconds ago, for an agent that keeps no feed open: the
   answer of the `events_missed` tool (`RegentsWeb.Keyfleet.AgentTools.Fleets.Answer`).
   """
@@ -45,9 +45,7 @@ defmodule RegentsWeb.Keyfleet.FeedController do
   @doc "The registry that counts this machine's open feeds."
   def child_spec(_opts), do: Registry.child_spec(keys: :duplicate, name: @feeds)
 
-  def show(conn, _params) do
-    actor = conn.assigns.actor
-
+  def show(%{assigns: %{actor: %Agent{receipt_expires_at: %DateTime{}} = actor}} = conn, _params) do
     case admit(actor) do
       :ok ->
         start(conn, actor, Feed.open(actor), last_event_id(conn))
@@ -56,6 +54,8 @@ defmodule RegentsWeb.Keyfleet.FeedController do
         Refusal.json(conn, 503, "feed_full")
     end
   end
+
+  def show(conn, _params), do: Refusal.json(conn, 401, "unauthorized")
 
   def missed(conn, params),
     do: AgentReply.answer(conn, Answer.answer(:missed, params, conn.assigns.actor, nil))
@@ -251,5 +251,5 @@ defmodule RegentsWeb.Keyfleet.FeedController do
     end
   end
 
-  defp setting(key), do: :keyfleet |> Application.fetch_env!(__MODULE__) |> Keyword.fetch!(key)
+  defp setting(key), do: :regents |> Application.fetch_env!(__MODULE__) |> Keyword.fetch!(key)
 end

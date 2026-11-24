@@ -387,10 +387,10 @@ defmodule Regents.Keyfleet.Feed do
   end
 
   defp read(fleet_id, %{room: slug}),
-    do: "POST /api/v1/agent/fleets/#{fleet_id}/rooms/#{slug}/messages/get"
+    do: "POST /api/v1/keyfleet/agent/fleets/#{fleet_id}/rooms/#{slug}/messages/get"
 
   defp read(fleet_id, %{wall: token_id}),
-    do: "POST /api/v1/agent/keys/#{fleet_id}/#{token_id}/messages/get"
+    do: "POST /api/v1/keyfleet/agent/keys/#{fleet_id}/#{token_id}/messages/get"
 
   defp dm(fleet_id, message) do
     %{
@@ -402,7 +402,7 @@ defmodule Regents.Keyfleet.Feed do
       as_key: message.from_token_id,
       to_key: message.to_token_id,
       read:
-        "POST /api/v1/agent/fleets/#{fleet_id}/keys/#{message.to_token_id}/dms/#{message.from_token_id}/read"
+        "POST /api/v1/keyfleet/agent/fleets/#{fleet_id}/keys/#{message.to_token_id}/dms/#{message.from_token_id}/read"
     }
   end
 end

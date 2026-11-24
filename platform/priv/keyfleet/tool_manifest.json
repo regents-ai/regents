@@ -20,7 +20,12 @@
       "authentication": "public",
       "pairing_required": false,
       "availability": "available",
-      "effect": "read"
+      "effect": "read",
+      "http": {
+        "method": "GET",
+        "path": "/keyfleet/about",
+        "accept": "text/markdown"
+      }
     },
     {
       "name": "docs",
@@ -42,7 +47,12 @@
       "authentication": "public",
       "pairing_required": false,
       "availability": "available",
-      "effect": "read"
+      "effect": "read",
+      "http": {
+        "method": "GET",
+        "path": "/docs/keyfleet",
+        "accept": "text/markdown"
+      }
     },
     {
       "name": "agents_whoami",
@@ -191,6 +201,11 @@
           "release_status": "released",
           "descriptor": "cli/commands.json"
         }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/keyfleet/fleets",
+        "accept": "application/json"
       }
     },
     {
@@ -229,6 +244,11 @@
           "release_status": "released",
           "descriptor": "cli/commands.json"
         }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/keyfleet/fleets/{fleet_id}",
+        "accept": "application/json"
       }
     },
     {
@@ -790,6 +810,11 @@
           "release_status": "released",
           "descriptor": "cli/commands.json"
         }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/keyfleet/fleets/{fleet_id}/workspace/pulse",
+        "accept": "application/json"
       }
     },
     {
@@ -835,6 +860,11 @@
           "release_status": "released",
           "descriptor": "cli/commands.json"
         }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/keyfleet/fleets/{fleet_id}/proposals",
+        "accept": "application/json"
       }
     },
     {
@@ -874,6 +904,11 @@
           "release_status": "released",
           "descriptor": "cli/commands.json"
         }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/keyfleet/fleets/{fleet_id}/treasury",
+        "accept": "application/json"
       }
     },
     {

@@ -11,6 +11,8 @@ defmodule Regents.Chain.Refresh do
   between requested reads so bursts coalesce into one read.
   """
 
+  import Ecto.Query
+
   @doc "Reads the chain again soon, or at once."
   @callback refresh(chain_id :: pos_integer()) :: :ok | {:error, term()}
 
@@ -28,6 +30,32 @@ defmodule Regents.Chain.Refresh do
     readers_for(product)
     |> Enum.map(& &1.refresh(chain_id))
     |> Enum.find(:ok, &(&1 != :ok))
+  end
+
+  @doc "Queues a reading or moves an existing, later reading to the refresh time."
+  @spec soon(Ecto.Changeset.t()) :: :ok | {:error, term()}
+  def soon(changeset) do
+    case Oban.insert(changeset) do
+      {:ok, %Oban.Job{id: id, conflict?: true}} -> bring_forward(id)
+      {:ok, _job} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  rescue
+    error in [DBConnection.ConnectionError, Postgrex.Error] -> {:error, error}
+  end
+
+  defp bring_forward(id) do
+    %{repo: repo, prefix: prefix} = Oban.config()
+    soon = DateTime.add(DateTime.utc_now(), gap_s())
+
+    waiting =
+      from job in Oban.Job,
+        where:
+          job.id == ^id and job.state in ["scheduled", "retryable"] and
+            job.scheduled_at > ^soon
+
+    repo.update_all(waiting, [set: [scheduled_at: soon]], prefix: prefix)
+    :ok
   end
 
   defp readers_for(product) do

@@ -297,10 +297,21 @@ function buildSchema(spec: ToolSpec, entry?: ManifestTool): Schema {
 }
 
 function manifestPathBuilder(template: string): (input: Record<string, string>) => string {
-  return input =>
-    template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_match, key: string) =>
-      encodeURIComponent(input[key] ?? ""),
-    )
+  return input => {
+    const routeKeys = new Set<string>()
+    const path = template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_match, key: string) => {
+      routeKeys.add(key)
+      return encodeURIComponent(input[key] ?? "")
+    })
+    const query = new URLSearchParams()
+    for (const [key, value] of Object.entries(input)) {
+      if (routeKeys.has(key)) continue
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        query.set(key, String(value))
+      }
+    }
+    return query.size > 0 ? `${path}?${query}` : path
+  }
 }
 
 function extraManifestSpecs(
@@ -313,7 +324,7 @@ function extraManifestSpecs(
     if (registered.has(name)) continue
     const http = entry.http
     if (!http || http.method !== "GET" || typeof http.path !== "string") continue
-    if (!http.path.startsWith("/")) continue
+    if (!http.path.startsWith("/") || http.path.startsWith("//")) continue
     if (entry.requires && entry.requires !== "none") continue
     if (entry.authentication && entry.authentication !== "public") continue
     const toolName = name.startsWith(`${product}_`) ? name : `${product}_${name}`
@@ -352,7 +363,10 @@ async function runSpec(spec: ToolSpec, rawInput: unknown, signal: AbortSignal): 
       cache: "no-store",
       signal,
     })
-    const body = accept === "text/markdown" ? await response.text() : await response.json()
+    const contentType = response.headers.get("content-type") ?? ""
+    const body = /(?:\/|\+)json(?:;|$)/i.test(contentType)
+      ? await response.json()
+      : await response.text()
     return {ok: response.ok, status: response.status, body}
   } catch {
     return {

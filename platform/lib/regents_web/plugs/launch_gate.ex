@@ -14,7 +14,7 @@ defmodule RegentsWeb.Plugs.LaunchGate do
   alias RegentsWeb.{ContentSecurityPolicy, HoldingController}
 
   # A closed answer carries the same browser headers as the open page it stands in for.
-  @browser_headers %{"content-security-policy" => ContentSecurityPolicy.sign_in()}
+  defp browser_headers, do: %{"content-security-policy" => ContentSecurityPolicy.sign_in()}
 
   @doc "True while the product surfaces are open."
   def app_surfaces_enabled?, do: Application.fetch_env!(:regents, :app_surfaces)
@@ -80,7 +80,7 @@ defmodule RegentsWeb.Plugs.LaunchGate do
 
   defp closed(conn, "json") do
     conn
-    |> put_secure_browser_headers(@browser_headers)
+    |> put_secure_browser_headers(browser_headers())
     |> unavailable()
     |> json(%{
       error: %{
@@ -94,7 +94,7 @@ defmodule RegentsWeb.Plugs.LaunchGate do
   defp closed(conn, "html"),
     do:
       conn
-      |> put_secure_browser_headers(@browser_headers)
+      |> put_secure_browser_headers(browser_headers())
       |> unavailable()
       |> HoldingController.call(:show)
 
@@ -102,7 +102,7 @@ defmodule RegentsWeb.Plugs.LaunchGate do
   defp closed(conn, "md"),
     do:
       conn
-      |> put_secure_browser_headers(@browser_headers)
+      |> put_secure_browser_headers(browser_headers())
       |> unavailable()
       |> put_resp_content_type("text/markdown")
       |> send_resp(

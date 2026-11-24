@@ -9,6 +9,7 @@ defmodule RegentsWeb.ProductCapabilitiesController do
   use RegentsWeb, :controller
 
   alias Regents.SiteTools
+  alias RegentsWeb.PublicResponse
 
   def show(conn, _params) do
     product = conn.private.product
@@ -50,20 +51,8 @@ defmodule RegentsWeb.ProductCapabilitiesController do
   end
 
   defp send_cached_json(conn, body) do
-    etag = ~s("#{Base.encode16(:crypto.hash(:sha256, body), case: :lower)}")
-
-    conn =
-      conn
-      |> put_resp_header("access-control-allow-origin", "*")
-      |> put_resp_header("cache-control", "public, max-age=300")
-      |> put_resp_header("etag", etag)
-
-    if etag in get_req_header(conn, "if-none-match") do
-      send_resp(conn, 304, "")
-    else
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(200, body)
-    end
+    conn
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> PublicResponse.send_cached("application/json", body, nil)
   end
 end

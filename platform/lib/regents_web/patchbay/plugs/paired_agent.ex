@@ -8,7 +8,8 @@ defmodule RegentsWeb.Patchbay.Plugs.PairedAgent do
   alias Regents.Patchbay.Agents.Actor
   alias Regents.Patchbay.Members
   alias Regents.Patchbay.Members.Member
-  alias RegentsWeb.Patchbay.{ApiError, Plugs.WalletAuthor, SiteEdition}
+  alias RegentsWeb.Account.PairedAgent, as: SharedPairing
+  alias RegentsWeb.Patchbay.{ApiError, CurrentProfile, Plugs.WalletAuthor, SiteEdition}
 
   @unsigned_hint "The request's signature headers are missing, too old or malformed. Get the newest client " <>
                    "with `curl -fsSO https://siwa.regents.sh/agent/siwa_agent.py`, or if you use regents-cli, " <>
@@ -82,30 +83,25 @@ defmodule RegentsWeb.Patchbay.Plugs.PairedAgent do
   def attach_verified_wallet(conn, address) do
     with true <- Regex.match?(~r/\A0x[0-9a-f]{40}\z/, address),
          {:ok, pairing} <- RegentAgents.Authority.resolve(Regents.Repo, address),
-         {:ok, %{} = beneficiary} <- local_profile(pairing.privy_user_id),
-         true <- Member.may_act?(beneficiary),
          {:ok, %{} = account} <- local_account(pairing.privy_user_id),
+         %Member{} = beneficiary <- CurrentProfile.member_for_account(account),
+         true <- Member.may_act?(beneficiary),
          {:ok, profile} <-
            Members.upsert_from_wallet(%{wallet_address: address}, upsert_fields: []),
          true <- Member.may_act?(profile) do
       actor = Actor.new(profile, beneficiary, account, pairing)
+
       # A stable agent identity preserves request keys across MCP reconnects and CLI calls.
       {:ok,
        conn
        |> assign(:agent_actor, actor)
        |> assign(:current_profile, actor)
-       |> assign(:forum_session_id, pairing.id)}
+       |> assign(:forum_session_id, pairing.id)
+       |> SharedPairing.recheck_before_response(address, pairing.id, pairing.privy_user_id)}
     else
       {:error, :not_paired} -> refused(:agent_not_paired)
       {:error, :person_not_here} -> refused(:person_not_here)
       _ -> refused(:agent_unavailable)
-    end
-  end
-
-  defp local_profile(did) do
-    case Members.get_profile_by_privy_user_id(did) do
-      {:ok, nil} -> {:error, :person_not_here}
-      answer -> answer
     end
   end
 

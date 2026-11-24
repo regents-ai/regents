@@ -88,7 +88,7 @@ defmodule RegentsWeb.Techtree.Plugs.PageMarkdown do
 
   defp markdown(:results, conn) do
     case Query.read_page_options(conn.query_params) do
-      {:ok, options} -> results(Query.page(options))
+      {:ok, options} -> results(Query.page(options), options)
       {:error, reason} -> raise Plug.BadRequestError, message: reason
     end
   end
@@ -125,7 +125,7 @@ defmodule RegentsWeb.Techtree.Plugs.PageMarkdown do
     |> String.replace("{{mailto}}", FormalLive.mailto())
   end
 
-  defp results(%{entries: entries, next_before_sequence: next}) do
+  defp results(%{entries: entries, next_before_sequence: next}, options) do
     rows =
       case entries do
         [] -> "No Results are published here yet."
@@ -134,7 +134,7 @@ defmodule RegentsWeb.Techtree.Plugs.PageMarkdown do
 
     more =
       if next,
-        do: "\n\n[Older Results](/techtree/results?before_sequence=#{next})",
+        do: "\n\n[Older Results](#{results_url(options, next)})",
         else: ""
 
     comparisons = Enum.map_join(Comparisons.list(), "\n", &comparison_row/1)
@@ -163,6 +163,12 @@ defmodule RegentsWeb.Techtree.Plugs.PageMarkdown do
     "- [#{comparison.skill.name}](/techtree/train/#{comparison.slug}): " <>
       "Original #{TrainCopy.figure(comparison.final.original)} → " <>
       "Revised #{TrainCopy.figure(comparison.final.improved)} · #{TrainCopy.verdict_name(comparison)}"
+  end
+
+  defp results_url(options, next) do
+    options
+    |> Keyword.put(:before_sequence, next)
+    |> Regents.Techtree.Network.AgentVersions.url()
   end
 
   defp result_row(entry) do
