@@ -129,8 +129,8 @@ defmodule RegentsWeb.Autolaunch.ShareCard do
     }
   end
 
-  defp page_path(:covered_calls), do: "/stock/covered-call"
-  defp page_path(:exposure), do: "/stock/isolated-afters"
+  defp page_path(:covered_calls), do: "/autolaunch/stock/covered-call"
+  defp page_path(:exposure), do: "/autolaunch/stock/isolated-afters"
 
   defp page_url(:covered_calls, _symbol), do: url(~p"/autolaunch/stock/covered-call")
 

@@ -70,7 +70,7 @@ defmodule RegentsWeb.Autolaunch.ShareVideo.MarketStory do
       {:ok,
        %{
          kind: :covered_calls,
-         title: title("/stock/covered-call"),
+         title: title("/autolaunch/stock/covered-call"),
          badge: open_badge(book.listings_total),
          symbol: market.symbol,
          ticker: Assets.ticker(market.symbol),
@@ -96,7 +96,7 @@ defmodule RegentsWeb.Autolaunch.ShareVideo.MarketStory do
       {:ok,
        %{
          kind: :exposure,
-         title: title("/stock/isolated-afters"),
+         title: title("/autolaunch/stock/isolated-afters"),
          badge: status_badge(series.status),
          symbol: series.stock.symbol,
          ticker: Assets.ticker(series.stock.symbol),
