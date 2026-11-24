@@ -90,7 +90,8 @@ defmodule RegentsWeb.HomeLive do
         Map.put(tool, :index, String.pad_leading(Integer.to_string(idx), 2, "0"))
       end)
 
-    {primary_products, secondary_products} = Enum.split(RegentOpsLive.products(), 4)
+    {cloak, others} = Enum.split_with(RegentOpsLive.products(), &(&1.name == "Cloak"))
+    {primary_products, secondary_products} = Enum.split(cloak ++ others, 4)
 
     {:ok,
      socket

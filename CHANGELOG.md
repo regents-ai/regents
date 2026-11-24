@@ -8575,3 +8575,9 @@ seasons), on the shared Points library regents.sh was already on.
   - Row 1 (`#home-products`, 4-up desktop): full square animated `vgpu` `ValueCards` for Techtree (`compare`), Keyfleet (`fleet`), Autolaunch (`level`), and Patchbay (`blob`).
   - Row 2 (`#home-ecosystem`, 3-up desktop): replaced the three static `.quiet-cards` (Protocol, SIWA, Cloak) with animated `vgpu` `ValueCards` (`prorata`, `siwa/pair`, `cloak/rewrite`) in a `2:1` centered-square horizontal strip matching `patchbay.help`'s compact card row.
 - Added unlayered `:root[data-marketing]` link/margin compatibility rules in `platform/assets/css/marketing/marketing.css` so `components/value_cards.css` (`@layer regents-product`) renders cleanly on `/`, and removed the interim custom `.card--product` rules.
+
+
+## 2026-11-24 — Put Cloak top-left in home Products and switch Patchbay card panel to patchbay/ask (not released)
+
+- Moved **Cloak** (`cloak/rewrite`) to the top-left slot (`01 / 04`) of `#home-products` in `RegentsWeb.HomeLive` (`platform/lib/regents_web/live/home_live.ex`), ordering Row 1 as Cloak, Techtree, Keyfleet, Autolaunch and Row 2 (`#home-ecosystem`) as Patchbay, Protocol, SIWA.
+- Replaced Patchbay's `ValueCard` panel id `"blob"` with `"patchbay/ask"` (cobalt `+` beacon rings) in `RegentsWeb.RegentOpsLive` (`platform/lib/regents_web/live/regent_ops_live.ex`), updating both `/` and `/app`.

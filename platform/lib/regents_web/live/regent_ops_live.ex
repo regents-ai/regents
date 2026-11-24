@@ -34,7 +34,7 @@ defmodule RegentsWeb.RegentOpsLive do
       action: "Open Autolaunch"
     },
     %{
-      id: "blob",
+      id: "patchbay/ask",
       name: "Patchbay",
       headline: "Find the fix that worked.",
       line: "Paste an error or search, and read known fixes with no sign-in.",
