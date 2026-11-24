@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* Browsing and trading: home, auction gallery, tokens, convert and REGENT. */
 .launchpad-card__socials { display: flex; flex-wrap: wrap; gap: var(--space-1); font-size: .8125rem; }
 .launchpad-card__socials { padding: var(--space-2); border-bottom: 1px solid var(--hairline); }

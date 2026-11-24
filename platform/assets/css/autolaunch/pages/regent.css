@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* REGENT page: the supply figures, the links, and how much of the circulating supply is staked. */
 .regent-status { margin: 0; color: var(--color-fg-muted); }
 .regent-links, .regent-token-links { display: flex; flex-wrap: wrap; align-items: start; gap: var(--space-2); }

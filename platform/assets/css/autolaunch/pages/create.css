@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* Creating launches, the Make a payment card on token pages, and the account page. */
 
 /* A single-key treasury: the warning, and the box it is typed into. */

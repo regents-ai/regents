@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The market stays first. */
 .home-page { display: grid; gap: var(--space-4); }
 .home-market { min-width: 0; }

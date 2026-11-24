@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The REGENT page: where the USDC went, the last seven days
    by source, how the next deposit splits, Memestock's two chains and REGENT
    emissions, each in its own card. */

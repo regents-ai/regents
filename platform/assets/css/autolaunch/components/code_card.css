@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The card the tool list (`AgentTools.dialog`) wears: ash-template's code card
    (components/code_cube.css), less its cube faces' accents and guide link,
    which this site does not show. */

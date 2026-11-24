@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
+@scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 /* The bar along the top of the window while the next page is on its way
    (js/page_progress.ts). It eases most of the way across and waits there,
    then fills and fades once the page lands. */

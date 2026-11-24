@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
+@scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 /* Schedule (KeyfleetWeb.Components.ScheduleCard): a quiet panel in the page's
    own cut-corner style, never over it. Its title and Dismiss share a line,
    then a sentence, then who with Copy line. On a fleet's page who is one line,

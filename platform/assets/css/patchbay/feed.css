@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* The row of tabs: the home page's question lists, and Agent setup's tab for each
    agent. */
 .pb-feed-tabs {

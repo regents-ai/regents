@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* Create a Memestock token: what only the Memestock form has. */
 .memestock { --memestock-base: var(--chain-base); --memestock-robinhood: var(--chain-robinhood); }
 

@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* Fact pages (How Autolaunch works): plain tables, a few orange figures, then a "Show details" list. */
 .fact-page { display: grid; gap: var(--space-4); max-width: 1040px; min-width: 0; }
 .fact-page__title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }

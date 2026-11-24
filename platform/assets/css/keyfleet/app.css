@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
+@scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 :scope {
   color-scheme: light dark;
   --radius-sm: 0px;

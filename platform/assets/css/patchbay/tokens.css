@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* patchbay.help's own main button, links, focus ring and chosen tab: the patchbay
    palette's, as Regent UI 69dbfface (which patchbay.help at da7b217b wears, with no
    product named) states them. Regent UI's product colours (`data-product`) draw a

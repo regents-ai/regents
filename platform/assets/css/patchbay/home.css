@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* The front page: the posts, and beside them a sheet saying what Patchbay is
    and how to connect, then one with the board's figures. On a narrow page the
    title, Ask and the posts come first, so a phone's first screen reaches a

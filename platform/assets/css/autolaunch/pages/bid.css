@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* One bid's own page: the account screen's three panels, one under the other. */
 .bid-page { display: grid; gap: var(--space-3); max-inline-size: 48rem; }
 .bid-page__back { justify-self: start; color: var(--color-fg-muted); font-size: .875rem; }

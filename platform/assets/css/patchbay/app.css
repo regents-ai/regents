@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* patchbay.help's own rules from its app.css that these pages use: the page, the
    sheet under the site's bar, who wrote a post, each page's heading row, the
    written pages, the setup pages, the busy page and the footer. Its masthead is

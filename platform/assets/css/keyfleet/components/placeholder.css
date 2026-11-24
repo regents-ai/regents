@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
+@scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 /* Grey bars standing in for figures still on their way. */
 .kf-placeholder {
   display: grid;

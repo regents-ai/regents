@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The search window: the search field across the top, what to show on the
    left, results on the right. On a phone the choices run across under the field. */
 .search-dialog { width: min(52rem, calc(100% - 2rem)); max-height: min(40rem, calc(100dvh - 4rem)); margin: 8vh auto auto; padding: 0; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface); color: var(--color-fg); overflow: hidden; }

@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* An agent's troubleshooting page: its links, first steps, list of problems,
    each problem and the closing ask. */
 .pb-trouble {

@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* One ended bid's settlement: where it stands, its figures in ruled rows, then its one action and, once reviewed, its steps. */
 .bid-settlement { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); min-width: 0; }
 .bid-settlement + .bid-settlement { padding-top: var(--space-3); border-top: 1px solid var(--hairline-strong); }

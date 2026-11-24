@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
+@scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 /* The app fills the screen edge to edge: the menu stands against the screen's
    left edge and the page runs to its right edge. */
 #app-shell {

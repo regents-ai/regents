@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* /sites: one heading, the most popular sites, then every site. */
 .pb-sites-page { padding-top: var(--space-3); }
 .pb-sites-head { margin-bottom: var(--space-3); }

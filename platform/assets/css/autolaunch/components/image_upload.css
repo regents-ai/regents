@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The token image: one square box that is the file button, and takes a dropped file too. */
 .image-upload { display: grid; gap: var(--space-1); min-width: 0; align-content: start; }
 .image-upload__label { color: var(--color-fg-muted); font-size: .8125rem; }

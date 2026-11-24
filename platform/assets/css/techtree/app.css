@@ -1,4 +1,4 @@
-@scope (:root[data-brand="techtree"]) {
+@scope (:root[data-brand="techtree"]:not([data-marketing])) {
 /* Palette, type, cut skins and interaction sweeps come from Regent UI.
    Product CSS composes the home page (techtree_home.css) and the ruled document. */
 *, *::before, *::after { box-sizing: border-box; }

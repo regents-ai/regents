@@ -754,9 +754,15 @@
     }
   }
   @media (hover: hover) and (pointer: fine) {
+    .card:hover {
+      color: var(--id-mark);
+      text-decoration: none;
+    }
     .quiet-card:hover,
     .plate:hover {
       background: var(--hover-ground);
+      color: var(--color-fg);
+      text-decoration: none;
     }
     .window__close:hover {
       background: var(--hover-ground);

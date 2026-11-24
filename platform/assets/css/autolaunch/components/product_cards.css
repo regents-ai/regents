@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The product cards, each one link (`HomeProducts`): the home page's front
    door, and the stock products on /stocks. A card is dark in both themes, like
    an instrument: a tall panel of small coloured glyphs that move (`HomeCells`),

@@ -1,4 +1,4 @@
-@scope (:root[data-brand="techtree"]) {
+@scope (:root[data-brand="techtree"]:not([data-marketing])) {
 /* Train: one comparison. The Skill and its links, the task, the original and
    improved Skill's attempts solved as two bars, the method, every case, the
    tools and the report. Figures are equal-width digits in the body ink; only

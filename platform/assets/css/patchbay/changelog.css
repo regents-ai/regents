@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* The changelog: its heading, each release and the page links. */
 .pb-changelog {
   font-family: var(--font-family-paragraph);

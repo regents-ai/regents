@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* The evidence panel on a tool page: one row per level, a level the records
    hold marked with a filled square, one they do not with an empty one. */
 .pb-evidence-levels { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--pb-line); }

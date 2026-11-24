@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* patchbay.help's standard motion that these pages show: a tab that is not the
    chosen one draws its line in from the left under a mouse, a copy button's
    words swap with a short rise, and a post that arrives in a live list glows

@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The rail: quiet square rows, as the template's rail has them (ash-template
    shell.css, `.shell-rail__section`): muted words that take the full ink under a
    mouse and on the page you are on, which also has a raised fill and the brand's

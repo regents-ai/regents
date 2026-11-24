@@ -1,4 +1,4 @@
-@scope (:root[data-brand="techtree"]) {
+@scope (:root[data-brand="techtree"]:not([data-marketing])) {
 /* The account control at the right end of the site's bar is the site's own
    (`components/shell.css`), so it keeps its size and place on every product. Only
    the template's account-control border token is Techtree's, mixed from its ink. */

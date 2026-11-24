@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
+@scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 /* An agent's check-in light before when it was last seen: green on time,
    amber late or not yet on a schedule, red paused or never seen */
 

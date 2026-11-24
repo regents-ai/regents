@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* /stock/isolated-afters, the portfolio's Isolated Exposure to After-hours Stocks and the wallet panel. Built as its own
    stylesheet outside the public files (config :esbuild, exposure), and served and linked only while
    Exposure is on. */

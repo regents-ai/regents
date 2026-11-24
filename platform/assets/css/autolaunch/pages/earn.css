@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* /earn, the portfolio's Earn section and the Earn wallet panel. Built as its own stylesheet outside
    the public files (config :esbuild, earn), and served and linked only while Earn is on. */
 .earn { display: grid; gap: var(--space-5, 2rem); width: min(100%, 64rem); min-width: 0; margin-inline: auto; }

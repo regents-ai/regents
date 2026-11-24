@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
+@scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 /* A proposal's vote at a glance: a bar split by Keys, and the counts. */
 .vote-tally {
   display: grid;

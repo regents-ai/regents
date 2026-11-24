@@ -8621,3 +8621,11 @@ seasons), on the shared Points library regents.sh was already on.
 - Wired Patchbay `:escrow` (`ESCROW_CONTRACT_ADDRESS`, `OPERATOR_PRIVATE_KEY`, `BASE_RPC_URL`) and `:assist` (`STAKING_CONTRACT_ADDRESS`) runtime configuration in `platform/config/runtime.exs` so `regents-sh-web` owns all Patchbay escrow and assist fee-forwarding crons cleanly once `REGENTS_FOLDED_CRONS=on`.
 - Fixed `RegentsWeb.Autolaunch.Components.MarketCard.money/3` (`platform/lib/regents_web/autolaunch/components/market_card.ex`) to treat `%Ash.NotLoaded{}` as `nil` (fixing `FunctionClauseError` on `/autolaunch/app` where `HomeMarket.auctions/2` intentionally omits `:fdv`).
 - Added lightweight, method-preserving (`301` GET/HEAD, `308` non-GET) Caddy redirector configs (`platform/redirects/`) for retiring standalone `techtree-sh`, `autolaunch-sh`, and `patchbay-regents` Fly web apps onto `https://regents.sh/<app>` while preserving all deep paths, query strings, `/account`, and `/api/v1/<app>` routes.
+
+
+
+## 2026-11-24 — Isolate product app stylesheets from marketing pages (fix Techtree Environments dark hover)
+
+- Added `:not([data-marketing])` to the root `@scope` guards across all four folded product stylesheet trees (`platform/assets/css/techtree/`, `autolaunch/`, `keyfleet/`, and `patchbay/`) so product app base link, typography, and focus rules no longer leak onto `/techtree`, `/autolaunch`, `/keyfleet`, or `/patchbay` marketing pages.
+  - Fixes `platform/assets/css/techtree/app.css`'s `a:hover` / `a:not(.rg-button):hover` (`--color-link: #0F1B14` in light mode) overriding the dark `Environments` (`#142019`) and `Evals` (`#1E6B45`) service cards on `https://regents.sh/techtree` on hover (turning text near-black and underlined), and prevents `techtree/app.css` heading/spacing rules and `autolaunch/base.css` link hover underlines from leaking onto marketing cards and buttons.
+- Added explicit hover color and `text-decoration: none` rules for `.card`, `.quiet-card`, `.plate`, and `.btn` in `platform/assets/css/marketing/marketing.css` and `platform/assets/css/marketing/base.css` as defense-in-depth.

@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* "Share on X": the button and the window it opens over a dimmed page
    (`AutolaunchWeb.Components.ShareDialog`). */
 .share-x { display: grid; justify-items: start; min-width: 0; }

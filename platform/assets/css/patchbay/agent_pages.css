@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* The agent pages (/dots, /muse, /grokbot, /hermes, /claude): one page in the
    site's own look, in either theme. Only the crowd of figures takes each
    agent's colours. */

@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The site's bar is 4rem tall, 3.5rem at 48rem and below (Regent.Site.bar), and on a
    phone Menu has a 2.75rem strip of its own under it. The phone menu and its
    backdrop open under both (`--shell-top-end`). */

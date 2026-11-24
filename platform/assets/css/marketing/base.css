@@ -167,7 +167,13 @@
     z-index: -1;
     pointer-events: none;
   }
+  .btn:hover {
+    text-decoration: none;
+  }
   .btn--primary {
+    color: var(--btn-on);
+  }
+  .btn--primary:hover {
     color: var(--btn-on);
   }
   .btn--primary::before {
@@ -182,6 +188,9 @@
     );
   }
   .btn--secondary {
+    color: var(--color-fg);
+  }
+  .btn--secondary:hover {
     color: var(--color-fg);
   }
   .btn--secondary::before {

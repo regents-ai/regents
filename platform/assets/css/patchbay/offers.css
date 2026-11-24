@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* /offers: the placements and their slots, the Buy panel under a chosen slot,
    the person's campaigns with the form for a new one, and refunds. */
 

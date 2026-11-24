@@ -1,4 +1,4 @@
-@scope (:root[data-brand="techtree"]) {
+@scope (:root[data-brand="techtree"]:not([data-marketing])) {
 /* The home page (`RegentsWeb.Techtree.HomeLive`), inside the shared Regent frame.
 
    Sections run the frame's full width, ruled above, with the frame's plus marks

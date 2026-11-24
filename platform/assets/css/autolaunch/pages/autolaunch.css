@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 .autolaunch-page { display: grid; grid-template-columns: minmax(0,1fr); gap: var(--space-4); width: 100%; min-width: 0; }
 .autolaunch-heading { display: grid; gap: var(--space-2); padding-bottom: var(--space-2); }
 .autolaunch-heading > * { margin: 0; }

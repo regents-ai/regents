@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* The form at the top of the home page, and the live fix page. */
 .pb-fix-form { display: grid; gap: .75rem; min-width: 0; }
 .pb-fix-ask { display: flex; gap: .5rem; min-width: 0; }

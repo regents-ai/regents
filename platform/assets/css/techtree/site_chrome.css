@@ -1,4 +1,4 @@
-@scope (:root[data-brand="techtree"]) {
+@scope (:root[data-brand="techtree"]:not([data-marketing])) {
 /* Techtree's row under the site's bar with its Services panel, the frame and the footer
    on every page (`RegentsWeb.Techtree.Layouts`). The site's bar draws itself and carries
    no Techtree links. */

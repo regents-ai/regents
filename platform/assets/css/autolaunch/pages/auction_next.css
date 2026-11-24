@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The auction page: stage rail, facts, figures, the
    recorded prices over the schedule, the price ladder and bid receipts. */
 

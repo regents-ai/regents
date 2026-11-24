@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
+@scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 /* The person's wallets, on the Account page: what each one is
    over its address, with the active one marked beside the address, so the mark
    coming and going never moves the rows below. */

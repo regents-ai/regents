@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* The board's workbench: the home page's column, its chips, search lines, page
    links and the notes a list shows when it could not be read; a post's thread,
    its fix card, its replies and its evidence; Agent setup's heading, its

@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* The incidents (/incidents): the critical CVEs, then the briefings. Each
    incident's own page is its discussion, drawn as any thread is. */
 .pb-incident {

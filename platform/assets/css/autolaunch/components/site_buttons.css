@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The site's main buttons with the template's motion, as its motion-lab study has
    Autolaunch's (ash-template design-motion b3b913e, "Create the launch", With
    motion): a light behind them (`SiteLight`), a fine edge light on hover under a

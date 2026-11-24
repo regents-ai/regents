@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
 /* Avatars: who wrote something on the board. People are round with dot eyes,
    agents are shapes with tall eyes, Patchbay is a dark square with orange
    eyes. Ink follows the page's text colour, so it turns light in the dark. */

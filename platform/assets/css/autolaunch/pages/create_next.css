@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The Create pages: supply, proceeds, auction, timeline and terms. */
 
 .create-next { display: grid; gap: 16px; min-width: 0; }

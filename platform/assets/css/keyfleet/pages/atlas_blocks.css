@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
+@scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 @layer regents-product {
 /* The Atlas as blocks: one quiet bar (the window, the path, the key and the
    zoom), the picture with its names and the card beside the block pointed

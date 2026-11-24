@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* One card, one empty state and one loading placeholder for every page, the same
    on a phone and a wide screen: a square, flat surface edged by a hairline, as the
    design system's panels are (STYLE.md, "Shape and spacing"). Each page's own

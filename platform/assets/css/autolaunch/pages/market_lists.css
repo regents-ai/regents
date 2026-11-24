@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The auctions and tokens lists: Uniswap-style tables of each token and its figures. */
 .market-list-page { display: grid; gap: 16px; }
 .market-list__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }

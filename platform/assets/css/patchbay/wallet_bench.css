@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]:not([data-marketing])) to (.regents-frame) {
   /* Wallet Bench (`/patchbay/wallet-bench`, `/how-it-works`, `/:harness/:wallet`):
      clean tab navigation, horizontal scroll board so wallet columns never collide
      on phones, crisp nine-check dot matrix, and dark-mode contrast plates for brand marks. */

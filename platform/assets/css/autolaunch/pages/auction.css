@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* Auction pages and the bid form, wherever it appears. */
 
 .bid-settlement-row { display: grid; grid-template-columns: minmax(0,1fr); gap: var(--space-2); min-width: 0; margin-top: var(--space-2); }

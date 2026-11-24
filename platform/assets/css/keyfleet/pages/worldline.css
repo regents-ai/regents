@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
+@scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 @layer regents-product {
 /* A fleet's Worldline: one hairline panel with the picture across its full
    width, or the same events as lines that open the page each happened on. */

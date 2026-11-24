@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
+@scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 /* Homepage-only composition: the hero, with Classic #1's figures and "Buy
    Key". The legal pages share the .rl-root colours and spacing. */
 @layer regents-product {

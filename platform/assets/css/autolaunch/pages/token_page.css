@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]:not([data-marketing])) to (.regents-frame) {
 /* The token page, in the manner of a trading site: the heading across the
    top; then the price and the market figures, with the revenue, the creator
    and the contracts under them. One column on every screen, no wider than
