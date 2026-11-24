@@ -18,7 +18,7 @@ export const Docs = {
     const {signal} = this.controller
     installSearch(this.el, signal)
     this.observer = installSpy(this.el)
-    installMarkdown(this.el, signal)
+    installAskMenu(this.el, signal)
     installMenu(this.el, signal)
   },
 
@@ -206,24 +206,46 @@ function above(headings: HTMLElement[], band: number): HTMLElement | undefined {
   return headings.filter(heading => heading.getBoundingClientRect().top < band).at(-1)
 }
 
-// The page's Markdown, the same text Copy for LLM copies, in a new tab.
-function installMarkdown(root: HTMLElement, signal: AbortSignal) {
-  const button = root.querySelector<HTMLButtonElement>("[data-docs-markdown]")
-  const copy = root.querySelector<HTMLButtonElement>("#docs-copy")
-  if (!button || !copy) return
+// Keeps Ask AI's aria-expanded state in sync and positions the popover under its
+// trigger in browsers without CSS Anchor Positioning.
+function installAskMenu(root: HTMLElement, signal: AbortSignal) {
+  const trigger = root.querySelector<HTMLButtonElement>("#docs-ask-trigger")
+  const menu = root.querySelector<HTMLElement>("#docs-ask-menu")
+  if (!trigger || !menu) return
 
-  button.addEventListener("click", () => {
-    const blob = new Blob([copy.dataset.copyText ?? ""], {type: "text/plain;charset=utf-8"})
-    const url = URL.createObjectURL(blob)
-    window.open(url, "_blank", "noopener")
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  const anchored = typeof CSS !== "undefined" && CSS.supports("position-anchor: --docs-ask")
+  const place = () => {
+    if (anchored) return
+    const box = trigger.getBoundingClientRect()
+    menu.style.top = `${Math.round(box.bottom + 8)}px`
+    menu.style.right = `${Math.max(8, Math.round(window.innerWidth - box.right))}px`
+    menu.style.left = "auto"
+    menu.style.bottom = "auto"
+  }
+
+  menu.addEventListener("beforetoggle", event => {
+    const open = (event as ToggleEvent).newState === "open"
+    trigger.setAttribute("aria-expanded", String(open))
+    if (open) place()
+  }, {signal})
+
+  menu.addEventListener("click", event => {
+    if (event.target instanceof Element && event.target.closest("a") && menu.matches(":popover-open")) {
+      menu.hidePopover()
+    }
   }, {signal})
 }
 
 // On a phone the sidebar is a panel; choosing a page or heading closes it.
 function installMenu(root: HTMLElement, signal: AbortSignal) {
   const nav = root.querySelector<HTMLElement>("#docs-nav")
+  const trigger = root.querySelector<HTMLButtonElement>("#docs-menu-trigger")
   if (!nav) return
+
+  nav.addEventListener("beforetoggle", event => {
+    const open = (event as ToggleEvent).newState === "open"
+    trigger?.setAttribute("aria-expanded", String(open))
+  }, {signal})
 
   nav.addEventListener("click", event => {
     if (event.target instanceof Element && event.target.closest("a") && nav.matches(":popover-open")) nav.hidePopover()

@@ -19,7 +19,7 @@
   --theme-switch-travel: var(--space-3);
   --theme-switch-press: var(--space-5);
   --theme-switch-gutter: var(--space-1);
-  --theme-switch-spill: var(--space-1);
+  --theme-switch-spill: 0.25rem;
   /* The beam: Tangerine by day and Powder Blue at night, unless the brand sets
      its own (Techtree), as the design system's theme beam does. */
   --theme-switch-day: var(--rg-theme-laser-light, var(--palette-tangerine-tango));

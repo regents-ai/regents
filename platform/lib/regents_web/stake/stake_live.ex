@@ -56,7 +56,7 @@ defmodule RegentsWeb.Stake.StakeLive do
             Stake REGENT to get a slice of all revenue from any Regents Labs product.
           </p>
           <p class="stake-yield-badge">Early adopter 20% APY</p>
-          <div class="stake-token-links">
+          <div class="stake-token-links" data-tour-clear>
             <a
               class="rg-button stake-buy"
               href={TokenLinks.buy()}
@@ -366,8 +366,18 @@ defmodule RegentsWeb.Stake.StakeLive do
       <h2 id="staking-how-heading">Payouts</h2>
       <ol>
         <li id="staking-how-split">
-          Each USDC payment is split as it arrives. You earn the payment × your staked REGENT ÷
-          <.read staking={@staking} key={:revenue_share_denominator} loading={@loading} />.
+          <%= cond do %>
+            <% @loading and is_nil(@staking) -> %>
+              Each USDC payment is split as it arrives. You earn the payment × your staked REGENT ÷
+              <Loading.skeleton kind="line" />.
+            <% is_map(@staking) and is_binary(@staking.revenue_share_denominator) -> %>
+              Each USDC payment is split as it arrives. You earn the payment × your staked REGENT ÷ {TokenDisplay.compact(
+                @staking.revenue_share_denominator
+              )}.
+            <% true -> %>
+              Each USDC payment is split as it arrives in proportion to your share of total REGENT
+              supply (live Base denominator unavailable right now).
+          <% end %>
         </li>
         <li>The business keeps the share of REGENT that isn't staked.</li>
         <li>
@@ -376,38 +386,25 @@ defmodule RegentsWeb.Stake.StakeLive do
         </li>
         <li id="staking-how-claim">Claim USDC at any time. There is no lock-up.</li>
         <li>
-          REGENT rewards come from a reward pool,
-          <.read staking={@staking} key={:reward_inventory} loading={@loading} /> today. The
-          Regent Safe (<.signers staking={@staking} loading={@loading} />) sets the rate.
+          <%= cond do %>
+            <% @loading and is_nil(@staking) -> %>
+              REGENT rewards come from a reward pool, <Loading.skeleton kind="line" /> today. The
+              Regent Safe (<Loading.skeleton kind="line" />) sets the rate.
+            <% is_map(@staking) and is_binary(@staking.reward_inventory) and
+                 is_integer(@staking.treasury_threshold) and
+                 is_integer(@staking.treasury_signer_count) -> %>
+              REGENT rewards come from a reward pool, {TokenDisplay.compact(@staking.reward_inventory)} today. The Regent Safe
+              ({@staking.treasury_threshold} of {@staking.treasury_signer_count} signers) sets the
+              rate.
+            <% true -> %>
+              REGENT rewards come from the staking reward pool, with the rate set by the Regent
+              Safe multisig (live Base figures unavailable right now).
+          <% end %>
         </li>
       </ol>
     </section>
     """
   end
-
-  attr :staking, :map, default: nil
-  attr :key, :atom, required: true
-  attr :loading, :boolean, required: true
-
-  # A figure inside a sentence is written in words alone, such as 100 billion, so
-  # the sentence's own punctuation sits right after it.
-  defp read(%{staking: nil} = assigns), do: ~H"<.unread loading={@loading} />"
-
-  defp read(%{staking: staking, key: key} = assigns)
-       when is_binary(:erlang.map_get(key, staking)),
-       do: ~H"{TokenDisplay.compact(Map.fetch!(@staking, @key))}"
-
-  defp read(assigns), do: ~H"<TokenDisplay.amount amount={:unavailable} />"
-
-  attr :staking, :map, default: nil
-  attr :loading, :boolean, required: true
-
-  defp signers(%{staking: %{treasury_threshold: needed, treasury_signer_count: of}} = assigns)
-       when is_integer(needed) and is_integer(of),
-       do: ~H"{@staking.treasury_threshold} of {@staking.treasury_signer_count} signers"
-
-  defp signers(%{staking: nil} = assigns), do: ~H"<.unread loading={@loading} />"
-  defp signers(assigns), do: ~H"<TokenDisplay.amount amount={:unavailable} />"
 
   attr :loading, :boolean, required: true
   attr :kind, :string, default: "line"

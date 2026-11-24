@@ -181,7 +181,7 @@ export const LabBlocks = {
        * first end, and the names follow.
        */
       scope.add("enter", () => {
-        const shows = root.querySelector(`.lab-blocks__art [data-layout="${layout()}"]`)!
+        const shows = root.querySelector(`.lab-blocks__nodes[data-layout="${layout()}"]`)
         const crown = [...root.querySelectorAll<SVGUseElement>(".lab-blocks__crown use")]
           .map(cell => ({cell, left: cell.getBoundingClientRect().left}))
           .sort((a, b) => a.left - b.left)
@@ -190,12 +190,14 @@ export const LabBlocks = {
         // its dash is as long as the beam is on the screen.
         const beams = [...root.querySelectorAll<SVGLineElement>("[data-art-link]")]
         const lengths = new Map(beams.map(beam => {
-          const box = beam.getScreenCTM()!
+          const box = beam.getScreenCTM()
+          if (!box) return [beam, 0]
           const from = beam.getPointAtLength(0).matrixTransform(box)
           const to = beam.getPointAtLength(beam.getTotalLength()).matrixTransform(box)
           return [beam, Math.hypot(to.x - from.x, to.y - from.y)]
         }))
-        const length = (beam: unknown) => lengths.get(beam as SVGLineElement)!
+        const length = (beam: unknown) => lengths.get(beam as SVGLineElement) ?? 0
+        const nodes = shows ? shows.querySelectorAll("[data-art-node]") : []
         createTimeline({
           defaults: {ease: EASE_OUT},
           onComplete: self => {
@@ -204,7 +206,7 @@ export const LabBlocks = {
           },
         })
           .add(crown, {opacity: [0, 1], scale: [0.9, 1], duration: 520, delay: stagger(18)}, 0)
-          .add(shows.querySelectorAll("[data-art-node]"), {opacity: [0, 1], scale: [0.82, 1], duration: 560, delay: stagger(60)}, 140)
+          .add(nodes, {opacity: [0, 1], scale: [0.82, 1], duration: 560, delay: stagger(60)}, 140)
           .set(beams, {opacity: 1, strokeDasharray: (beam: unknown) => `${length(beam)} ${length(beam)}`, strokeDashoffset: length}, 0)
           .add(beams, {strokeDashoffset: 0, duration: 520, delay: stagger(28)}, 420)
           .add(root.querySelectorAll(".lab-blocks__name"), {opacity: [0, 1], duration: 300, delay: stagger(40)}, 640)

@@ -138,8 +138,26 @@
 .mk-service--evals { --mk-service-ground: #1E6B45; --mk-service-ink: #F3F5EF; --field-ground: #1E6B45; --field-ink: #C8F25C; --field-glow: #7ED8A9; }
 .mk-service--environments { --mk-service-ground: #142019; --mk-service-ink: #E4EEE6; --field-ground: #142019; --field-ink: #2FA866; --field-glow: #C8F25C; }
 .mk-service--models { --mk-service-ground: #E4EEE6; --mk-service-ink: #0F1B14; --field-ground: #E4EEE6; --field-ink: #1E6B45; --field-glow: #2FA866; }
-.mk-service--security { --field-ground: #0D1611; --field-ink: #7ED8A9; --field-glow: #C8F25C; }
-.mk-service--swarm-verify { --field-ground: #0F1A14; --field-ink: #C8F25C; --field-glow: #7ED8A9; }
+.mk-service--security { --mk-service-ground: #0D1611; --mk-service-ink: #E4EEE6; --field-ground: #0D1611; --field-ink: #7ED8A9; --field-glow: #C8F25C; }
+.mk-service--swarm-verify { --mk-service-ground: #0F1A14; --mk-service-ink: #E4EEE6; --field-ground: #0F1A14; --field-ink: #C8F25C; --field-glow: #7ED8A9; }
+.mk-services--others {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto;
+  margin-top: var(--space-3);
+}
+.mk-services--others .mk-service {
+  grid-row: auto;
+  grid-template-rows: auto;
+}
+.mk-services--others .mk-service__words {
+  grid-template-rows: auto 1fr auto;
+  padding-top: var(--space-4);
+}
+@media (max-width: 48rem) {
+  .mk-services--others {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .mk-service__words {
   position: relative; display: grid; grid-row: 1 / -1; grid-template-rows: subgrid; gap: var(--space-2); width: 100%;
   padding: var(--space-6) var(--space-3) var(--space-3);

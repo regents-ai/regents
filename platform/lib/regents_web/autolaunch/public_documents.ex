@@ -63,6 +63,8 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
       {"Launch Revstake", "Launch a Revstake AI agent token auction on Base."},
     "/autolaunch/stocks" =>
       {"Stocks", "Onchain stocks available for Autolaunch Memestock auctions."},
+    "/autolaunch/upcoming" =>
+      {"Stocks", "Onchain stocks available for Autolaunch Memestock auctions."},
     "/autolaunch/portfolio" =>
       {"Portfolio", "Your Autolaunch bids, claims, refunds, and token positions."},
     "/autolaunch/regent" =>
@@ -200,7 +202,105 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
     )
   end
 
-  defp markdown(name), do: @sources[name]
+  defp markdown("docs"), do: interpolate_agent_doc(@sources["docs"])
+  defp markdown("agents"), do: interpolate_agent_doc(@sources["agents"])
+
+  defp markdown(name) do
+    @sources[name]
+    |> String.replace("{{origin}}", RegentsWeb.PublicDocuments.url(""))
+  end
+
+  defp interpolate_agent_doc(source) do
+    origin = RegentsWeb.PublicDocuments.url("")
+    autolaunch = origin <> "/autolaunch"
+    read_only? = Regents.Autolaunch.Prelaunch.read_only?()
+
+    replacements = [
+      {"{{origin}}/how-it-works", autolaunch <> "/how-it-works"},
+      {"{{origin}}/about", autolaunch <> "/about"},
+      {"{{origin}}/privacy", autolaunch <> "/privacy"},
+      {"{{origin}}/terms", autolaunch <> "/terms"},
+      {"{{origin}}/changelog", autolaunch <> "/changelog"},
+      {"{{origin}}/docs", autolaunch <> "/docs"},
+      {"{{origin}}/stocks", autolaunch <> "/stocks"},
+      {"{{origin}}", origin},
+      {"{{regents_cli}}", "latest"},
+      {"{{regents_cli_commit}}", "main"},
+      {"{{regents_cli_wheel_sha256}}", "published on PyPI"},
+      {"{{doors}}", docs_doors_table()},
+      {"{{tools}}", docs_tools_table()},
+      {"{{bidding_tools}}",
+       if(read_only?,
+         do: "While prelaunch read-only mode is active, bidding tools are read-only; ",
+         else: "Agents can quote bids and prepare unsigned bid transactions; "
+       )},
+      {"{{bidding_docs}}",
+       if(read_only?,
+         do:
+           "Prelaunch read-only mode is currently active on this instance; live bidding and launches open at launch.",
+         else:
+           "Bidding, claiming, launching, and staking transactions are signed by a wallet on Base or Robinhood Chain."
+       )},
+      {"{{hosted_mcp}}",
+       "Connect to the unified Regents MCP server at `POST #{origin}/mcp` (manifest at `#{origin}/mcp/server-card`)."},
+      {"{{claude_connector}}",
+       "Claude and MCP clients can connect directly to `#{origin}/mcp` using OAuth or signed SIWA headers."},
+      {"{{read_only}}",
+       if(read_only?,
+         do: "Prelaunch read-only mode is currently active on this instance.",
+         else: "Private draft saves and signed writes are open."
+       )},
+      {"{{launching_draft}}",
+       "Drafts hold your launch configuration until your person reviews and submits the onchain transaction."},
+      {"{{covered_calls}}",
+       docs_optional_section(
+         Regents.Autolaunch.CoveredCalls.Deployment.enabled?(),
+         "### Covered calls\n\nOnchain covered call vaults are enabled at `/autolaunch/stock/covered-call` and `/api/agent/v1/autolaunch/covered-calls/{symbol}/positions`."
+       )},
+      {"{{exposure}}", ""},
+      {"{{earn}}",
+       docs_optional_section(
+         Regents.Autolaunch.Earn.Catalog.enabled?(),
+         "### Earn\n\nUSDC lending on Base is available at `/autolaunch/earn` and `/api/agent/v1/autolaunch/earn/positions`."
+       )},
+      {"{{agent_bids}}", ""},
+      {"{{agent_robinhood_bids}}", ""},
+      {"{{agent_launches}}", ""},
+      {"{{agent_finish}}", ""},
+      {"{{agent_staking}}", ""}
+    ]
+
+    Enum.reduce(replacements, source, fn {mark, words}, text ->
+      String.replace(text, mark, words)
+    end)
+  end
+
+  defp docs_optional_section(true, text), do: text <> "\n"
+  defp docs_optional_section(false, _text), do: ""
+
+  defp docs_doors_table do
+    """
+    | Action | Browser | Hosted MCP | API | CLI |
+    | --- | --- | --- | --- | --- |
+    | List auctions & tokens | Yes | Paired agent | Yes | Yes |
+    | Estimate a bid | Yes | Paired agent | Yes | Yes |
+    | Read positions & drafts | Signed in | Paired agent | Paired agent | Paired agent |
+    | Save launch drafts | Signed in | Paired agent | Paired agent | Paired agent |
+    """
+    |> String.trim()
+  end
+
+  defp docs_tools_table do
+    """
+    | Tool | Access | Purpose |
+    | --- | --- | --- |
+    | `autolaunch_auctions` | Public / Paired agent | List and filter active, ended, and graduated auctions. |
+    | `autolaunch_auction` | Public / Paired agent | Read one auction's terms, clearing price, and treasury report. |
+    | `autolaunch_tokens` | Public / Paired agent | List graduated tokens on Base and Robinhood Chain. |
+    | `autolaunch_token` | Public / Paired agent | Read one graduated token's stored price and revenue history. |
+    """
+    |> String.trim()
+  end
 
   # A table keeps its roles when a phone shows its rows as cards, and the only
   # spans are the cells' column names (`label_cells/1`), which a screen reader

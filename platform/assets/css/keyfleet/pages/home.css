@@ -192,7 +192,7 @@
      never replays when the page updates. Less motion, and it is simply there.
      The Key only rises, never starting unseen, so a slow phone counts it as
      drawn with the first paint. */
-  @keyframes rl-settle { from { opacity: 0; transform: translateY(.75rem); } }
+  @keyframes rl-settle { from { transform: translateY(.5rem); } }
   @keyframes rl-card-settle { from { transform: translateY(1rem) scale(.98); } }
   @keyframes rl-fade { from { opacity: 0; } }
   @media (prefers-reduced-motion: no-preference) {

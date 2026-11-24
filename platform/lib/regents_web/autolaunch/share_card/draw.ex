@@ -208,7 +208,8 @@ defmodule RegentsWeb.Autolaunch.ShareCard.Draw do
          do: {:ok, layer}
   end
 
-  defp share_file(name), do: Application.app_dir(:regents, ["priv", "share_card", name])
+  defp share_file(name),
+    do: Application.app_dir(:regents, ["priv", "autolaunch", "share_card", name])
 
   defp escape(words), do: words |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
 end

@@ -44,7 +44,7 @@ const PHONE = "(max-width: 47.99rem)"
 
 // What the card keeps off wherever there is room, so it stays in reach: every
 // wallet step, the toasts and the page's notices.
-const KEEP_CLEAR = "[data-onchain-step], [data-toast], #flash-region > *"
+const KEEP_CLEAR = "[data-onchain-step], [data-tour-clear], [data-toast], #flash-region > *"
 
 // How far beyond its part a ring starts as a tour opens, before it closes in.
 const OPENING = 24

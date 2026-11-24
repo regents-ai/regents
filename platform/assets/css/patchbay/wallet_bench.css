@@ -1,0 +1,478 @@
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+  /* Wallet Bench (`/patchbay/wallet-bench`, `/how-it-works`, `/:harness/:wallet`):
+     clean tab navigation, horizontal scroll board so wallet columns never collide
+     on phones, crisp nine-check dot matrix, and dark-mode contrast plates for brand marks. */
+
+  .pb-wb-sheet {
+    display: grid;
+    gap: var(--space-3);
+    padding-block: var(--space-3) var(--space-5);
+    min-width: 0;
+  }
+
+  .pb-wb-head {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .pb-wb-head h1 {
+    margin: 0;
+    font-family: var(--font-family-title);
+    font-size: clamp(1.75rem, 3.2vw, 2.5rem);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  .pb-wb-lede {
+    margin: 0;
+    max-width: 44rem;
+    color: var(--pb-text-muted);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+
+  /* Matrix tabs */
+  .pb-wb-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.375rem;
+    overflow-x: auto;
+    padding-block: 0.25rem;
+    border-bottom: 1px solid var(--pb-line);
+    scrollbar-width: thin;
+  }
+
+  .pb-wb-tabs a {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    min-height: 2.5rem;
+    padding: 0.35rem 0.85rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    color: var(--pb-text-muted);
+    font-family: var(--font-family-ui);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      color 150ms ease,
+      background-color 150ms ease,
+      border-color 150ms ease,
+      transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .pb-wb-tabs a[aria-current="page"],
+  .pb-wb-tabs a[aria-current="location"] {
+    border-color: var(--pb-text);
+    background: var(--pb-surface);
+    color: var(--pb-text);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .pb-wb-tabs a:hover {
+      background: var(--pb-surface);
+      border-color: var(--pb-line);
+      color: var(--pb-text);
+    }
+  }
+
+  .pb-wb-tabs a:active {
+    transform: scale(0.975);
+  }
+
+  .pb-wb-board-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .pb-wb-board-head h2 {
+    margin: 0;
+    font-family: var(--font-family-title);
+    font-size: var(--pb-fs-xl);
+    font-weight: 400;
+  }
+
+  .pb-wb-board-head p {
+    margin: 0.25rem 0 0;
+    color: var(--pb-text-muted);
+    font-size: 0.8125rem;
+  }
+
+  .pb-wb-filter form {
+    display: grid;
+    gap: var(--space-2);
+    min-width: min(19rem, 85vw);
+    padding: var(--space-2);
+  }
+
+  .pb-wb-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .pb-wb-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    color: var(--pb-text-muted);
+    font-size: 0.8125rem;
+  }
+
+  .pb-wb-toolbar p {
+    margin: 0;
+  }
+
+  /* Horizontal scroll wrapper prevents column overlap on phones */
+  .pb-wb-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    border: 1px solid var(--pb-line);
+    border-radius: var(--radius);
+    background: var(--pb-surface);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .pb-wb-board {
+    width: max(100%, calc(12.5rem + var(--pb-wb-columns, 4) * 8.25rem));
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .pb-wb-board th,
+  .pb-wb-board td {
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid var(--pb-line);
+    border-right: 1px solid var(--pb-line);
+    vertical-align: middle;
+    text-align: center;
+  }
+
+  .pb-wb-board tr:last-child th,
+  .pb-wb-board tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .pb-wb-board th:last-child,
+  .pb-wb-board td:last-child {
+    border-right: 0;
+  }
+
+  .pb-wb-board thead th {
+    min-width: 8.25rem;
+    background: var(--pb-canvas);
+    font-weight: 500;
+    font-size: 0.8125rem;
+    text-align: left;
+  }
+
+  .pb-wb-board thead th.pb-wb-corner,
+  .pb-wb-board tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    width: 12.5rem;
+    min-width: 11rem;
+    background: var(--pb-canvas);
+    text-align: left;
+  }
+
+  .pb-wb-board thead th.pb-wb-corner {
+    z-index: 3;
+    color: var(--pb-text-muted);
+    font-family: var(--font-family-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .pb-wb-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+  }
+
+  /* Light contrast tile ensures dark SVG/PNG marks remain crisp in dark mode */
+  .pb-wb-tile {
+    display: grid;
+    place-items: center;
+    flex: 0 0 2rem;
+    width: 2rem;
+    height: 2rem;
+    padding: 3px;
+    border: 1px solid var(--pb-line);
+    border-radius: var(--radius);
+    background: #f5f4ef;
+    color: #161616;
+    font-family: var(--font-family-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    overflow: hidden;
+  }
+
+  .pb-wb-tile img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .pb-wb-entry-name {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+    line-height: 1.25;
+  }
+
+  .pb-wb-entry-name a {
+    color: var(--pb-text);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .pb-wb-entry-name a:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .pb-wb-entry-note {
+    color: var(--pb-text-muted);
+    font-size: 0.6875rem;
+  }
+
+  /* Nine-check square cell */
+  .pb-wb-square {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: 4.5rem;
+    height: 4.5rem;
+    padding: 0.45rem;
+    border: 1px solid var(--pb-line);
+    border-radius: var(--radius);
+    background: var(--pb-canvas);
+    color: var(--pb-text);
+    text-decoration: none;
+    transition:
+      border-color 150ms ease,
+      background-color 150ms ease,
+      transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .pb-wb-square.is-empty {
+    opacity: 0.6;
+  }
+
+  .pb-wb-square.has-finding {
+    border-color: var(--color-warning, #d97706);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .pb-wb-square:hover {
+      border-color: var(--pb-text);
+      background: var(--pb-surface);
+    }
+  }
+
+  .pb-wb-square:active {
+    transform: scale(0.96);
+  }
+
+  .pb-wb-warning-mark {
+    position: absolute;
+    top: -0.35rem;
+    right: -0.35rem;
+    display: grid;
+    place-items: center;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 50%;
+    background: var(--color-warning, #d97706);
+    color: #0b0b0b;
+    font-family: var(--font-family-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .pb-wb-dots {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.25rem;
+    width: 100%;
+    height: 100%;
+  }
+
+  .pb-wb-dot {
+    display: grid;
+    place-items: center;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--pb-line) 55%, transparent);
+    color: var(--pb-text-muted);
+    font-family: var(--font-family-mono);
+    font-size: 0.65rem;
+    line-height: 1;
+  }
+
+  .pb-wb-dot.is-true {
+    background: color-mix(in srgb, #22c55e 22%, transparent);
+    color: light-dark(#15803d, #86efac);
+  }
+
+  .pb-wb-dot.is-false {
+    background: color-mix(in srgb, #ef4444 22%, transparent);
+    color: light-dark(#b91c1c, #fca5a5);
+  }
+
+  .pb-wb-dot.is-open {
+    background: color-mix(in srgb, #eab308 24%, transparent);
+    color: light-dark(#a16207, #fde047);
+  }
+
+  .pb-wb-hover {
+    margin: 0;
+    color: var(--pb-text-muted);
+    font-size: 0.875rem;
+  }
+
+  .pb-wb-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 1.15rem;
+    margin: 0;
+    color: var(--pb-text-muted);
+    font-size: 0.8125rem;
+  }
+
+  .pb-wb-legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .pb-wb-legend .pb-wb-dot {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  .pb-wb-legend .pb-wb-warning-mark {
+    position: static;
+  }
+
+  .pb-wb-check-key {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+  }
+
+  .pb-wb-dots.is-key {
+    width: 4.5rem;
+    height: 4.5rem;
+    flex: none;
+  }
+
+  .pb-wb-check-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    display: grid;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+  }
+
+  .pb-wb-more {
+    margin: 0;
+    font-size: 0.875rem;
+  }
+
+  .pb-wb-dialog-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+
+  .pb-wb-dialog-bar h2 {
+    margin: 0 auto 0 0;
+    font-size: 1.125rem;
+  }
+
+  /* Pair detail & method cards */
+  .pb-wb-cards,
+  .pb-wb-method-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+    gap: var(--space-3);
+  }
+
+  .pb-wb-card {
+    padding: var(--space-3);
+    border: 1px solid var(--pb-line);
+    border-radius: var(--radius);
+    background: var(--pb-surface);
+  }
+
+  .pb-wb-pair-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .pb-wb-detail-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  /* Dark-mode contrast plate for Patchbay connect/agent choice icons */
+  .pb-connect-choice img,
+  .pb-connect-choice svg {
+    color: var(--pb-text);
+  }
+
+  @media (max-width: 40rem) {
+    .pb-wb-board thead th.pb-wb-corner,
+    .pb-wb-board tbody th {
+      width: 9.75rem;
+      min-width: 9.25rem;
+    }
+
+    .pb-wb-board thead th {
+      min-width: 7.75rem;
+    }
+
+    .pb-wb-tile {
+      flex: 0 0 1.65rem;
+      width: 1.65rem;
+      height: 1.65rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pb-wb-tabs a,
+    .pb-wb-square {
+      transition: none;
+    }
+
+    .pb-wb-tabs a:active,
+    .pb-wb-square:active {
+      transform: none;
+    }
+  }
+}

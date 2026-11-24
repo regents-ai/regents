@@ -191,9 +191,9 @@ defmodule RegentsWeb.Account.AccountLive do
         </:sign_in>
       </Regent.Account.signed_out>
 
-      {is_nil(@account) && @signed_out_extra != [] && render_slot(@signed_out_extra)}
+      {if is_nil(@account) and @signed_out_extra != [], do: render_slot(@signed_out_extra)}
 
-      {@account && render_slot(@inner_block)}
+      {if @account, do: render_slot(@inner_block)}
     </article>
     """
   end

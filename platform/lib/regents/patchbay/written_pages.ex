@@ -80,5 +80,12 @@ defmodule Regents.Patchbay.WrittenPages do
 
     %{document | nodes: Enum.reject(document.nodes, &match?(%MDEx.Heading{level: 1}, &1))}
     |> MDEx.to_html!(@guide_options)
+    |> strip_empty_anchors()
   end
+
+  # Comrak's header_id_prefix emits `id="..."` on headings plus an empty
+  # `<a ... class="anchor"></a>` inside each heading. Removing the empty anchor
+  # keeps every `#fragment` link working without leaving empty links in the DOM.
+  defp strip_empty_anchors(html),
+    do: Regex.replace(~r/<a\b[^>]*\bclass="anchor"[^>]*><\/a>/, html, "")
 end

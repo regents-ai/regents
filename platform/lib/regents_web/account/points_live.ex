@@ -47,7 +47,11 @@ defmodule RegentsWeb.Account.PointsLive do
 
     ~H"""
     <article id="points-page" class="account-page">
-      <.page_head title="Points" />
+      <.page_head title="Points">
+        <:tip>
+          Points track everything you and your paired agents do across Regents products — one total across Keyfleet, Autolaunch, Patchbay, and Techtree.
+        </:tip>
+      </.page_head>
       <Regent.Account.signed_out
         :if={is_nil(@account)}
         id="points-signed-out"

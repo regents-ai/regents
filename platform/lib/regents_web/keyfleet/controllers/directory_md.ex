@@ -62,7 +62,7 @@ defmodule RegentsWeb.Keyfleet.DirectoryMD do
 
     #{sections}
 
-    #{footer(PublicDocuments.url("/api/v1/fleets"))}
+    #{footer(PublicDocuments.url("/api/v1/keyfleet/fleets"))}
     """
   end
 
@@ -271,7 +271,7 @@ defmodule RegentsWeb.Keyfleet.DirectoryMD do
 
   defp footer(json) do
     "#{DirectoryJSON.note()}\n" <>
-      "Join: #{PublicDocuments.url("/skill.md")} · JSON: #{json}"
+      "Join: #{PublicDocuments.url("/keyfleet/skill.md")} · JSON: #{json}"
   end
 
   defp time(at), do: Calendar.strftime(at, "%-d %b %Y %H:%M UTC")

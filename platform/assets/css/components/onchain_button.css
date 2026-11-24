@@ -29,9 +29,10 @@
 @keyframes onchain-spin { to { transform: rotate(1turn); } }
 
 /* The whole cut edge lights and breathes while the button waits, on both themes
-   (the doubled class outranks the dark theme's edge colours). */
+   (the doubled class outranks the dark theme's edge colours). Targets ::before,
+   which owns the chamfered button frame (::after is the chevron icon). */
 @media (forced-colors: none) {
-  :root .rg-button.rg-button:is([data-awaiting-wallet], [data-confirming]):where(:not(.rg-button--secondary):not(.rg-button--quiet))::after {
+  :root .rg-button.rg-button:is([data-awaiting-wallet], [data-confirming]):where(:not(.rg-button--secondary):not(.rg-button--quiet))::before {
     --rg-button-edge-ink: var(--rg-button-active-border);
     --rg-button-cut-ink: var(--rg-button-active-border);
     --rg-button-cut-gap: 0px;
@@ -40,6 +41,12 @@
       calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
       calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
     animation: onchain-edge 1s ease-in-out infinite alternate;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root .rg-button.rg-button:is([data-awaiting-wallet], [data-confirming]):where(:not(.rg-button--secondary):not(.rg-button--quiet))::before {
+    animation: none;
   }
 }
 

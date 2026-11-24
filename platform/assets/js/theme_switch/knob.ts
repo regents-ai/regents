@@ -8,7 +8,7 @@ import type {Theme} from "../theme"
 export type Side = 0 | 1
 
 /** How far a press must travel sideways, in CSS pixels, before it is a drag. */
-const DRAG_START: Record<string, number> = {mouse: 3, pen: 4, touch: 6}
+const DRAG_START: Record<string, number> = {mouse: 9, pen: 6, touch: 8}
 
 export const dragStart = (pointerType: string): number => DRAG_START[pointerType] ?? DRAG_START.touch
 

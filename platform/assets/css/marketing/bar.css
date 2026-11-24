@@ -544,6 +544,7 @@
   .sheet {
     position: fixed;
     inset: var(--bar-h) 0 0;
+    inline-size: 100%;
     z-index: calc(var(--rg-layer-header) - 1);
     display: none;
     overflow-y: auto;
@@ -556,6 +557,7 @@
   }
   .sheet__inner {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
     min-block-size: 100%;
     padding: var(--space-3) var(--gutter) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));

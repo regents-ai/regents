@@ -11,6 +11,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
   """
   use RegentsWeb, :html
 
+  alias Phoenix.LiveView.JS
   alias RegentsWeb.Cloak
 
   def page(assigns) do
@@ -112,6 +113,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
             :for={doc <- Cloak.agent_docs()}
             id={"cloak-agent-doc-#{doc.id}"}
             class="cloak-agent-doc"
+            phx-mounted={JS.ignore_attributes(["open"])}
           >
             <summary>{doc.summary}</summary>
             <p>{doc.body}</p>
@@ -190,6 +192,11 @@ defmodule RegentsWeb.Cloak.CloakLive do
         <h1 id="cloak-install-heading" class="cloak-hero__small" tabindex="-1">
           {Cloak.install_heading()}
         </h1>
+        <div class="cloak-hero__actions">
+          <.link navigate={~p"/cloak"} class="rg-button rg-button--quiet">
+            <span class="rg-button__label">Back to Cloak</span>
+          </.link>
+        </div>
         <p class="cloak-hero__facts">{Cloak.facts()}</p>
       </header>
 

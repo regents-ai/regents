@@ -1,7 +1,7 @@
 defmodule RegentsWeb.PublicPagesController do
   @moduledoc "Public documentation and discovery; no account or database reads."
   use RegentsWeb, :controller
-  alias RegentsWeb.{AgentGuides, PublicDocuments}
+  alias RegentsWeb.{AgentGuides, Docs, PublicDocuments}
 
   def show(conn, _params) do
     case PublicDocuments.document(conn.request_path) do
@@ -35,6 +35,24 @@ defmodule RegentsWeb.PublicPagesController do
     |> put_public_cors()
     |> put_resp_header("content-disposition", ~s(inline; filename="pricing.md"))
     |> send_cached("text/markdown", PublicDocuments.pricing())
+  end
+
+  def docs_markdown(conn, _params) do
+    path =
+      case conn.assigns[:docs_key] do
+        key when is_binary(key) -> "/docs/" <> key
+        _ -> "/docs"
+      end
+
+    case Docs.Pages.page(path) do
+      nil ->
+        raise RegentsWeb.NotFoundError
+
+      page ->
+        conn
+        |> put_public_cors()
+        |> send_cached("text/markdown", Docs.markdown(page))
+    end
   end
 
   @doc "One agent's skill: the agent guide with that agent's Set up section added."

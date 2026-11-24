@@ -34,12 +34,15 @@ export function mountMotion(doc: Document) {
   mountButtons(doc)
   doc.addEventListener("click", press)
   doc.addEventListener("toggle", toggle, true)
+  for (const details of doc.querySelectorAll<HTMLDetailsElement>("details")) {
+    syncDetailsExpanded(details)
+  }
 
   const main = doc.querySelector("main")
   if (main === null || live(main) || still(main)) return
 
   const headline = main.querySelector<HTMLElement>("h1")
-  if (headline !== null) rise(headline)
+  if (headline !== null && headline.closest("[data-entrance]") === null) rise(headline)
 
   for (const list of main.querySelectorAll<HTMLElement>("[data-cascade]"))
     onFirstSight(list, () => GRIDS.cascade([...list.children].slice(0, CASCADE)))
@@ -83,9 +86,16 @@ export function press(event: MouseEvent) {
 // having been open all along, so it does not move again. Once it rests where it
 // opens, moved or not, it carries `data-settled`, so whatever measures it knows
 // when.
+function syncDetailsExpanded(target: HTMLElement) {
+  if (!(target instanceof HTMLDetailsElement)) return
+  const summary = target.querySelector<HTMLElement>(":scope > summary")
+  if (summary) summary.setAttribute("aria-expanded", String(target.open))
+}
+
 function toggle(event: Event) {
   if (!(event instanceof ToggleEvent) || !(event.target instanceof HTMLElement)) return
   const {target} = event
+  syncDetailsExpanded(target)
   const moves = lastInputByPointer() && !still(target)
   if (event.newState === "closed") {
     target.removeAttribute("data-settled")

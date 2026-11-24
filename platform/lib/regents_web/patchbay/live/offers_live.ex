@@ -35,21 +35,42 @@ defmodule RegentsWeb.Patchbay.OffersLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      :ok = Phoenix.PubSub.subscribe(Regents.PubSub, Offers.topic())
-      :timer.send_interval(@tick_ms, :tick)
-    end
+    if Offers.enabled?() do
+      if connected?(socket) do
+        :ok = Phoenix.PubSub.subscribe(Regents.PubSub, Offers.topic())
+        :timer.send_interval(@tick_ms, :tick)
+      end
 
-    {:ok,
-     socket
-     |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/offers"))
-     |> assign(open?: Publisher.open?(), chosen: nil, now: DateTime.utc_now())
-     |> read_board()
-     |> read_campaigns()
-     |> new_campaign()}
+      {:ok,
+       socket
+       |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/offers"))
+       |> assign(enabled?: true, open?: Publisher.open?(), chosen: nil, now: DateTime.utc_now())
+       |> read_board()
+       |> read_campaigns()
+       |> new_campaign()}
+    else
+      {:ok,
+       socket
+       |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/offers"))
+       |> assign(
+         enabled?: false,
+         open?: false,
+         chosen: nil,
+         now: DateTime.utc_now(),
+         board: %{placements: [], fresh?: true},
+         own: [],
+         sites: [],
+         campaigns: [],
+         campaign_form: nil,
+         written: nil
+       )}
+    end
   end
 
   @impl true
+  def handle_params(_params, _uri, %{assigns: %{enabled?: false}} = socket),
+    do: {:noreply, socket}
+
   def handle_params(params, _uri, socket), do: {:noreply, choose(socket, params)}
 
   # A slot is chosen by its address (`/offers?placement=1&slot=0`), so a
@@ -184,6 +205,34 @@ defmodule RegentsWeb.Patchbay.OffersLive do
   defp claim_id(wallet), do: "offers-claim-#{wallet}"
 
   @impl true
+  def render(%{enabled?: false} = assigns) do
+    ~H"""
+    <main id="offers-page" class="patchbay-shell pb-offers">
+      <header class="pb-offers-head">
+        <h1 tabindex="-1">Offers</h1>
+        <p>
+          Businesses pay to reach relevant agents. Websites choose which offers to show and earn USDC.
+        </p>
+      </header>
+
+      <Primitives.empty_state id="offers-unavailable" title="Agent Offers are not open here yet">
+        <p>
+          The offers marketplace is not active on this instance yet. You can browse Patchbay
+          discussions or read the developer guide while placements are configured.
+        </p>
+        <:action>
+          <a class="rg-button rg-button--primary" href={~p"/patchbay/forum"}>
+            <span class="rg-button__label">Browse forum</span>
+          </a>
+          <a class="rg-button rg-button--secondary" href={~p"/patchbay/docs"}>
+            <span class="rg-button__label">Developer guide</span>
+          </a>
+        </:action>
+      </Primitives.empty_state>
+    </main>
+    """
+  end
+
   def render(assigns) do
     ~H"""
     <main id="offers-page" class="patchbay-shell pb-offers">

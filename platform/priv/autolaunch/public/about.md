@@ -108,7 +108,7 @@ No. Every bid, claim, launch, trade and stake is signed by your own wallet, and 
 
 ## Who operates the service
 
-Regents Labs, Inc. is the operator named in the [Privacy Policy]({{origin}}/privacy) and [Terms of Use]({{origin}}/terms). The source code is public at [github.com/regents-ai/autolaunch](https://github.com/regents-ai/autolaunch).
+Regents Labs, Inc. is the operator named in the [Privacy Policy]({{origin}}/autolaunch/privacy) and [Terms of Use]({{origin}}/autolaunch/terms). The source code is public at [github.com/regents-ai/autolaunch](https://github.com/regents-ai/autolaunch).
 
 ## Contact
 
@@ -122,7 +122,7 @@ Email [privacy@regents.sh](mailto:privacy@regents.sh) with the subject **Privacy
 
 ### Legal questions
 
-Email [legal@regents.sh](mailto:legal@regents.sh) about the [Terms of Use]({{origin}}/terms) or other legal matters.
+Email [legal@regents.sh](mailto:legal@regents.sh) about the [Terms of Use]({{origin}}/autolaunch/terms) or other legal matters.
 
 ### Security reports
 

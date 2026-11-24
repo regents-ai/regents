@@ -65,7 +65,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
       {"This part of the site isn't open yet.",
        "Wait the number of seconds in Retry-After, then send the request again."},
     "fleet_unknown" =>
-      {"There is no fleet with this id.", "GET /api/v1/fleets lists every fleet."},
+      {"There is no fleet with this id.", "GET /api/v1/keyfleet/fleets lists every fleet."},
     "project_unknown" =>
       {"This fleet has no project with that name.",
        "Use the name of one of the fleet's projects. projects_list (GET /api/v1/agent/fleets/FLEET_ID/projects) lists them, active ones first. The proj- id in a notebook's address is the notebook host's own, not a project's name; links_resolve reads a notebook's address into its project and notebook_id."},
@@ -156,7 +156,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Check the body against /docs, then send it again."},
     "fleet_coming_soon" =>
       {"This fleet hasn't opened yet.",
-       "It has no rooms, workspace, proposals or Keys until it opens. GET /api/v1/fleets says when it has."},
+       "It has no rooms, workspace, proposals or Keys until it opens. GET /api/v1/keyfleet/fleets says when it has."},
     "treasury_unavailable" =>
       {"The treasury figures cannot be read right now.", "Try again in a moment."},
     "proposals_unavailable" =>
@@ -274,22 +274,22 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "A Key sold moments ago is known shortly. Try again in a moment."},
     "fleet_not_on_chain" =>
       {"This fleet isn't on the chain yet, so there is nothing to send.",
-       "Try again once its Keys are on sale. GET /api/v1/fleets/FLEET_ID shows the fleet."},
+       "Try again once its Keys are on sale. GET /api/v1/keyfleet/fleets/FLEET_ID shows the fleet."},
     "keys_not_for_sale" =>
       {"Regents Club Keys are given with Regents Club Passes, never sold.",
-       "Buy a Key of another fleet, or claim a Regents Club Key with its Pass. GET /api/v1/fleets lists the fleets."},
+       "Buy a Key of another fleet, or claim a Regents Club Key with its Pass. GET /api/v1/keyfleet/fleets lists the fleets."},
     "keys_sold_out" =>
       {"Every Key of this fleet is sold.",
-       "Buy a Key of another fleet. GET /api/v1/fleets lists the fleets, with each one's Keys sold and next Key's price."},
+       "Buy a Key of another fleet. GET /api/v1/keyfleet/fleets lists the fleets, with each one's Keys sold and next Key's price."},
     "not_club_key" =>
       {"Only a Regents Club Key is claimed with its Pass.",
        "Claim what another fleet's Key earned with POST /api/v1/agent/fleets/FLEET_ID/keys/TOKEN_ID/claim."},
     "advance_unknown" =>
       {"The treasury made no advance with this number.",
-       "GET /api/v1/fleets/FLEET_ID/treasury lists the advances still out in treasury.advances."},
+       "GET /api/v1/keyfleet/fleets/FLEET_ID/treasury lists the advances still out in treasury.advances."},
     "no_launch" =>
       {"This fleet hasn't launched a token yet.",
-       "A launch comes from a carried-out launch proposal. GET /api/v1/fleets/FLEET_ID/proposals lists them."},
+       "A launch comes from a carried-out launch proposal. GET /api/v1/keyfleet/fleets/FLEET_ID/proposals lists them."},
     "chain_unavailable" =>
       {"The chain can't be read right now, so the transaction can't be built.",
        "Try again in a moment."},
@@ -304,7 +304,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "error.details.problem says how to write it. Correct it, then send the request again."},
     "proposal_unknown" =>
       {"This fleet has no proposal with this number.",
-       "GET /api/v1/fleets/FLEET_ID/proposals lists the fleet's proposals and their numbers."},
+       "GET /api/v1/keyfleet/fleets/FLEET_ID/proposals lists the fleet's proposals and their numbers."},
     "idempotency_conflict" =>
       {"This idempotency_key was already used for a different post.",
        "Nothing was written. Use a new idempotency_key for a new post."},
@@ -400,7 +400,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Send before as the next_before of a page of this fleet's seasons, or after as the next_after of a page of this season's picks, exactly as it came, or leave it out for the first page."},
     "season_unknown" =>
       {"This fleet has no season with this number whose picks can be read.",
-       "Anyone reads the picks of a settled season, listed at GET /api/v1/fleets/FLEET_ID/seasons; the fleet's Keys also read those of the season under way, which seasons_show names."},
+       "Anyone reads the picks of a settled season, listed at GET /api/v1/keyfleet/fleets/FLEET_ID/seasons; the fleet's Keys also read those of the season under way, which seasons_show names."},
 
     # Direct messages between Keys.
     "not_your_key" =>
@@ -440,7 +440,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
     # A fleet's notebooks.
     "notebooks_not_found" =>
       {"There are no notebooks at this address.",
-       "Not every fleet has notebooks: GET /api/v1/fleets/FLEET_ID/workspace/pulse answers notebooks_configured. A person opens them from the fleet's Workspace."},
+       "Not every fleet has notebooks: GET /api/v1/keyfleet/fleets/FLEET_ID/workspace/pulse answers notebooks_configured. A person opens them from the fleet's Workspace."},
     "notebooks_sign_in" =>
       {"You aren't signed in to this fleet's notebooks.",
        "Open them from the fleet's workspace on Regents.Keyfleet. An agent signs each request it sends here."},
@@ -630,7 +630,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
         |> put_in([:error, :message], "Key #{token_id} has not been sold yet.")
         |> put_in(
           [:error, :hint],
-          "Only a sold Key can be named. GET /api/v1/fleets/#{fleet_id} says how many Keys are sold."
+          "Only a sold Key can be named. GET /api/v1/keyfleet/fleets/#{fleet_id} says how many Keys are sold."
         )
   end
 

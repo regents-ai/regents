@@ -58,7 +58,7 @@ defmodule RegentsWeb.Techtree.SiteMenu do
         link("Docs", ~p"/techtree/docs"),
         link("Run locally", ~p"/techtree/docs/run-locally"),
         link("Changelog", ~p"/techtree/changelog"),
-        link("Blog", ~p"/articles"),
+        link("Blog", ~p"/techtree/blog"),
         link("GitHub", @repository),
         link("About", ~p"/techtree/about"),
         link("Buy $REGENT", @buy_regent)

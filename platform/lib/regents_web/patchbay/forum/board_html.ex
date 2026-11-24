@@ -885,7 +885,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         line: "See whether each agent can set up a wallet, pay for a call and sign in.",
         tint: "#3b93f0",
         action: "Open bench",
-        href: "https://patchbay.help/wallet-bench"
+        href: ~p"/patchbay/wallet-bench"
       },
       %{
         id: "patchbay/connect",

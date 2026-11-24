@@ -73,8 +73,8 @@ defmodule RegentsWeb.Keyfleet.DirectoryJSON do
   defp links(fleet),
     do: %{
       page: PublicDocuments.url(Regents.Keyfleet.Fleets.path(fleet.id)),
-      markdown: PublicDocuments.url("/fleets/#{fleet.id}.md"),
-      json: PublicDocuments.url("/api/v1/fleets/#{fleet.id}")
+      markdown: PublicDocuments.url("/keyfleet/fleets/#{fleet.id}.md"),
+      json: PublicDocuments.url("/api/v1/keyfleet/fleets/#{fleet.id}")
     }
 
   defp sales(%{next_key: %{} = next_key} = sales), do: %{sales | next_key: priced(next_key)}

@@ -58,6 +58,7 @@ export const MarketingPage: Hook = {
     let openedBy: "hover" | "press" | "keys" | null = null
     let pointerIn = false
     let focusIn = false
+    let returningFocus = false
     let intentTimer = 0
     let graceTimer = 0
 
@@ -222,6 +223,7 @@ export const MarketingPage: Hook = {
     listen(bar, "pointermove", () => delete bar.dataset.instant)
 
     listen(bar, "focusin", event => {
+      if (returningFocus) return
       const target = event.target
       focusIn = target instanceof Element && target.matches(":focus-visible")
       light()
@@ -244,7 +246,11 @@ export const MarketingPage: Hook = {
       bar.dataset.instant = ""
       if (kb.key === "Escape" && active) {
         const inside = active.parentElement?.contains(document.activeElement) ?? false
+        pointerIn = false
+        focusIn = false
+        returningFocus = inside
         hide({returnFocus: inside})
+        returningFocus = false
       }
     })
 

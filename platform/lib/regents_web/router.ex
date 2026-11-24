@@ -379,6 +379,12 @@ defmodule RegentsWeb.Router do
     get "/agents.md", PublicPagesController, :agents
     get "/skill.md", PublicPagesController, :skill
     get "/pricing.md", PublicPagesController, :pricing
+    get "/docs.md", PublicPagesController, :docs_markdown
+
+    for %{key: key} <- RegentsWeb.Docs.Pages.all(), is_binary(key) do
+      get "/docs/#{key}.md", PublicPagesController, :docs_markdown, assigns: %{docs_key: key}
+    end
+
     get "/llms.txt", PublicPagesController, :llms
     get "/server.json", PublicPagesController, :server_registry
     get "/mcp/server-card", PublicPagesController, :mcp_server_card
@@ -1126,6 +1132,7 @@ defmodule RegentsWeb.Router do
       live "/tokens", TokensLive, :index
       live "/tokens/:symbol/:tail", MarketPageLive, :token
       live "/stocks", UpcomingLive, :show
+      live "/upcoming", UpcomingLive, :show
       live "/stocks/:symbol", StockLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/portfolio/bids/:id", BidLive, :bid
@@ -1218,12 +1225,11 @@ defmodule RegentsWeb.Router do
   end
 
   scope "/patchbay", RegentsWeb.Patchbay do
-    pipe_through [:patchbay_offers, :browser, :patchbay]
+    pipe_through [:browser, :patchbay]
 
     live_session :patchbay_offers,
       layout: {RegentsWeb.Patchbay.Layouts, :app},
       on_mount: [
-        RegentsWeb.Patchbay.OffersGate,
         {RegentsWeb.Live.Session, :load_human},
         {RegentsWeb.Patchbay.CurrentProfile, :default}
       ],

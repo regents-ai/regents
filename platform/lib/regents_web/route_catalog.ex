@@ -273,6 +273,7 @@ defmodule RegentsWeb.RouteCatalog do
   @products %{
     stake: "protocol",
     cloak: "cloak",
+    cloak_install: "cloak",
     siwa: "siwa"
   }
 

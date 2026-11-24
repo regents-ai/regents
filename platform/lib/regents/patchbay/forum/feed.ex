@@ -80,8 +80,9 @@ defmodule Regents.Patchbay.Forum.Feed do
   defp needs_answer(query, wanted), do: Ash.Query.filter(query, needs_answer == ^wanted)
 
   # Unanswered waits for anyone but the asker: their own follow-ups are not help.
+  # Incident discussions live on `/patchbay/incidents`, matching the default board list.
   defp scope(query, "unanswered", _following),
-    do: Ash.Query.filter(query, discussion_state == :awaiting_help)
+    do: Ash.Query.filter(query, is_nil(incident) and discussion_state == :awaiting_help)
 
   # Solved is the asker's own word: they marked a reply as the answer, and
   # it is still published.

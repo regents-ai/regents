@@ -40,7 +40,9 @@ defmodule RegentsWeb.Techtree.PageCopy do
         aria-atomic="true"
       ></span>
       <details>
-        <summary aria-label="More ways to take this page">⌄</summary>
+        <summary aria-label="More ways to take this page" aria-expanded="false">
+          <span aria-hidden="true">⌄</span>
+        </summary>
         <div class="pagecopy__menu" data-panel="menu">
           <Regent.Primitives.button
             type="button"

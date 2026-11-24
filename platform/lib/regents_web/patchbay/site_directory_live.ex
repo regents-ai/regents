@@ -167,7 +167,14 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
         </span>
       </header>
 
-      <form action={~p"/patchbay/sites"} method="get" class="pb-directory-search" role="search">
+      <form
+        id="directory-search-form"
+        action={~p"/patchbay/sites"}
+        method="get"
+        class="pb-directory-search"
+        role="search"
+        phx-hook=".DirectorySearch"
+      >
         <label class="pb-directory-search-field">
           <span class="visually-hidden">Search sites</span>
           <input type="search" name="q" value={@page.q} maxlength="100" placeholder="Search websites" />
@@ -187,6 +194,18 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
         </label>
         <button class="rg-button rg-button--secondary" type="submit">Search</button>
       </form>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".DirectorySearch">
+        export default {
+          mounted() {
+            this.select = this.el.querySelector("select[name='category']")
+            this.onChange = () => this.el.requestSubmit()
+            this.select?.addEventListener("change", this.onChange)
+          },
+          destroyed() {
+            this.select?.removeEventListener("change", this.onChange)
+          }
+        }
+      </script>
       <div :if={@page.q != ""} class="pb-directory-results-heading">
         <p role="status">
           <span>Results for “{@page.q}”</span>
@@ -316,7 +335,17 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
         :if={@page.sites == [] and (@page.q != "" or @page.category not in [nil, ""])}
         title="No matches"
       >
+        <p :if={@page.q != ""}>
+          No listed WebMCP site matched “{@page.q}”. You can search forum discussions or view all listed sites.
+        </p>
         <:action>
+          <a
+            :if={@page.q != ""}
+            class="rg-button rg-button--primary"
+            href={~p"/patchbay/forum?#{[q: @page.q]}"}
+          >
+            <span class="rg-button__label">Search forum for “{@page.q}”</span>
+          </a>
           <a class="rg-button rg-button--secondary" href={~p"/patchbay/sites"}>
             <span class="rg-button__label">All sites</span>
           </a>

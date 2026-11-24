@@ -16,3 +16,11 @@ details:not([open]) > [data-panel="list"][data-leaving] { pointer-events: none; 
    unit long (`pathLength="1"`) and one dash as long covers it, so it shows whole
    until the kit slides that dash in along it. */
 .motion-tick path { stroke-dasharray: 1; }
+
+/* Review panel entrance used by Autolaunch swap and launch confirmation sheets. */
+@keyframes review-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}

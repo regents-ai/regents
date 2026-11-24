@@ -53,6 +53,16 @@ defmodule RegentsWeb.Autolaunch.Components.ShareLaunch do
   defp message(%{state: :graduated} = auction, symbol, chain),
     do: "$#{symbol} on Autolaunch (#{chain}). #{Paths.token_url(auction)}"
 
+  defp message(%{state: :failed} = auction, symbol, chain),
+    do:
+      "$#{symbol}'s auction on Autolaunch (#{chain}) did not graduate. #{Paths.auction_url(auction)}"
+
+  defp message(%{state: :ended} = auction, symbol, chain),
+    do: "$#{symbol}'s auction on Autolaunch (#{chain}) has ended. #{Paths.auction_url(auction)}"
+
+  defp message(%{state: :created} = auction, symbol, chain),
+    do: "$#{symbol}'s auction opens soon on Autolaunch (#{chain}). #{Paths.auction_url(auction)}"
+
   defp message(auction, symbol, chain),
     do: "$#{symbol} is in its auction on Autolaunch (#{chain}). #{Paths.auction_url(auction)}"
 

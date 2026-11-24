@@ -298,6 +298,7 @@ export function createThemeSwitch(root: HTMLElement): ThemeSwitchController {
 
   return {
     mount() {
+      root.dataset.themeSwitchBound = "true"
       measure()
       announce()
       render()
@@ -322,6 +323,7 @@ export function createThemeSwitch(root: HTMLElement): ThemeSwitchController {
       syncMotion()
     },
     destroy() {
+      delete root.dataset.themeSwitchBound
       events.abort()
       follow()
       calm.disconnect()

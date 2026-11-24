@@ -31,7 +31,7 @@
     position: relative;
     padding: var(--section-pad);
     border-block-start: 1px solid var(--rule);
-    scroll-margin-block-start: var(--bar-h);
+    scroll-margin-block-start: calc(var(--bar-h) + var(--space-3));
   }
   .section:first-child {
     border-block-start: 0;

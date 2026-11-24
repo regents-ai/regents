@@ -28,13 +28,14 @@ export function installCopyButtons() {
 async function copy(button: HTMLButtonElement) {
   const targetId = button.dataset.copyTarget
   const target = targetId ? document.getElementById(targetId) : null
+  const url = button.dataset.copyUrl
+  const text = target ? textOf(target) : (button.dataset.copyText ?? "")
   let outcome: Outcome = "copied"
   try {
-    const url = button.dataset.copyUrl
     if (url) await navigator.clipboard.write([new ClipboardItem({"text/plain": fetched(url)})])
-    else await navigator.clipboard.writeText(target ? textOf(target) : (button.dataset.copyText ?? ""))
+    else await navigator.clipboard.writeText(text)
   } catch {
-    outcome = target ? select(target) : "failed"
+    outcome = url ? "failed" : fallbackCopy(text, target)
   }
   if (!button.isConnected) return
 
@@ -42,6 +43,34 @@ async function copy(button: HTMLButtonElement) {
   if (outcome === "failed") deny(button)
   window.clearTimeout(timers.get(button))
   timers.set(button, window.setTimeout(() => answer(button, undefined), SHOWN_MS))
+}
+
+function fallbackCopy(text: string, target: HTMLElement | null): Outcome {
+  if (target) {
+    const selected = select(target)
+    if (selected === "selected" && tryExecCopy()) return "copied"
+    return selected
+  }
+
+  const scratch = document.createElement("textarea")
+  scratch.value = text
+  scratch.setAttribute("readonly", "")
+  scratch.style.position = "fixed"
+  scratch.style.top = "-9999px"
+  scratch.style.opacity = "0"
+  document.body.append(scratch)
+  scratch.select()
+  const ok = tryExecCopy()
+  scratch.remove()
+  return ok ? "copied" : "failed"
+}
+
+function tryExecCopy(): boolean {
+  try {
+    return typeof document.execCommand === "function" && document.execCommand("copy")
+  } catch {
+    return false
+  }
 }
 
 // Handed to the clipboard unfinished: a browser only allows a write begun by the
@@ -77,8 +106,17 @@ function select(target: HTMLElement): Outcome {
 }
 
 function answer(button: HTMLButtonElement, outcome: Outcome | undefined) {
-  if (outcome) button.dataset.copyState = outcome
-  else delete button.dataset.copyState
+  if (outcome) {
+    if (!("copyOriginalTitle" in button.dataset)) button.dataset.copyOriginalTitle = button.title
+    button.dataset.copyState = outcome
+    button.title = WORDS[outcome]
+  } else {
+    delete button.dataset.copyState
+    if ("copyOriginalTitle" in button.dataset) {
+      button.title = button.dataset.copyOriginalTitle ?? ""
+      delete button.dataset.copyOriginalTitle
+    }
+  }
   const status = document.getElementById(button.dataset.copyStatus ?? "")
   if (status) status.textContent = outcome ? WORDS[outcome] : ""
 }

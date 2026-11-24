@@ -608,6 +608,8 @@
 }
 
 .stake-buy {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -620,10 +622,49 @@
   font-size: 0.72rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  text-decoration: none;
   white-space: nowrap;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.stake-buy { text-decoration: none; }
+.stake-buy::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    color-mix(in oklch, var(--color-fg) 14%, transparent) 50%,
+    transparent 80%
+  );
+  transform: translateX(-110%);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .stake-buy:hover {
+    border-color: var(--ash-signal);
+    background: color-mix(in oklch, var(--color-fg) 5%, transparent);
+    color: var(--color-fg);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .stake-buy:hover::after {
+    transform: translateX(110%);
+    transition: transform 420ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stake-buy:active {
+    transform: scale(0.97);
+  }
+}
 
 .stake-shared-refresh:disabled {
   color: var(--color-fg-muted);

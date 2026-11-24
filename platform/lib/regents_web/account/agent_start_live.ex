@@ -32,7 +32,7 @@ defmodule RegentsWeb.Account.AgentStartLive do
           <Regent.Primitives.copy_button
             id="agent-start-copy"
             target="agent-start-text"
-            aria-label={"Copy the steps for #{@agent.label}"}
+            title={"Copy the steps for #{@agent.label}"}
           >Copy</Regent.Primitives.copy_button>
         </div>
         <textarea id="agent-start-text" readonly rows="16">{AgentStart.instruction(@agent)}</textarea>

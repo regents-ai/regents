@@ -12,10 +12,15 @@ defmodule RegentsWeb.Autolaunch.BlogHTML do
         :if={@view == :index}
         posts={@posts}
         name="Blog"
-        path="/blog"
+        path="/autolaunch/blog"
       />
-      <Regent.Blog.article :if={@view == :show} post={@post} name="Blog" path="/blog" />
-      <Regent.Blog.not_found :if={@view == :not_found} name="Blog" path="/blog" />
+      <Regent.Blog.article
+        :if={@view == :show}
+        post={@post}
+        name="Blog"
+        path="/autolaunch/blog"
+      />
+      <Regent.Blog.not_found :if={@view == :not_found} name="Blog" path="/autolaunch/blog" />
     </div>
     """
   end

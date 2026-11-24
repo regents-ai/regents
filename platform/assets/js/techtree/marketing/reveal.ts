@@ -19,10 +19,15 @@ export function mountEntrance(doc: Document) {
   if (hero === null || still(hero)) return
 
   const display = hero.querySelector<HTMLElement>("[data-entrance-display]")
-  if (display) {
+  if (display && !display.querySelector(".split-clip")) {
+    const label = display.textContent?.trim()
+    if (label && !display.hasAttribute("aria-label")) display.setAttribute("aria-label", label)
     const split = splitText(display, {words: CLIPPED_WORD})
     play(split.words, {y: ["100%", "0%"], delay: stagger(70, {start: 80}), duration: 640, ease: EASE_OUT})
-      .then(() => split.revert())
+      .then(() => {
+        split.revert()
+        if (label) display.removeAttribute("aria-label")
+      })
   }
 
   const parts = [...hero.querySelectorAll("[data-entrance-part]")]

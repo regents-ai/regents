@@ -384,7 +384,7 @@ defmodule RegentsWeb.Autolaunch.AuctionLive do
   defp bid_aside(assigns) do
     ~H"""
     <section
-      :if={Regents.Autolaunch.Prelaunch.read_only?()}
+      :if={Regents.Autolaunch.Prelaunch.read_only?() && !@ended}
       class="prelaunch-actions"
       aria-label="Bidding unavailable"
     >
@@ -426,7 +426,7 @@ defmodule RegentsWeb.Autolaunch.AuctionLive do
       </ul>
     </section>
     <section
-      :if={!Regents.Autolaunch.Prelaunch.read_only?() && @ended}
+      :if={@ended}
       id="autolaunch-settlement"
       class="bid-panel"
       aria-label="Bidding has ended"
@@ -437,7 +437,10 @@ defmodule RegentsWeb.Autolaunch.AuctionLive do
       />
       <p class="bid-ended">{ended_copy(@page_record)}</p>
       <.live_component
-        :if={@page_record.state not in [:graduated, :failed]}
+        :if={
+          !Regents.Autolaunch.Prelaunch.read_only?() &&
+            @page_record.state not in [:graduated, :failed]
+        }
         module={RegentsWeb.Autolaunch.FinishAuctionComponent}
         id="autolaunch-finish"
         auction={@page_record}

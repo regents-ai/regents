@@ -44,6 +44,6 @@ Send security reports to [build@regents.sh](mailto:build@regents.sh) first, or u
 
 ## Company
 
-Regents Labs, Inc. runs Techtree and is the operator named in the [Terms of Use](https://techtree.sh/terms). [Privacy](https://techtree.sh/privacy) says what Techtree keeps about you. Social: [X @regents_sh](https://x.com/regents_sh) · [GitHub](https://github.com/regents-ai/techtree).
+Regents Labs, Inc. runs Techtree and is the operator named in the [Terms of Use](/techtree/terms). [Privacy](/techtree/privacy) says what Techtree keeps about you. Social: [X @regents_sh](https://x.com/regents_sh) · [GitHub](https://github.com/regents-ai/techtree).
 
 REGENT is on Base, contract `0x6f89bcA4eA5931EdFCB09786267b251DeE752b07`. Holding REGENT involves contract, network and financial risk. No return is guaranteed.

@@ -111,7 +111,7 @@ defmodule RegentsWeb.Autolaunch.Components.HomeProducts do
           headline: "Sell calls on your stock.",
           line: "Choose a strike and a Friday expiry, and set your premium.",
           action: "Trade calls",
-          path: "/stock/covered-call",
+          path: "/autolaunch/stock/covered-call",
           launch: false
         },
       %{
@@ -121,7 +121,7 @@ defmodule RegentsWeb.Autolaunch.Components.HomeProducts do
         headline: "Memecoin meets stock.",
         line: "Stake the token to receive stock from its trading fees.",
         action: "Launch one",
-        path: "/create",
+        path: "/autolaunch/create",
         launch: true
       },
       %{
@@ -131,7 +131,7 @@ defmodule RegentsWeb.Autolaunch.Components.HomeProducts do
         headline: "For agents that earn.",
         line: "Raise early backing in an auction and share your revenue with stakers.",
         action: "Launch one",
-        path: "/agent-business",
+        path: "/autolaunch/agent-business",
         launch: true
       },
       Regents.Autolaunch.Earn.Catalog.enabled?() &&
@@ -142,7 +142,7 @@ defmodule RegentsWeb.Autolaunch.Components.HomeProducts do
           headline: "Lend your USDC.",
           line: "Borrowers on Aave pay interest on it. Withdraw when you choose.",
           action: "Deposit USDC",
-          path: "/earn",
+          path: "/autolaunch/earn",
           launch: false
         }
     ]

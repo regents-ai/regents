@@ -16,15 +16,24 @@ const themeMaxAge = 60 * 60 * 24 * 365
 const themeColors: Record<Theme, string> = {dark: "#161616", light: "#e5e3d2"}
 const deviceLight = "(prefers-color-scheme: light)"
 
-/** The theme the visitor chose, from the cookie; none until they choose. */
+/** The theme the visitor chose, from cookie or localStorage; none until they choose. */
 export function chosenTheme(): Theme | undefined {
   const prefix = `${THEME_COOKIE}=`
-  const value = document.cookie
+  const cookieValue = document.cookie
     .split("; ")
     .find(cookie => cookie.startsWith(prefix))
     ?.slice(prefix.length)
 
-  return value === "light" || value === "dark" ? value : undefined
+  if (cookieValue === "light" || cookieValue === "dark") return cookieValue
+
+  try {
+    const stored = window.localStorage.getItem(THEME_COOKIE)
+    if (stored === "light" || stored === "dark") return stored
+  } catch {
+    // Storage may be unavailable in restricted contexts.
+  }
+
+  return undefined
 }
 
 /** The theme on screen: the page's own when it states one, otherwise the device's. */
@@ -34,6 +43,11 @@ export function showingTheme(): Theme {
   return window.matchMedia(deviceLight).matches ? "light" : "dark"
 }
 
+function writeCookie(theme: Theme): void {
+  const secure = window.location.protocol === "https:" ? "; Secure" : ""
+  document.cookie = `${THEME_COOKIE}=${theme}; Path=/; Max-Age=${themeMaxAge}; SameSite=Lax${secure}`
+}
+
 /**
  * Live navigation keeps the document, so each page restates its theme: the
  * visitor's choice, or none so the device decides.
@@ -41,8 +55,12 @@ export function showingTheme(): Theme {
 export function syncTheme(): void {
   const root = document.documentElement
   const theme = chosenTheme()
-  if (theme) root.dataset.theme = theme
-  else delete root.dataset.theme
+  if (theme) {
+    root.dataset.theme = theme
+    writeCookie(theme)
+  } else {
+    delete root.dataset.theme
+  }
   document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", theme ?? "dark light")
   document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach(meta => {
     meta.content = themeColors[theme ?? (meta.media.includes("light") ? "light" : "dark")]
@@ -51,9 +69,38 @@ export function syncTheme(): void {
 
 /** Saves the visitor's choice for every later page and shows it on this one. */
 export function chooseTheme(theme: Theme): void {
-  const secure = window.location.protocol === "https:" ? "; Secure" : ""
-  document.cookie = `${THEME_COOKIE}=${theme}; Path=/; Max-Age=${themeMaxAge}; SameSite=Lax${secure}`
+  writeCookie(theme)
+  try {
+    window.localStorage.setItem(THEME_COOKIE, theme)
+  } catch {
+    // Storage may be unavailable in restricted contexts.
+  }
   syncTheme()
+}
+
+/**
+ * Fallback for static pages or presses before the LiveView `ThemeSwitch` hook
+ * mounts: pressing an unbound switch still toggles and persists the theme.
+ */
+export function installThemeSwitchFallback(): void {
+  const syncButtons = (theme: Theme) => {
+    document.querySelectorAll<HTMLButtonElement>("[data-theme-switch] [role='switch']").forEach(btn => {
+      btn.setAttribute("aria-checked", String(theme === "light"))
+    })
+  }
+  syncButtons(showingTheme())
+  watchTheme(syncButtons)
+
+  document.addEventListener("click", event => {
+    const button =
+      event.target instanceof Element
+        ? event.target.closest<HTMLButtonElement>("[data-theme-switch] [role='switch']")
+        : null
+    if (!button) return
+    const root = button.closest<HTMLElement>("[data-theme-switch]")
+    if (!root || root.dataset.themeSwitchBound === "true") return
+    chooseTheme(showingTheme() === "light" ? "dark" : "light")
+  })
 }
 
 /**

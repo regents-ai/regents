@@ -831,19 +831,40 @@
 @media (hover: hover) and (pointer: fine) {
   .redeem-page button:not(:disabled):hover {
     border-color: var(--ash-signal);
+    background: color-mix(in oklch, var(--ash-signal) 8%, transparent);
     color: var(--ash-signal);
   }
 
   .redeem-page button.redeem-primary:not(:disabled):hover {
-    border-color: var(--color-fg);
-    background: var(--color-fg);
+    border-color: var(--ash-signal);
+    background: var(--ash-signal);
     color: var(--color-bg);
   }
 
   .redeem-nft-card:hover {
     border-color: var(--ash-signal);
     color: var(--color-fg);
+  }
+
+  .redeem-contract-details summary:hover {
+    color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 5%, transparent);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .redeem-nft-card:hover {
     translate: 0 -0.2rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .redeem-page button:not(:disabled):active {
+    transform: scale(0.97);
+  }
+
+  .redeem-nft-card:active {
+    transform: scale(0.985);
   }
 }
 

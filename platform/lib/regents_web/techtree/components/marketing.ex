@@ -68,7 +68,6 @@ defmodule RegentsWeb.Techtree.Components.Marketing do
           id={"#{@id}-title"}
           class="mk-opening__title"
           tabindex="-1"
-          data-entrance-part
         >
           {@title}
         </h1>

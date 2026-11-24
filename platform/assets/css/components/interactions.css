@@ -1,0 +1,633 @@
+/* Unified hover, press (:active), focus, and micro-interaction polish across
+   Regent UI primitives, site chrome, marketing, protocol/account pages, and
+   all four products (Keyfleet, Autolaunch, Patchbay, Techtree).
+
+   Principles:
+   - Explicit properties only (never `transition: all`).
+   - Fast ease-out (`cubic-bezier(0.23, 1, 0.32, 1)`), 100-180ms for presses/hovers.
+   - Hover states gated in `@media (hover: hover) and (pointer: fine)` so touch
+     taps never leave sticky hover states.
+   - Positional / scale motion gated in `@media (prefers-reduced-motion: no-preference)`.
+   - Lives outside `vendor/regent_ui` so `mix regent_ui.assets` never overwrites it. */
+
+:root {
+  --rg-interact-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --rg-interact-fast: 120ms;
+  --rg-interact-hover: 150ms;
+}
+
+/* ==========================================================================
+   1. Shared Regent UI Primitives & Site Bar (primitives.css, site.css)
+   ========================================================================== */
+
+.rg-button--secondary::before {
+  transition:
+    background-color var(--rg-interact-hover) ease,
+    border-color var(--rg-interact-hover) ease,
+    transform var(--rg-interact-fast) var(--rg-interact-ease);
+}
+
+.rg-button--quiet,
+.rg-copy {
+  transition:
+    color var(--rg-interact-hover) ease,
+    background-color var(--rg-interact-hover) ease,
+    border-color var(--rg-interact-hover) ease,
+    transform var(--rg-interact-fast) var(--rg-interact-ease);
+}
+
+.rg-copy--icon[data-copy-state="selected"] {
+  color: var(--color-success, currentColor);
+}
+
+.rg-bar__crown,
+.rg-bar__product,
+.rg-bar__item,
+.rg-bar__links a,
+.rg-disclosure > summary,
+.rg-pill-select > :is(select, summary),
+.rg-segmented__cell,
+.rg-tabs .rg-tabs__tab,
+.rg-crumbs__beside,
+.rg-crumbs__menu a,
+.rg-tip-button,
+.rg-address__label,
+.rg-account-menu__pair,
+.rg-account__choice,
+.rg-account__others button,
+.rg-account__brief-manage,
+.rg-blog__entry > a,
+.rg-blog__contents a,
+a.rg-discussion__author {
+  transition:
+    color var(--rg-interact-hover) ease,
+    background-color var(--rg-interact-hover) ease,
+    border-color var(--rg-interact-hover) ease,
+    opacity var(--rg-interact-hover) ease,
+    transform var(--rg-interact-fast) var(--rg-interact-ease);
+}
+
+.rg-bar__chevron,
+.rg-chevron,
+.rg-pill-select > summary::after {
+  transition: transform 180ms var(--rg-interact-ease);
+}
+
+.rg-bar:has(.rg-bar__menu:popover-open) .rg-bar__chevron,
+.rg-bar__product[aria-expanded="true"] .rg-bar__chevron,
+.rg-pill-select[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.rg-discussion__heart {
+  transition:
+    transform var(--rg-interact-fast) var(--rg-interact-ease),
+    background-color var(--rg-interact-hover) ease,
+    color var(--rg-interact-hover) ease;
+}
+
+/* ==========================================================================
+   2. Shared Shell Chrome, Account Menu & Dialogs (shell.css, agent_tools.css)
+   ========================================================================== */
+
+.account-chip,
+.shell-tabs a,
+#shell-sidebar li > a,
+#shell-sidebar li > button,
+#shell-sidebar [data-tree] > a,
+#shell-sidebar [data-tree] > span a,
+.mobile-menu-button,
+.shell-menu-close,
+.shell-dialog-close,
+.agent-tools-button,
+.agent-tools__close,
+.agent-tools__copies .rg-button,
+.agent-message__head .rg-button,
+.regent-footer__links a,
+.regent-footer__guide,
+.regent-footer__social > a {
+  cursor: pointer;
+  transition:
+    color var(--rg-interact-hover) ease,
+    background-color var(--rg-interact-hover) ease,
+    border-color var(--rg-interact-hover) ease,
+    transform var(--rg-interact-fast) var(--rg-interact-ease);
+}
+
+/* Align shell dialog close corner geometry with the sharp chamfered system. */
+:where(.regents-frame) .shell-dialog-close {
+  border-radius: 0;
+}
+
+/* ==========================================================================
+   3. Marketing, Protocol, Account & Docs Controls
+   ========================================================================== */
+
+.btn::before,
+.copy,
+.bar__brand,
+.bar__trigger,
+.bar__link,
+.bar__menu-button,
+.menu__link,
+.sheet__link,
+.footer__icons a,
+.card,
+.quiet-card,
+.plate,
+.window__close,
+.highlight,
+.result,
+.launch {
+  transition:
+    color var(--rg-interact-hover) ease,
+    background-color var(--rg-interact-hover) ease,
+    border-color var(--rg-interact-hover) ease,
+    opacity var(--rg-interact-hover) ease,
+    transform var(--rg-interact-fast) var(--rg-interact-ease);
+}
+
+.slab__link,
+.slab__link svg,
+.home__link,
+.home__social a,
+.home__prompt-tools :is(.rg-copy--icon, .home__prompt-view),
+.account-product-card,
+.account-overview__strip dd a,
+.account-product-card__list a,
+.stake-switch [role="tab"],
+.stake-contract-details summary,
+.stake-for-other__change,
+.stake-contract-link,
+.stake-info,
+.stake-shared-refresh,
+.redeem-contract-details summary,
+.cloak-agent-doc summary,
+.cloak-intro__close,
+.docs-tabs a,
+.docs-nav li a,
+.docs-nav__group summary,
+.docs-nav__foot a,
+.docs-toc__list a,
+.docs-toc-phone summary,
+.docs-menu a,
+.docs-pager a,
+.docs-crumbs a,
+.docs-search__results a,
+.agent-start__tabs a {
+  cursor: pointer;
+  transition:
+    color var(--rg-interact-hover) ease,
+    background-color var(--rg-interact-hover) ease,
+    border-color var(--rg-interact-hover) ease,
+    transform var(--rg-interact-fast) var(--rg-interact-ease);
+}
+
+/* ==========================================================================
+   4. Product Controls (Keyfleet, Autolaunch, Patchbay, Techtree)
+   ========================================================================== */
+
+/* Keyfleet */
+.fleet-keys-switch a,
+.fleet-entry__card,
+.hall-proposal,
+.fleet-channel,
+.harbour-sea__lift,
+.harbour-sea__return,
+.harbour-card__close,
+.harbour-card__key,
+.harbour-card__key .rg-icon,
+.harbour-sea__tag[data-harbour-ship],
+.workspace-place-tab,
+.workspace-row-switch,
+.tree-canvas-zoom button,
+.tree-canvas-segments button,
+.atlas-active__thing,
+.atlas-list__window a,
+.atlas-thing,
+.toast .toast__dismiss,
+.rl-recent__toggle,
+.rl-ticker__item,
+.search-match,
+.polls-choices label,
+/* Autolaunch */
+.home-display a,
+.home-filter summary,
+.home-filter summary::after,
+.home-filter__option,
+.home-next__card,
+.home-search-context button,
+.market-list__pills a,
+.market-list__row,
+.upcoming-stock,
+.search-dialog__close,
+.search-dialog__categories button,
+.search-dialog__chains button,
+.search-dialog__recent button,
+.search-dialog__clear,
+.search-result,
+.code-card__close,
+.code-card__copy .rg-button,
+.auction-tabs__tab,
+.auction-details-window__close,
+.bid-help summary,
+.token-swap__gear,
+.token-swap__portions button,
+.token-swap__direction .rg-button svg,
+.earn__tabs a,
+.earn-panel__max,
+.covered-calls__tabs a,
+.covered-calls__pills > button,
+.covered-calls__suggested,
+.covered-calls__max,
+.launch-kind a,
+.create-menu__option,
+/* Patchbay */
+.pb-feed-tabs a,
+.pb-row,
+a.pb-tag,
+.pb-tool-chip,
+.pb-connect-choice,
+.pb-showcase-tile,
+.pb-directory-row,
+.pb-directory-expand,
+.pb-directory-count,
+.pb-directory-forum > span:first-child,
+.pb-placement-summary,
+.pb-buy-close,
+.pb-oa-chip button,
+.pb-oa-fold summary,
+.pb-fix-tools-list li,
+.pb-hero-details > summary,
+.pb-fix-more .pb-hero-kind label,
+.pb-picture-remove,
+.pb-pictures-add,
+.pb-incident-row,
+.pb-agent-message-top button,
+.pb-menu a,
+.pb-tool-row,
+.pb-site-agent-panel summary,
+/* Techtree */
+.tt-row__link,
+.menu-page,
+.mk-service,
+.mk-tile,
+.mk-news__card,
+#agent-version-browser a,
+.tasks__filter,
+.pagecopy summary,
+.pagecopy__item,
+.docs-index__link,
+.runs-table__row,
+.results-filter-choices .result-choice,
+.results-ledger tbody tr,
+.watchdog-method label,
+.project-list__link,
+.project-head__back,
+.wallet-bench__switch a,
+.wallet-bench__tests a,
+.wallet-bench__close,
+.wallet-bench summary,
+a.wallet-bench__score {
+  transition:
+    color var(--rg-interact-hover) ease,
+    background-color var(--rg-interact-hover) ease,
+    border-color var(--rg-interact-hover) ease,
+    outline-color var(--rg-interact-hover) ease,
+    opacity var(--rg-interact-hover) ease,
+    transform var(--rg-interact-fast) var(--rg-interact-ease);
+}
+
+/* Fix missing pointer cursor on interactive labels / dismiss buttons. */
+.toast .toast__dismiss,
+.polls-choices label,
+.code-card__close,
+.pb-buy-close,
+.watchdog-method label,
+.wallet-bench__close,
+.cloak-intro__close,
+.agent-tools__close,
+.search-dialog__close,
+.auction-details-window__close {
+  cursor: pointer;
+}
+
+.home-filter[open] summary::after {
+  transform: rotate(180deg);
+}
+
+/* Firefox range-thumb active parity on Autolaunch bid slider. */
+.bid-slider:active::-moz-range-thumb {
+  transform: scale(1.12);
+}
+
+/* ==========================================================================
+   5. Hover States (Desktop Fine Pointers Only)
+   ========================================================================== */
+
+@media (hover: hover) and (pointer: fine) {
+  /* Secondary & quiet buttons */
+  .rg-button--secondary:not(:disabled):not([aria-disabled="true"]):hover::before {
+    border-color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 6%, var(--color-surface, var(--color-bg)));
+  }
+
+  .rg-button--quiet:not(:disabled):not([aria-disabled="true"]):hover {
+    color: var(--color-fg);
+  }
+
+  /* Site bar & Regent UI primitives */
+  .rg-bar__crown:hover {
+    opacity: 0.78;
+  }
+
+  .rg-bar__product:hover {
+    border-color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 5%, transparent);
+  }
+
+  .rg-disclosure > summary:hover,
+  .rg-pill-select > :is(select, summary):hover {
+    border-color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 5%, transparent);
+  }
+
+  .rg-segmented__cell:not([aria-pressed="true"]):not([aria-current]):hover,
+  .rg-tabs .rg-tabs__tab:not([aria-selected="true"]):hover {
+    color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 5%, transparent);
+  }
+
+  .rg-address__label:hover,
+  .rg-tip-button:hover,
+  .rg-crumbs__beside:hover {
+    color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+  }
+
+  /* Shared shell chrome & close buttons */
+  .shell-tabs a:not([aria-current="page"]):hover {
+    color: var(--color-fg);
+  }
+
+  #shell-sidebar [data-tree] > span a:hover,
+  .mobile-menu-button:hover,
+  .shell-menu-close:hover,
+  .shell-dialog-close:hover,
+  .agent-tools__close:hover,
+  .rg-account__others button:hover,
+  .search-dialog__close:hover,
+  .code-card__close:hover,
+  .cloak-intro__close:hover,
+  .pb-buy-close:hover,
+  .wallet-bench__close:hover,
+  .auction-details-window__close:hover {
+    color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 8%, transparent);
+  }
+
+  .regent-footer__links a:hover,
+  .regent-footer__guide:hover {
+    color: var(--color-fg);
+  }
+
+  /* Marketing buttons, nav & dropdown items */
+  .btn--primary:not(:disabled):hover::before {
+    filter: brightness(0.94);
+  }
+
+  .btn--secondary:not(:disabled):hover::before {
+    background: color-mix(in oklch, var(--color-fg) 8%, transparent);
+    border-color: var(--color-fg);
+  }
+
+  .copy:hover {
+    border-color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 8%, transparent);
+  }
+
+  .bar__trigger:hover,
+  .bar__link:hover,
+  .bar__brand:hover,
+  .bar__menu-button:hover,
+  .sheet__link:hover,
+  .footer__icons a:hover {
+    opacity: 0.78;
+  }
+
+  .menu__link:hover {
+    background: color-mix(in oklch, currentColor 7%, transparent);
+  }
+
+  .card:hover,
+  .highlight:hover,
+  .result:hover,
+  .launch:hover,
+  .account-product-card:hover {
+    border-color: var(--color-fg);
+  }
+
+  /* Protocol, Account, Cloak & Docs */
+  .slab__link:hover,
+  .home__link:hover,
+  .home__social a:hover,
+  .stake-for-other__change:hover,
+  .stake-contract-link:hover,
+  .docs-nav__foot a:hover {
+    color: var(--color-fg);
+    opacity: 0.85;
+  }
+
+  .stake-switch [role="tab"]:not([aria-selected="true"]):hover,
+  .stake-contract-details summary:hover,
+  .cloak-agent-doc summary:hover,
+  .docs-search__results a:hover,
+  .docs-nav__group summary:hover,
+  .docs-toc-phone summary:hover {
+    color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+  }
+
+  /* Keyfleet */
+  .fleet-keys-switch a:not([aria-current]):hover,
+  .workspace-row-switch:hover,
+  .search-match:hover,
+  .polls-choices label:hover {
+    color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+  }
+
+  .harbour-sea__tag[data-harbour-ship]:hover {
+    border-color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 10%, var(--color-bg));
+  }
+
+  /* Autolaunch */
+  .home-search-context button:hover,
+  .auction-tabs__tab:not([aria-selected="true"]):hover,
+  .bid-help summary:hover,
+  .token-swap__gear:hover,
+  .earn__tabs a:not([aria-current]):hover,
+  .earn-panel__max:hover,
+  .covered-calls__tabs a:not([aria-current]):hover,
+  .covered-calls__pills > button:not([aria-pressed="true"]):hover,
+  .covered-calls__suggested:hover,
+  .covered-calls__max:hover {
+    color: var(--color-fg);
+    border-color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+  }
+
+  /* Patchbay */
+  .pb-directory-expand:hover,
+  .pb-directory-count:hover,
+  .pb-oa-fold summary:hover,
+  .pb-incident-row:hover,
+  .pb-menu a:hover,
+  .pb-site-agent-panel summary:hover {
+    color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+  }
+
+  /* Techtree */
+  #agent-version-browser a:hover,
+  .tasks__filter:hover,
+  .pagecopy summary:hover,
+  .pagecopy__item:hover,
+  .docs-index__link:hover,
+  .watchdog-method label:hover,
+  .wallet-bench__switch a:not([aria-current]):hover,
+  .wallet-bench__tests a:not([aria-current]):hover,
+  .wallet-bench summary:hover,
+  .project-list__link:hover {
+    color: var(--color-fg);
+    border-color: var(--color-fg);
+    background: color-mix(in oklch, var(--color-fg) 5%, transparent);
+  }
+
+  .mk-service:hover {
+    border-color: var(--color-fg);
+  }
+}
+
+/* ==========================================================================
+   6. Positional Hover Nudges & Tactile :active Press Feedback (Motion-Safe)
+   ========================================================================== */
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .slab__link:hover svg,
+  .harbour-card__key:hover .rg-icon {
+    transform: translateX(3px);
+  }
+
+  .project-head__back:hover {
+    transform: translateX(-2px);
+  }
+
+  .token-swap__direction .rg-button:hover svg {
+    transform: rotate(180deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Primary & secondary .rg-button immediate CSS :active press fallback */
+  .rg-button:not(:disabled):not([aria-disabled="true"]):not(.rg-button--quiet):active::before {
+    transform: scale(0.975);
+  }
+
+  .rg-button--quiet:not(:disabled):not([aria-disabled="true"]):active,
+  .rg-copy:not(:disabled):active,
+  .btn:not(:disabled):active::before,
+  .copy:active,
+  .account-chip:active,
+  .rg-bar__product:active,
+  .rg-bar__crown:active,
+  .rg-tip-button:active,
+  .mobile-menu-button:active,
+  .shell-menu-close:active,
+  .shell-dialog-close:active,
+  .agent-tools-button:active,
+  .agent-tools__close:active,
+  .window__close:active,
+  .cloak-intro__close:active,
+  .search-dialog__close:active,
+  .code-card__close:active,
+  .pb-buy-close:active,
+  .wallet-bench__close:active,
+  .auction-details-window__close:active,
+  .stake-info:active,
+  .stake-shared-refresh:not(:disabled):active,
+  .harbour-sea__lift:active,
+  .harbour-sea__return:active,
+  .harbour-card__close:active,
+  .tree-canvas-zoom button:active,
+  .tree-canvas-segments button:active,
+  .token-swap__gear:active,
+  .token-swap__portions button:active,
+  .earn-panel__max:active,
+  .covered-calls__max:active,
+  .covered-calls__pills > button:active,
+  .pb-connect-choice:active,
+  .pb-oa-chip button:active,
+  .footer__icons a:active,
+  .home__social a:active,
+  .home__prompt-tools :is(.rg-copy--icon, .home__prompt-view):active {
+    transform: scale(0.96);
+  }
+
+  /* Subtle press on cards, tabs, pills & rows */
+  .card:active,
+  .quiet-card:active,
+  .plate:active,
+  .highlight:active,
+  .result:active,
+  .launch:active,
+  .rg-blog__entry > a:active,
+  .docs-pager a:active,
+  .fleet-entry__card:active,
+  .hall-proposal:active,
+  .fleet-channel:active,
+  .workspace-place-tab:active,
+  .home-next__card:active,
+  .upcoming-stock:active,
+  .pb-showcase-tile:active,
+  .pb-row:active,
+  .mk-service:active,
+  .mk-tile:active,
+  .mk-news__card:active,
+  .docs-index__link:active,
+  .project-list__link:active,
+  a.wallet-bench__score:active {
+    transform: scale(0.985);
+  }
+
+  .shell-tabs a:active,
+  .rg-tabs .rg-tabs__tab:active,
+  .rg-bar__item:active,
+  .rg-bar__links a:active,
+  .bar__trigger:active,
+  .bar__link:active,
+  .sheet__link:active,
+  .docs-tabs a:active,
+  .fleet-keys-switch a:active,
+  .auction-tabs__tab:active,
+  .earn__tabs a:active,
+  .covered-calls__tabs a:active,
+  .pb-feed-tabs a:active,
+  .wallet-bench__switch a:active,
+  .wallet-bench__tests a:active {
+    transform: translateY(1px);
+  }
+}
+
+/* Guard positional lifts in existing stylesheets under reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .fleet-entry__card:hover,
+  .agent-start__tabs a:active,
+  .rg-bar__chevron,
+  .rg-chevron,
+  .home-filter[open] summary::after {
+    transform: none !important;
+    translate: none !important;
+  }
+}

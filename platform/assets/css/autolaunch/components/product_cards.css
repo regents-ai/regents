@@ -24,7 +24,8 @@
 #home-products .home-product[data-cells="columns"] { --home-card-tint: #c8f25c; }
 #home-products .home-product[data-cells="rise"] { --home-card-tint: #60a5fa; }
 #home-products .home-products__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
-#home-products .home-products__row:is([data-count="1"], [data-count="2"]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#home-products .home-products__row[data-count="1"] { grid-template-columns: minmax(0, 1fr); }
+#home-products .home-products__row[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 /* Four cards stand in one row where there is room, and two by two where there is not. */
 #home-products .home-products__row[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 75rem) {

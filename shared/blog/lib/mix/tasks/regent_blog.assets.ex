@@ -11,8 +11,13 @@ defmodule Mix.Tasks.RegentBlog.Assets do
     for name <- ["katex.mjs", "KATEX-LICENSE.txt"],
         do: File.cp!(Path.join(source, name), Path.join(target, name))
 
+    blog_target = Path.join(File.cwd!(), "priv/static/images/blog")
     images = Path.expand("../blog/images", File.cwd!())
-    copy_images(images, Path.join(File.cwd!(), "priv/static/images/blog"))
+    copy_images(images, blog_target)
+
+    for product_images <- Path.wildcard(Path.join(File.cwd!(), "priv/*/blog/images")) do
+      copy_images(product_images, blog_target)
+    end
   end
 
   # Never stage raw Markdown/drafts or follow symlinks into unrelated files.

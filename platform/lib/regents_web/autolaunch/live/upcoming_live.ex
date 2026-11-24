@@ -184,6 +184,9 @@ defmodule RegentsWeb.Autolaunch.UpcomingLive do
             <span class="stock-select__symbol">{stock["symbol"]}</span>
             <span class="stock-select__name">{stock["name"]}</span>
             <.stock_identity :if={stock["token_address"]} chain={@chain.chain} />
+            <span :if={!stock["token_address"]} class="stock-select__identity">
+              {@chain.name} · Pending verification
+            </span>
           </.link>
         </li>
       </ul>

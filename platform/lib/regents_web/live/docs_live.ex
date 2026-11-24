@@ -26,6 +26,7 @@ defmodule RegentsWeb.DocsLive do
       html: html,
       toc: toc,
       markdown: Docs.markdown(page),
+      markdown_path: page.path <> ".md",
       name: name,
       description: description,
       previous: previous,
@@ -69,20 +70,35 @@ defmodule RegentsWeb.DocsLive do
           </div>
 
           <span class="docs-ask">
-            <Regent.Primitives.button variant="secondary" arrow={false} popovertarget="docs-ask-menu">
+            <Regent.Primitives.button
+              id="docs-ask-trigger"
+              variant="secondary"
+              arrow={false}
+              popovertarget="docs-ask-menu"
+              aria-haspopup="menu"
+              aria-controls="docs-ask-menu"
+              aria-expanded="false"
+            >
               Ask AI
             </Regent.Primitives.button>
-            <div id="docs-ask-menu" class="docs-menu" popover>
-              <a href={@docs.claude} target="_blank" rel="noopener noreferrer">Claude</a>
-              <a href={@docs.chatgpt} target="_blank" rel="noopener noreferrer">ChatGPT</a>
+            <div id="docs-ask-menu" class="docs-menu" role="menu" popover>
+              <a href={@docs.claude} role="menuitem" target="_blank" rel="noopener noreferrer">
+                Claude
+              </a>
+              <a href={@docs.chatgpt} role="menuitem" target="_blank" rel="noopener noreferrer">
+                ChatGPT
+              </a>
             </div>
           </span>
 
           <Regent.Primitives.button
+            id="docs-menu-trigger"
             variant="quiet"
             arrow={false}
             class="docs-menu-button"
             popovertarget="docs-nav"
+            aria-controls="docs-nav"
+            aria-expanded="false"
           >
             Contents
           </Regent.Primitives.button>
@@ -153,9 +169,15 @@ defmodule RegentsWeb.DocsLive do
             <Regent.Primitives.copy_button id="docs-copy" text={@docs.markdown} variant="quiet">
               Copy for LLM
             </Regent.Primitives.copy_button>
-            <Regent.Primitives.button variant="quiet" arrow={false} data-docs-markdown>
-              View as Markdown
-            </Regent.Primitives.button>
+            <a
+              href={@docs.markdown_path}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="rg-button rg-button--quiet"
+              data-docs-markdown
+            >
+              <span class="rg-button__label">View as Markdown</span>
+            </a>
             <.link navigate={~p"/start"} class="rg-button rg-button--primary">
               <span class="rg-button__label">Set up agent</span>
             </.link>

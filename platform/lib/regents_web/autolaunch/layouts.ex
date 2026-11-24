@@ -86,10 +86,12 @@ defmodule RegentsWeb.Autolaunch.Layouts do
     """
   end
 
-  @doc "Each live page's address, for the links that mark the page you are on."
-  def on_mount(:page, _params, _session, socket) do
+  @doc "Each live page's address and client tag, for links and rate-limited page reads."
+  def on_mount(:page, _params, session, socket) do
     {:cont,
-     Phoenix.LiveView.attach_hook(socket, :page, :handle_params, fn _params, uri, socket ->
+     socket
+     |> assign(:client_key, session["client_tag"] || "anonymous")
+     |> Phoenix.LiveView.attach_hook(:page, :handle_params, fn _params, uri, socket ->
        {:cont, assign(socket, :current_path, URI.parse(uri).path)}
      end)}
   end
@@ -162,11 +164,24 @@ defmodule RegentsWeb.Autolaunch.Layouts do
         <a href={@buy_regent} target="_blank" rel="noopener noreferrer">Buy $REGENT</a>
         <a href={~p"/autolaunch/about"}>About</a>
         <span class="rg-tip">
-          <button type="button" class="regent-footer__guide" popovertarget="footer-agent-guide">
+          <button
+            id="footer-agent-guide-trigger"
+            type="button"
+            class="regent-footer__guide"
+            popovertarget="footer-agent-guide"
+            aria-controls="footer-agent-guide"
+            aria-haspopup="true"
+          >
             Agent guide
           </button>
-          <div id="footer-agent-guide" class="rg-tip-body regent-footer__guide-body" popover>
+          <div
+            id="footer-agent-guide"
+            class="rg-tip-body regent-footer__guide-body"
+            popover
+            phx-update="ignore"
+          >
             <p>Give your agent one of these.</p>
+            <a href={~p"/autolaunch/docs"}>Autolaunch developer guide</a>
             <a href={~p"/agents.md"}>What agents can do here</a>
             <a href={~p"/llms.txt"}>The whole site in brief</a>
           </div>

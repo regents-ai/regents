@@ -147,8 +147,9 @@ fn glow(x: vec2f) -> f32 {
   let s = params.scale;
   let edge = lens_edge(x);
   let ring = abs(edge - 1.6 * s);
-  let reach = select(5.5 * s, 3.5 * s, edge < 0.0);
-  return 0.8 * toward_strip(q, 0.95) * exp(-ring / reach);
+  let reach = select(mix(2.4, 4.4, params.shape.z) * s, 3.2 * s, edge < 0.0);
+  let amp = select(mix(0.28, 0.65, params.shape.z), 0.72, edge < 0.0);
+  return amp * toward_strip(q, 0.95) * exp(-ring / reach);
 }
 
 fn track(x: vec2f) -> vec4f {

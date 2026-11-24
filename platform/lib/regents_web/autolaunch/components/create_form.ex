@@ -94,16 +94,39 @@ defmodule RegentsWeb.Autolaunch.Components.CreateForm do
       // returns to the button instead of sending the form.
       export default {
         mounted() {
+          const container = this.el.closest(".create-menu")
+          const button = document.getElementById(this.el.dataset.button)
+          this.close = () => {
+            if (!this.el.hidden) this.js().exec(this.el.dataset.close)
+          }
+          this.onPointerDown = event => {
+            if (!this.el.hidden && container && !container.contains(event.target)) {
+              this.close()
+            }
+          }
+          this.onFocusOut = event => {
+            const next = event.relatedTarget
+            if (!this.el.hidden && container && (!(next instanceof Node) || !container.contains(next))) {
+              this.close()
+            }
+          }
+          document.addEventListener("pointerdown", this.onPointerDown, true)
+          container?.addEventListener("focusout", this.onFocusOut)
           this.el.addEventListener("click", event => {
-            if (event.detail > 0 && event.target.closest("label")) this.js().exec(this.el.dataset.close)
+            if (event.detail > 0 && event.target.closest("label")) this.close()
           })
           this.el.addEventListener("keydown", event => {
             if (event.key === "Enter" && event.target.type === "radio") {
               event.preventDefault()
-              this.js().exec(this.el.dataset.close)
-              document.getElementById(this.el.dataset.button).focus()
+              this.close()
+              button?.focus()
             }
           })
+        },
+        destroyed() {
+          document.removeEventListener("pointerdown", this.onPointerDown, true)
+          const container = this.el.closest(".create-menu")
+          container?.removeEventListener("focusout", this.onFocusOut)
         }
       }
     </script>

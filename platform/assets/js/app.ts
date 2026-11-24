@@ -56,7 +56,7 @@ import {installPublicTools} from "./public_tools"
 import {arriveAt, installShellPanels} from "./shell_panels"
 import {VerifiedConnections} from "./hooks/verified_connections"
 import {installVisitLog} from "./visit_log"
-import {syncTheme} from "./theme"
+import {installThemeSwitchFallback, syncTheme} from "./theme"
 // Techtree's pages (`RegentsWeb.Techtree`): their moving pictures, rows that rise
 // in and figures that count up, the Docs' Copy page control, the Results page's
 // agent-version strip, and the Services panel in Techtree's row under the bar.
@@ -361,6 +361,8 @@ liveSocket.connect()
 // Where the site only reads, nobody signs in: Sign in says so, and Privy never loads.
 if (signInOpensLater()) installSignInLater()
 else installAccountAuthLazyLoader()
+syncTheme()
+installThemeSwitchFallback()
 installPublicTools()
 installProductWebMcpTools()
 installCrossTabCsrf()

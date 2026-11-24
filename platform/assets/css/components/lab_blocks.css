@@ -22,11 +22,11 @@
 
 .lab-blocks {
   --lab-blocks-near: var(--color-surface);
-  --lab-blocks-far: light-dark(#d3d8e9, #0e1534);
-  --lab-blocks-seam: light-dark(#cbd0e1, #1b2450);
+  --lab-blocks-far: light-dark(#d3d8e9, #182654);
+  --lab-blocks-seam: light-dark(#cbd0e1, #34488a);
   --lab-blocks-crown-top: light-dark(#7f98ff, var(--ash-action-light));
   --lab-blocks-crown-foot: light-dark(#3a5ef0, var(--ash-action-deep));
-  --lab-blocks-beam-tone: light-dark(#a19f94, #0b0b0b);
+  --lab-blocks-beam-tone: light-dark(#a19f94, #5a6d9c);
   --lab-blocks-lit-tone: light-dark(#161616, #ffffff);
   container: lab-blocks / inline-size;
   display: grid;

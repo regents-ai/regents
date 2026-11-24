@@ -141,7 +141,7 @@
 }
 #home-explore .home-coin__actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-top: 10px; }
 #home-explore .home-coin__action { min-height: 44px; padding: 4px; font-size: .8125rem; white-space: nowrap; overflow-wrap: normal; }
-#home-explore .home-coin__action.rg-button--secondary:is(:hover, :focus-visible) { border-color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }
+#home-explore .home-coin__action.rg-button--secondary:is(:hover, :focus-visible)::before { border-color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }
 /* The buttons lift toward the pointer; keyboard focus never moves them, and they stay still when motion is reduced.
    The lift moves `translate`, so the press's squish, which moves `transform`, plays on top of it. */
 @media (prefers-reduced-motion: no-preference) {

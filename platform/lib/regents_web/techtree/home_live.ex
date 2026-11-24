@@ -91,6 +91,7 @@ defmodule RegentsWeb.Techtree.HomeLive do
        promise: @promise,
        services_line: @services_line,
        services: Services.all(),
+       other_services: Services.others(),
        factory_line: @factory_line,
        factory: factory(),
        factory_after: @factory_after,
@@ -297,6 +298,31 @@ defmodule RegentsWeb.Techtree.HomeLive do
             </div>
           </li>
         </ul>
+        <ul
+          :if={@other_services != []}
+          class="mk-services mk-services--others"
+          id="services-other-list"
+        >
+          <li
+            :for={service <- @other_services}
+            id={"service-#{service.id}"}
+            class={"mk-service mk-service--#{service.id}"}
+          >
+            <.field id={"service-#{service.id}-field"} scene="backdrop" class="mk-service__field" />
+            <div class="mk-service__words">
+              <h3>
+                <.link navigate={Services.path(service.id)} class="mk-service__link">
+                  {service.name}
+                </.link>
+              </h3>
+              <p>{service.promise}</p>
+              <div class="mk-service__foot">
+                <span class="mk-service__tool">Specialist service</span>
+                <Regent.Icons.icon name="arrow-right" class="mk-service__arrow" />
+              </div>
+            </div>
+          </li>
+        </ul>
       </section>
 
       <section id="factory" class="mk-section" aria-labelledby="factory-title">
@@ -374,11 +400,13 @@ defmodule RegentsWeb.Techtree.HomeLive do
         </header>
         <ul id="stack-list" class="mk-stack__list" phx-hook="MarketingStagger" phx-update="ignore">
           <li :for={maker <- @makers} id={"maker-#{maker.id}"} class="mk-maker" data-stagger>
-            <h3 :if={maker.logo} class="mk-maker__plate">
+            <h3 :if={maker.logo} class="mk-maker__plate" aria-label={maker.name}>
+              <span class="offscreen">{maker.name}</span>
               <img
                 class={["mk-maker__logo", "mk-maker__logo--#{maker.id}"]}
                 src={maker.logo.src}
-                alt={maker.name}
+                alt=""
+                aria-hidden="true"
                 width={maker.logo.width}
                 height={maker.logo.height}
               />

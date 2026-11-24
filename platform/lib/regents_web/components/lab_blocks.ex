@@ -201,7 +201,7 @@ defmodule RegentsWeb.Components.LabBlocks do
             data-art-link={line.index}
           />
           <%!-- Shapes repeated for every block are written without space between them. --%>
-          <g :for={layout <- @layouts} data-layout={layout} phx-no-format><g
+          <g :for={layout <- @layouts} class="lab-blocks__nodes" data-layout={layout} phx-no-format><g
             :for={solid <- @blocks[layout]}
             data-art-node={solid.node}
             style={"fill:#{solid.colour}"}
