@@ -321,7 +321,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
             width="460"
             height="270"
             loading="lazy"
-            alt="Cloak's crown in the menu bar with its menu open: Paused, then Start, Chat, Agents, Details and Settings."
+            alt="Cloak's crown in the menu bar with its control panel open: status, Start, mode switcher, Cover Traffic, Chat, Serving, and Settings."
           />
         </div>
       </section>

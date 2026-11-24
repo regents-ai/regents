@@ -87,7 +87,7 @@ Every chat thread in Cloak is **strictly self-contained**—across different mod
 
 - **No cross-thread access:** Every mode constructs its request solely from the single active thread's history. A cloud model can never read a Local thread or any other thread.
 - **Mode locked on turn 1:** Once a thread sends its first turn, its mode (`Local`, `NEAR AI Gateway`, `Token Inference`, or `Anon V`) is fixed permanently—a Local thread can never be routed to a remote provider.
-- **Offline-only Local Access:** Opt-in **Settings → Local Access** sources (basic Mac info, Hermes-compatible `USER.md`/`MEMORY.md` memory, read-only approved local folders, per-turn file/PDF/clipboard attachments, and macOS Calendar/Reminders/Contacts) are available **exclusively in Local Mode**. Cloud modes, the Pi Agent VM, and Connected Apps have zero code path to Local Access data, and pending local attachments automatically clear when switching threads or leaving Local Mode.
+- **Offline-only Local Access:** Opt-in **Settings → Local Access** sources (basic Mac info, Hermes-compatible `USER.md`/`MEMORY.md` memory, read-only approved local folders, per-turn PDF/document/image-OCR/text file attachments via picker or drag & drop, and macOS Calendar/Reminders/Contacts) are available **exclusively in Local Mode**. Cloud modes, the Pi Agent VM, and Connected Apps have zero code path to Local Access data, and pending local attachments automatically clear when switching threads or leaving Local Mode.
 - **What to keep in mind:**
   - Sources enabled under **Settings → Local Access** apply across your **Local Mode** threads only (never cloud threads).
   - Toggling the **Venice ↔ Boundless** pill mid-chat inside a single **Token Inference** thread carries that one thread's (locally rewritten) history to the newly selected Token Inference provider—still isolated from all other threads and modes.
@@ -136,8 +136,8 @@ client.chat.completions.create(
 
 Cloak integrates **Inference Serving** via [Darkbloom](https://darkbloom.dev) ([console.darkbloom.dev](https://console.darkbloom.dev/) · [Eigen Labs / Layr-Labs/d-inference](https://github.com/Layr-Labs/d-inference)) on macOS 27+ to serve local models to your own apps or optionally earn payouts from idle Apple silicon memory:
 
-- Verifies `~/.darkbloom/bin/darkbloom` against Darkbloom's pinned macOS Developer ID Team ID and leaf certificate hash before talking to its loopback-only control API.
-- Computes available memory headroom alongside Cloak, ranks fitting models by live payout rate, monitors live telemetry over SSE, stays in sync with local `darkbloom` CLI changes, and automatically pauses network serving whenever you actively use your Mac.
+- Verifies `~/.darkbloom/bin/darkbloom` against Darkbloom's pinned macOS Developer ID Team ID (`SLDQ2GJ6TL`) and leaf certificate hash before talking to its loopback-only control API.
+- Provides a unified 3-way **Serving Mode** control (**Off** / **Local Only** / **Network + Local**), computes available memory headroom alongside Cloak, ranks fitting models by live payout rate, monitors live telemetry (daemon uptime, served requests, output tokens, and memory) over SSE, stays in sync with local `darkbloom` CLI changes, and automatically pauses network serving whenever you actively use your Mac.
 
 ## Native macOS Shell & Requirements
 
@@ -148,8 +148,9 @@ Cloak integrates **Inference Serving** via [Darkbloom](https://darkbloom.dev) ([
 | **Local (GGUF + optional 44 MB LoRA)** | 24 GB+ / 32 GB+ | **13.63 GB** / **17.63 GB** | No |
 | **Token Inference, Anon V, Connected Apps, Agent** | 16 GB+ | **5.69 GB** (`Qwen 3.5 9B`) | Yes |
 
-- **Encrypted local storage:** Saved chats, Connected App hashes, and Tempo deposit state are authenticated with ChaCha20-Poly1305 inside owner-only (`0700`) Application Support folders. Ephemeral mode (`Save chat history: Off`) keeps new threads strictly in RAM.
-- **Menu bar, Quick Prompt, Widgets & CLI:** Native Liquid Glass menu bar panel, Carbon-hotkey Quick Prompt (zero Accessibility permission required), Control Center toggles, Desktop widgets, `cloak` CLI over an owner-only Unix socket, EdDSA-signed updates via [Sparkle 2.8.1](https://sparkle-project.org), and an **Offline Data** pointer to [Tinfoil Kit](https://github.com/tudor-city-ventures/tinfoil-kit).
+- **Encrypted local storage & native math:** Saved chats, Connected App hashes, and Tempo deposit state are authenticated with ChaCha20-Poly1305 inside owner-only (`0700`) Application Support folders, rendered with pure-Swift Markdown and LaTeX math. Ephemeral mode (`Save chat history: Off`) keeps new threads strictly in RAM.
+- **Menu bar, Quick Prompt, Widgets & CLI:** Native Liquid Glass menu bar panel, Carbon-hotkey Quick Prompt (zero Accessibility permission required), Control Center toggles, Desktop widgets, `cloak` CLI over an owner-only Unix socket, and EdDSA-signed updates via [Sparkle 2.8.1](https://sparkle-project.org).
+- **Offline Data:** **Settings → Offline Data** provides progressive **Minimum → Maximum** downloads for **Kiwix Library** (`174 MB → 61 GB`), **DevDocs** (`15 MB → 240 MB`, 1-click linkable into Local Mode), **CourtListener Bulk Data** (`540 KB → 58.3 GB`), **PubMed Central Open Access** (AWS S3 CLI), and [Tinfoil Kit](https://github.com/tudor-city-ventures/tinfoil-kit).
 
 - **Release verification:** Every release publishes SHA-256 checksums for the `.dmg` and installed `Cloak.app/Contents/MacOS/RegentsCloak` binary plus its Apple Developer ID `CDHash` (Team `367G3Z7G3J`) on GitHub Releases (`SHA256SUMS.txt` and `checksums.json`) and at [regents.sh/cloak/install]({{origin}}/cloak/install#verify). Cloak's **Settings → Status** pane displays the running bundle's live SHA-256 and `CDHash` alongside copy-paste `shasum`, `codesign`, and `spctl` commands so you can verify independently using built-in macOS tools.
 

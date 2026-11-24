@@ -120,13 +120,13 @@ defmodule RegentsWeb.Cloak do
       id: "runtime-boundary",
       summary: "Runtime boundary: macOS desktop app (no live web chat backend)",
       body:
-        "Cloak is a native macOS menu bar application for Apple silicon; this page is product documentation and the chat window shown above is a static illustration of the Mac app, not a live hosted chat endpoint. Local runs entirely on the user's Mac through Apple MLX (vmlx-swift) or Metal llama.cpp with zero inference network traffic once model weights are downloaded, while NEAR AI Gateway, Token Inference, and Anon V send requests through external privacy-preserving inference backends. Every thread is isolated and locked to its mode on turn 1, and opt-in Local Access context (memory, approved folders, attachments, Calendar/Reminders/Contacts) stays strictly offline in Local Mode."
+        "Cloak is a native macOS menu bar application for Apple silicon; this page is product documentation and the chat window shown above is a static illustration of the Mac app, not a live hosted chat endpoint. Local runs entirely on the user's Mac through Apple MLX (vmlx-swift) or Metal llama.cpp with zero inference network traffic once model weights are downloaded, while NEAR AI Gateway, Token Inference, and Anon V send requests through external privacy-preserving inference backends. Every thread is isolated and locked to its mode on turn 1, and opt-in Local Access context (memory, approved folders, drag-and-drop PDF/document/image-OCR/code attachments, Calendar/Reminders/Contacts) stays strictly offline in Local Mode."
     },
     %{
       id: "modes-and-payments",
       summary: "Comparing the 4 modes, routing, and payment rails",
       body:
-        "1) Local: runs Apple MLX (default Inkling 2 Mini JANGH2, 10.21 GB) or llama.cpp GGUF + optional uncensored LoRA directly on the Mac for free with no account, no inference network traffic, and no Tor startup required. 2) NEAR AI Gateway: verifies Intel TDX and NVIDIA GPU attestation locally on your Mac before encrypting prompts end-to-end (E2EE v2) to NEAR AI Cloud (Qwen3.8-27B) using a NEAR API key; Tor routing is optional, and opt-in Letta Trajectory v1 trace exports stay local until shared in the NEAR AI Gateway app. 3) Token Inference: rephrases user text locally and routes over per-conversation Tor circuits; defaults to Venice AI (local Base USDC wallet via x402, or optional Venice API key) and also supports Boundless (USDC.e on Tempo via MPP). 4) Anon V (zkAPI): rephrases user text locally, routes over Tor with optional live cover traffic, and pays each turn with a fresh one-time zero-knowledge credential from an Ethereum Mainnet ETH deposit. Cloak also includes the sandboxed Pi Local Agent Box (ephemeral NIC-less Linux microVM), Connected Apps (CloakDoor at http://127.0.0.1:8742/v1), Offline Data kits, and optional Darkbloom Inference Serving."
+        "1) Local: runs Apple MLX (default Inkling 2 Mini JANGH2, 10.21 GB) or llama.cpp GGUF + optional uncensored LoRA directly on the Mac for free with no account, no inference network traffic, and no Tor startup required. 2) NEAR AI Gateway: verifies Intel TDX and NVIDIA GPU attestation locally on your Mac before encrypting prompts end-to-end (E2EE v2) to NEAR AI Cloud (Qwen3.8-27B) using a NEAR API key; Tor routing is optional, and opt-in Letta Trajectory v1 trace exports stay local until shared in the NEAR AI Gateway app. 3) Token Inference: rephrases user text locally and routes over per-conversation Tor circuits; defaults to Venice AI (local Base USDC wallet via x402, or optional Venice API key) and also supports Boundless (USDC.e on Tempo via MPP). 4) Anon V (zkAPI): rephrases user text locally, routes over Tor with optional live cover traffic, and pays each turn with a fresh one-time zero-knowledge credential from an Ethereum Mainnet ETH deposit. Cloak also includes the sandboxed Pi Local Agent Box (ephemeral NIC-less Linux microVM), Connected Apps (CloakDoor at http://127.0.0.1:8742/v1), progressive Offline Data packs (Kiwix, DevDocs, CourtListener, PubMed Central, Tinfoil Kit), and optional Darkbloom Inference Serving (macOS 27+, Off / Local Only / Network + Local)."
     },
     %{
       id: "requirements-and-install",
@@ -269,6 +269,13 @@ defmodule RegentsWeb.Cloak do
     #{@agent_docs_intro}
 
     #{agent_docs}
+
+    ## Verify your download
+
+    - **Latest published release:** `#{@release_checksums.tag}` ([GitHub Releases](#{@release_checksums.release_url}) · [SHA256SUMS.txt](#{@release_checksums.sums_url}))
+    - **DMG (`#{@release_checksums.dmg_filename}` / `Regents-Cloak.dmg`) SHA-256:** `#{@release_checksums.dmg_sha256}`
+    - **Apple Developer ID Team:** `#{@release_checksums.team_id}`
+    - Full macOS verification commands (`shasum`, `codesign`, `spctl`) are listed on [/cloak/install#verify](#{RegentsWeb.PublicDocuments.url(@install_path <> "#verify")}) and live inside Cloak's **Settings → Status** pane.
 
     ## Needs
 
