@@ -4,14 +4,15 @@
 }
 
 (perm_redir) {
-	@non_get {
-		not method GET HEAD
-	}
 	redir @non_get {args[0]} 308
 	redir {args[0]} 301
 }
 
 :8080 {
+	@non_get {
+		not method GET HEAD
+	}
+
 	handle /healthz {
 		respond "ok" 200
 	}
