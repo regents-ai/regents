@@ -436,10 +436,14 @@ defmodule Regents.Autolaunch.SubjectWalletActions do
          do: lineage |> SessionAuthority.leased_account(account_id) |> linked_wallet(signer)
   end
 
+  defp linked_wallet(nil, _signer), do: unavailable(:session_unavailable)
   defp linked_wallet({:ok, nil}, _signer), do: unavailable(:session_unavailable)
   defp linked_wallet({:error, error}, _signer), do: {:error, error}
 
-  defp linked_wallet({:ok, %{wallet_addresses: wallets}}, signer) do
+  defp linked_wallet({:ok, %{wallet_addresses: _} = account}, signer),
+    do: linked_wallet(account, signer)
+
+  defp linked_wallet(%{wallet_addresses: wallets}, signer) do
     if Enum.any?(wallets, &Address.equal?(&1, signer)),
       do: {:ok, signer},
       else: unavailable(:wrong_signer)

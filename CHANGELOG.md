@@ -8635,3 +8635,12 @@ seasons), on the shared Points library regents.sh was already on.
 ## 2026-11-24 — Refresh homepage and Overview product card titles and subtexts
 
 - Updated all seven product `ValueCards` headlines and subtexts in `RegentsWeb.RegentOpsLive` (`platform/lib/regents_web/live/regent_ops_live.ex`, powering below-the-fold `#products` on `/`, `/app`, and `HomeLive.agent_markdown/0`) to match the current product positioning across **Cloak**, **Techtree**, **Keyfleet**, **Autolaunch**, **Patchbay**, **Protocol**, and **SIWA**, and updated the stale Cloak status line in the Overview About panel.
+
+
+
+## 2026-11-24 — Fix Autolaunch LiveView channel crashes (UsdRates, Session lease, Tz database, OnchainSteps)
+
+- Included `:robinhood` stock prices in `Regents.Autolaunch.UsdRates.rates/0` (`platform/lib/regents/autolaunch/usd_rates.ex`) and guarded map lookups in `RegentsWeb.Autolaunch.UsdValue.auction_rate/2` (`platform/lib/regents_web/autolaunch/usd_value.ex`), fixing `KeyError: key :robinhood not found` channel crashes on `/autolaunch/app`, `/autolaunch/auctions`, and `/autolaunch/tokens`.
+- Updated `RegentsWeb.Live.Session.component_account/1` (`platform/lib/regents_web/live/session.ex`) to read either `lease:` or `session_lease:` on mounted LiveComponents, fixing `FunctionClauseError` channel crashes on `/autolaunch/stock/covered-call` and across Autolaunch wallet components.
+- Configured `config :elixir, :time_zone_database, Tz.TimeZoneDatabase` in `platform/config/config.exs`, fixing `:utc_only_time_zone_database` crashes in `RegentsWeb.Autolaunch.ExposureFormat` on `/autolaunch/stock/isolated-afters`.
+- Normalized `SessionAuthority.leased_account/2` (`%HumanAccount{} | nil`) handling in `RegentsWeb.Autolaunch.OnchainSteps`, `Regents.Autolaunch.Stocks.LaunchOperations`, and `Regents.Autolaunch.SubjectWalletActions` so signed-in Autolaunch wallet panels and actions do not fail with `FunctionClauseError`.

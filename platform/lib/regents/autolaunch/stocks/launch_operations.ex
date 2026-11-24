@@ -115,8 +115,11 @@ defmodule Regents.Autolaunch.Stocks.LaunchOperations do
   # lapsed resolves to no account.
   defp leased(%{lineage: lineage, account_id: account_id}) do
     case SessionAuthority.leased_account(lineage, account_id) do
+      nil -> {:refused, :session_unavailable}
       {:ok, nil} -> {:refused, :session_unavailable}
-      result -> result
+      {:ok, %{} = account} -> {:ok, account}
+      %{} = account -> {:ok, account}
+      {:error, _} = error -> error
     end
   end
 

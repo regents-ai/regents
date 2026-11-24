@@ -7,6 +7,8 @@
 # General application configuration
 import Config
 
+config :elixir, :time_zone_database, Tz.TimeZoneDatabase
+
 config :regent_identity, repo: Regents.Repo, ash_domains: [RegentIdentity]
 
 config :regent_payments,

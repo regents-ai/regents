@@ -88,7 +88,11 @@ defmodule RegentsWeb.Autolaunch.OnchainSteps do
   defp leased_account(assigns) do
     with %{lineage: lineage, account_id: id} <- assigns[:session_lease],
          true <- assigns[:current_human_id] == id do
-      SessionAuthority.leased_account(lineage, id)
+      case SessionAuthority.leased_account(lineage, id) do
+        {:ok, _} = ok -> ok
+        {:error, _} = error -> error
+        account -> {:ok, account}
+      end
     else
       _signed_out -> {:ok, nil}
     end
