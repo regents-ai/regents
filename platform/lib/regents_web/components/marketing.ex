@@ -243,6 +243,19 @@ defmodule RegentsWeb.Components.Marketing do
                     <p class="menu__heading">Products</p>
                     <a
                       class="menu__link"
+                      href="/cloak"
+                      aria-current={if(@current == "cloak", do: "page")}
+                    >
+                      <span class="tile" data-id="cloak" aria-hidden="true">
+                        <svg><use href="#mark-crown" /></svg>
+                      </span>
+                      <span class="menu__words">
+                        <span class="menu__name">Cloak</span>
+                        <span class="menu__line">Local AI and private cloud AI in a macOS app</span>
+                      </span>
+                    </a>
+                    <a
+                      class="menu__link"
                       href="/techtree"
                       aria-current={if(@current == "techtree", do: "page")}
                     >
@@ -251,7 +264,9 @@ defmodule RegentsWeb.Components.Marketing do
                       </span>
                       <span class="menu__words">
                         <span class="menu__name">Techtree</span>
-                        <span class="menu__line">Change one Skill. Compare.</span>
+                        <span class="menu__line">
+                          Uplift your agents and evals for live business workflows
+                        </span>
                       </span>
                     </a>
                     <a
@@ -264,7 +279,9 @@ defmodule RegentsWeb.Components.Marketing do
                       </span>
                       <span class="menu__words">
                         <span class="menu__name">Keyfleet</span>
-                        <span class="menu__line">A lasting team for agents.</span>
+                        <span class="menu__line">
+                          Join your personal agent to work within a long-lived swarm
+                        </span>
                       </span>
                     </a>
                     <a
@@ -277,7 +294,7 @@ defmodule RegentsWeb.Components.Marketing do
                       </span>
                       <span class="menu__words">
                         <span class="menu__name">Autolaunch</span>
-                        <span class="menu__line">One price for everyone.</span>
+                        <span class="menu__line">AI finance and onchain stocks</span>
                       </span>
                     </a>
                     <a
@@ -290,20 +307,9 @@ defmodule RegentsWeb.Components.Marketing do
                       </span>
                       <span class="menu__words">
                         <span class="menu__name">Patchbay</span>
-                        <span class="menu__line">Find the fix that worked.</span>
-                      </span>
-                    </a>
-                    <a
-                      class="menu__link"
-                      href="/cloak"
-                      aria-current={if(@current == "cloak", do: "page")}
-                    >
-                      <span class="tile" data-id="cloak" aria-hidden="true">
-                        <svg><use href="#mark-crown" /></svg>
-                      </span>
-                      <span class="menu__words">
-                        <span class="menu__name">Cloak</span>
-                        <span class="menu__line">Rewritten before it leaves.</span>
+                        <span class="menu__line">
+                          Agents assist other agents, and bid to make ad offers
+                        </span>
                       </span>
                     </a>
                   </div>
@@ -486,6 +492,12 @@ defmodule RegentsWeb.Components.Marketing do
       <nav class="sheet__inner" aria-label="Main">
         <div class="sheet__section">
           <p class="sheet__heading label">Products</p>
+          <a class="sheet__link" href="/cloak">
+            <span class="tile" data-id="cloak" aria-hidden="true">
+              <svg><use href="#mark-crown" /></svg>
+            </span>
+            Cloak
+          </a>
           <a class="sheet__link" href="/techtree">
             <span class="tile" data-id="techtree" aria-hidden="true">
               <svg><use href="#mark-techtree" /></svg>
@@ -509,12 +521,6 @@ defmodule RegentsWeb.Components.Marketing do
               <svg><use href="#mark-crown" /></svg>
             </span>
             Patchbay
-          </a>
-          <a class="sheet__link" href="/cloak">
-            <span class="tile" data-id="cloak" aria-hidden="true">
-              <svg><use href="#mark-crown" /></svg>
-            </span>
-            Cloak
           </a>
         </div>
         <div class="sheet__section">
@@ -631,13 +637,13 @@ defmodule RegentsWeb.Components.Marketing do
         </div>
         <nav class="footer__column" aria-labelledby="footer-products">
           <p class="eyebrow" id="footer-products">Products</p>
+          <a href="/cloak" aria-current={if(@current == "cloak", do: "page")}>Cloak</a>
           <a href="/techtree" aria-current={if(@current == "techtree", do: "page")}>Techtree</a>
           <a href="/keyfleet" aria-current={if(@current == "keyfleet", do: "page")}>Keyfleet</a>
           <a href="/autolaunch" aria-current={if(@current == "autolaunch", do: "page")}>
             Autolaunch
           </a>
           <a href="/patchbay" aria-current={if(@current == "patchbay", do: "page")}>Patchbay</a>
-          <a href="/cloak">Cloak</a>
         </nav>
         <nav class="footer__column" aria-labelledby="footer-protocol">
           <p class="eyebrow" id="footer-protocol">Protocol</p>

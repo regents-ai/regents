@@ -92,40 +92,6 @@ defmodule RegentsWeb.PublicDocuments do
       {"SIWA",
        "Pair an agent with a person's account using a one-time code and its own SIWA key."},
     "/admin/articles" => {"New Article", "Write and publish a Regents Labs article."},
-    "/docs" =>
-      {"Docs",
-       "Read Regents Labs without an account, then pair an agent to read a person's own figures."},
-    "/docs/limits" =>
-      {"Limits · Docs",
-       "Each client address gets 120 requests a minute, and every answer says how many are left."},
-    "/docs/errors" =>
-      {"Errors · Docs",
-       "Every refusal has one shape: a code, a message saying what happened and a hint saying what to do."},
-    "/docs/products" =>
-      {"Products · Docs",
-       "Patchbay, Autolaunch, Techtree and Keyfleet as JSON, with each one's summary and links."},
-    "/docs/reading" =>
-      {"Reading · Docs",
-       "Published research papers, Articles and the AI & SCIFI books, open to everyone."},
-    "/docs/profiles" => {"Profiles · Docs", "A public Regent profile as JSON, by its slug."},
-    "/docs/pairing" =>
-      {"Pairing · Docs",
-       "Pair an agent with a person's account using a one-time code, then check in."},
-    "/docs/agent-reads" =>
-      {"Signed reads · Docs",
-       "A paired agent reads its person's account, claims, stake and Points."},
-    "/docs/webmcp" =>
-      {"WebMCP · Docs", "Every page offers read tools to browsers that support WebMCP."},
-    "/docs/claims" =>
-      {"Claims · Docs",
-       "A signed-in person's historical name claims, read with their Privy tokens."},
-    "/docs/staking" =>
-      {"Staking · Docs",
-       "A signed-in person's stake as Stake shows it, and where wallet actions happen."},
-    "/docs/contracts" =>
-      {"Contracts · Docs",
-       "The OpenAPI and YAML descriptions of every request, and which product owns what."},
-    "/docs/changes" => {"Changes · Docs", "Each change to these requests, newest first."},
     "/about" =>
       {"About",
        "What Regents Labs does and how it differs, who uses it, the team, key facts, common questions about REGENT and its products, and how to reach us."},
@@ -252,9 +218,16 @@ defmodule RegentsWeb.PublicDocuments do
   # one the router reads as a page's but spelled differently, is a missing page.
   def page(key) do
     {title, description} =
-      if key in AgentGuides.paths(),
-        do: AgentGuides.page(key),
-        else: Map.get(@pages, key) || raise(RegentsWeb.NotFoundError)
+      cond do
+        key in AgentGuides.paths() ->
+          AgentGuides.page(key)
+
+        docs_page = RegentsWeb.Docs.Pages.page(key) ->
+          RegentsWeb.Docs.Pages.meta(docs_page)
+
+        true ->
+          Map.get(@pages, key) || raise(RegentsWeb.NotFoundError)
+      end
 
     [page_title: title, page_description: description]
   end

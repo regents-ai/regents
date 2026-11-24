@@ -413,6 +413,9 @@ defmodule RegentsWeb.ShellLive do
   defp load_blog_route(socket, _spec, _params), do: assign(socket, blog_posts: [], blog_post: nil)
 
   # The catalog has already refused a page name that is not a docs page.
+  defp load_docs_route(socket, %{route_id: :docs}, %{"product" => product, "page" => page}),
+    do: assign(socket, docs: DocsLive.read("/docs/" <> product <> "/" <> page))
+
   defp load_docs_route(socket, %{route_id: :docs}, %{"page" => page}),
     do: assign(socket, docs: DocsLive.read("/docs/" <> page))
 

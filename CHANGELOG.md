@@ -8581,3 +8581,14 @@ seasons), on the shared Points library regents.sh was already on.
 
 - Moved **Cloak** (`cloak/rewrite`) to the top-left slot (`01 / 04`) of `#home-products` in `RegentsWeb.HomeLive` (`platform/lib/regents_web/live/home_live.ex`), ordering Row 1 as Cloak, Techtree, Keyfleet, Autolaunch and Row 2 (`#home-ecosystem`) as Patchbay, Protocol, SIWA.
 - Replaced Patchbay's `ValueCard` panel id `"blob"` with `"patchbay/ask"` (cobalt `+` beacon rings) in `RegentsWeb.RegentOpsLive` (`platform/lib/regents_web/live/regent_ops_live.ex`), updating both `/` and `/app`.
+
+
+
+## 2026-11-24 — Update marketing Products menu and overhaul /docs for all products (not released)
+
+- Reordered the marketing top-bar `Products` dropdown, mobile nav sheet, and footer `Products` column in `RegentsWeb.Components.Marketing` (`platform/lib/regents_web/components/marketing.ex`) to **Cloak**, **Techtree**, **Keyfleet**, **Autolaunch**, and **Patchbay** with updated product descriptions.
+- Overhauled `/docs` into the unified all-in-one documentation hub for every Regents Labs product (**Regents**, **Cloak**, **Techtree**, **Keyfleet**, **Autolaunch**, and **Patchbay** — 47 pages total):
+  - Expanded `RegentsWeb.Docs.Pages` (`platform/lib/regents_web/docs/pages.ex`) as a leaf catalog covering Regents (14 pages including SIWA), Cloak (2 pages), Techtree (16 guides), Keyfleet (6 topic pages sliced cleanly from all 37 sections of `priv/keyfleet/public/docs.md`), Autolaunch (3 pages), and Patchbay (6 pages including Agent setup, WebMCP guide, and x402 Payments).
+  - Updated `RegentsWeb.Docs` (`platform/lib/regents_web/docs.ex`) to resolve live product Markdown from each product's single source of truth via `RegentsWeb.PublicDocuments.document/1`, slice multi-section guides outside fenced code blocks, strip duplicate `# H1` headings and product trailers, rewrite cross-product links into `/docs/...` with LiveView navigation while preserving MDEx's strict `url_relative: :deny` sanitization, and emit a compact cross-product search index.
+  - Added `/docs/:product/:page` routing, parameter validation, public launch-gate allowlisting, and `.md` + `Accept: text/markdown` negotiation across `Router`, `RouteCatalog`, `LaunchGateHook`, `ShellLive`, and `PublicDocuments` (`platform/lib/regents_web/router.ex`, `route_catalog.ex`, `live/launch_gate_hook.ex`, `live/shell_live.ex`, `public_documents.ex`), plus updated `platform/priv/public/docs/overview.md`.
+  - Upgraded `RegentsWeb.DocsLive`, `platform/assets/css/pages/docs.css`, and `platform/assets/js/docs.ts` with product-tinted switcher tabs, product-scoped collapsible sidebar groups, mobile drawer product switcher, an all-products hub card grid on `/docs`, dynamic per-product primary CTAs, and product-badged cross-product search.

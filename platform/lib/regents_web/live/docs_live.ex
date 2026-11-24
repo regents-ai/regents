@@ -1,9 +1,12 @@
 defmodule RegentsWeb.DocsLive do
   @moduledoc """
-  The developer docs inside the product shell: search, Ask AI, the section
-  tabs, the docs sidebar, the page and its "On this page" list. The words come
-  from `RegentsWeb.Docs`; no account or database reads. The `Docs` hook runs the
-  search, the list that follows the reader, View as Markdown and the phone menu.
+  Unified developer documentation for every Regents Labs product inside the
+  product shell: cross-product search, Ask AI, product switcher tabs,
+  product-scoped sidebar groups, the page, and its "On this page" list.
+
+  Words come from `RegentsWeb.Docs`; no account or database reads. The `Docs`
+  hook runs cross-product search, scrollspy TOC, Ask AI menu, and the mobile
+  navigation drawer.
   """
 
   use RegentsWeb, :html
@@ -11,46 +14,78 @@ defmodule RegentsWeb.DocsLive do
   alias Phoenix.LiveView.JS
   alias RegentsWeb.{Docs, Docs.Pages, PublicDocuments}
 
+  # Order of product cards on the `/docs` overview hub (products in canonical
+  # marketing order, followed by the shared Regents platform docs).
+  @hub_product_order ~w(cloak techtree keyfleet autolaunch patchbay regents)
+
   @doc "What the docs page at `path` shows."
   def read(path) do
     page = Pages.page(path)
+    product = Pages.product(page.product)
+    products = Pages.products()
     {html, toc} = Docs.render(page)
     {name, description} = Docs.heading(page)
     {previous, next} = Pages.neighbours(page)
-    sections = Pages.sections()
-    {_, [first | _]} = List.keyfind(sections, page.section, 0)
     ask = "Read #{PublicDocuments.url(page.path)} so you can answer questions about it."
+
+    hub_cards =
+      if page.path == "/docs" do
+        Enum.map(@hub_product_order, fn id ->
+          item = Pages.product(id)
+
+          %{
+            id: item.id,
+            name: item.name,
+            tagline: item.tagline,
+            path: if(id == "regents", do: "/docs/pairing", else: item.home_path),
+            count_label: page_count_label(item.page_count)
+          }
+        end)
+      else
+        []
+      end
 
     %{
       page: page,
+      dom_id: "docs-page-" <> String.replace(page.key || "overview", "/", "-"),
+      product: product,
+      products: products,
+      hub_cards: hub_cards,
       html: html,
       toc: toc,
       markdown: Docs.markdown(page),
       markdown_path: page.path <> ".md",
       name: name,
+      heading: if(page.path == "/docs", do: "Regents Labs Docs", else: name),
       description: description,
       previous: previous,
       next: next,
-      sections: sections,
-      section_path: first.path,
       claude: "https://claude.ai/new?" <> URI.encode_query(q: ask),
       chatgpt: "https://chatgpt.com/?" <> URI.encode_query(q: ask)
     }
   end
 
+  defp page_count_label(1), do: "1 page"
+  defp page_count_label(count), do: "#{count} pages"
+
   attr :docs, :map, required: true
 
   def page(assigns) do
     ~H"""
-    <div id={"docs-page-#{@docs.page.key || "overview"}"} class="docs" phx-hook="Docs">
+    <div
+      id={@docs.dom_id}
+      class="docs"
+      data-docs-product={@docs.product.id}
+      phx-hook="Docs"
+    >
       <div class="docs-bar">
         <header class="docs-top">
           <div id="docs-search" class="docs-search" role="search" phx-update="ignore">
-            <label class="visually-hidden" for="docs-search-input">Search</label>
+            <label class="visually-hidden" for="docs-search-input">Search all docs</label>
             <input
               id="docs-search-input"
               type="search"
-              placeholder="Search"
+              placeholder="Search all product docs"
               autocomplete="off"
               spellcheck="false"
               role="combobox"
@@ -104,13 +139,16 @@ defmodule RegentsWeb.DocsLive do
           </Regent.Primitives.button>
         </header>
 
-        <nav class="docs-tabs" aria-label="Sections">
+        <nav class="docs-tabs" aria-label="Products">
           <.link
-            :for={{section, [first | _]} <- @docs.sections}
-            navigate={first.path}
-            aria-current={if(section == @docs.page.section, do: "true")}
+            :for={product <- @docs.products}
+            navigate={product.home_path}
+            class="docs-tabs__item"
+            data-docs-product={product.id}
+            aria-current={if(product.id == @docs.product.id, do: "true")}
           >
-            {section}
+            <span class="docs-product-dot" aria-hidden="true"></span>
+            {product.name}
           </.link>
         </nav>
       </div>
@@ -126,16 +164,27 @@ defmodule RegentsWeb.DocsLive do
           >
             Close
           </Regent.Primitives.button>
+
+          <div class="docs-nav__product" data-docs-product={@docs.product.id}>
+            <span class="docs-nav__product-title">
+              <span class="docs-product-dot" aria-hidden="true"></span>
+              {@docs.product.name}
+            </span>
+            <a class="docs-nav__product-link" href={@docs.product.product_url}>
+              {@docs.product.product_label}
+            </a>
+          </div>
+
           <details
-            :for={{section, pages} <- @docs.sections}
-            id={"docs-nav-" <> String.downcase(section)}
+            :for={group <- @docs.product.groups}
+            id={"docs-nav-#{@docs.product.id}-#{group.slug}"}
             class="docs-nav__group"
-            open={section == @docs.page.section}
+            open
             phx-mounted={JS.ignore_attributes(["open"])}
           >
-            <summary>{section}</summary>
+            <summary>{group.name}</summary>
             <ul>
-              <li :for={page <- pages}>
+              <li :for={page <- group.pages}>
                 <.link
                   navigate={page.path}
                   aria-current={if(page.path == @docs.page.path, do: "page")}
@@ -145,6 +194,23 @@ defmodule RegentsWeb.DocsLive do
               </li>
             </ul>
           </details>
+
+          <div class="docs-nav__products" aria-label="Switch product">
+            <p class="docs-nav__products-label">Products</p>
+            <ul>
+              <li :for={product <- @docs.products}>
+                <.link
+                  navigate={product.home_path}
+                  data-docs-product={product.id}
+                  aria-current={if(product.id == @docs.product.id, do: "true")}
+                >
+                  <span class="docs-product-dot" aria-hidden="true"></span>
+                  {product.name}
+                </.link>
+              </li>
+            </ul>
+          </div>
+
           <div class="docs-nav__foot">
             <a href={~p"/llms.txt"}>llms.txt</a>
             <a href={~p"/openapi.json"}>OpenAPI</a>
@@ -157,12 +223,13 @@ defmodule RegentsWeb.DocsLive do
             <ol>
               <li><.link navigate={~p"/docs"}>Docs</.link></li>
               <li :if={@docs.page.path != "/docs"}>
-                <.link navigate={@docs.section_path}>{@docs.page.section}</.link>
+                <.link navigate={@docs.product.home_path}>{@docs.product.name}</.link>
               </li>
               <li><span aria-current="page">{@docs.name}</span></li>
             </ol>
           </nav>
-          <h1 class="docs-title">{@docs.name}</h1>
+
+          <h1 class="docs-title">{@docs.heading}</h1>
           <p class="docs-lede">{@docs.description}</p>
 
           <div class="docs-actions">
@@ -178,10 +245,28 @@ defmodule RegentsWeb.DocsLive do
             >
               <span class="rg-button__label">View as Markdown</span>
             </a>
-            <.link navigate={~p"/start"} class="rg-button rg-button--primary">
-              <span class="rg-button__label">Set up agent</span>
-            </.link>
+            <a href={@docs.product.app_path} class="rg-button rg-button--primary">
+              <span class="rg-button__label">{@docs.product.app_label}</span>
+            </a>
           </div>
+
+          <section :if={@docs.hub_cards != []} class="docs-hub" aria-label="Products">
+            <.link
+              :for={card <- @docs.hub_cards}
+              navigate={card.path}
+              class="docs-hub__card"
+              data-docs-product={card.id}
+            >
+              <span class="docs-hub__head">
+                <span class="docs-hub__name">
+                  <span class="docs-product-dot" aria-hidden="true"></span>
+                  {card.name}
+                </span>
+                <span class="docs-hub__count">{card.count_label}</span>
+              </span>
+              <span class="docs-hub__tagline">{card.tagline}</span>
+            </.link>
+          </section>
 
           <details
             :if={@docs.toc != []}
@@ -195,7 +280,7 @@ defmodule RegentsWeb.DocsLive do
 
           <div class="docs-prose">{@docs.html}</div>
 
-          <nav class="docs-pager" aria-label="More docs">
+          <nav :if={@docs.previous || @docs.next} class="docs-pager" aria-label="More docs">
             <.link :if={@docs.previous} class="docs-pager__previous" navigate={@docs.previous.path}>
               <span>Previous</span>
               {@docs.previous.name}

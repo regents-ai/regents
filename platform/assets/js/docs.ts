@@ -1,16 +1,31 @@
 type Part = {id: string | null; title: string | null; text: string}
-type Page = {path: string; name: string; section: string; description: string; parts: Part[]}
-type Hit = {href: string; title: string; context: string; score: number}
+type Page = {
+  path: string
+  name: string
+  product: string
+  product_name: string
+  section: string
+  description: string
+  parts: Part[]
+}
+type Hit = {
+  href: string
+  product: string
+  productName: string
+  title: string
+  context: string
+  score: number
+}
 
-const MAX_HITS = 8
+const MAX_HITS = 10
 
 type DocsHook = {el: HTMLElement; controller?: AbortController; observer?: IntersectionObserver}
 
 /**
- * The docs pages: the search box, the "On this page" list that follows the
- * reader, View as Markdown, and the phone menu closing once a page is chosen.
- * Everything it needs is on the page already. Each docs page mounts it afresh,
- * and leaving the page takes every listener with it.
+ * The unified all-products docs pages: cross-product search, the "On this page"
+ * list that follows the reader, Ask AI popover, and the phone menu closing once
+ * a page is chosen. Everything it needs is on the page already. Each docs page
+ * mounts it afresh, and leaving the page takes every listener with it.
  */
 export const Docs = {
   mounted(this: DocsHook) {
@@ -78,11 +93,17 @@ function installSearch(root: HTMLElement, signal: AbortSignal) {
       select((active - 1 + hits.length) % hits.length)
     } else if (event.key === "Enter" && hits[active]) {
       event.preventDefault()
-      list.querySelector<HTMLAnchorElement>(`#docs-search-result-${active} a`)?.click()
+      const anchor = list.querySelector<HTMLAnchorElement>(`#docs-search-result-${active} a`)
+      close()
+      anchor?.click()
     } else if (event.key === "Escape") {
       if (list.hidden) input.blur()
       close()
     }
+  }, {signal})
+
+  list.addEventListener("click", event => {
+    if (event.target instanceof Element && event.target.closest("a")) close()
   }, {signal})
 
   root.addEventListener("focusout", event => {
@@ -102,30 +123,49 @@ function installSearch(root: HTMLElement, signal: AbortSignal) {
   }, {signal})
 }
 
-// Every word of the query has to appear; a title match counts most, then the
-// section heading, then the words under it.
+// Every word of the query has to appear; product name + page title matches
+// count most, followed by section headings, then body prose. Deduplicate so one
+// long page does not crowd out matching products.
 function search(pages: Page[], query: string): Hit[] {
   const words = query.split(/\s+/)
   const hits: Hit[] = []
 
   for (const page of pages) {
+    const productLower = page.product_name.toLowerCase()
+    const pageLower = page.name.toLowerCase()
+    let bestForPage: Hit | null = null
+    let secondForPage: Hit | null = null
+
     for (const part of page.parts) {
       const title = (part.title ?? page.name).toLowerCase()
-      const text = `${page.name} ${page.description} ${part.text}`.toLowerCase()
+      const text = `${page.product_name} ${page.section} ${page.name} ${page.description} ${part.text}`.toLowerCase()
       if (!words.every(word => title.includes(word) || text.includes(word))) continue
 
       const score =
-        words.filter(word => page.name.toLowerCase().includes(word)).length * 3 +
+        words.filter(word => productLower.includes(word)).length * 4 +
+        words.filter(word => pageLower.includes(word)).length * 3 +
         words.filter(word => title.includes(word)).length * 2 +
-        (part.id ? 0 : 1)
+        (part.id ? 0 : 2)
 
-      hits.push({
+      const hit: Hit = {
         href: part.id ? `${page.path}#${part.id}` : page.path,
+        product: page.product,
+        productName: page.product_name,
         title: part.title ? `${page.name} · ${part.title}` : page.name,
         context: excerpt(part.text || page.description, words[0]),
         score,
-      })
+      }
+
+      if (!bestForPage || hit.score > bestForPage.score) {
+        secondForPage = bestForPage
+        bestForPage = hit
+      } else if (!secondForPage || hit.score > secondForPage.score) {
+        secondForPage = hit
+      }
     }
+
+    if (bestForPage) hits.push(bestForPage)
+    if (secondForPage) hits.push(secondForPage)
   }
 
   return hits.sort((a, b) => b.score - a.score).slice(0, MAX_HITS)
@@ -149,11 +189,24 @@ function result(hit: Hit, index: number): HTMLLIElement {
   link.dataset.phxLink = "redirect"
   link.dataset.phxLinkState = "push"
   link.tabIndex = -1
+
+  const head = document.createElement("div")
+  head.className = "docs-search__head"
+
+  const badge = document.createElement("em")
+  badge.className = "docs-search__product"
+  badge.dataset.docsProduct = hit.product
+  badge.textContent = hit.productName
+
   const title = document.createElement("strong")
   title.textContent = hit.title
+
+  head.append(badge, title)
+
   const context = document.createElement("span")
   context.textContent = hit.context
-  link.append(title, context)
+
+  link.append(head, context)
   item.append(link)
   return item
 }

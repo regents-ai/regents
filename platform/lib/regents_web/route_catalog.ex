@@ -94,6 +94,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :docs
     },
     %Entry{
+      path_pattern: "/docs/:product/:page",
+      live_action: :docs_subpage,
+      parameter_schema: %{product: :docs_product, page: :docs_subpage},
+      reserved_values: %{},
+      route_spec_id: :docs
+    },
+    %Entry{
       path_pattern: "/account",
       live_action: :account,
       parameter_schema: %{},
@@ -312,6 +319,18 @@ defmodule RegentsWeb.RouteCatalog do
     %{json: json, digest: Base.encode16(:crypto.hash(:sha256, json), case: :lower)}
   end
 
+  defp validate_params!(
+         %Entry{live_action: :docs_subpage},
+         %{"product" => product, "page" => page}
+       )
+       when is_binary(product) and is_binary(page) do
+    if RegentsWeb.Docs.Pages.page("/docs/" <> product <> "/" <> page) != nil,
+      do: :ok,
+      else: raise(NotFoundError)
+  end
+
+  defp validate_params!(%Entry{live_action: :docs_subpage}, _params), do: raise(NotFoundError)
+
   defp validate_params!(%Entry{parameter_schema: schema, reserved_values: reserved}, params) do
     valid? =
       Enum.all?(schema, fn {key, type} ->
@@ -442,11 +461,14 @@ defmodule RegentsWeb.RouteCatalog do
   defp handoff_params(:blog_post), do: %{"slug" => "example-post"}
   defp handoff_params(:paper_pro_daily_paper), do: %{"paper" => "00000000"}
   defp handoff_params(:docs_page), do: %{"page" => "limits"}
+  defp handoff_params(:docs_subpage), do: %{"product" => "cloak", "page" => "install"}
   defp handoff_params(_), do: %{}
 
   defp destination(:regent_profile, %{"slug" => slug}), do: "/regents/#{slug}"
   defp destination(:blog_post, %{"slug" => slug}), do: "/articles/#{slug}"
   defp destination(:paper_pro_daily, %{"paper" => paper}), do: "/paper-pro-daily/#{paper}"
+  defp destination(:docs, %{"product" => product, "page" => page}), do: "/docs/#{product}/#{page}"
+  defp destination(:docs, %{"page" => page}), do: "/docs/#{page}"
 
   defp destination(action, _params) do
     @entries

@@ -695,6 +695,7 @@ defmodule RegentsWeb.Router do
       live "/about", ShellLive, :about
       live "/docs", ShellLive, :docs
       live "/docs/:page", ShellLive, :docs_page
+      live "/docs/:product/:page", ShellLive, :docs_subpage
       live "/account", ShellLive, :account
       live "/account/agents", ShellLive, :account_agents
       live "/account/points", ShellLive, :points

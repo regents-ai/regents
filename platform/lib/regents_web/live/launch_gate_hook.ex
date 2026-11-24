@@ -25,7 +25,8 @@ defmodule RegentsWeb.Live.LaunchGateHook do
     :literature,
     :about,
     :docs,
-    :docs_page
+    :docs_page,
+    :docs_subpage
   ]
 
   def on_mount(:default, _params, _session, socket) do
