@@ -8,7 +8,9 @@ defmodule RegentsWeb.Patchbay.SiteEdition do
 
   def init(opts), do: opts
   def call(conn, _opts), do: Plug.Conn.assign(conn, :site_edition, :main)
-  def on_mount(_mode, _params, _session, socket), do: {:cont, socket}
+
+  def on_mount(_mode, _params, _session, socket),
+    do: {:cont, Phoenix.Component.assign(socket, :site_edition, :main)}
 
   def current, do: :main
   def edition(_conn), do: :main

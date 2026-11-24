@@ -8644,3 +8644,11 @@ seasons), on the shared Points library regents.sh was already on.
 - Updated `RegentsWeb.Live.Session.component_account/1` (`platform/lib/regents_web/live/session.ex`) to read either `lease:` or `session_lease:` on mounted LiveComponents, fixing `FunctionClauseError` channel crashes on `/autolaunch/stock/covered-call` and across Autolaunch wallet components.
 - Configured `config :elixir, :time_zone_database, Tz.TimeZoneDatabase` in `platform/config/config.exs`, fixing `:utc_only_time_zone_database` crashes in `RegentsWeb.Autolaunch.ExposureFormat` on `/autolaunch/stock/isolated-afters`.
 - Normalized `SessionAuthority.leased_account/2` (`%HumanAccount{} | nil`) handling in `RegentsWeb.Autolaunch.OnchainSteps`, `Regents.Autolaunch.Stocks.LaunchOperations`, and `Regents.Autolaunch.SubjectWalletActions` so signed-in Autolaunch wallet panels and actions do not fail with `FunctionClauseError`.
+
+
+
+## 2026-11-24 — Fix folded-product Postgres schema prefixes, Patchbay `site_edition` crashes, and unprefixed root links
+
+- Passed explicit Postgres schema prefixes in `Regents.Autolaunch.PoolFees.day_start/1` (`prefix: "autolaunch_app"`, fixing `42P01 relation "regents_app.token_trades" does not exist` on `/autolaunch/tokens/:symbol/:tail`) and `Regents.Patchbay.OperatorWallet.assist_fees_unforwarded_usdc/0` (`prefix: "patchbay_app"`, fixing `42P01 relation "regents_app.assist_runs" does not exist`).
+- Assigned `:site_edition` (`:main`) across Patchbay's `:patchbay`, `:patchbay_paired_agent`, and `:patchbay_wallet_author` router pipelines (`platform/lib/regents_web/router.ex`), `RegentsWeb.Patchbay.SiteEdition.on_mount/4`, and `RegentsWeb.Patchbay.ThreadLive.mount/3`, fixing HTTP 500 `KeyError` on `/patchbay/agents/:public_id` and LiveView WebSocket `FunctionClauseError` in `ThreadLive.read_thread/2` on `/patchbay/posts/:id/:slug`.
+- Repointed remaining unprefixed root links and redirects inside Autolaunch (`UnavailableHTML`, `XOAuthController`, `Prelaunch`) and Patchbay (`ErrorLinkHTML`, `WalletBenchHTML`, `BoardHTML` agent page, `SearchLive`, `Moderators`) to `/autolaunch/app`, `/patchbay/forum`, and `/patchbay/changelog`.

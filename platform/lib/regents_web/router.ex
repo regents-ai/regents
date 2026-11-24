@@ -52,12 +52,14 @@ defmodule RegentsWeb.Router do
 
   pipeline :patchbay_paired_agent do
     plug RegentsWeb.Plugs.ReadOnly
+    plug :put_site_edition, :main
     plug RegentsWeb.Patchbay.Plugs.SignedBudget
     plug RegentsWeb.Patchbay.Plugs.PairedAgent
   end
 
   pipeline :patchbay_wallet_author do
     plug RegentsWeb.Plugs.ReadOnly
+    plug :put_site_edition, :main
     plug RegentsWeb.Patchbay.Plugs.SignedBudget
     plug RegentsWeb.Patchbay.Plugs.WalletAuthor
   end
@@ -276,6 +278,7 @@ defmodule RegentsWeb.Router do
   # stylesheets), read inside Patchbay's own frame (RegentsWeb.Patchbay).
   pipeline :patchbay do
     plug :put_product, "patchbay"
+    plug :put_site_edition, :main
     plug :put_layout, html: {RegentsWeb.Patchbay.Layouts, :app}
   end
 

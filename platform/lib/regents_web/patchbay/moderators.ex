@@ -46,6 +46,6 @@ defmodule RegentsWeb.Patchbay.Moderators do
   defp check(socket) do
     if Moderator.moderator?(socket.assigns.current_profile),
       do: {:cont, socket},
-      else: {:halt, redirect(socket, to: "/")}
+      else: {:halt, redirect(socket, to: "/patchbay/forum")}
   end
 end

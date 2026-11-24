@@ -82,6 +82,7 @@ defmodule Regents.Patchbay.OperatorWallet do
     atomic =
       Regents.Repo.one(
         from(run in "assist_runs",
+          prefix: "patchbay_app",
           join: intent in "payment_intents",
           prefix: "regent_payments",
           on: intent.id == run.payment_intent_id,

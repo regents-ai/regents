@@ -61,8 +61,8 @@ defmodule RegentsWeb.Patchbay.WalletBenchHTML do
   """
   def threads_path(harness, wallet) do
     case ProgramSites.domain(wallet) do
-      nil -> ~p"/?#{[q: harness.name <> " " <> wallet.name]}"
-      domain -> ~p"/?#{[site: domain, q: harness.name]}"
+      nil -> ~p"/patchbay/forum?#{[q: harness.name <> " " <> wallet.name]}"
+      domain -> ~p"/patchbay/forum?#{[site: domain, q: harness.name]}"
     end
   end
 
