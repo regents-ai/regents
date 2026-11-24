@@ -34,7 +34,8 @@ defmodule Regents.Patchbay.Supervisor do
   end
 
   defp site_loader(true, true) do
-    if not Regents.read_only?(), do: Forum.CatalogSync
+    if not Regents.read_only?() and Application.get_env(:regents, :folded_crons_enabled, true),
+      do: Forum.CatalogSync
   end
 
   defp site_loader(_serving?, _db?), do: nil

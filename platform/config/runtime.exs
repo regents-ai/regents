@@ -172,7 +172,25 @@ end
     end
   end
 
-robinhood_deployment = String.trim(System.get_env("AUTOLAUNCH_ROBINHOOD_DEPLOYMENT", ""))
+robinhood_deployment =
+  case {config_env(), String.trim(System.get_env("AUTOLAUNCH_ROBINHOOD_DEPLOYMENT", ""))} do
+    {:prod, ""} ->
+      if System.get_env("AUTOLAUNCH_ROBINHOOD") == "true" do
+        Application.app_dir(:regents, "priv/autolaunch/deployment/robinhood.json")
+      else
+        ""
+      end
+
+    {_env, path} ->
+      path
+  end
+
+robinhood_read_rpc_url = String.trim(System.get_env("ROBINHOOD_READ_RPC_URL", ""))
+
+if robinhood_read_rpc_url != "" do
+  config :regents, :autolaunch_robinhood_rpc_url, robinhood_read_rpc_url
+  Logger.info("Robinhood read endpoint host #{URI.parse(robinhood_read_rpc_url).host}")
+end
 
 if base_deployment != "" do
   if base_deployment_id == "" do
@@ -220,7 +238,11 @@ end
 migrating_check? = System.get_env("REGENTS_RELEASE_COMMAND") == "migrate"
 
 if System.get_env("AUTOLAUNCH_COVERED_CALLS") == "true" and not migrating_check? do
-  path = String.trim(System.get_env("AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT", ""))
+  path =
+    case String.trim(System.get_env("AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT", "")) do
+      "" -> Application.app_dir(:regents, "priv/autolaunch/deployment/covered-calls.json")
+      custom -> custom
+    end
 
   if path != "" and base_deployment != "" do
     config :regents,
@@ -230,7 +252,11 @@ if System.get_env("AUTOLAUNCH_COVERED_CALLS") == "true" and not migrating_check?
 end
 
 if System.get_env("AUTOLAUNCH_EXPOSURE") == "true" and not migrating_check? do
-  path = String.trim(System.get_env("AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT", ""))
+  path =
+    case String.trim(System.get_env("AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT", "")) do
+      "" -> Application.app_dir(:regents, "priv/autolaunch/deployment/exposure.json")
+      custom -> custom
+    end
 
   if path != "" and base_deployment != "" do
     config :regents,
@@ -379,6 +405,98 @@ database_config =
 if database_config do
   config :regents, :database_startup_enabled, true
   config :regents, Regents.Repo, database_config
+end
+
+# Dual-run background guard: when `"off"`, folded-product scheduled Oban crons
+# (Keyfleet, Autolaunch, Patchbay, Techtree) stay paused while the standalone
+# apps still own them; interactive queues, Regents core crons, and SharedReading
+# heals continue running normally.
+case System.get_env("REGENTS_FOLDED_CRONS") do
+  nil -> :ok
+  "on" -> config :regents, :folded_crons_enabled, true
+  "off" -> config :regents, :folded_crons_enabled, false
+  other -> raise ~s(REGENTS_FOLDED_CRONS must be "on" or "off", got #{inspect(other)})
+end
+
+# Keyfleet runtime services (remote graph writer, notebook hubs, git code store,
+# avatar bucket, key-art renderer, Lighthouse IPFS, and presence timer).
+if config_env() != :test do
+  if graph_url = System.get_env("KEYFLEET_GRAPH_URL") do
+    if String.trim(graph_url) != "" do
+      config :regents, :keyfleet_graph, url: String.trim(graph_url)
+    end
+  end
+
+  hub_fleets =
+    "KEYFLEET_HUB_FLEETS"
+    |> System.get_env("")
+    |> String.split(",", trim: true)
+    |> Map.new(fn pair ->
+      [fleet_id, address] = pair |> String.trim() |> String.split("=", parts: 2)
+      {fleet_id, address}
+    end)
+
+  hub_signing_keys = System.get_env("KEYFLEET_HUB_SIGNING_KEY")
+
+  if hub_fleets != %{} and hub_signing_keys in [nil, ""] do
+    raise "KEYFLEET_HUB_SIGNING_KEY must be set when KEYFLEET_HUB_FLEETS names a fleet"
+  end
+
+  notebook_overrides =
+    []
+    |> then(&if(hub_fleets != %{}, do: Keyword.put(&1, :fleets, hub_fleets), else: &1))
+    |> then(
+      &if(hub_signing_keys not in [nil, ""],
+        do: Keyword.put(&1, :signing_keys, hub_signing_keys),
+        else: &1
+      )
+    )
+
+  if notebook_overrides != [] do
+    config :regents, :keyfleet_notebooks, notebook_overrides
+  end
+
+  if code_node = System.get_env("KEYFLEET_CODE_NODE") do
+    if String.trim(code_node) != "" do
+      config :regents, :keyfleet_code, node: String.trim(code_node)
+    end
+  end
+
+  if presence_key = System.get_env("KEYFLEET_PRESENCE_TIMER_KEY") do
+    if String.trim(presence_key) != "" do
+      config :regents, Regents.Keyfleet.Keys.PresenceTimer, key: String.trim(presence_key)
+    end
+  end
+
+  if key_art_url = System.get_env("KEY_ART_URL") do
+    if String.trim(key_art_url) != "" do
+      config :regents, Regents.Keyfleet.Keys.KeyArt, url: String.trim(key_art_url)
+    end
+  end
+
+  if lighthouse_key = System.get_env("LIGHTHOUSE_API_KEY") do
+    if String.trim(lighthouse_key) != "" do
+      config :regents, Regents.Keyfleet.Lighthouse, api_key: String.trim(lighthouse_key)
+    end
+  end
+
+  avatar_bucket = System.get_env("KEYFLEET_BUCKET_NAME") || System.get_env("BUCKET_NAME")
+
+  if avatar_bucket not in [nil, ""] do
+    config :regents, :keyfleet_avatar_bucket,
+      endpoint:
+        System.get_env("KEYFLEET_AWS_ENDPOINT_URL_S3") || System.get_env("AWS_ENDPOINT_URL_S3"),
+      bucket: avatar_bucket,
+      region: System.get_env("KEYFLEET_AWS_REGION") || System.get_env("AWS_REGION"),
+      access_key_id:
+        System.get_env("KEYFLEET_AWS_ACCESS_KEY_ID") || System.get_env("AWS_ACCESS_KEY_ID"),
+      secret_access_key:
+        System.get_env("KEYFLEET_AWS_SECRET_ACCESS_KEY") ||
+          System.get_env("AWS_SECRET_ACCESS_KEY"),
+      public_url:
+        System.get_env("PICTURES_PUBLIC_URL") ||
+          "https://keyfleet-pictures.fly.storage.tigris.dev"
+  end
 end
 
 # Each Keyfleet fleet's trait table, and card deck if it has one, ships with

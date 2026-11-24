@@ -121,9 +121,28 @@ defmodule Regents.Application do
           Application.fetch_env!(:regents, :ash_domains),
           staking_jobs(Application.fetch_env!(:regents, Oban))
         )
+        |> folded_crons()
 
       {Oban, dev_cron(config)}
     end
+  end
+
+  defp folded_crons(config) do
+    if Application.get_env(:regents, :folded_crons_enabled, true) do
+      config
+    else
+      update_in(config, [:cron, :crontab], &Enum.reject(&1, fn entry -> folded_cron?(entry) end))
+    end
+  end
+
+  defp folded_cron?(entry) do
+    worker = elem(entry, 1)
+    name = Atom.to_string(worker)
+
+    String.starts_with?(name, "Elixir.Regents.Keyfleet.") or
+      String.starts_with?(name, "Elixir.Regents.Autolaunch.") or
+      String.starts_with?(name, "Elixir.Regents.Patchbay.") or
+      String.starts_with?(name, "Elixir.Regents.Techtree.")
   end
 
   defp dev_cron(config) do

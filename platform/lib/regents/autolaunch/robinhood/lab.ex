@@ -96,7 +96,9 @@ defmodule Regents.Autolaunch.Robinhood.Lab do
     with true <- Path.type(path) == :absolute,
          {:ok, body} <- File.read(path),
          {:ok, decoded} <- Jason.decode(body),
-         {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"]),
+         rpc_candidate =
+           Application.get_env(:regents, :autolaunch_robinhood_rpc_url) || decoded["rpc_url"],
+         {:ok, rpc_url} <- LabRpcUrl.admitted(rpc_candidate),
          {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"], rpc_url),
          {:ok, chain_id} <- Lab.chain_id(decoded["chain_id"]),
          {:ok, run_id} <- run_id(decoded["run_id"]),

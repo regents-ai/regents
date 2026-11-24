@@ -479,8 +479,11 @@ config :regents, :staking_snapshot_refresh_enabled, true
 
 # Scheduled Oban crons run in production. Development leaves background crons off
 # by default (while keeping queues active for interactive jobs) unless
-# `REGENTS_DEV_OBAN_CRON=true` enables them (config/runtime.exs).
+# `REGENTS_DEV_OBAN_CRON=true` enables them (config/runtime.exs). During dual-run
+# cutover, `REGENTS_FOLDED_CRONS=off` pauses folded-product periodic crons while
+# keeping Regents core crons, SharedReading heals, and all Oban queues active.
 config :regents, :oban_cron_enabled, true
+config :regents, :folded_crons_enabled, true
 
 # Who reads a chain again when a person's action may have changed it, scoped per
 # product (`Regents.Chain.Refresh`) so one product's press never fans out to another.
@@ -562,6 +565,12 @@ config :regents, :keyfleet_first_read_ms, 5_000
 config :regents, :keyfleet_avatar_bucket,
   public_url: "https://keyfleet-pictures.fly.storage.tigris.dev"
 
+config :regents, Regents.Keyfleet.Keys.KeyArt, req_options: []
+
+config :regents, Regents.Keyfleet.Lighthouse,
+  url: "https://upload.lighthouse.storage",
+  req_options: []
+
 # The chain a fleet's wallet buttons send on, by the chain id its deployment
 # records, with its name in the page's words (Regents.Keyfleet.WalletSteps). Its
 # public rpc_url goes to the wallet; the server reads Base only through
@@ -610,7 +619,11 @@ config :regents, :keyfleet_graph,
 # (the runner allows 120 seconds to boot, plus creation and notebook setup). A
 # fleet may have `max_sessions` notebook sessions open at once.
 config :regents, :keyfleet_notebooks,
+  issuer: "https://keyfleet.ai",
+  host_suffix: "notebooks.keyfleet.ai",
+  public_port: 443,
   fleets: %{},
+  signing_keys: nil,
   pass_ttl_seconds: 120,
   access_ttl_ms: 30_000,
   editor_ttl_ms: 10 * 60 * 1000,

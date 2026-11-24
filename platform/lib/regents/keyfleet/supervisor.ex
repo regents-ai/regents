@@ -28,6 +28,7 @@ defmodule Regents.Keyfleet.Supervisor do
         {Task.Supervisor, name: Regents.Keyfleet.ErrorSaves, max_children: 20},
         Regents.Keyfleet.AccessCache,
         Regents.Keyfleet.Chain.RewardsWaiting,
+        if(serving?, do: Regents.Keyfleet.Graph.Client),
         if(serving?, do: Regents.Keyfleet.Agents.Here)
       ]
       |> Enum.reject(&is_nil/1),

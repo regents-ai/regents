@@ -21,6 +21,9 @@ kill_timeout = "60s"
   REGENTS_DEPLOYMENT_ROLE = "production"
   SIWA_SERVER_URL = "https://siwa-server.fly.dev"
   SIWA_AUDIENCE = "regents"
+  TECHTREE_BOOTSTRAP_CHANNEL = "stable"
+  KEYFLEET_GRAPH_URL = "http://graph.process.keyfleet.internal:4400"
+  PATCHBAY_SHOTS_URL = "http://patchbay-shots.flycast"
 
 [metrics]
   port = 9091
@@ -32,11 +35,11 @@ kill_timeout = "60s"
 
 # Keep one web instance until cross-instance long-poll resumption is fixed.
 # Machine count is managed by `fly scale count 1`; deploy with `--ha=false`.
-# BEAM release + migrations OOM at Fly's 256MB default.
+# Performance 2x / 4 GB gives all five folded products comfortable headroom in one BEAM VM.
 [[vm]]
-  cpu_kind = "shared"
+  cpu_kind = "performance"
   cpus = 2
-  memory_mb = 2048
+  memory_mb = 4096
 
 [[http_service.checks]]
   grace_period = "30s"
