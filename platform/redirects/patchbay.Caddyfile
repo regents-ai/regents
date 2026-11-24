@@ -12,23 +12,27 @@
 	@non_get {
 		not method GET HEAD
 	}
+	@has_query expression `{query} != ""`
 
 	handle /healthz {
 		respond "ok" 200
 	}
 
 	handle / {
-		@has_query expression `{query} != ""`
 		handle @has_query {
 			import perm_redir "https://regents.sh/patchbay?{query}"
 		}
-		import perm_redir "https://regents.sh/patchbay"
+		handle {
+			import perm_redir "https://regents.sh/patchbay"
+		}
 	}
 
-	@shared_root path /account /account/* /pair /api/agents/v1/*
+	@shared_root path /account /account/* /pair /api/agents/v1/* /api/v1/health /api/v1/account /api/v1/account/* /api/v1/profile /api/v1/profile/* /api/v1/messages/*
 	handle @shared_root {
-		uri strip_suffix /
-		import perm_redir "https://regents.sh{uri}"
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh{uri}"
+		}
 	}
 
 	@points path /points /points/*
@@ -37,17 +41,23 @@
 	}
 
 	handle_path /api/v1/* {
-		uri strip_suffix /
-		import perm_redir "https://regents.sh/api/v1/patchbay{uri}"
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh/api/v1/patchbay{uri}"
+		}
 	}
 
 	handle_path /api/agent/v1/* {
-		uri strip_suffix /
-		import perm_redir "https://regents.sh/api/agent/v1/patchbay{uri}"
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh/api/agent/v1/patchbay{uri}"
+		}
 	}
 
 	handle {
-		uri strip_suffix /
-		import perm_redir "https://regents.sh/patchbay{uri}"
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh/patchbay{uri}"
+		}
 	}
 }

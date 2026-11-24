@@ -12,29 +12,44 @@
 	@non_get {
 		not method GET HEAD
 	}
+	@has_query expression `{query} != ""`
 
 	handle /healthz {
 		respond "ok" 200
 	}
 
 	handle / {
-		@has_query expression `{query} != ""`
 		handle @has_query {
 			import perm_redir "https://regents.sh/techtree?{query}"
 		}
-		import perm_redir "https://regents.sh/techtree"
+		handle {
+			import perm_redir "https://regents.sh/techtree"
+		}
 	}
 
 	@techtree_projects path /account/projects /account/projects/*
 	handle @techtree_projects {
-		uri strip_suffix /
-		import perm_redir "https://regents.sh/techtree{uri}"
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh/techtree{uri}"
+		}
 	}
 
-	@shared_root path /account /account/* /pair /api/agents/v1/*
+	@techtree_api_projects path /api/v1/account/projects /api/v1/account/projects/*
+	handle @techtree_api_projects {
+		route {
+			uri strip_prefix /api/v1
+			uri strip_suffix /
+			import perm_redir "https://regents.sh/api/v1/techtree{uri}"
+		}
+	}
+
+	@shared_root path /account /account/* /pair /api/agents/v1/* /api/v1/health /api/v1/account /api/v1/account/* /api/v1/profile /api/v1/profile/* /api/v1/messages/*
 	handle @shared_root {
-		uri strip_suffix /
-		import perm_redir "https://regents.sh{uri}"
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh{uri}"
+		}
 	}
 
 	@points path /points /points/*
@@ -43,12 +58,16 @@
 	}
 
 	handle_path /api/v1/* {
-		uri strip_suffix /
-		import perm_redir "https://regents.sh/api/v1/techtree{uri}"
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh/api/v1/techtree{uri}"
+		}
 	}
 
 	handle {
-		uri strip_suffix /
-		import perm_redir "https://regents.sh/techtree{uri}"
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh/techtree{uri}"
+		}
 	}
 }
