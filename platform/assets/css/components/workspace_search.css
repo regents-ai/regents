@@ -72,6 +72,8 @@
 #shell-search-form {
   --search-field-muted: color-mix(in srgb, var(--palette-platinum) 75%, var(--palette-charcoal));
   --color-focus-ring: var(--palette-tangerine-tango);
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex: none;
   align-items: center;
@@ -79,9 +81,17 @@
   margin: .5rem .5rem 0;
   padding: .125rem .375rem .125rem .625rem;
   border-block-end: 2px solid color-mix(in srgb, var(--palette-platinum) 25%, var(--palette-charcoal));
-  background: var(--palette-charcoal);
   color: var(--search-field-muted);
   color-scheme: dark;
+}
+
+#shell-search-form::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--palette-charcoal);
+  clip-path: polygon(var(--rg-dialog-cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--rg-dialog-cut));
 }
 
 #shell-search-form:has(#shell-search-input:focus-visible) {
@@ -132,7 +142,7 @@
 }
 
 #shell-search-results {
-  padding: .375rem;
+  padding: .875rem .375rem .375rem;
   overflow: auto;
   overscroll-behavior: contain;
 }
