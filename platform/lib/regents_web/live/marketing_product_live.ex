@@ -8,6 +8,8 @@ defmodule RegentsWeb.MarketingProductLive do
 
   use RegentsWeb, :live_view
 
+  alias RegentsWeb.Cloak
+  alias RegentsWeb.Cloak.CloakLive
   alias RegentsWeb.Components.Marketing
   alias RegentsWeb.PublicDocuments
 
@@ -15,10 +17,16 @@ defmodule RegentsWeb.MarketingProductLive do
   def mount(_params, _session, socket) do
     product = socket.assigns.live_action
 
+    path =
+      case product do
+        :cloak_install -> "/cloak/install"
+        other -> "/#{other}"
+      end
+
     {:ok,
      socket
      |> assign(product: product, book_call_url: book_call_url())
-     |> assign(PublicDocuments.page("/#{product}"))}
+     |> assign(PublicDocuments.page(path))}
   end
 
   defp book_call_url do
@@ -1795,6 +1803,68 @@ defmodule RegentsWeb.MarketingProductLive do
           </section>
 
           <Marketing.footer current="patchbay" huge="Patchbay" />
+        </div>
+      </main>
+      <div class="visually-hidden" id="announce" role="status"></div>
+    </div>
+    """
+  end
+
+  def render(%{product: :cloak} = assigns) do
+    ~H"""
+    <div id="marketing-cloak" data-marketing-page phx-hook="MarketingPage">
+      <Marketing.symbols />
+      <a class="skip" href="#main">Skip to content</a>
+
+      <Marketing.bar
+        current="cloak"
+        cta_label="Download for Mac"
+        cta_href={Cloak.download_url()}
+        cta_external
+        cta_brand
+      />
+      <Marketing.sheet
+        cta_label="Download for Mac"
+        cta_href={Cloak.download_url()}
+        cta_external
+        cta_brand
+      />
+
+      <main id="main" class="product-main cloak-marketing-main">
+        <CloakLive.page />
+        <div class="frame cloak-marketing-footer">
+          <Marketing.footer current="cloak" huge="Cloak" />
+        </div>
+      </main>
+      <div class="visually-hidden" id="announce" role="status"></div>
+    </div>
+    """
+  end
+
+  def render(%{product: :cloak_install} = assigns) do
+    ~H"""
+    <div id="marketing-cloak-install" data-marketing-page phx-hook="MarketingPage">
+      <Marketing.symbols />
+      <a class="skip" href="#main">Skip to content</a>
+
+      <Marketing.bar
+        current="cloak"
+        cta_label="Download for Mac"
+        cta_href={Cloak.download_url()}
+        cta_external
+        cta_brand
+      />
+      <Marketing.sheet
+        cta_label="Download for Mac"
+        cta_href={Cloak.download_url()}
+        cta_external
+        cta_brand
+      />
+
+      <main id="main" class="product-main cloak-marketing-main">
+        <CloakLive.install />
+        <div class="frame cloak-marketing-footer">
+          <Marketing.footer current="cloak" huge="Cloak" />
         </div>
       </main>
       <div class="visually-hidden" id="announce" role="status"></div>

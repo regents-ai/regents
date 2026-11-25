@@ -366,6 +366,11 @@ defmodule RegentsWeb.Router do
     plug :put_marketing_page, "product"
   end
 
+  pipeline :marketing_cloak do
+    plug :put_product, "cloak"
+    plug :put_marketing_page, "product"
+  end
+
   def put_marketing_page(conn, page), do: assign(conn, :marketing_page, page)
 
   def enforce_session_authority(conn, _opts) do
@@ -740,6 +745,15 @@ defmodule RegentsWeb.Router do
   end
 
   scope "/", RegentsWeb do
+    pipe_through [:browser, :marketing_cloak]
+
+    live_session :marketing_cloak, session: {RegentsWeb.Live.Session, :render_context, []} do
+      live "/cloak", MarketingProductLive, :cloak
+      live "/cloak/install", MarketingProductLive, :cloak_install
+    end
+  end
+
+  scope "/", RegentsWeb do
     pipe_through :browser
 
     get "/privacy", LegalController, :privacy
@@ -776,9 +790,7 @@ defmodule RegentsWeb.Router do
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem
       live "/redeem/gallery", ShellLive, :redeem_gallery
-      live "/cloak", ShellLive, :cloak
       live "/siwa", ShellLive, :siwa
-      live "/cloak/install", ShellLive, :cloak_install
       live "/admin/articles", ShellLive, :articles_admin
     end
   end

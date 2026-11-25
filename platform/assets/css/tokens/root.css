@@ -74,6 +74,11 @@
    main button, the links and the focus ring, which are the product's
    (`data-product`, from Regent UI). Only on regents.sh's own pages: Keyfleet's
    frame is also `#app-shell`, in its own colours. */
+:root[data-marketing] {
+  --color-fg: var(--ash-ink);
+  --color-fg-muted: var(--ash-quiet);
+}
+
 :where([data-brand="platform"]:not([data-product="keyfleet"])) {
   #app-shell,
   .legal-root,

@@ -30,7 +30,6 @@
 @import "./pages/redeem_gallery.css";
 @import "./pages/regent_ops.css";
 @import "./pages/product.css";
-@import "./pages/cloak.css";
 @import "./pages/regent_profile.css";
 @import "./pages/account.css";
 @import "./pages/agent_start.css";
@@ -42,6 +41,7 @@
 @import "./autolaunch/index.css";
 @import "./patchbay/index.css";
 @import "./marketing/index.css";
+@import "./pages/cloak.css";
 @import "./components/interactions.css";
 
 /* The page itself and its height are regents.sh's only on its own pages

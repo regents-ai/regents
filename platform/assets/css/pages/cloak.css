@@ -124,6 +124,22 @@
   }
 }
 
+.cloak-marketing-main {
+  padding-inline: var(--gutter, 24px);
+}
+
+.cloak-marketing-main .cloak {
+  padding-block-start: var(--space-5);
+}
+
+.cloak-marketing-main .cloak strong {
+  font-weight: 600;
+}
+
+.cloak-marketing-footer {
+  margin-block-start: 0;
+}
+
 /* ---- First screen ---- */
 
 .cloak-hero {
