@@ -392,8 +392,8 @@ defmodule RegentsWeb.PublicDocuments do
   end
 
   defp static_share_image("/literature"), do: "/images/literature/share.png"
-  defp static_share_image("/cloak" <> _), do: "/images/cloak/cloak-hero.jpg"
-  defp static_share_image("/docs/cloak" <> _), do: "/images/cloak/cloak-hero.jpg"
+  defp static_share_image("/cloak" <> _), do: "/images/share/cloak.gif"
+  defp static_share_image("/docs/cloak" <> _), do: "/images/share/cloak.gif"
 
   defp static_share_image(path) when is_map_key(@share_cards, path),
     do: "/images/share/#{@share_cards[path]}.png"
@@ -401,8 +401,8 @@ defmodule RegentsWeb.PublicDocuments do
   defp static_share_image(_path), do: "/mark.png"
 
   defp share_image_size("/literature"), do: {2048, 1024}
-  defp share_image_size("/cloak" <> _), do: {1024, 669}
-  defp share_image_size("/docs/cloak" <> _), do: {1024, 669}
+  defp share_image_size("/cloak" <> _), do: {1200, 630}
+  defp share_image_size("/docs/cloak" <> _), do: {1200, 630}
   defp share_image_size("/paper-pro-daily"), do: {1200, 630}
   defp share_image_size(path) when is_map_key(@share_cards, path), do: {1200, 630}
   defp share_image_size(_path), do: {1024, 512}
@@ -413,11 +413,11 @@ defmodule RegentsWeb.PublicDocuments do
 
   defp share_image_alt("/cloak" <> _),
     do:
-      "Regents Cloak macOS app running local AI on Apple silicon with native LaTeX math, mode-tagged chat history, and Active Guarantees"
+      "Cloak your agents — open-source, MacOS, recent local models, verifiable private cloud AI, with the animated dithered Cloak crown and Tor startup verification steps"
 
   defp share_image_alt("/docs/cloak" <> _),
     do:
-      "Regents Cloak macOS app running local AI on Apple silicon with native LaTeX math, mode-tagged chat history, and Active Guarantees"
+      "Cloak your agents — open-source, MacOS, recent local models, verifiable private cloud AI, with the animated dithered Cloak crown and Tor startup verification steps"
 
   defp share_image_alt("/"),
     do:

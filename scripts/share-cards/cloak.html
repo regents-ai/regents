@@ -1,0 +1,340 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@font-face { font-family: "Geist"; src: url("../../platform/priv/static/fonts/cloak/Geist-Regular.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Geist"; src: url("../../platform/priv/static/fonts/cloak/Geist-SemiBold.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Geist Mono"; src: url("../../platform/priv/static/fonts/regent-ui/GeistMono-Regular.woff2") format("woff2"); font-weight: 400; }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1200px; height: 630px; overflow: hidden; }
+body {
+  position: relative;
+  background: #08090C;
+  color: #F4F5F8;
+  font-family: "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle architectural grid */
+.grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.032) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.032) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Soft ambient glows */
+.glow-left {
+  position: absolute;
+  left: -40px;
+  top: 70px;
+  width: 560px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(130, 165, 255, 0.14) 0%, rgba(130, 165, 255, 0.03) 45%, transparent 72%);
+  pointer-events: none;
+}
+.glow-right {
+  position: absolute;
+  right: -80px;
+  top: 120px;
+  width: 620px;
+  height: 520px;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.12) 0%, rgba(139, 92, 246, 0.06) 44%, transparent 72%);
+  pointer-events: none;
+}
+
+/* Subtle hairline frame */
+.frame {
+  position: absolute;
+  inset: 22px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  pointer-events: none;
+}
+
+/* Top bar: small, bright text */
+.topbar {
+  position: absolute;
+  top: 46px;
+  left: 58px;
+  right: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  color: #F7F8FC;
+  text-shadow: 0 0 18px rgba(255,255,255,0.22);
+}
+.topbar .sep {
+  color: rgba(255,255,255,0.45);
+  margin: 0 10px;
+}
+.topbar-right {
+  color: rgba(255,255,255,0.52);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+
+/* Left-center dithered logo tile */
+.logo-wrap {
+  position: absolute;
+  left: 58px;
+  top: 128px;
+  width: 248px;
+  height: 248px;
+  border-radius: 52px;
+  background: #060709;
+  border: 1px solid rgba(255,255,255,0.16);
+  box-shadow:
+    0 24px 60px rgba(0,0,0,0.65),
+    0 0 0 1px rgba(255,255,255,0.04) inset,
+    0 1px 0 rgba(255,255,255,0.16) inset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.logo-wrap img {
+  width: 224px;
+  height: 224px;
+  display: block;
+  image-rendering: pixelated;
+}
+
+/* Subtle dither motion echo tiles behind logo */
+.echo {
+  position: absolute;
+  top: 152px;
+  width: 200px;
+  height: 200px;
+  border-radius: 42px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.015);
+}
+.echo-1 { left: 102px; opacity: 0.55; }
+.echo-2 { left: 136px; opacity: 0.25; }
+
+/* Right-side cropped 5-step Tor startup panel */
+.tor-panel {
+  position: absolute;
+  right: -76px;
+  top: 134px;
+  width: 670px;
+  background: linear-gradient(180deg, rgba(28, 30, 36, 0.94) 0%, rgba(19, 20, 25, 0.96) 100%);
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 22px;
+  padding: 28px 32px 30px;
+  box-shadow:
+    0 28px 70px rgba(0,0,0,0.72),
+    0 1px 0 rgba(255,255,255,0.12) inset;
+}
+.tor-panel::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 76px;
+  width: 110px;
+  background: linear-gradient(to right, transparent, rgba(8,9,12,0.86));
+  pointer-events: none;
+}
+
+.tor-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.tor-title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #F5F6F9;
+}
+.tor-timer {
+  font-size: 22px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.48);
+  margin-left: 2px;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 19px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.step.done { color: rgba(255,255,255,0.68); }
+.step.active { color: #FFFFFF; font-weight: 600; }
+.step.pending { color: rgba(255,255,255,0.34); }
+
+.icon-slot {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Green check circle */
+.check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #22C55E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.45);
+}
+.check svg { width: 13px; height: 13px; }
+
+/* Pending hollow circle */
+.circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.75px solid rgba(255,255,255,0.28);
+}
+
+/* Native macOS 8-spoke spinner */
+.spinner {
+  width: 22px;
+  height: 22px;
+  position: relative;
+}
+.spinner i {
+  position: absolute;
+  left: 10px;
+  top: 2px;
+  width: 2.2px;
+  height: 5.5px;
+  border-radius: 1.5px;
+  background: #FFFFFF;
+  transform-origin: 1.1px 9px;
+}
+
+/* Bottom-left large headline */
+.headline-wrap {
+  position: absolute;
+  left: 58px;
+  bottom: 58px;
+}
+.headline {
+  font-size: 80px;
+  font-weight: 600;
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+  color: #FFFFFF;
+}
+</style>
+</head>
+<body>
+<div class="grid"></div>
+<div class="glow-left"></div>
+<div class="glow-right"></div>
+<div class="frame"></div>
+
+<div class="topbar">
+  <div>
+    open-source<span class="sep">--</span>MacOS<span class="sep">--</span>recent local models<span class="sep">--</span>verifiable private cloud AI
+  </div>
+  <div class="topbar-right">REGENTS.SH/CLOAK</div>
+</div>
+
+<div class="echo echo-2"></div>
+<div class="echo echo-1"></div>
+<div class="logo-wrap">
+  <img id="crown" src="" alt="Cloak dithered crown" />
+</div>
+
+<div class="tor-panel">
+  <div class="tor-head">
+    <div class="icon-slot"><div class="spinner" id="head-spinner"></div></div>
+    <div class="tor-title">Starting Cloak…</div>
+    <div class="tor-timer" id="timer">0:04</div>
+  </div>
+  <div class="steps" id="steps"></div>
+</div>
+
+<div class="headline-wrap">
+  <h1 class="headline">Cloak your agents</h1>
+</div>
+
+<script>
+const STEP_TEXTS = [
+  "Checking Mac hardware and verified binaries.",
+  "Connecting to the Tor network.",
+  "Loading local prompt rewriter model into memory.",
+  "Booting isolated Linux VM.",
+  "Verifying Tor routing, prompt rewriting, and isolation."
+];
+
+function buildSpinner(el, phase) {
+  el.innerHTML = "";
+  const spokes = 8;
+  for (let i = 0; i < spokes; i++) {
+    const spoke = document.createElement("i");
+    const angle = i * (360 / spokes);
+    const dist = (spokes - ((i - phase) % spokes + spokes) % spokes) % spokes;
+    const opacity = Math.max(0.18, 1 - dist * 0.12);
+    spoke.style.transform = `rotate(${angle}deg)`;
+    spoke.style.opacity = opacity.toFixed(2);
+    el.appendChild(spoke);
+  }
+}
+
+const CHECK_SVG = `<div class="check"><svg viewBox="0 0 14 14" fill="none"><path d="M2.8 7.4L5.6 10.2L11.3 4.1" stroke="#08120B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`;
+
+window.renderState = function({ frameSrc, activeIndex, timerText, spinPhase }) {
+  document.getElementById("crown").src = frameSrc;
+  document.getElementById("timer").textContent = timerText;
+  buildSpinner(document.getElementById("head-spinner"), spinPhase);
+
+  const container = document.getElementById("steps");
+  container.innerHTML = "";
+  STEP_TEXTS.forEach((label, idx) => {
+    const row = document.createElement("div");
+    let cls = "pending";
+    if (idx < activeIndex) cls = "done";
+    else if (idx === activeIndex) cls = "active";
+    row.className = `step ${cls}`;
+
+    const slot = document.createElement("div");
+    slot.className = "icon-slot";
+    if (cls === "done") {
+      slot.innerHTML = CHECK_SVG;
+    } else if (cls === "active") {
+      const sp = document.createElement("div");
+      sp.className = "spinner";
+      buildSpinner(sp, spinPhase);
+      slot.appendChild(sp);
+    } else {
+      slot.innerHTML = `<div class="circle"></div>`;
+    }
+
+    const txt = document.createElement("span");
+    txt.textContent = label;
+    row.appendChild(slot);
+    row.appendChild(txt);
+    container.appendChild(row);
+  });
+};
+</script>
+</body>
+</html>
