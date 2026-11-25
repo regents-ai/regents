@@ -18,14 +18,15 @@ Cloak coordinates five purpose-built helpers across process and virtualization b
 
 Every bundled binary and downloaded model weight is verified by **SHA-256** against Cloak's embedded manifest before execution.
 
-## The Four Modes
+## The Five Modes
 
 | Mode | Where inference runs | What leaves your Mac | Payment / auth | What can link requests |
 | --- | --- | --- | --- | --- |
 | **1. Local** | On your Mac (`vmlx-swift` MLX or `llama.cpp` GGUF) | Nothing during chat once weights are downloaded | Free · no account | Nothing leaves your Mac during inference |
-| **2. NEAR AI Gateway** | NEAR AI Cloud (`Qwen3.8-27B`, Intel TDX + NVIDIA GPU) | Prompt as written, E2EE v2 encrypted to the hardware-verified enclave (optional Tor) | Your NEAR AI Cloud API key | Your NEAR API key identifies your NEAR account |
-| **3. Token Inference** | Venice AI (default) or Boundless on Tempo | Locally rephrased user text over per-conversation Tor circuits | Local Base USDC wallet (`x402`) / Venice API key, or Tempo `USDC.e` (`MPP`) | A reused wallet address, payment channel, or API key can link chats |
+| **2. NEAR AI Gateway** | [NEAR AI Cloud](https://cloud.near.ai) (`Qwen3.8-27B`, Intel TDX + NVIDIA GPU) | Prompt as written, E2EE v2 encrypted to the hardware-verified enclave (optional Tor) | Your NEAR AI Cloud API key | Your NEAR API key identifies your NEAR account |
+| **3. Token Inference** | [Venice AI](https://venice.ai) or [Boundless](https://boundless.network) on Tempo | Locally rephrased user text over per-conversation Tor circuits | Tempo `USDC.e` (`MPP`), local Base USDC wallet (`x402`), or Venice API key | A reused wallet address, payment channel, or API key can link chats |
 | **4. zkAPI Anon Inference** | Open Anonymity (`zkAPI`) over Tor | Locally rephrased user text over per-conversation Tor circuits | Fresh one-time zero-knowledge spend credential per request (from an ETH deposit) | No reusable payment credential; prompt text, conversation history, and timing can still correlate requests |
+| **5. Darkbloom Serving** | On your Mac via [Darkbloom](https://darkbloom.dev) ([EigenLayer](https://eigenlayer.xyz)) | Local Only stays on your Mac; Network + Local serves idle compute to Darkbloom | Earn payouts on idle Apple silicon (`0%` platform cut, macOS 27+) | Linked `console.darkbloom.dev` provider account (Network + Local only) |
 
 ### Mode 1: Local (`vmlx-swift` MLX + `llama.cpp`)
 
@@ -52,10 +53,10 @@ Inside the mode's top tab bar (**Chat | Traces | Insights**), the **Traces** tab
 
 ### Mode 3: Token Inference (Venice AI & Boundless + Tempo)
 
-Sends locally rephrased prompts over per-conversation Tor circuits with no centralized account or credit card required. You can switch between **Venice AI** and **Boundless + Tempo** via the segmented slider in Funds or the logo toggle right below the chat composer—even mid-chat.
+Sends locally rephrased prompts over per-conversation Tor circuits with no centralized account or credit card required. Switch between [Venice AI](https://venice.ai) and [Boundless](https://boundless.network) + Tempo via the segmented slider in Settings / Funds or the logo toggle right below the chat composer—even mid-chat.
 
-- **Venice AI (Default · Base USDC `x402` or API Key):** Generates a dedicated Base USDC wallet (`sh.regents.cloak.venice-wallet`, kept separate from the Boundless/Tempo wallet to avoid cross-chain address reuse), authenticates with Sign-In with Ethereum (`EIP-4361`), and tops up credit via HTTP `x402` (`EIP-3009`). Cloak defaults to Venice's `Private` and `TEE` model tiers and refuses silent mid-conversation downgrades. **Important distinction:** Venice's zero-retention policy and `Private`/`TEE` tier labels are provider-reported by Venice—Cloak does not independently verify a Venice TEE quote, and a reused wallet or API key can still link requests made with it.
-- **Boundless + Tempo (`USDC.e` via HTTP 402 `MPP`):** Uses a separate Tempo wallet (`sh.regents.cloak.wallet`) with session payment channels, cooperative instant **Close**, and a unilateral on-chain **Withdraw** escape hatch (15-minute grace period).
+- **[Boundless](https://boundless.network) + Tempo (`USDC.e` via HTTP 402 `MPP`):** Uses a dedicated Tempo wallet (`sh.regents.cloak.wallet`) with session payment channels, cooperative instant **Close**, and a unilateral on-chain **Withdraw** escape hatch (15-minute grace period).
+- **[Venice AI](https://venice.ai) (Base USDC `x402` or API Key):** Generates a dedicated Base USDC wallet (`sh.regents.cloak.venice-wallet`, kept separate from the Boundless/Tempo wallet to avoid cross-chain address reuse), authenticates with Sign-In with Ethereum (`EIP-4361`), and tops up credit via HTTP `x402` (`EIP-3009`). Cloak defaults to Venice's `Private` and `TEE` model tiers and refuses silent mid-conversation downgrades. **Important distinction:** Venice's zero-retention policy and `Private`/`TEE` tier labels are provider-reported by Venice—Cloak does not independently verify a Venice TEE quote, and a reused wallet or API key can still link requests made with it.
 
 ### Mode 4: zkAPI Anon Inference
 
@@ -127,7 +128,7 @@ client.chat.completions.create(
 | **External Mac app** (Cursor, Cline, Aider, Python) | `http://127.0.0.1:8742/v1` | **zkAPI Anon Inference** | External app keeps its own macOS filesystem & network permissions |
 | **Built-in Pi Agent** in zkAPI Anon Inference | `vsock:8030` → `vsock:8742` | **zkAPI Anon Inference** | Sealed NIC-less Linux microVM |
 | **Built-in Pi Agent** in Token Inference | `vsock:8030` → `vsock:8742` | **Boundless / Tempo (`USDC.e`)** | Sealed NIC-less Linux microVM |
-| **Interactive Chat** (Token Inference) | `vsock:8020` | **Venice AI** (default) or **Boundless / Tempo** | NIC-less Linux microVM (`cloak-sender`) |
+| **Interactive Chat** (Token Inference) | `vsock:8020` | **[Venice AI](https://venice.ai)** or **[Boundless](https://boundless.network) / Tempo** | NIC-less Linux microVM (`cloak-sender`) |
 | **Interactive Chat** (NEAR AI Gateway / Local) | `cloak-near` / local worker | NEAR API key / Free | Native Rust verifier / sandboxed local worker |
 
 **What `CloakDoor` rewrites:** Only `role == "user"` text parts are locally rephrased. System/developer instructions, tool definitions, tool results (including source code), assistant turns, and accepted image/audio/file parts pass through unchanged. An in-memory Activity log lets you inspect Original vs. Sent user text for the latest 20 requests without writing request contents to disk.

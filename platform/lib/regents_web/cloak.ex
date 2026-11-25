@@ -86,37 +86,45 @@ defmodule RegentsWeb.Cloak do
     docs_href: "/docs/cloak/reference"
   }
 
-  @modes_title "4 modes"
+  @modes_title "5 modes"
 
   # Each mode, in the order a new user decides: local first, then each remote
-  # option with what the provider can see and what can link requests.
+  # option and local/network serving.
   @modes [
     {"Local", nil,
      "Runs on your Mac with Apple MLX (Inkling 2 Mini) or llama.cpp. Offline after download — no account, no fees."},
     {"NEAR AI Gateway",
-     %{
-       before: "Hardware-verified on ",
-       link: "NEAR AI Cloud",
-       href: "https://cloud.near.ai",
-       after: "."
-     },
+     [
+       {:text, "Hardware-verified on "},
+       {:link, "NEAR AI Cloud", "https://cloud.near.ai"},
+       {:text, "."}
+     ],
      "Verifies Intel TDX and NVIDIA GPU attestation before encrypting prompts end-to-end. Uses your NEAR key; Tor and trace exports are optional."},
     {"Token Inference",
-     %{
-       before: "Served by ",
-       link: "Venice AI",
-       href: "https://venice.ai",
-       after: " or Boundless."
-     },
-     "Rewrites prompts locally and routes over Tor. Pay per call with Base USDC (x402), a Venice key, or Tempo USDC.e via Boundless."},
+     [
+       {:text, "Served by "},
+       {:link, "Venice AI", "https://venice.ai"},
+       {:text, " or "},
+       {:link, "Boundless", "https://boundless.network"},
+       {:text, "."}
+     ],
+     "Rewrites prompts locally and routes over Tor. Pay per call with Tempo USDC.e via Boundless, or Base USDC (x402) / a Venice API key."},
     {"zkAPI Anon Inference",
-     %{
-       before: "Inspired by Vitalik's ",
-       link: "X post",
-       href: "https://x.com/VitalikButerin/status/2111046730959433793",
-       after: "."
-     },
-     "Local rewrite, Tor, optional cover traffic, and a fresh one-time zkAPI key per turn from an ETH deposit — no reusable wallet or key."}
+     [
+       {:text, "Inspired by Vitalik's "},
+       {:link, "X post", "https://x.com/VitalikButerin/status/2111046730959433793"},
+       {:text, "."}
+     ],
+     "Local rewrite, Tor, optional cover traffic, and a fresh one-time zkAPI key per turn from an ETH deposit — no reusable wallet or key."},
+    {"Darkbloom Serving",
+     [
+       {:text, "Powered by "},
+       {:link, "Darkbloom", "https://darkbloom.dev"},
+       {:text, " and "},
+       {:link, "EigenLayer", "https://eigenlayer.xyz"},
+       {:text, "."}
+     ],
+     "Serve local models on Apple silicon for your own Mac apps or earn payouts on the Darkbloom network while idle (macOS 27+)."}
   ]
 
   # The drawn chat window: a synthetic Original -> Sent exchange that shows both
@@ -145,8 +153,9 @@ defmodule RegentsWeb.Cloak do
   @mode_access %{
     "Local" => "Free local model (10.21 GB MLX)",
     "NEAR AI Gateway" => "NEAR AI Cloud key",
-    "Token Inference" => "Base USDC (Venice x402), Venice key, or Tempo USDC.e",
-    "zkAPI Anon Inference" => "ETH deposit on Ethereum Mainnet (30-day limit)"
+    "Token Inference" => "Tempo USDC.e (Boundless MPP), Base USDC (Venice x402), or Venice key",
+    "zkAPI Anon Inference" => "ETH deposit on Ethereum Mainnet (30-day limit)",
+    "Darkbloom Serving" => "macOS 27+ (Off / Local Only / Network + Local)"
   }
   @caution "Beta software — not independently audited. Keep wallet balances small, back up keys before wiping your Mac (no iCloud sync), and note the 30-day limit on untouched zkAPI deposits."
   @feedback %{
@@ -177,7 +186,7 @@ defmodule RegentsWeb.Cloak do
       id: "modes-and-payments",
       summary: "Modes, routing, and payments",
       body:
-        "1) Local: Apple MLX (Inkling 2 Mini, 10.21 GB) or llama.cpp GGUF, free and offline. 2) NEAR AI Gateway: verifies Intel TDX + NVIDIA GPU attestation before E2EE v2 to NEAR AI Cloud (Qwen3.8-27B); optional Tor and local trace export. 3) Token Inference: local Qwen 3.5 9B rewrite + Tor; Venice AI (Base USDC x402 or API key) or Boundless (Tempo USDC.e MPP). 4) zkAPI Anon Inference: local rewrite + Tor + optional cover traffic + one-time zkAPI key from an Ethereum Mainnet ETH deposit. Also includes the sandboxed Pi agent microVM, CloakDoor (http://127.0.0.1:8742/v1), Offline Data packs, and Darkbloom inference serving (macOS 27+)."
+        "1) Local: Apple MLX (Inkling 2 Mini, 10.21 GB) or llama.cpp GGUF, free and offline. 2) NEAR AI Gateway: verifies Intel TDX + NVIDIA GPU attestation before E2EE v2 to NEAR AI Cloud (Qwen3.8-27B); optional Tor and local trace export. 3) Token Inference: local Qwen 3.5 9B rewrite + Tor; Boundless (Tempo USDC.e MPP) or Venice AI (Base USDC x402 or API key). 4) zkAPI Anon Inference: local rewrite + Tor + optional cover traffic + one-time zkAPI key from an Ethereum Mainnet ETH deposit. 5) Darkbloom Serving: serve local models on Apple silicon for your own apps or earn payouts on Darkbloom / EigenLayer while idle (macOS 27+). Also includes the sandboxed Pi agent microVM, CloakDoor (http://127.0.0.1:8742/v1), and Offline Data packs."
     },
     %{
       id: "requirements-and-install",
@@ -272,8 +281,14 @@ defmodule RegentsWeb.Cloak do
         {name, nil, sentence} ->
           "| #{name} | #{sentence} | #{@mode_access[name]} |"
 
-        {name, credit, sentence} ->
-          "| #{name} | #{String.trim_trailing(sentence, ".")}. #{credit.before}[#{credit.link}](#{credit.href})#{credit.after} | #{@mode_access[name]} |"
+        {name, credit_parts, sentence} ->
+          credit_md =
+            Enum.map_join(credit_parts, "", fn
+              {:text, text} -> text
+              {:link, label, href} -> "[#{label}](#{href})"
+            end)
+
+          "| #{name} | #{String.trim_trailing(sentence, ".")}. #{credit_md} | #{@mode_access[name]} |"
       end)
 
     ecosystem =

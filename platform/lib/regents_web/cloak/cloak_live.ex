@@ -125,7 +125,14 @@ defmodule RegentsWeb.Cloak.CloakLive do
               <div>
                 <h3>{name}</h3>
                 <p :if={credit} class="cloak-modes__credit">
-                  {credit.before}<a href={credit.href} target="_blank" rel="noopener noreferrer">{credit.link}</a>{credit.after}
+                  <%= for part <- credit do %>
+                    <%= case part do %>
+                      <% {:text, text} -> %>
+                        {text}
+                      <% {:link, label, href} -> %>
+                        <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
+                    <% end %>
+                  <% end %>
                 </p>
                 <p>{sentence}</p>
               </div>
@@ -158,7 +165,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
                 :for={{label, n} <- Enum.with_index(@window.switch, 1)}
                 class={label == @window.mode && "is-on"}
               >
-                <span :if={n <= length(@modes)} class="cloak-badge">{n}</span>{label}
+                <span :if={n <= 4} class="cloak-badge">{n}</span>{label}
               </span>
             </div>
             <p class="cloak-window__hint">{@window.hint}</p>
