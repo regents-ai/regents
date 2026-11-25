@@ -345,7 +345,7 @@
       "get": {
         "operationId": "listProducts",
         "summary": "List the Regents products",
-        "description": "Keyfleet, Autolaunch, Patchbay and Techtree, in the order the site lists them, with the summary and links their pages on Regents show. Takes no query parameters.",
+        "description": "Keyfleet, Autolaunch, Patchbay, Techtree and Cloak, in the order the site lists them, with the summary and links their pages on Regents show. Takes no query parameters.",
         "responses": {
           "200": {
             "description": "The product directory",
@@ -405,7 +405,8 @@
                 "patchbay",
                 "autolaunch",
                 "techtree",
-                "keyfleet"
+                "keyfleet",
+                "cloak"
               ]
             }
           }
@@ -3597,7 +3598,8 @@
               "patchbay",
               "autolaunch",
               "techtree",
-              "keyfleet"
+              "keyfleet",
+              "cloak"
             ]
           },
           "name": {
@@ -3668,7 +3670,8 @@
               "patchbay",
               "autolaunch",
               "techtree",
-              "keyfleet"
+              "keyfleet",
+              "cloak"
             ]
           },
           "name": {

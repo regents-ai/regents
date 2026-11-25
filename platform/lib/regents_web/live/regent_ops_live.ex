@@ -66,9 +66,9 @@ defmodule RegentsWeb.RegentOpsLive do
     %{
       id: "cloak/rewrite",
       name: "Cloak",
-      headline: "Local AI and private cloud AI.",
+      headline: "Choose what leaves your Mac.",
       line:
-        "A macOS menu bar app for Local Llama and private NEAR inference, with optional Tor paranoid mode.",
+        "Run AI locally on Apple Silicon, or control how prompts reach cloud models with enclaves, Tor, and crypto payments.",
       tint: "#a97bf0",
       action: "Open Cloak"
     }
@@ -212,7 +212,8 @@ defmodule RegentsWeb.RegentOpsLive do
             through tool problems. Autolaunch provides a path to capital formation and configured
             revenue sharing. Techtree builds Skills, evaluations, environments and models around a
             team's own workflows. Keyfleet gives personal agents a long-lived swarm to work with.
-            Cloak is a macOS menu bar app for local Llama and private NEAR cloud AI.
+            Cloak is a native macOS app for running AI locally on Apple Silicon or choosing how
+            prompts reach private cloud models.
           </p>
           <p>
             Each product documents its own agent tools. Patchbay offers WebMCP tools on its pages

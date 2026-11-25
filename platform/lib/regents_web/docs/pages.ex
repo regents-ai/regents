@@ -163,7 +163,7 @@ defmodule RegentsWeb.Docs.Pages do
     %{
       id: "cloak",
       name: "Cloak",
-      tagline: "Local AI and private cloud AI in a macOS app.",
+      tagline: "Choose what leaves your Mac: local AI on Apple silicon or private cloud AI.",
       home_path: "/docs/cloak",
       app_path: "/cloak",
       app_label: "Open Cloak",
@@ -177,15 +177,31 @@ defmodule RegentsWeb.Docs.Pages do
              name: "Overview & modes",
              title: "Cloak · Docs",
              description:
-               "Private local AI with llama.cpp, NEAR Private AI, Boundless Token Inference, and Tor-routed V mode in a macOS menu bar app.",
+               "Local AI on Apple MLX and llama.cpp, hardware-verified NEAR AI Gateway, Token Inference (Venice AI or Boundless), and zkAPI Anon Inference over Tor.",
              source: {:doc, "/cloak"}
+           },
+           %{
+             key: "cloak/reference",
+             name: "Architecture & reference",
+             title: "Cloak Architecture · Docs",
+             description:
+               "Architecture, the four modes, Local Agent Box (Pi), Connected Apps (CloakDoor), Tor & live cover traffic, hardware requirements, and privacy limits.",
+             source: {:regents_file, "cloak"}
            },
            %{
              key: "cloak/install",
              name: "Install & requirements",
              description:
-               "Install Regents Cloak on Apple silicon macOS 26, download the local model, and start Tor-backed modes.",
+               "Install Regents Cloak on Apple silicon macOS 26+, choose Local, NEAR AI Gateway, or Tor modes, and press Start from the menu bar when needed.",
              source: {:doc, "/cloak/install"}
+           },
+           %{
+             key: "cloak/wallets",
+             name: "Wallet security & recovery",
+             title: "Cloak Wallet Security · Docs",
+             description:
+               "Beta wallet safety, device-only storage, failure modes without backups, and the 30-day protocol limit on untouched zkAPI deposits.",
+             source: {:regents_file, "cloak-wallets"}
            }
          ]}
       ]
