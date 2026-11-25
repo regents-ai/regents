@@ -392,6 +392,16 @@ defmodule RegentsWeb.Cloak.CloakLive do
             default — with live attestation proofs, Original vs. Sent diffs, cover traffic logs, and
             bundle SHA-256 hashes built right into Settings.
           </p>
+          <figure class="cloak-startup-shot">
+            <img
+              src={~p"/images/cloak/cloak-startup.png"}
+              alt="Cloak 5-step verified startup checklist: checking Mac hardware and verified binaries, connecting to Tor, loading the local prompt rewriter, booting the isolated Linux VM, and verifying isolation"
+              loading="lazy"
+            />
+            <figcaption>
+              Every Start verifies hardware, Tor routing, local prompt rewriting, and Linux VM isolation.
+            </figcaption>
+          </figure>
         </div>
 
         <div class="cloak-card cloak-card--tight">
@@ -986,6 +996,30 @@ defmodule RegentsWeb.Cloak.CloakLive do
               {@subscribe_error}
             </p>
           <% end %>
+        </section>
+
+        <section class="cloak-dl__showcase" aria-labelledby="cloak-dl-preview-heading">
+          <div class="cloak-dl__showcase-head">
+            <h2 id="cloak-dl-preview-heading">What’s inside Cloak</h2>
+            <p>
+              Run Inkling 2 Mini completely offline on Apple silicon, or switch per thread across four
+              verifiably private cloud rails and open infrastructure.
+            </p>
+          </div>
+          <figure class="cloak-dl__shot">
+            <img
+              src={~p"/images/cloak/cloak-hero.jpg"}
+              alt="Cloak macOS app running Local mode with Inkling 2 Mini, rendered LaTeX math, Local Access, and Active Guarantees"
+              loading="lazy"
+            />
+          </figure>
+          <figure class="cloak-dl__shot">
+            <img
+              src={~p"/images/cloak/cloak-ecosystem-banner.png"}
+              alt="Cloak powered by open infrastructure: Venice + Base, Boundless + Tempo, Ethereum + zkAPI, EigenLayer Darkbloom, NEAR AI, Tor Network, Apple MLX + llama.cpp, and Pi Agent + CloakDoor"
+              loading="lazy"
+            />
+          </figure>
         </section>
 
         <section class="cloak-dl__verify" aria-label="Verify your download">

@@ -1254,6 +1254,28 @@
   opacity: 0.78;
 }
 
+.cloak-startup-shot {
+  margin: 10px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.cloak-startup-shot img {
+  display: block;
+  width: 100%;
+  max-width: 440px;
+  height: auto;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.22);
+}
+
+.cloak-startup-shot figcaption {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-fg-muted);
+}
+
 .cloak-spec-head {
   display: flex;
   align-items: center;
@@ -3228,6 +3250,51 @@
   margin: -6px 0 0;
   font-size: 0.8125rem;
   color: #f87171;
+}
+
+.cloak-dl__showcase {
+  display: grid;
+  gap: 16px;
+}
+
+.cloak-dl__showcase-head {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  justify-items: center;
+  margin-block-start: 6px;
+}
+
+.cloak-dl__showcase-head h2 {
+  margin: 0;
+  font-family: var(--cloak-sans);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-fg);
+}
+
+.cloak-dl__showcase-head p {
+  max-width: 56ch;
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--color-fg-muted);
+}
+
+.cloak-dl__shot {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 16px;
+  background: #0d0e11;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.24);
+}
+
+.cloak-dl__shot img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .cloak-dl__verify {
