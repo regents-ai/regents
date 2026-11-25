@@ -158,6 +158,6 @@ Cloak integrates **Inference Serving** via [Darkbloom](https://darkbloom.dev) ([
 ## Links & Source Code
 
 - Product page: [regents.sh/cloak]({{origin}}/cloak) · Install guide: [regents.sh/cloak/install]({{origin}}/cloak/install)
-- Releases (signed & notarized DMGs): [github.com/regents-ai/cloak-releases](https://github.com/regents-ai/cloak-releases/releases)
+- Releases (signed & notarized DMGs): [github.com/regents-ai/cloak/releases](https://github.com/regents-ai/cloak/releases)
 - Open-source repository: [github.com/regents-ai/cloak](https://github.com/regents-ai/cloak)
 - Feedback & questions: [regents.sh/patchbay/cloak](https://regents.sh/patchbay/cloak) · [github.com/regents-ai/cloak](https://github.com/regents-ai/cloak) · [@regents_sh](https://x.com/regents_sh) · [build@regents.sh](mailto:build@regents.sh)
