@@ -25,7 +25,7 @@ Every bundled binary and downloaded model weight is verified by **SHA-256** agai
 | **1. Local** | On your Mac (`vmlx-swift` MLX or `llama.cpp` GGUF) | Nothing during chat once weights are downloaded | Free · no account | Nothing leaves your Mac during inference |
 | **2. NEAR AI Gateway** | [NEAR AI Cloud](https://cloud.near.ai) (`Qwen3.8-27B`, Intel TDX + NVIDIA GPU) | Prompt as written, E2EE v2 encrypted to the hardware-verified enclave (optional Tor) | Your NEAR AI Cloud API key | Your NEAR API key identifies your NEAR account |
 | **3. Token Inference** | [Venice AI](https://venice.ai) or [Boundless](https://boundless.network) on Tempo | Locally rephrased user text over per-conversation Tor circuits | Tempo `USDC.e` (`MPP`), local Base USDC wallet (`x402`), or Venice API key | A reused wallet address, payment channel, or API key can link chats |
-| **4. zkAPI Anon Inference** | Open Anonymity (`zkAPI`) over Tor | Locally rephrased user text over per-conversation Tor circuits | Fresh one-time zero-knowledge spend credential per request (from an ETH deposit) | No reusable payment credential; prompt text, conversation history, and timing can still correlate requests |
+| **4. zkAPI Anon Inference** | Open Anonymity (`zkAPI`) over Tor | Locally rephrased user text over per-conversation Tor circuits | Fresh one-time zero-knowledge key per turn drawn from a reusable ETH deposit — no provider account or linked API key | No reusable provider credential; prompt text, conversation history, and timing can still correlate requests |
 | **5. Darkbloom Serving** | On your Mac via [Darkbloom](https://darkbloom.dev) ([EigenLayer](https://eigenlayer.xyz)) | Local Only stays on your Mac; Network + Local serves idle compute to Darkbloom | Earn payouts on idle Apple silicon (`0%` platform cut, macOS 27+) | Linked `console.darkbloom.dev` provider account (Network + Local only) |
 
 ### Mode 1: Local (`vmlx-swift` MLX + `llama.cpp`)
@@ -45,7 +45,7 @@ Before sending a prompt, `cloak-near`:
 1. Fetches live hardware attestation from `cloud-api.near.ai`.
 2. Verifies the **Intel TDX quote** locally via DCAP QVL and checks `app_compose` against pinned measurements compiled into Cloak.
 3. Verifies the **NVIDIA GPU attestation verdict** from [Intel Trust Authority](https://portal.trustauthority.intel.com) (`PS384` JWT + nonce binding).
-4. Pins TLS to the enclave's attested key and seals prompts with **E2EE v2** (`X25519` + `HKDF-SHA256` + `ChaCha20-Poly1305`). Any mismatch fails closed.
+4. Pins TLS to the enclave's attested key and seals prompts with **E2EE v2** (`X25519` + `HKDF-SHA256` + `XChaCha20-Poly1305`). Any mismatch fails closed.
 
 Normal NEAR chats send your prompt as written (no local rewriter). Enabling **Tor** allocates two separate Tor circuits per app launch (one for NEAR, one for Intel Trust Authority).
 
@@ -62,9 +62,9 @@ Sends locally rephrased prompts over per-conversation Tor circuits with no centr
 
 Inspired by [Vitalik Buterin's private AI architecture](https://x.com/VitalikButerin/status/2111046730959433793), zkAPI Anon Inference runs [Open Anonymity's zkAPI](https://zkapi.openanonymity.ai) ([ethereum/zkapi](https://github.com/ethereum/zkapi)) on Ethereum Mainnet.
 
-- **Guest-only LUKS2 payment disk:** Your Ethereum Mainnet deposit and `zkAPI` note secrets live inside a 1 GiB sparse LUKS2-encrypted disk image (`payment-disk.img`) mounted only inside the Linux microVM under a dedicated `cloak-pay` user, isolated even from the built-in coding agent.
-- **One-time zero-knowledge spend credentials:** For every request, `zkapi-walletd` proves deposit ownership in zero knowledge (`zkapi-v2-note-bound-v1`) and leases a fresh one-time OpenRouter credential over a per-conversation Tor circuit—avoiding any reusable wallet address or API key across requests.
-- **Deposit & model tiers:** Open Anonymity uses coarse temporary per-turn escrow holds (`$1.00` Tier 1, `$2.00` Tier 3, `$3.00` Tier 5, `$4.50` Tier 25, `$6.00` Tier 100); only actual token cost is spent and unused funds remain in your deposit. A `$5` deposit unlocks models up through Tier 25 (`Claude Fable 5.2`, `Claude Opus 5.5`, `Claude Sonnet 5.5` default), and `$10+` gives headroom for multiple flagship turns.
+- **Guest-only LUKS2 payment disk:** Your Ethereum Mainnet deposit and `zkAPI` note secrets live inside a 1 GiB sparse LUKS2-encrypted disk image (`~/Library/Application Support/Regents Cloak/pay/disk.img`) mounted only inside the Linux microVM under a dedicated `cloak-pay` user, isolated even from the built-in coding agent.
+- **Reusable ETH deposit, fresh one-time key per turn:** One ETH deposit stays active for up to 30 days and funds many sequential turns (only one deposit can be active at a time; to add more ETH, withdraw first and make a new deposit). For every turn, `zkapi-walletd` proves deposit ownership in zero knowledge (`zkapi-v2-note-bound-v1`), leases a fresh one-time provider API key over a per-conversation Tor circuit, and settles actual token cost automatically after the turn (~35–78 s between back-to-back turns) — so the provider never sees a reusable account, wallet, or API key.
+- **Deposit & model tiers:** Open Anonymity uses coarse temporary per-turn escrow holds (`$1.00` Tier 1, `$2.00` Tier 3, `$3.00` Tier 5, `$4.50` Tier 25, `$6.00` Tier 100); only actual token cost is spent and unused funds remain in your deposit. A `$5` deposit unlocks models up through Tier 25 (`Claude Fable 5.2`, `Claude Opus 5.5`, `Claude Sonnet 5.5` default), and `$10+` gives headroom for multiple flagship turns. Keep a small ETH buffer in your local wallet outside the deposit to cover Ethereum Mainnet withdrawal gas.
 - **30-day vault expiry safety:** `ExpiryGuard` alerts you at Days 20, 25, and 28 and can optionally auto-withdraw 3 days before expiry.
 - **Honest limit:** Payment unlinkability does not prevent correlation from identifying text inside prompts, multi-turn conversation history, or request timing.
 
@@ -153,7 +153,7 @@ Cloak integrates **Inference Serving** via [Darkbloom](https://darkbloom.dev) ([
 - **Menu bar, Quick Prompt, Widgets & CLI:** Native Liquid Glass menu bar panel, Carbon-hotkey Quick Prompt (zero Accessibility permission required), Control Center toggles, Desktop widgets, `cloak` CLI over an owner-only Unix socket, and EdDSA-signed updates via [Sparkle 2.8.1](https://sparkle-project.org).
 - **Offline Data:** **Settings → Offline Data** provides progressive **Minimum → Maximum** downloads for **Kiwix Library** (`174 MB → 61 GB`), **DevDocs** (`15 MB → 240 MB`, 1-click linkable into Local Mode), **CourtListener Bulk Data** (`540 KB → 58.3 GB`), **PubMed Central Open Access** (AWS S3 CLI), and [Tinfoil Kit](https://github.com/tudor-city-ventures/tinfoil-kit).
 
-- **Release verification:** Every release publishes SHA-256 checksums for the `.dmg` and installed `Cloak.app/Contents/MacOS/RegentsCloak` binary plus its Apple Developer ID `CDHash` (Team `367G3Z7G3J`) on GitHub Releases (`SHA256SUMS.txt` and `checksums.json`) and at [regents.sh/cloak/install]({{origin}}/docs/cloak/install#verify-your-download). Cloak's **Settings → Status** pane displays the running bundle's live SHA-256 and `CDHash` alongside copy-paste `shasum`, `codesign`, and `spctl` commands so you can verify independently using built-in macOS tools.
+- **Release verification:** Every release publishes SHA-256 checksums for the `.dmg` and installed `Cloak.app/Contents/MacOS/RegentsCloak` binary plus its Apple Developer ID `CDHash` (Team `367G3Z7G3J`) on GitHub Releases (`SHA256SUMS.txt` and `checksums.json`) and at [regents.sh/cloak/install]({{origin}}/cloak/install#verify-your-download). Cloak's **Settings → Status** pane displays the running bundle's live SHA-256 and `CDHash` alongside copy-paste `shasum`, `codesign`, and `spctl` commands so you can verify independently using built-in macOS tools.
 
 ## Links & Source Code
 

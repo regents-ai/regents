@@ -115,7 +115,7 @@ defmodule RegentsWeb.Cloak do
        {:link, "X post", "https://x.com/VitalikButerin/status/2111046730959433793"},
        {:text, "."}
      ],
-     "Local rewrite, Tor, optional cover traffic, and a fresh one-time zkAPI key per turn from an ETH deposit — no reusable wallet or key."},
+     "Local rewrite, Tor, optional cover traffic, and a fresh one-time zkAPI key per turn drawn from a reusable ETH deposit — no provider account or linked API key."},
     {"Darkbloom Serving",
      [
        {:text, "Powered by "},
@@ -186,7 +186,7 @@ defmodule RegentsWeb.Cloak do
       id: "modes-and-payments",
       summary: "Modes, routing, and payments",
       body:
-        "1) Local: Apple MLX (Inkling 2 Mini, 10.21 GB) or llama.cpp GGUF, free and offline. 2) NEAR AI Gateway: verifies Intel TDX + NVIDIA GPU attestation before E2EE v2 to NEAR AI Cloud (Qwen3.8-27B); optional Tor and local trace export. 3) Token Inference: local Qwen 3.5 9B rewrite + Tor; Boundless (Tempo USDC.e MPP) or Venice AI (Base USDC x402 or API key). 4) zkAPI Anon Inference: local rewrite + Tor + optional cover traffic + one-time zkAPI key from an Ethereum Mainnet ETH deposit. 5) Darkbloom Serving: serve local models on Apple silicon for your own apps or earn payouts on Darkbloom / EigenLayer while idle (macOS 27+). Also includes the sandboxed Pi agent microVM, CloakDoor (http://127.0.0.1:8742/v1), and Offline Data packs."
+        "1) Local: Apple MLX (Inkling 2 Mini, 10.21 GB) or llama.cpp GGUF, free and offline. 2) NEAR AI Gateway: verifies Intel TDX + NVIDIA GPU attestation before E2EE v2 to NEAR AI Cloud (Qwen3.8-27B); optional Tor and local trace export. 3) Token Inference: local Qwen 3.5 9B rewrite + Tor; Boundless (Tempo USDC.e MPP) or Venice AI (Base USDC x402 or API key). 4) zkAPI Anon Inference: local rewrite + Tor + optional cover traffic + fresh one-time zkAPI key per turn drawn from a reusable Ethereum Mainnet ETH deposit. 5) Darkbloom Serving: serve local models on Apple silicon for your own apps or earn payouts on Darkbloom / EigenLayer while idle (macOS 27+). Also includes the sandboxed Pi agent microVM, CloakDoor (http://127.0.0.1:8742/v1), and Offline Data packs."
     },
     %{
       id: "requirements-and-install",
@@ -215,7 +215,7 @@ defmodule RegentsWeb.Cloak do
     {"Start",
      "Local and direct NEAR AI Gateway work immediately. Press Start in the menu bar for Tor, Token Inference, zkAPI, Connected Apps, or the Pi agent."}
   ]
-  @updates "Signed Sparkle updates check automatically unless disabled in Settings."
+  @updates "Signed Sparkle updates are available on demand or automatically when enabled in Settings."
 
   # Official release checksums published alongside every signed build in
   # regents-ai/cloak Releases (`SHA256SUMS.txt` and `checksums.json`). Update

@@ -8,9 +8,9 @@ Cloak creates no Regents account and never has custody of your keys or funds. Ev
 
 | Mode & Rail | Asset & Network | Where the key lives on your Mac | Backup & Recovery |
 | --- | --- | --- | --- |
-| **Token Inference · Venice** | `USDC` on **Base** | Device-only macOS Keychain (`AfterFirstUnlockThisDeviceOnly`, never synced to iCloud) | **Export Private Key…** in Funds or **Settings → Wallets** (gated by Touch ID / Mac password) |
-| **Token Inference · Boundless** | `USDC.e` on **Tempo** | Separate device-only macOS Keychain item (isolated from Venice, never synced to iCloud) | **Export Private Key…** in Funds or **Settings → Wallets** (gated by Touch ID / Mac password) |
-| **zkAPI Anon Inference** | `ETH` on **Ethereum Mainnet** | Local AES-GCM encrypted payment disk under `~/Library/Application Support/RegentsCloak/` sealed by a device-only Keychain key (never synced to iCloud) | No standalone seed export — withdraw active deposits and click **Transfer…** to move ETH out to an external wallet |
+| **Token Inference · Venice** | `USDC` on **Base** | Device-only macOS Keychain (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, never synced to iCloud) | **Export Private Key…** in Funds or **Settings → Wallets** (gated by Touch ID / Mac password) |
+| **Token Inference · Boundless** | `USDC.e` on **Tempo** | Separate device-only macOS Keychain item (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, isolated from Venice, never synced to iCloud) | **Export Private Key…** in Funds or **Settings → Wallets** (gated by Touch ID / Mac password — recovers wallet `USDC.e`; close active channels first) |
+| **zkAPI Anon Inference** | `ETH` on **Ethereum Mainnet** | Local LUKS2-encrypted payment disk (`~/Library/Application Support/Regents Cloak/pay/disk.img`) sealed by a device-only Keychain key (never synced to iCloud) | No standalone seed export — withdraw active deposits and click **Transfer…** to move ETH out to an external wallet |
 | **NEAR AI Gateway** | NEAR AI Cloud API key | Device-only macOS Keychain | Managed in your [NEAR AI Cloud](https://cloud.near.ai) dashboard |
 
 ## Failure modes if you do not have a backup
@@ -20,9 +20,9 @@ Because Regents never sees, stores, or backs up your keys, **losing local key ma
 1. **Wiping macOS, erasing the disk, or losing/breaking your Mac**
    - **No backup:** Any ETH left in your zkAPI wallet, any active zkAPI deposit, any Base `USDC` in your Venice wallet, and any Tempo `USDC.e` in your Boundless wallet or open payment channel are **permanently lost**.
    - **With a backup:** For Venice (Base) and Boundless (Tempo), importing your exported hex private key into any standard EVM wallet recovers on-chain balances at that address. For zkAPI, you must withdraw active deposits and transfer ETH out *before* wiping or switching Macs.
-2. **Deleting Keychain items or `~/Library/Application Support/RegentsCloak/`**
+2. **Deleting Keychain items or `~/Library/Application Support/Regents Cloak/`**
    - **Safe:** Deleting or replacing `Cloak.app` in `/Applications` (or updating via Sparkle) **keeps** your wallets and encrypted chats intact.
-   - **Destructive:** Manually deleting Cloak's macOS Keychain entries or `~/Library/Application Support/RegentsCloak/` destroys your local keys and encrypted zkAPI payment disk. Unless you already exported your Venice/Boundless private keys or swept your zkAPI ETH out, remaining funds cannot be recovered.
+   - **Destructive:** Manually deleting Cloak's macOS Keychain entries or `~/Library/Application Support/Regents Cloak/` destroys your local keys and encrypted zkAPI payment disk. Unless you already exported your Venice/Boundless private keys (for wallet balances) or withdrew active deposits/channels first, remaining funds cannot be recovered.
 3. **Sending the wrong asset or wrong network**
    - Every Cloak deposit address accepts **one exact asset on one exact chain**:
      - Venice: **Base `USDC` only**
@@ -39,11 +39,11 @@ Because Regents never sees, stores, or backs up your keys, **losing local key ma
 Funding **zkAPI Anon Inference** is a **two-step** flow:
 
 1. **Step 1 — ETH Mainnet Wallet:** ETH sits in your local Cloak wallet under your control until you deposit or transfer it out.
-2. **Step 2 — zkAPI Deposit:** Moving ETH from your wallet into your active zkAPI deposit locks that ETH in the Open Anonymity / zkAPI protocol vault so every prompt can be paid with a fresh, unlinkable one-time ZK credential.
+2. **Step 2 — zkAPI Deposit:** Moving ETH from your wallet into your active zkAPI deposit locks that ETH in the Open Anonymity / zkAPI protocol vault for up to **30 days**. **One deposit funds many turns** — on every turn, Cloak proves deposit ownership in zero knowledge and mints a fresh one-time provider API key, then automatically settles actual token cost against your deposit balance. Only one deposit can be active at a time (to add more ETH, withdraw first and make a new deposit).
 
-### Protocol expiry rule
+### Protocol expiry rule & withdrawal gas
 
-- **Within 30 days:** You can withdraw unused ETH from your active zkAPI deposit back to your local ETH wallet at any time.
+- **Within 30 days:** You can withdraw unused ETH from your active zkAPI deposit back to your local ETH wallet at any time. Keep a small ETH buffer in your local ETH wallet outside the deposit to pay Ethereum Mainnet withdrawal gas.
 - **After 30 days:** An untouched zkAPI deposit **expires at the protocol layer**, and the zkAPI service operator can claim the remaining deposit whether spent or unspent.
 
 ### How Cloak helps — and its limits
