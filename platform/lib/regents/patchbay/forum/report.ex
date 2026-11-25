@@ -127,6 +127,7 @@ defmodule Regents.Patchbay.Forum.Report do
       trigger :push_escrow_revenue do
         action(:push_escrow_revenue)
         queue(:patchbay_fees)
+        default_actor(%Regents.Account.Actors.System{})
 
         where(expr(escrow_status in [:released, :refunded] and is_nil(escrow_revenue_pushed_at)))
 
@@ -157,7 +158,11 @@ defmodule Regents.Patchbay.Forum.Report do
       trigger :read_escrow_refund do
         action(:read_escrow_refund)
         queue(:patchbay_escrow_reads)
-        where(expr(escrow_status == :credited))
+
+        where(
+          expr(escrow_status in [:credited, :refund_failed, :release_submitted, :release_failed])
+        )
+
         sort(escrow_funded_at: :asc)
         scheduler_cron("*/5 * * * *")
         max_attempts(1)
@@ -201,6 +206,20 @@ defmodule Regents.Patchbay.Forum.Report do
     )
 
     publish(:accept_reply, ["post", :id],
+      event: "changed",
+      load: LivePost.thread_loads(),
+      returns: :map,
+      transform: &LivePost.thread_changed/1
+    )
+
+    publish(:record_escrow_release, ["post", :id],
+      event: "changed",
+      load: LivePost.thread_loads(),
+      returns: :map,
+      transform: &LivePost.thread_changed/1
+    )
+
+    publish(:record_escrow_refund, ["post", :id],
       event: "changed",
       load: LivePost.thread_loads(),
       returns: :map,
@@ -1364,7 +1383,10 @@ defmodule Regents.Patchbay.Forum.Report do
     update :touch do
       description("Records that a reply moved this thread: activity time becomes now.")
       accept([])
-      change(set_attribute(:last_activity_at, &DateTime.utc_now/0))
+
+      change(
+        atomic_update(:last_activity_at, expr(fragment("clock_timestamp() AT TIME ZONE 'utc'")))
+      )
     end
 
     update :set_visibility do
@@ -1474,7 +1496,7 @@ defmodule Regents.Patchbay.Forum.Report do
     update :record_escrow_release do
       description("Whether the accepted reply's author was paid out of escrow.")
       accept([:escrow_status, :escrow_release_tx_hash])
-      validate(one_of(:escrow_status, [:released, :release_failed]))
+      validate(one_of(:escrow_status, [:release_submitted, :released, :release_failed]))
     end
 
     update :request_refund do
@@ -1521,8 +1543,8 @@ defmodule Regents.Patchbay.Forum.Report do
     update :push_escrow_revenue do
       description("""
       Sends the 10% the escrow kept from this bounty, with whatever else it
-      keeps, to the REGENT revenue staking contract. It waits on Base, so
-      nothing here holds a transaction open.
+      keeps, to the REGENT revenue staking contract. Its job checks the
+      receipt between runs.
       """)
 
       accept([])
@@ -1571,6 +1593,10 @@ defmodule Regents.Patchbay.Forum.Report do
   end
 
   policies do
+    policy action([:read_by_jev, :give_up_on_jev, :read_escrow_credit, :read_escrow_refund]) do
+      authorize_if(AshOban.Checks.AshObanInteraction)
+    end
+
     policy actor_attribute_equals(:role, :payment_completion) do
       forbid_unless(action(:file_priority_report))
       authorize_if(always())
@@ -1647,14 +1673,23 @@ defmodule Regents.Patchbay.Forum.Report do
       authorize_if(expr(is_nil(beneficiary_profile_id) and author_profile_id == ^actor(:id)))
     end
 
+    # These transitions record confirmed or submitted operator transactions.
+    policy action([:record_escrow_release, :record_escrow_refund]) do
+      authorize_if(actor_attribute_equals(:role, :system))
+    end
+
+    policy action([:touch, :record_escrow_revenue_pushed]) do
+      authorize_if(actor_attribute_equals(:role, :system))
+    end
+
+    policy action(:push_escrow_revenue) do
+      forbid_unless(AshOban.Checks.AshObanInteraction)
+      authorize_if(actor_attribute_equals(:role, :system))
+    end
+
     # `claim_escrow_credit`, `record_escrow_credit`, `confirm_escrow_credit`,
-    # `record_escrow_release`, `record_escrow_refund`, `push_escrow_revenue`,
-    # `record_escrow_revenue_pushed`, `read_escrow_credit`,
-    # `read_escrow_refund`, `read_by_jev` and `give_up_on_jev` are named by no
-    # policy, so nothing that arrives over HTTP can reach them. The settlement,
-    # confirmation, acceptance, refund, push and escrow-watch paths skip
-    # authorization to write what the escrow said, and Jev's job to write what
-    # Jev said.
+    # These bookkeeping updates are called internally after escrow operations.
+    # They have no public policy.
   end
 
   @doc """

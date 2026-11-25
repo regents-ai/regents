@@ -19,7 +19,7 @@ kill_timeout = "60s"
 [env]
   PORT = "4000"
   REGENTS_DEPLOYMENT_ROLE = "production"
-  SIWA_SERVER_URL = "https://siwa-server.fly.dev"
+  SIWA_SERVER_URL = "https://siwa.regents.sh"
   SIWA_AUDIENCE = "regents"
   TECHTREE_BOOTSTRAP_CHANNEL = "stable"
   KEYFLEET_GRAPH_URL = "http://graph.process.keyfleet.internal:4400"

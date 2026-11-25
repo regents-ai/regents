@@ -202,7 +202,7 @@ defmodule Regents.Autolaunch.ShareVideoRequest do
   end
 
   policies do
-    bypass AshOban.Checks.AshObanInteraction do
+    bypass [action([:read, :render, :fail, :forget_video]), AshOban.Checks.AshObanInteraction] do
       authorize_if always()
     end
 

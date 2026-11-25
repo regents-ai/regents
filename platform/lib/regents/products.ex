@@ -78,6 +78,7 @@ defmodule Regents.Products do
   def for_path(path) when is_binary(path) do
     case String.split(path, "/", trim: true) do
       ["api", "v1", name | _rest] -> named(name)
+      ["api", "agent", "v1", name | _rest] -> named(name)
       [name | _rest] -> named(name)
       [] -> @site
     end

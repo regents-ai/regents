@@ -81,11 +81,7 @@ defmodule RegentsWeb.Keyfleet.ProjectPage do
         reads = Map.new(@parts, &{&1, read_part(fleet_id, name, &1)})
         {goals, _count} = reads.goals
 
-        {reads,
-         Map.new(
-           goals,
-           &{&1.id, Graph.shown_goal_tasks!(fleet_id, name, &1.id, query: [limit: @shown])}
-         )}
+        {reads, goal_tasks(fleet_id, name, Enum.map(goals, & &1.id))}
       end)
 
     agents =
@@ -106,6 +102,16 @@ defmodule RegentsWeb.Keyfleet.ProjectPage do
          count: count,
          more?: count > @shown
        }}
+    end)
+  end
+
+  defp goal_tasks(_fleet_id, _name, []), do: %{}
+
+  defp goal_tasks(fleet_id, name, ids) do
+    tasks = Graph.shown_goal_tasks!(fleet_id, name, ids, @shown)
+
+    Map.new(ids, fn id ->
+      {id, tasks |> Enum.filter(&(id in &1.implemented_goal_ids)) |> Enum.take(@shown)}
     end)
   end
 

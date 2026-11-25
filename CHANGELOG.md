@@ -8635,3 +8635,73 @@ seasons), on the shared Points library regents.sh was already on.
 ## 2026-11-24 — Refresh homepage and Overview product card titles and subtexts
 
 - Updated all seven product `ValueCards` headlines and subtexts in `RegentsWeb.RegentOpsLive` (`platform/lib/regents_web/live/regent_ops_live.ex`, powering below-the-fold `#products` on `/`, `/app`, and `HomeLive.agent_markdown/0`) to match the current product positioning across **Cloak**, **Techtree**, **Keyfleet**, **Autolaunch**, **Patchbay**, **Protocol**, and **SIWA**, and updated the stale Cloak status line in the Overview About panel.
+
+
+
+## 2026-11-24 — Fix Autolaunch LiveView channel crashes (UsdRates, Session lease, Tz database, OnchainSteps)
+
+- Included `:robinhood` stock prices in `Regents.Autolaunch.UsdRates.rates/0` (`platform/lib/regents/autolaunch/usd_rates.ex`) and guarded map lookups in `RegentsWeb.Autolaunch.UsdValue.auction_rate/2` (`platform/lib/regents_web/autolaunch/usd_value.ex`), fixing `KeyError: key :robinhood not found` channel crashes on `/autolaunch/app`, `/autolaunch/auctions`, and `/autolaunch/tokens`.
+- Updated `RegentsWeb.Live.Session.component_account/1` (`platform/lib/regents_web/live/session.ex`) to read either `lease:` or `session_lease:` on mounted LiveComponents, fixing `FunctionClauseError` channel crashes on `/autolaunch/stock/covered-call` and across Autolaunch wallet components.
+- Configured `config :elixir, :time_zone_database, Tz.TimeZoneDatabase` in `platform/config/config.exs`, fixing `:utc_only_time_zone_database` crashes in `RegentsWeb.Autolaunch.ExposureFormat` on `/autolaunch/stock/isolated-afters`.
+- Normalized `SessionAuthority.leased_account/2` (`%HumanAccount{} | nil`) handling in `RegentsWeb.Autolaunch.OnchainSteps`, `Regents.Autolaunch.Stocks.LaunchOperations`, and `Regents.Autolaunch.SubjectWalletActions` so signed-in Autolaunch wallet panels and actions do not fail with `FunctionClauseError`.
+
+
+
+## 2026-11-24 — Fix folded-product Postgres schema prefixes, Patchbay `site_edition` crashes, and unprefixed root links
+
+- Passed explicit Postgres schema prefixes in `Regents.Autolaunch.PoolFees.day_start/1` (`prefix: "autolaunch_app"`, fixing `42P01 relation "regents_app.token_trades" does not exist` on `/autolaunch/tokens/:symbol/:tail`) and `Regents.Patchbay.OperatorWallet.assist_fees_unforwarded_usdc/0` (`prefix: "patchbay_app"`, fixing `42P01 relation "regents_app.assist_runs" does not exist`).
+- Assigned `:site_edition` (`:main`) across Patchbay's `:patchbay`, `:patchbay_paired_agent`, and `:patchbay_wallet_author` router pipelines (`platform/lib/regents_web/router.ex`), `RegentsWeb.Patchbay.SiteEdition.on_mount/4`, and `RegentsWeb.Patchbay.ThreadLive.mount/3`, fixing HTTP 500 `KeyError` on `/patchbay/agents/:public_id` and LiveView WebSocket `FunctionClauseError` in `ThreadLive.read_thread/2` on `/patchbay/posts/:id/:slug`.
+- Repointed remaining unprefixed root links and redirects inside Autolaunch (`UnavailableHTML`, `XOAuthController`, `Prelaunch`) and Patchbay (`ErrorLinkHTML`, `WalletBenchHTML`, `BoardHTML` agent page, `SearchLive`, `Moderators`) to `/autolaunch/app`, `/patchbay/forum`, and `/patchbay/changelog`.
+
+
+
+## 2026-11-24 — Platform convergence wave 1: SIWA Hello Card fix, unified /docs + /siwa overhaul, Emil UI polish, and ash-template decoupling
+
+- Fixed live SIWA Hello Card verification (`platform/fly.toml`: `SIWA_SERVER_URL = "https://siwa.regents.sh"` matching `siwa-server`'s `iss` claim), fixed dev default `SIWA_AUDIENCE` (`"regents"`) and `:wallet_author[:broker_url]` fallback (`platform/config/runtime.exs`), replaced stale `https://patchbay.help/errors/...` hints with `https://regents.sh/patchbay/errors/...` (`shared/ash_components/agents/lib/regent_agents/http.ex`, `platform/lib/regents_web/account/paired_agent.ex`, `platform/lib/regents_web/patchbay/plugs/paired_agent.ex`), and fixed `Regents.Products.for_path/1` for `/api/agent/v1/<product>/*`.
+- Replaced `Regents.SiteTools` remote HTTP fetches to retired standalone hosts with direct local manifest loading (`priv/*/tool_manifest.json`, adding `priv/techtree/tool_manifest.json`), updated `HomeLive.hero_products/0`, `ProductLive`, and `AutolaunchLive` product directory URLs to `https://regents.sh/<product>`, and bumped `Regents.DatabaseConfig` `@server_pool_size` from `5` to `15` for the single-VM multi-product PgBouncer pool.
+- Overhauled `/siwa` (`RegentsWeb.SiwaLive`), `/docs/pairing`, `/docs/products`, and `/llms.txt` to remove the outdated per-request activity claim and legacy domain references, and added `/docs/mcp` and `/docs/cli` to unified `/docs` (`RegentsWeb.Docs.Pages`).
+- Applied Emil design engineering polish: removed the redundant `#shell-sidebar` on `/docs` routes (`RegentsWeb.RouteCatalog`), replaced the rubbery `outBack` post-release button `squish` with crisp tactile `120ms`/`140ms` ease-out (`platform/assets/js/hooks/motion/press.ts`), added origin-aware `@starting-style` transitions, touch-safe hover gating, `44px` touch targets, `46rem` reading measure, and `#app-shell-scroller`-relative scrollspy in `docs.css`/`docs.ts`, and made `<meta name="theme-color">` product-aware in `root.html.heex`.
+- Decoupled `Makefile` `check-required-fixes` from `regents-ai/ash-template` by moving `security/required-fixes.json` locally into `regents`, and published `docs/one-site-standard.md` as the cross-product convergence specification.
+
+## 2026-11-24 — Cross-product alignment primitives, capabilities API & agent entry points
+
+- Exported shared `RegentsWeb.Account.PairedAgent` and `RegentsWeb.Layouts` from the
+  `RegentsWeb` boundary, added canonical `RegentsWeb.Layouts.on_mount(:page, ...)` plus
+  `:put_current_path` on browser pipelines so controller and LiveView routes both assign
+  `@current_path` identically for active nav highlighting.
+- Added unified `GET /api/v1/<product>/capabilities` (`RegentsWeb.ProductCapabilitiesController`)
+  backed directly by each product's canonical `priv/<product>/tool_manifest.json` via
+  `Regents.SiteTools.manifest/1`, enriched `priv/techtree/tool_manifest.json` with full
+  schemas/annotations/HTTP descriptors, and updated `assets/js/product_webmcp.ts` to hydrate
+  browser WebMCP tools directly from `/api/v1/<product>/capabilities`.
+- Added consistent product agent entry points (`/<product>/llms.txt`, `/<product>/agents.md`,
+  `/<product>/skill.md`) via `RegentsWeb.ProductAgentDocsController` for Patchbay, Autolaunch,
+  and Techtree (`/techtree/llms.txt`), matching Keyfleet's existing guides under unified
+  `https://regents.sh` SIWA pairing.
+- Updated `docs/one-site-standard.md` to enshrine the 4-pillar cross-product alignment rule
+  and added `scripts/check-one-site-alignment.exs` (`make check-alignment`) to report exact
+  per-product convergence gaps.
+
+## 2026-11-24 — Security advisory lockfile bump (`ash 3.38.1`, `db_connection 2.10.3`)
+
+- Upgraded `ash` (`3.37.7` -> `3.38.1`, closing `EEF-CVE-2026-124283` HIGH and
+  `EEF-CVE-2026-120299` LOW) and `db_connection` (`2.10.2` -> `2.10.3`, closing
+  `EEF-CVE-2026-133555` HIGH) in `platform/mix.lock` so `mix hex.audit` is clean.
+- Recorded both fixes in `security/required-fixes.json`.
+
+## 2026-11-24 — Consolidation audit fixes
+
+- Restore the Autolaunch session and auction-list limits, and carry verified SIWA proof through to the Keyfleet feed and paired actions.
+- Align Patchbay Offers with the shared wallet hook. Index Offers on a schedule, queue bounty payouts with answer acceptance, and record the result after confirmation. Keep stale refund refusals from overriding confirmed outcomes.
+- Keep durable chain history current when pages are quiet, and bring scheduled reads forward without postponing reads already due sooner.
+- Correct account overview Points and solved flags, preserve Techtree Results filters, and distinguish an unread product from an empty one.
+- Update product documentation, tool discovery, and legacy redirects for the consolidated site. Load the docs search index on demand.
+- Show linked active wallets on Stake and Redeem, restore compatible wallet batching for Autolaunch rewards, and use one interval for browser receipt checks.
+- Accept full-size pictures on Autolaunch's signed draft endpoint. Read Keyfleet project tasks and Techtree catalog matches in PostgreSQL with the selection applied before returning records.
+- Use the shared SIWA proof and account lookup for Patchbay, and keep the thread reply form tied to the page's browser session.
+- Recover late Keyfleet feed events on reconnect. Use stable section identifiers for product docs and share canonical transaction verification with Autolaunch.
+- Let Patchbay fee jobs resume from their recorded transaction hashes while Base confirms a push.
+- Enforce Ash authorization for background jobs and scope job access to the actions each worker uses. Count paired agents in the database and bound the overview preview.
+- Update the transitive Hono dependency to 4.13.22 to address the five open npm advisories.
+- Correct hosted Patchbay pagination and error responses, and record fee transactions before broadcasting with a bounded confirmation window.
+- Recover Keyfleet feed cursors after overflow, keep excerpt identifiers out of public Markdown, and clarify when a wallet must send individual steps.

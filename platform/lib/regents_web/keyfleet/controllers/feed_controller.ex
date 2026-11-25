@@ -1,16 +1,16 @@
 defmodule RegentsWeb.Keyfleet.FeedController do
   @moduledoc """
-  A signed agent's live feed, `GET /api/v1/feed`: one open answer of
+  A signed agent's live feed, `GET /api/v1/keyfleet/feed`: one open answer of
   server-sent events (`text/event-stream`), each a line of JSON
   (`Regents.Keyfleet.Feed`) the moment it is posted. The signature is checked once,
   as the feed opens (`RegentsWeb.Keyfleet.Plugs.SignedAgent`).
 
-  - Each event carries an `id:`, its time in microseconds. A reconnect that
-    sends it back as `Last-Event-ID` first gets what it missed, up to 100;
+  - Each event carries an `id:`, its time in microseconds. A reconnect with
+    `Last-Event-ID` replays from thirty seconds before that id, up to 100;
     past that, or for an id that is not one of these, `{"kind": "resync"}`
     says to catch up through the ordinary routes. That resync's `id:` is the
-    database's time as the reconnect was read, so the next reconnect replays
-    only what came after it; one sent because a read failed carries none.
+    database's time with a `resume-` prefix. It lets a client that resynced
+    continue without replaying the overflowing window.
   - A comment line, `: keep-alive`, every `keep_alive_ms`, so a proxy never
     closes a quiet feed.
   - One feed per agent: opening another, on any machine, closes this one with
@@ -26,7 +26,7 @@ defmodule RegentsWeb.Keyfleet.FeedController do
   The feed is this request's own process waiting for messages. It holds no
   database connection while it waits: each read takes one and gives it back.
 
-  `POST /api/v1/feed/missed` (`missed/2`) reads once what a reconnect would
+  `POST /api/v1/keyfleet/feed/missed` (`missed/2`) reads once what a reconnect would
   replay, up to thirty seconds ago, for an agent that keeps no feed open: the
   answer of the `events_missed` tool (`RegentsWeb.Keyfleet.AgentTools.Fleets.Answer`).
   """
@@ -45,9 +45,7 @@ defmodule RegentsWeb.Keyfleet.FeedController do
   @doc "The registry that counts this machine's open feeds."
   def child_spec(_opts), do: Registry.child_spec(keys: :duplicate, name: @feeds)
 
-  def show(conn, _params) do
-    actor = conn.assigns.actor
-
+  def show(%{assigns: %{actor: %Agent{receipt_expires_at: %DateTime{}} = actor}} = conn, _params) do
     case admit(actor) do
       :ok ->
         start(conn, actor, Feed.open(actor), last_event_id(conn))
@@ -56,6 +54,8 @@ defmodule RegentsWeb.Keyfleet.FeedController do
         Refusal.json(conn, 503, "feed_full")
     end
   end
+
+  def show(conn, _params), do: Refusal.json(conn, 401, "unauthorized")
 
   def missed(conn, params),
     do: AgentReply.answer(conn, Answer.answer(:missed, params, conn.assigns.actor, nil))
@@ -123,14 +123,17 @@ defmodule RegentsWeb.Keyfleet.FeedController do
 
   defp catch_up(conn, state, nil), do: {:ok, conn, state}
 
-  defp catch_up(conn, state, id) do
-    case Feed.missed(state.feed, id, :now) do
+  defp catch_up(conn, state, "resume-" <> id), do: replay(conn, state, id, :resume)
+  defp catch_up(conn, state, id), do: replay(conn, state, id, :now)
+
+  defp replay(conn, state, id, mode) do
+    case Feed.missed(state.feed, id, mode) do
       {:ok, events, _cursor} ->
         with {:ok, conn} <- send_events(conn, events),
              do: {:ok, conn, %{state | seen: MapSet.new(events, & &1.id)}}
 
       {:resync, now} ->
-        resync(conn, state, ["id: ", now, "\n"])
+        resync(conn, state, ["id: resume-", now, "\n"])
 
       {:error, error} ->
         UnexpectedFailure.log(conn, error)
@@ -251,5 +254,5 @@ defmodule RegentsWeb.Keyfleet.FeedController do
     end
   end
 
-  defp setting(key), do: :keyfleet |> Application.fetch_env!(__MODULE__) |> Keyword.fetch!(key)
+  defp setting(key), do: :regents |> Application.fetch_env!(__MODULE__) |> Keyword.fetch!(key)
 end

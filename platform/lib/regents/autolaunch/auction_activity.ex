@@ -70,14 +70,10 @@ defmodule Regents.Autolaunch.AuctionActivity do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"auction_id" => id}}) do
-    if Regents.ProductActivity.active?(:autolaunch) do
-      case Ash.get(Auction, id, action: :activity, actor: @actor, not_found_error?: false) do
-        {:ok, nil} -> {:cancel, :not_listed}
-        {:ok, auction} -> auction |> read() |> next(auction)
-        {:error, error} -> {:error, error}
-      end
-    else
-      :ok
+    case Ash.get(Auction, id, action: :activity, actor: @actor, not_found_error?: false) do
+      {:ok, nil} -> {:cancel, :not_listed}
+      {:ok, auction} -> auction |> read() |> next(auction)
+      {:error, error} -> {:error, error}
     end
   end
 

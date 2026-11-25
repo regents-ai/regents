@@ -49,7 +49,7 @@ defmodule RegentsWeb.AutolaunchLive do
       line: "Bids above the clearing price all pay that price, not their own limit.",
       tint: "#ff5b19",
       action: "Read rules",
-      href: "https://autolaunch.sh/how-it-works#how-it-works-auction"
+      href: "https://regents.sh/docs/autolaunch"
     },
     %{
       id: "autolaunch/vault",
@@ -58,7 +58,7 @@ defmodule RegentsWeb.AutolaunchLive do
       line: "It sits in a contract that can only collect trading fees.",
       tint: "#4fd3ec",
       action: "See fees",
-      href: "https://autolaunch.sh/how-it-works#how-it-works-fees"
+      href: "https://regents.sh/docs/autolaunch"
     },
     %{
       id: "autolaunch/address",
@@ -67,7 +67,7 @@ defmodule RegentsWeb.AutolaunchLive do
       line: "Each stock shows its issuer and chain, and its exact address before you sign.",
       tint: "#00c805",
       action: "See stocks",
-      href: "https://autolaunch.sh/stocks"
+      href: "https://regents.sh/autolaunch/app"
     },
     %{
       id: "autolaunch/signature",
@@ -76,7 +76,7 @@ defmodule RegentsWeb.AutolaunchLive do
       line: "Autolaunch never holds your keys or your money.",
       tint: "#e5e3d2",
       action: "See portfolio",
-      href: "https://autolaunch.sh/portfolio"
+      href: "https://regents.sh/autolaunch/portfolio"
     },
     %{
       id: "autolaunch/handoff",
@@ -85,7 +85,7 @@ defmodule RegentsWeb.AutolaunchLive do
       line: "A paired agent can fill in your launch for you to check and sign.",
       tint: "#f5c16c",
       action: "Pair agent",
-      href: "https://autolaunch.sh/account/agents"
+      href: "https://regents.sh/account/agents"
     },
     %{
       id: "autolaunch/blocks",
@@ -94,7 +94,7 @@ defmodule RegentsWeb.AutolaunchLive do
       line: "Auction prices, bids and amounts raised come from the auction contracts.",
       tint: "#aecacd",
       action: "See auctions",
-      href: "https://autolaunch.sh/auctions"
+      href: "https://regents.sh/autolaunch/auctions"
     }
   ]
 
@@ -134,10 +134,10 @@ defmodule RegentsWeb.AutolaunchLive do
 
     %{
       name: "Autolaunch",
-      domain: "autolaunch.sh",
+      domain: "regents.sh/autolaunch",
       site: site.site,
       github: site.github,
-      kicker: "autolaunch.sh · Auctions opened 24 September 2026",
+      kicker: "regents.sh/autolaunch · Auctions opened 24 September 2026",
       headline: chapter.title,
       summary: chapter.description,
       cards: @cards,
@@ -150,8 +150,8 @@ defmodule RegentsWeb.AutolaunchLive do
       ],
       family:
         "Revstake auctions are priced in REGENT, and what Autolaunch earns is converted to USDC and split with $REGENT stakers.",
-      agent_line: "Read autolaunch.sh/llms.txt and explain how Autolaunch works.",
-      start: %{label: "How it works", href: "https://autolaunch.sh/how-it-works"}
+      agent_line: "Read regents.sh/docs/autolaunch and explain how Autolaunch works.",
+      start: %{label: "Open Autolaunch", href: "https://regents.sh/autolaunch/app"}
     }
   end
 end

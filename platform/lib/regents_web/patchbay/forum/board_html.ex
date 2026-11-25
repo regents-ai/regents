@@ -1609,6 +1609,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   """
   attr :report, :any, default: nil
   attr :current_profile, :any, default: nil
+  attr :csrf_token, :string, required: true
 
   def reply_sign_in(assigns) do
     ~H"""
@@ -1618,7 +1619,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         action={~p"/patchbay/threads/#{@report.id}/replies"}
         method="post"
       >
-        <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
+        <input type="hidden" name="_csrf_token" value={@csrf_token} />
         <label class="pb-field-label" for="pb-reply-body">Add a reply</label>
         <textarea
           id="pb-reply-body"
@@ -1666,6 +1667,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
     </section>
     """
   end
+
+  defp escrow_standing_said(%{escrow_status: :release_submitted}),
+    do: "Payout sent to Base. Confirmation is pending."
 
   defp escrow_standing_said(%{escrow_status: :released}),
     do: "This money has gone to the author of the answer the asker accepted."

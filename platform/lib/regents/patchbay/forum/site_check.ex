@@ -274,6 +274,10 @@ defmodule Regents.Patchbay.Forum.SiteCheck do
   end
 
   policies do
+    policy action([:run, :give_up]) do
+      authorize_if(AshOban.Checks.AshObanInteraction)
+    end
+
     # Findings are public, and anyone may ask for a check: the page limits
     # how often each visitor does. Running and recording are Patchbay's own.
     policy action_type(:read) do

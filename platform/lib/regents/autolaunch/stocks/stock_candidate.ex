@@ -152,7 +152,10 @@ defmodule Regents.Autolaunch.Stocks.StockCandidate do
   end
 
   policies do
-    bypass AshOban.Checks.AshObanInteraction do
+    bypass [
+      action([:read, :read_market, :mark_tried, :list_feeds]),
+      AshOban.Checks.AshObanInteraction
+    ] do
       authorize_if always()
     end
 

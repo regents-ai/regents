@@ -8,7 +8,7 @@ curl --fail '{{origin}}/api/v1/products'
 
 ## One product
 
-`GET /api/v1/products/{slug}` returns everything that product's page on Regents shows. An unknown slug answers `404`.
+`GET /api/v1/products/{slug}` returns everything that product's page on Regents shows. The four slugs above are available here. Cloak is documented on its [desktop app guide]({{origin}}/docs/cloak). An unknown slug answers `404`.
 
 ```sh
 curl --fail '{{origin}}/api/v1/products/techtree'
@@ -16,4 +16,4 @@ curl --fail '{{origin}}/api/v1/products/techtree'
 
 ## Other surfaces
 
-In a browser that supports WebMCP, use `regents_products` and `regents_product`. Each web product owns its integration contract: [Keyfleet]({{origin}}/keyfleet/agents.md), [Autolaunch]({{origin}}/autolaunch/agents.md), [Patchbay]({{origin}}/patchbay/agents.md) and [Techtree]({{origin}}/techtree/agents.md). For [Cloak]({{origin}}/cloak) (native macOS app), request `{{origin}}/cloak`, `{{origin}}/cloak/install`, or `{{origin}}/docs/cloak/reference` with `Accept: text/markdown`.
+In a browser that supports WebMCP, use `regents_products` and `regents_product`. All Regents Labs products live under `{{origin}}` with unified docs under `/docs`: [Cloak]({{origin}}/docs/cloak) ([Architecture]({{origin}}/docs/cloak/reference) · [Wallet Security]({{origin}}/docs/cloak/wallets)), [Techtree]({{origin}}/docs/techtree), [Keyfleet]({{origin}}/docs/keyfleet), [Autolaunch]({{origin}}/docs/autolaunch), and [Patchbay]({{origin}}/docs/patchbay).

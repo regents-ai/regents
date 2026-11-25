@@ -28,7 +28,7 @@ defmodule RegentsWeb.Plugs.McpAgent do
              limit: 120,
              window: 60,
              admit: &RateLimiter.admit/3,
-             key: &ClientAddress.key/1
+             key: &__MODULE__.address_key/1
            )
 
   @connected_address RateLimit.init(
@@ -36,7 +36,7 @@ defmodule RegentsWeb.Plugs.McpAgent do
                        limit: 600,
                        window: 60,
                        admit: &RateLimiter.admit/3,
-                       key: &ClientAddress.key/1
+                       key: &__MODULE__.address_key/1
                      )
 
   @budget RateLimit.init(
@@ -93,6 +93,12 @@ defmodule RegentsWeb.Plugs.McpAgent do
       true ->
         caller(conn)
     end
+  end
+
+  @doc false
+  def address_key(conn) do
+    {key, _source} = ClientAddress.key(conn)
+    key
   end
 
   @doc false
@@ -172,7 +178,9 @@ defmodule RegentsWeb.Plugs.McpAgent do
              audience: "regents",
              connection: principal
            }) do
-      Ash.PlugHelpers.set_actor(conn, agent)
+      conn
+      |> Ash.PlugHelpers.set_actor(agent)
+      |> PairedAgent.recheck_before_response(agent)
     else
       false ->
         conn

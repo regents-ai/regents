@@ -79,7 +79,7 @@ defmodule RegentsWeb.Patchbay.OffersLive.Buy do
 
   def handle_event(
         "prepare_and_send",
-        %{"step" => name, "form" => form, "address" => address},
+        %{"step" => name, "form" => form, "wallet" => address},
         socket
       )
       when is_binary(address) do
@@ -93,6 +93,11 @@ defmodule RegentsWeb.Patchbay.OffersLive.Buy do
         {:reply, %{}, socket}
     end
   end
+
+  def handle_event("prepare_and_send", _params, socket), do: {:reply, %{}, socket}
+
+  # The campaign still names the wallet while the browser selection changes.
+  def handle_event("onchain_active_wallet", _params, socket), do: {:noreply, socket}
 
   def handle_event("step_sent", params, socket), do: {:noreply, OnchainSteps.sent(socket, params)}
 
@@ -249,7 +254,7 @@ defmodule RegentsWeb.Patchbay.OffersLive.Buy do
     %{placement: placement, slot: slot, campaign: campaign, profile: profile} = socket.assigns
 
     start_async(socket, :figures, fn ->
-      case Regents.Limits.spend(:wallet_read, {:profile, profile.id}) do
+      case Regents.Limits.spend(:patchbay_wallet_read, {:profile, profile.id}) do
         :ok -> figures(placement.placement_id, slot.slot, campaign.advertiser)
         :limited -> {:error, :limited}
       end

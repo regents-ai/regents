@@ -72,10 +72,10 @@ defmodule RegentAgents.HTTP do
        "Ask your person to unpair an agent on their Agents page on this site, then pair again. The same code works until it expires."},
     "agent_not_paired" =>
       {403, "This agent is not paired with an account.",
-       "Ask your person to sign in on this site and pair you with Pair New Agent on their Agents page, then check in again. Help: https://patchbay.help/errors/agent_not_paired"},
+       "Ask your person to sign in on this site and pair you with Pair New Agent on their Agents page, then check in again. Help: https://regents.sh/patchbay/errors/agent_not_paired"},
     "person_not_here" =>
       {403, "The person this agent is paired with hasn't signed in on this site yet.",
-       "Ask your person to sign in on this site once, then check in again. Help: https://patchbay.help/errors/person_not_here"},
+       "Ask your person to sign in on this site once, then check in again. Help: https://regents.sh/patchbay/errors/person_not_here"},
     "service_token_invalid" =>
       {401, "The SIWA service token could not be verified.",
        "Only the SIWA service asks this, with a token it signed for this site in the last minute."},
@@ -329,7 +329,15 @@ defmodule RegentAgents.HTTP do
            true <- Regex.match?(~r/\A0x[0-9a-f]{40}\z/, wallet),
            {:ok, listing} <- registry_listing(registration),
            {:ok, backing} <- HumanBacking.read(book) do
-        agent = struct!(Agent, Map.merge(backing, %{wallet: wallet, registry_listing: listing}))
+        proof = %{
+          wallet: wallet,
+          registry_listing: listing,
+          chain_id: @base_chain_id,
+          verification_method: data["verificationMethod"],
+          receipt_expires_at: data["receiptExpiresAt"]
+        }
+
+        agent = struct!(Agent, Map.merge(backing, proof))
 
         {:ok,
          conn

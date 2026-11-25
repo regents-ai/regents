@@ -58,13 +58,9 @@ defmodule Regents.Autolaunch.LaunchDiscovery.Discover do
   end
 
   def run(_input, _context) do
-    if Regents.ProductActivity.active?(:autolaunch) do
-      case Enum.flat_map(launchpads(), &discover/1) do
-        [] -> :ok
-        unrecorded -> {:error, {:launches_not_recorded, unrecorded}}
-      end
-    else
-      :ok
+    case Enum.flat_map(launchpads(), &discover/1) do
+      [] -> :ok
+      unrecorded -> {:error, {:launches_not_recorded, unrecorded}}
     end
   end
 

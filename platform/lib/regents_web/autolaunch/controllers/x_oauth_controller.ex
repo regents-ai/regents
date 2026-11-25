@@ -102,7 +102,7 @@ defmodule RegentsWeb.Autolaunch.XOAuthHTML do
                     else: "X connection could not be completed."}
                 </p>
                 <p>
-                  <a href="/" class="rg-button rg-button--primary"><span class="rg-button__label">Back to Autolaunch</span></a>
+                  <a href={~p"/autolaunch/app"} class="rg-button rg-button--primary"><span class="rg-button__label">Back to Autolaunch</span></a>
                 </p>
               </main>
             </Regent.Structure.panel>

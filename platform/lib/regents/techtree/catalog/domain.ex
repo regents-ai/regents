@@ -23,6 +23,8 @@ defmodule Regents.Techtree.Catalog do
     resource Regents.Techtree.Catalog.CatalogEntry do
       define :list_catalog_entries, action: :read
       define :list_active_climbs, action: :list_active_climbs
+      define :climbs_for_slug, action: :climbs_for_slug, args: [:slug]
+      define :climb_for_campaign, action: :climb_for_campaign, args: [:digest, :include_retired]
       define :get_entry_by_digest, action: :get_by_digest, args: [:protocol_digest]
       define :get_entry_by_reference, action: :get_by_reference, args: [:kind, :reference]
       define :upsert_entry_from_import, action: :upsert_from_import

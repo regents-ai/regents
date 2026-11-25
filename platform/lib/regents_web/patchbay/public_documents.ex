@@ -174,15 +174,8 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
   def document("/patchbay/agent-setup"),
     do: markdown(BoardMD.agent_setup(%{payments_enabled?: Regents.Patchbay.payments_enabled?()}))
 
-  def document("/patchbay/docs") do
-    markdown(
-      PagesMD.docs(%{
-        core_tools: Capabilities.core(),
-        more_tools: Capabilities.more(),
-        agent_guide: WrittenPages.agent_guide_markdown(RegentsWeb.Endpoint.url())
-      })
-    )
-  end
+  def document("/patchbay/docs"),
+    do: markdown(RegentsWeb.PublicDocuments.strip_excerpt_markers(docs_source()))
 
   def document("/patchbay/blog/" <> slug) do
     case Blog.get(slug) do
@@ -199,6 +192,15 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
   end
 
   defp markdown(text), do: %{markdown: text}
+
+  @doc false
+  def docs_source do
+    PagesMD.docs(%{
+      core_tools: Capabilities.core(),
+      more_tools: Capabilities.more(),
+      agent_guide: WrittenPages.agent_guide_markdown(RegentsWeb.Endpoint.url())
+    })
+  end
 
   @doc "Every address `document/1` answers."
   def paths do

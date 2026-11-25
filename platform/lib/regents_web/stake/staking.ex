@@ -194,8 +194,8 @@ defmodule RegentsWeb.Stake.Staking do
   def snapshot_unavailable(socket), do: socket
 
   @doc """
-  The Stake actions heard which wallet Privy has active. Signed out, the figures
-  follow it; signed in, they stay on the account's main wallet
+  The Stake actions heard which wallet Privy has active. The figures
+  follow the selected wallet
   (`Identity.position_wallet/1`).
   """
   def active_wallet(%{assigns: %{route_spec: %{route_id: :stake}}} = socket, active) do

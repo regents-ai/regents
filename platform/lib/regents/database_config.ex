@@ -23,8 +23,9 @@ defmodule Regents.DatabaseConfig do
   # The read-only venue's one login. The live database holds it to reading a short
   # list of tables (priv/reader/grants.sql), so a site given it cannot write.
   @reader_login "regents_preview_reader"
-  # Connections one running site keeps open to the shared database.
-  @server_pool_size 5
+  # Connections one running site keeps open to the shared database (serves all
+  # folded products' LiveViews and Oban queues in one VM via PgBouncer).
+  @server_pool_size 15
   # The read-only venue keeps fewer: with its one listening connection it holds
   # three, under the login's own limit of four (priv/reader/grants.sql).
   @reader_pool_size 2

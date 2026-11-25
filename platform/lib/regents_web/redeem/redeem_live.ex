@@ -8,10 +8,9 @@ defmodule RegentsWeb.Redeem.RedeemLive do
   `RegentsWeb.Chain.OnchainSteps` the shared half.
 
   The shell owns the readings, the selection and every other control here; this
-  component owns the presses. Every step is built for the signed-in account's
-  main wallet (`account`, `nil` signed out), and the page sends only from it.
-  The component tells the shell which wallet Privy has active, so the figures
-  follow it while signed out, and when a step lands, so they are read again.
+  component owns the presses. It reviews steps for the account's signing
+  wallet and tells the shell when the active wallet changes or a step lands,
+  so it can refresh the figures.
   """
   use RegentsWeb, :live_component
 
@@ -93,7 +92,10 @@ defmodule RegentsWeb.Redeem.RedeemLive do
   # each background result (`RegentsWeb.Live.Session.check_component_lease/2`):
   # the wallet that acts and the review follow it.
   defp take_account(socket, account),
-    do: socket |> assign(main: Identity.main_wallet(account)) |> sync()
+    do:
+      socket
+      |> assign(account: account, main: Identity.signing_wallet(account, socket.assigns.active))
+      |> sync()
 
   @impl true
   def handle_event("onchain_active_wallet", params, socket) do
@@ -103,7 +105,7 @@ defmodule RegentsWeb.Redeem.RedeemLive do
     socket =
       if active == socket.assigns.active, do: socket, else: assign(socket, press_note: nil)
 
-    {:noreply, assign(socket, active: active)}
+    {:noreply, socket |> assign(active: active) |> take_account(socket.assigns.account)}
   end
 
   # A press made before the review caught up with the selection: the selection
@@ -201,13 +203,13 @@ defmodule RegentsWeb.Redeem.RedeemLive do
   defp receipt_summary(%{name: "claim"}),
     do: "Base confirmed it. The unlocked REGENT is in your wallet."
 
-  # The review is for the account's main wallet and follows the selection.
+  # The review is for the signing wallet and follows the selection.
   # Signed out there is no review, and every press says to sign in.
   defp sync(socket) do
     %{main: signer, selection: selection} = socket.assigns
 
     review =
-      if signer,
+      if signer && signer == socket.assigns.wallet,
         do:
           Review.new(
             socket.assigns.id,

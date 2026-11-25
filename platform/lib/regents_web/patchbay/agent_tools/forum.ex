@@ -8,8 +8,17 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
     authorizers: [Ash.Policy.Authorizer]
 
   alias Regents.Patchbay.Forum
+  alias RegentsWeb.Patchbay.ApiError
   alias RegentsWeb.Patchbay.Forum.Readiness
+  alias RegentsWeb.Patchbay.ForumAPI.{Reads, ReportController}
   alias RegentsWeb.Patchbay.Help
+
+  defmodule Refused do
+    @moduledoc false
+    use Splode.Error, fields: [:body], class: :invalid
+
+    def message(%{body: %{error: %{message: message}}}), do: message
+  end
 
   actions do
     action :search_threads, :map do
@@ -24,24 +33,18 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
         default: 10,
         constraints: [min: 1, max: 25]
 
-      run fn %{arguments: %{query: query, limit: limit}}, _context ->
-        case Forum.search_threads(query, page: [limit: limit]) do
-          {:ok, %{results: reports}} ->
-            {:ok,
-             %{
-               threads:
-                 Enum.map(reports, fn report ->
-                   %{
-                     id: report.id,
-                     title: report.title,
-                     kind: to_string(report.thread_kind),
-                     url: "/patchbay/posts/#{report.id}"
-                   }
-                 end)
-             }}
+      argument :offset, :integer, constraints: [min: 0]
 
-          {:error, error} ->
-            {:error, error}
+      run fn %{arguments: args}, _context ->
+        params = %{"q" => args.query, "offset" => args[:offset] && to_string(args.offset)}
+
+        case Reads.search(params, :free, args.limit || 10) do
+          {:ok, page} ->
+            {threads, page} = Map.pop!(page, :results)
+            {:ok, Map.put(page, :threads, threads)}
+
+          {:error, refusal} ->
+            refused(refusal)
         end
       end
     end
@@ -51,24 +54,12 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
 
       argument :id, :string, allow_nil?: false
 
-      run fn %{arguments: %{id: id}}, _context ->
-        case Forum.get_report(id, load: [:replies]) do
-          {:ok, report} ->
-            {:ok,
-             %{
-               id: report.id,
-               title: report.title,
-               body: report.body_markdown,
-               kind: to_string(report.thread_kind),
-               url: "/patchbay/posts/#{report.id}",
-               replies:
-                 Enum.map(report.replies || [], fn reply ->
-                   %{id: reply.id, body: reply.body_markdown, inserted_at: reply.inserted_at}
-                 end)
-             }}
+      argument :after, :string
 
-          {:error, error} ->
-            {:error, error}
+      run fn %{arguments: args}, _context ->
+        case Reads.thread(args.id, %{"after" => args[:after]}, :free, :hosted) do
+          {:ok, page} -> {:ok, page}
+          {:error, refusal} -> refused(refusal)
         end
       end
     end
@@ -97,7 +88,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
              }}
 
           {:error, error} ->
-            {:error, error}
+            refused(error)
         end
       end
     end
@@ -117,4 +108,24 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
       authorize_if actor_attribute_equals(:role, :agent)
     end
   end
+
+  defp refused(reason)
+       when reason in [:not_found, :invalid_cursor, :response_too_large] do
+    {_status, body} = ReportController.refusal(reason)
+    {:error, Refused.exception(body: body)}
+  end
+
+  defp refused({kind, _detail} = refusal) when kind in [:busy, :invalid, :unavailable] do
+    {_status, body} = ReportController.refusal(refusal)
+    {:error, Refused.exception(body: body)}
+  end
+
+  defp refused(_unexpected) do
+    body = ApiError.body("unavailable", "Patchbay could not read this.", "Try again in a moment.")
+    {:error, Refused.exception(body: body)}
+  end
+end
+
+defimpl AshAi.ToToolError, for: RegentsWeb.Patchbay.AgentTools.Forum.Refused do
+  def to_tool_error(%{body: body}), do: Jason.encode!(body)
 end

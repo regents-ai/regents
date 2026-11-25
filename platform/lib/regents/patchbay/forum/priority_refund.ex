@@ -25,6 +25,8 @@ defmodule Regents.Patchbay.Forum.PriorityRefund do
 
   require Logger
 
+  @system %Regents.Account.Actors.System{}
+
   @doc """
   Relays `actor`'s request to take the bounty on `report_id` back, and returns
   the report as it stands afterwards.
@@ -44,15 +46,36 @@ defmodule Regents.Patchbay.Forum.PriorityRefund do
   This is how a refund Patchbay never relayed reaches the board, and how one it
   relayed does once its receipt says it succeeded.
   """
-  @spec record(Report.t(), String.t()) :: {:ok, Report.t()} | {:error, term()}
+  @spec record(Report.t(), String.t() | nil) :: {:ok, Report.t()} | {:error, term()}
   def record(report, tx_hash) do
-    # Nothing over HTTP may write what the escrow said; this and the relay
-    # below are the only places that hear it, so the write is made deliberately
-    # without an actor.
+    update_current(report, fn
+      %Report{escrow_status: :released} = current -> {:ok, current}
+      current -> record_refund(current, :refunded, tx_hash || current.escrow_refund_tx_hash)
+    end)
+  end
+
+  # Both the relay and the watcher use the row as it stands when writing the
+  # result. A late refusal must leave a confirmed payout or refund intact.
+  defp update_current(report, update) do
+    case Ash.transact([Report], fn -> update_locked(report.id, update) end) do
+      {:ok, {:ok, current}} -> {:ok, current}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp update_locked(id, update) do
+    case Forum.lock_report(id, actor: @system) do
+      {:ok, %Report{} = current} -> update.(current)
+      {:ok, nil} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp record_refund(report, status, hash) do
     Forum.record_escrow_refund(
       report,
-      %{escrow_status: :refunded, escrow_refund_tx_hash: tx_hash},
-      authorize?: false
+      %{escrow_status: status, escrow_refund_tx_hash: hash},
+      actor: @system
     )
   end
 
@@ -118,16 +141,13 @@ defmodule Regents.Patchbay.Forum.PriorityRefund do
   press on a paid-out bounty is refused there and must not undo the payout.
   """
   @spec refused(Report.t()) :: {:ok, Report.t()} | {:error, term()}
-  def refused(%Report{escrow_status: status} = asked)
-      when status in [:credited, :refund_failed] do
-    # Nothing over HTTP may write what the escrow said, so this is written
-    # deliberately without an actor.
-    Forum.record_escrow_refund(
-      asked,
-      %{escrow_status: :refund_failed, escrow_refund_tx_hash: nil},
-      authorize?: false
-    )
-  end
+  def refused(%Report{} = asked) do
+    update_current(asked, fn
+      %Report{escrow_status: status} = current when status in [:credited, :refund_failed] ->
+        record_refund(current, :refund_failed, nil)
 
-  def refused(asked), do: {:ok, asked}
+      current ->
+        {:ok, current}
+    end)
+  end
 end

@@ -19,13 +19,13 @@ defmodule RegentsWeb.Keyfleet.OnchainSteps do
   """
 
   import Phoenix.Component, only: [assign: 2]
-  import Phoenix.LiveView, only: [push_event: 3, start_async: 3]
+  import Phoenix.LiveView, only: [push_event: 3]
 
-  alias RegentChain.{Outcome, Presses}
+  alias RegentChain.Presses
   alias Regents.Chain.Client, as: ChainClient
   alias Regents.Chain.Refresh, as: ChainRefresh
+  alias RegentsWeb.Chain.ReceiptCheck
 
-  @recheck_ms 2_000
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
 
   @doc "The assigns a wallet-button component starts with."
@@ -213,12 +213,7 @@ defmodule RegentsWeb.Keyfleet.OnchainSteps do
 
   defp check(socket, %{step: nil}), do: socket
 
-  defp check(socket, %{hash: hash, reads: reads, review: review, step: step}) do
-    start_async(socket, {:onchain_step, hash}, fn ->
-      if reads > 0, do: Process.sleep(@recheck_ms)
-      Outcome.of(ChainClient, review, step, hash)
-    end)
-  end
+  defp check(socket, press), do: ReceiptCheck.start(socket, ChainClient, press)
 
   defp review_id(nil), do: nil
   defp review_id(%{id: id}), do: id

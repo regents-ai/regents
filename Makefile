@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help check check-platform platform-precommit platform-web check-required-fixes check-cli check-siwa-latest check-contracts release deploy
+.PHONY: help check check-platform platform-precommit platform-web check-required-fixes check-alignment check-cli check-siwa-latest check-contracts release deploy
 
 help:
 	@echo "make check runs every component gate side by side, each writing its output to"
@@ -38,21 +38,19 @@ platform-precommit:
 	cd platform && mix precommit
 platform-web:
 	cd platform && mix assets.build && npm run typecheck
-# Checks against ash-template's required-fixes registry on its current main branch,
-# so a newly published required fix reaches this site's next gate. The checker is
-# this repository's scripts/check-required-fixes.exs: the twelve packages copied
-# into shared/ load from there and every required fix to them is in the library
-# commit shared/SOURCE.json names, and every other shared library (siwa,
-# regent_chain, regent_ui, ash_postgres) is a pinned, inspectable commit. Needs
-# `gh auth login`.
-TEMPLATE := repos/regents-ai/ash-template
+# Checks the site's local security/required-fixes.json registry against the
+# twelve packages copied into shared/ (at the commit shared/SOURCE.json names)
+# and the remaining pinned shared libraries (siwa, regent_chain, regent_ui,
+# ash_postgres). No longer reaches out to ash-template on GitHub.
 check-required-fixes:
-	cd platform && mkdir -p _build && rev=$$(gh api $(TEMPLATE)/commits/main --jq .sha) \
-	&& gh api -H "Accept: application/vnd.github.raw" "$(TEMPLATE)/contents/security/required-fixes.json?ref=$$rev" > _build/required-fixes.json \
-	&& elixir ../scripts/check-required-fixes.exs "ash-template $$rev" ../shared/SOURCE.json < _build/required-fixes.json
+	cd platform && elixir ../scripts/check-required-fixes.exs "local security/required-fixes.json" ../shared/SOURCE.json < ../security/required-fixes.json
+# Prints the cross-product one-site alignment matrix across patchbay, techtree,
+# autolaunch, and keyfleet (docs/one-site-standard.md).
+check-alignment:
+	elixir scripts/check-one-site-alignment.exs
 # The command description check is regents-cli's own checker at the commit pinned
 # here, run by uv straight from GitHub. Move the pin in a commit.
-REGENTS_CLI_REV := c12d8563c46e8b5229e32db76c1a104fb469b7b7
+REGENTS_CLI_REV := 2805736810eb388ccfd7d1c97e1beca9aa4dddcd
 check-cli:
 	uv run --no-project --with "regents-cli[check] @ git+https://github.com/regents-ai/regents-cli@$(REGENTS_CLI_REV)" \
 	  python -m regents_cli.check_commands cli/regents/commands.json platform/priv/public/openapi.json platform/priv/static/api-contract.openapiv3.yaml

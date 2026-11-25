@@ -24,6 +24,8 @@ defmodule Regents.Patchbay.Forum.Types.EscrowStatus do
       # The money settled, but handing the record to Base did not go through.
       # A person re-runs that step; nothing is lost.
       :credit_failed,
+      # The operator sent the accepted answer’s payout and Base has yet to confirm it.
+      :release_submitted,
       # The accepted answer's author has been paid out of escrow.
       :released,
       # The answer was accepted, but the payout did not go through. A person

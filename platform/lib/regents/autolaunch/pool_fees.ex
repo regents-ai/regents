@@ -36,9 +36,11 @@ defmodule Regents.Autolaunch.PoolFees do
     since = DateTime.add(DateTime.utc_now(), -@day)
 
     Repo.one(
-      from trade in TokenTrade,
+      from(trade in TokenTrade,
         where: trade.token_id == ^token.id and trade.occurred_at >= ^since,
         select: min(trade.block_number)
+      ),
+      prefix: "autolaunch_app"
     ) || token.trades_next_block
   end
 

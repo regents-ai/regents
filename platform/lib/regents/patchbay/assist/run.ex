@@ -414,15 +414,14 @@ defmodule Regents.Patchbay.Assist.Run do
   end
 
   policies do
-    # A run opens for a SIWA-signed agent under the free fixes its wallet has
-    # left right now and no other. The actions that move a run along (`work`,
-    # `start`, `record_step`, `finish`, `interrupt`, the fee's `forward_fee`,
-    # `take_fee`, `release_fee`, `record_deposited`, `record_fee_failed` and
-    # `fee_not_forwarded`, and `reopen`) and
-    # `save_to_payer` are named by no policy, so nothing that arrives over
-    # HTTP can reach them; Patchbay's own jobs, sign-in, and a person at its
-    # console are their only callers and say so by skipping authorization
-    # deliberately.
+    bypass [
+      action([:read, :work, :interrupt, :forward_fee, :fee_not_forwarded]),
+      AshOban.Checks.AshObanInteraction
+    ] do
+      authorize_if(always())
+    end
+
+    # A signed agent reads the runs of the account it acts for.
     policy [actor_attribute_equals(:role, :agent), action_type(:read)] do
       forbid_unless({RegentAgents.Checks.Paired, repo: Regents.Repo})
       authorize_if(expr(beneficiary_profile_id == ^actor(:beneficiary_profile_id)))

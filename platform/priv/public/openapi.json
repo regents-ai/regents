@@ -17,6 +17,194 @@
   },
   "security": [],
   "paths": {
+    "/api/v1/autolaunch/capabilities": {
+      "get": {
+        "operationId": "autolaunchCapabilities",
+        "summary": "Read Autolaunch tool capabilities",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Product tool manifest and deployed build",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "product",
+                    "audience",
+                    "tools"
+                  ],
+                  "properties": {
+                    "product": {
+                      "type": "string"
+                    },
+                    "audience": {
+                      "type": "string"
+                    },
+                    "tools": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "build": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The supplied entity tag matches the current manifest"
+          },
+          "404": {
+            "description": "The product manifest is unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/keyfleet/capabilities": {
+      "get": {
+        "operationId": "keyfleetCapabilities",
+        "summary": "Read Keyfleet tool capabilities",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Product tool manifest and deployed build",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "product",
+                    "audience",
+                    "tools"
+                  ],
+                  "properties": {
+                    "product": {
+                      "type": "string"
+                    },
+                    "audience": {
+                      "type": "string"
+                    },
+                    "tools": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "build": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The supplied entity tag matches the current manifest"
+          },
+          "404": {
+            "description": "The product manifest is unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/patchbay/capabilities": {
+      "get": {
+        "operationId": "patchbayCapabilities",
+        "summary": "Read Patchbay tool capabilities",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Product tool manifest and deployed build",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "product",
+                    "audience",
+                    "tools"
+                  ],
+                  "properties": {
+                    "product": {
+                      "type": "string"
+                    },
+                    "audience": {
+                      "type": "string"
+                    },
+                    "tools": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "build": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The supplied entity tag matches the current manifest"
+          },
+          "404": {
+            "description": "The product manifest is unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/capabilities": {
+      "get": {
+        "operationId": "techtreeCapabilities",
+        "summary": "Read Techtree tool capabilities",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Product tool manifest and deployed build",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "product",
+                    "audience",
+                    "tools"
+                  ],
+                  "properties": {
+                    "product": {
+                      "type": "string"
+                    },
+                    "audience": {
+                      "type": "string"
+                    },
+                    "tools": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "build": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The supplied entity tag matches the current manifest"
+          },
+          "404": {
+            "description": "The product manifest is unavailable"
+          }
+        }
+      }
+    },
     "/healthz": {
       "get": {
         "operationId": "getServiceHealth",

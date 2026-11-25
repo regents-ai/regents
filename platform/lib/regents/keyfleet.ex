@@ -151,9 +151,9 @@ defmodule Regents.Keyfleet do
         do: domain
   end
 
-  @doc """
-  `:ok`: the online preview reads the live database through a login granted
-  only a short list of tables, and none of Keyfleet's is on it yet.
-  """
-  def health, do: :ok
+  @doc "Checks that the fleet table answers a bounded read."
+  def health do
+    with {:ok, _rows} <- Regents.Keyfleet.Fleets.list_fleets(query: [limit: 1, select: [:id]]),
+         do: :ok
+  end
 end

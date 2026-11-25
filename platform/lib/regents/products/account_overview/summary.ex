@@ -8,7 +8,7 @@ defmodule Regents.Products.AccountOverview.Summary do
     domain: Regents.Products.AccountOverview,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias RegentAgents.Person
+  alias RegentAgents.{PairedAgent, Person}
   alias Regents.Account.Accounts
   alias Regents.Account.Actors.{Agent, Human}
   alias Regents.Autolaunch
@@ -62,21 +62,22 @@ defmodule Regents.Products.AccountOverview.Summary do
     end
   end
 
-  defp resolve_account(%Human{human_account_id: id} = human) do
-    case Accounts.get_human_account(id, actor: human) do
-      {:ok, %{} = account} -> {:ok, account, human}
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  defp resolve_account(%Human{} = human), do: resolve_account(human, human)
 
-  defp resolve_account(%Agent{human_account_id: id, pairing: %Human{} = human} = agent) do
-    case Accounts.get_human_account(id, actor: agent) do
-      {:ok, %{} = account} -> {:ok, account, human}
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  defp resolve_account(
+         %Agent{human_account_id: id, pairing: %Human{human_account_id: id} = human} = agent
+       ),
+       do: resolve_account(agent, human)
 
   defp resolve_account(_actor), do: {:error, :unauthorized}
+
+  defp resolve_account(actor, %Human{human_account_id: id} = human) do
+    case Accounts.get_human_account(id, actor: actor) do
+      {:ok, %{} = account} -> {:ok, account, human}
+      {:ok, nil} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
   defp account_summary(account, actor, paired_agents, points) do
     base = %{
@@ -85,6 +86,7 @@ defmodule Regents.Products.AccountOverview.Summary do
       ens_name: account.ens_name,
       wallet_address: account.wallet_address,
       wallet_count: length(linked_wallets(account)),
+      paired_agents_status: paired_agents.status,
       paired_agents_count: paired_agents.count,
       paired_agents: paired_agents.items,
       points_balance: points
@@ -112,29 +114,34 @@ defmodule Regents.Products.AccountOverview.Summary do
 
   defp read_paired_agents(%{privy_user_id: privy_user_id}) when is_binary(privy_user_id) do
     person = %Person{privy_user_id: privy_user_id}
+    query = Ash.Query.for_read(PairedAgent, :mine, %{}, actor: person)
 
-    case RegentAgents.list_my_agents(actor: person) do
-      {:ok, agents} when is_list(agents) ->
-        items =
-          agents
-          |> Enum.take(@preview_limit)
-          |> Enum.map(fn agent ->
-            %{
-              id: agent.id,
-              name: agent.name,
-              harness: to_string(agent.harness),
-              wallet: agent.wallet
-            }
-          end)
+    with {:ok, count} <- Ash.count(query),
+         {:ok, agents} <-
+           query
+           |> Ash.Query.select([:id, :name, :harness, :wallet])
+           |> Ash.Query.limit(@preview_limit)
+           |> Ash.read() do
+      items =
+        Enum.map(agents, fn agent ->
+          %{
+            id: agent.id,
+            name: agent.name,
+            harness: to_string(agent.harness),
+            wallet: agent.wallet
+          }
+        end)
 
-        %{count: length(agents), items: items}
-
+      %{status: "ready", count: count, items: items}
+    else
       _ ->
-        %{count: 0, items: []}
+        unavailable_paired_agents()
     end
   end
 
-  defp read_paired_agents(_), do: %{count: 0, items: []}
+  defp read_paired_agents(_), do: unavailable_paired_agents()
+
+  defp unavailable_paired_agents, do: %{status: "unavailable", count: 0, items: []}
 
   defp read_points(actor) do
     case RegentPoints.summary(actor: actor) do
@@ -152,16 +159,17 @@ defmodule Regents.Products.AccountOverview.Summary do
   end
 
   defp format_micro_points(micro) do
-    whole = div(micro, 1_000_000)
-    frac = micro |> rem(1_000_000) |> abs()
+    sign = if micro < 0, do: "-", else: ""
+    whole = div(abs(micro), 1_000_000)
+    frac = rem(abs(micro), 1_000_000)
 
     if frac == 0 do
-      Integer.to_string(whole)
+      sign <> Integer.to_string(whole)
     else
       trimmed =
         frac |> Integer.to_string() |> String.pad_leading(6, "0") |> String.trim_trailing("0")
 
-      "#{whole}.#{trimmed}"
+      "#{sign}#{whole}.#{trimmed}"
     end
   end
 
@@ -172,7 +180,7 @@ defmodule Regents.Products.AccountOverview.Summary do
 
     case fetch_held_keys(wallets) do
       {:ok, held_keys} ->
-        agent_keys = human_actor |> then(&Keys.agent_keys_of_person(actor: &1)) |> ok_list()
+        agent_keys = human_actor |> then(&Keys.agent_keys_of_person(actor: &1)) |> read_rows!()
         build_keyfleet_summary(held_keys, agent_keys, catalog_by_id)
 
       _ ->
@@ -246,7 +254,8 @@ defmodule Regents.Products.AccountOverview.Summary do
   defp read_autolaunch(actor, %Human{wallet_addresses: wallets} = human_actor, account) do
     bids = fetch_wallet_bids(wallets, human_actor)
     to_settle = fetch_wallet_bids_to_settle(wallets, human_actor)
-    auctions = actor |> then(&Autolaunch.list_my_auctions(actor: &1)) |> ok_list()
+    auctions = Autolaunch.list_my_auctions!(actor: actor, query: [limit: @preview_limit])
+    auctions_count = Autolaunch.count_my_auctions!(actor: actor)
     drafts_count = count_autolaunch_drafts(human_actor)
     has_portfolio = bids != [] or auctions != [] or drafts_count > 0
 
@@ -257,7 +266,7 @@ defmodule Regents.Products.AccountOverview.Summary do
       has_wallet: present_string?(account.wallet_address),
       bids_count: length(bids),
       bids_to_settle_count: length(to_settle),
-      auctions_created_count: length(auctions),
+      auctions_created_count: auctions_count,
       drafts_count: drafts_count,
       recent_bids: bids |> Enum.take(@preview_limit) |> Enum.map(&autolaunch_bid_item/1),
       created_auctions:
@@ -271,22 +280,24 @@ defmodule Regents.Products.AccountOverview.Summary do
   defp fetch_wallet_bids([], _human_actor), do: []
 
   defp fetch_wallet_bids(wallets, human_actor) do
-    wallets |> Autolaunch.list_wallet_bid_positions(actor: human_actor) |> ok_list()
+    wallets |> Autolaunch.list_wallet_bid_positions(actor: human_actor) |> read_rows!()
   end
 
   defp fetch_wallet_bids_to_settle([], _human_actor), do: []
 
   defp fetch_wallet_bids_to_settle(wallets, human_actor) do
-    wallets |> Autolaunch.list_wallet_bids_to_settle(actor: human_actor) |> ok_list()
+    wallets |> Autolaunch.list_wallet_bids_to_settle(actor: human_actor) |> read_rows!()
   end
 
   defp count_autolaunch_drafts(human_actor) do
-    agent_drafts = human_actor |> then(&Autolaunch.list_my_launch_drafts(actor: &1)) |> ok_list()
+    agent_drafts =
+      human_actor |> then(&Autolaunch.list_my_launch_drafts(actor: &1)) |> read_rows!()
 
     stocks_count =
       case Autolaunch.get_my_stocks_launch_draft(actor: human_actor) do
         {:ok, %{}} -> 1
-        _ -> 0
+        {:ok, nil} -> 0
+        {:error, error} -> raise Ash.Error.to_error_class(error)
       end
 
     length(agent_drafts) + stocks_count
@@ -352,11 +363,14 @@ defmodule Regents.Products.AccountOverview.Summary do
     offers_enabled = Offers.enabled?()
     profile = fetch_patchbay_profile(account.privy_user_id)
     profile_id = profile && profile.id
-    posts = Forum.list_reports_for_account(profile_id, account.id) |> ok_list()
-    replies = Forum.list_replies_for_account(profile_id, account.id) |> ok_list()
+
+    posts =
+      Forum.list_reports_for_account!(profile_id, account.id, load: [:solved], query: [limit: 5])
+
+    {posts_count, replies_count} = Forum.account_counts!(profile_id, account.id)
     campaigns = fetch_patchbay_campaigns(offers_enabled, profile)
-    active_leases_count = count_active_leases(campaigns)
-    has_posts = posts != [] or replies != []
+    active_leases_count = Offers.Board.count_market_leases(campaigns)
+    has_posts = posts_count > 0 or replies_count > 0
     has_agent_offers = campaigns != [] or active_leases_count > 0
     profile_public_id = extract_public_id(profile)
     profile_path = if profile_public_id, do: "/patchbay/agents/#{profile_public_id}", else: nil
@@ -370,8 +384,8 @@ defmodule Regents.Products.AccountOverview.Summary do
       offers_enabled: offers_enabled,
       profile_public_id: profile_public_id,
       profile_path: profile_path,
-      posts_count: length(posts),
-      replies_count: length(replies),
+      posts_count: posts_count,
+      replies_count: replies_count,
       campaigns_count: length(campaigns),
       active_leases_count: active_leases_count,
       recent_posts: posts |> Enum.take(5) |> Enum.map(&patchbay_post_item/1),
@@ -385,26 +399,18 @@ defmodule Regents.Products.AccountOverview.Summary do
 
   defp fetch_patchbay_profile(privy_user_id) when is_binary(privy_user_id) do
     case Members.get_profile_by_privy_user_id(privy_user_id) do
-      {:ok, %{} = member} -> member
-      _ -> nil
+      {:ok, member} -> member
+      {:error, error} -> raise Ash.Error.to_error_class(error)
     end
   end
 
   defp fetch_patchbay_profile(_), do: nil
 
   defp fetch_patchbay_campaigns(true, %{} = profile) do
-    Offers.my_campaigns(actor: profile, load: [:review, :leases]) |> ok_list()
+    Offers.my_campaigns(actor: profile, load: [:review]) |> read_rows!()
   end
 
   defp fetch_patchbay_campaigns(_, _), do: []
-
-  defp count_active_leases(campaigns) do
-    now = DateTime.utc_now()
-
-    campaigns
-    |> Enum.flat_map(&List.wrap(&1.leases))
-    |> Enum.count(&(match?(%DateTime{}, &1.ends_at) and DateTime.compare(&1.ends_at, now) == :gt))
-  end
 
   defp patchbay_state(true, true), do: "has_posts_and_offers"
   defp patchbay_state(true, false), do: "has_posts"
@@ -416,7 +422,7 @@ defmodule Regents.Products.AccountOverview.Summary do
       id: report.id,
       title: report.title,
       kind: to_string(report.kind),
-      solved: not is_nil(report.accepted_reply_id),
+      solved: report.solved,
       path: "/patchbay/posts/#{report.id}"
     }
   end
@@ -468,8 +474,8 @@ defmodule Regents.Products.AccountOverview.Summary do
   # --- Techtree ---
 
   defp read_techtree(actor, human_actor, account) do
-    projects = Projects.list_my_projects(actor: actor) |> ok_list()
-    watchdog_hosts = Watchdog.list_my_hosts(actor: human_actor) |> ok_list()
+    projects = Projects.list_my_projects(actor: actor) |> read_rows!()
+    watchdog_hosts = Watchdog.list_my_hosts(actor: human_actor) |> read_rows!()
     model_climb_reports = fetch_model_climb_reports(account.privy_user_id)
     has_projects = projects != []
 
@@ -488,7 +494,7 @@ defmodule Regents.Products.AccountOverview.Summary do
   end
 
   defp fetch_model_climb_reports(privy_user_id) when is_binary(privy_user_id) do
-    ModelClimb.list_my_reports(actor: %{privy_user_id: privy_user_id}) |> ok_list()
+    ModelClimb.list_my_reports(actor: %{privy_user_id: privy_user_id}) |> read_rows!()
   end
 
   defp fetch_model_climb_reports(_), do: []
@@ -522,45 +528,45 @@ defmodule Regents.Products.AccountOverview.Summary do
     }
   end
 
-  defp ok_list({:ok, rows}) when is_list(rows), do: rows
-  defp ok_list(_), do: []
+  defp read_rows!({:ok, rows}) when is_list(rows), do: rows
+  defp read_rows!({:error, error}), do: raise(Ash.Error.to_error_class(error))
 
   defp present_string?(value), do: is_binary(value) and value != ""
 
   defp build_next_steps(keyfleet, autolaunch, patchbay, techtree, paired_agents) do
     []
     |> maybe_step(
-      paired_agents.count == 0,
+      paired_agents.status == "ready" and paired_agents.count == 0,
       "agents",
       "Pair an agent so it can act for your account across Regents.",
       "/account/agents"
     )
     |> maybe_step(
-      not keyfleet.has_keys,
+      keyfleet.status == "ready" and not keyfleet.has_keys,
       "keyfleet",
       "No Keyfleet Keys held yet. Browse fleets to get a Key and unlock member workspaces.",
       "/keyfleet/app"
     )
     |> maybe_step(
-      autolaunch.bids_to_settle_count > 0,
+      autolaunch.status == "ready" and autolaunch.bids_to_settle_count > 0,
       "autolaunch",
       "You have #{autolaunch.bids_to_settle_count} ended Autolaunch bid(s) ready to settle or claim.",
       "/autolaunch/portfolio"
     )
     |> maybe_step(
-      not autolaunch.has_portfolio,
+      autolaunch.status == "ready" and not autolaunch.has_portfolio,
       "autolaunch",
       "No Autolaunch portfolio yet. Explore live auctions or draft a launch.",
       "/autolaunch/auctions"
     )
     |> maybe_step(
-      not patchbay.has_posts and not patchbay.has_agent_offers,
+      patchbay.status == "ready" and not patchbay.has_posts and not patchbay.has_agent_offers,
       "patchbay",
       "No Patchbay posts or agent offers yet. Ask a question on the forum or browse listed sites.",
       "/patchbay/forum"
     )
     |> maybe_step(
-      not techtree.has_projects,
+      techtree.status == "ready" and not techtree.has_projects,
       "techtree",
       "No Techtree projects delivered yet. Browse Skills, Evals, Environments, and Models.",
       "/techtree/app"

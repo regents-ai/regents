@@ -7,6 +7,8 @@
 # General application configuration
 import Config
 
+config :elixir, :time_zone_database, Tz.TimeZoneDatabase
+
 config :regent_identity, repo: Regents.Repo, ash_domains: [RegentIdentity]
 
 config :regent_payments,
@@ -190,7 +192,9 @@ config :regents, :home_colour, "blue"
 # AshOban adds each trigger's sweep to `cron`. `points` checks and awards Points;
 # `points_chain` reads NFT holdings for the period-end bonus, tallied daily only on
 # this site.
-config :ash_oban, pro?: false, authorize?: false
+config :ash_oban, pro?: false, authorize?: true
+
+config :regents, RegentsWeb.Keyfleet.FeedController, max_open: 200, keep_alive_ms: 25_000
 
 config :regents, Oban,
   repo: Regents.Repo,
@@ -251,6 +255,7 @@ config :regents, Oban,
       {"47 4 * * *", Regents.Patchbay.Forum.PostCheckPruner},
       {"*/5 * * * *", Regents.Patchbay.Forum.SiteCheckSweep},
       {"*/5 * * * *", Regents.Patchbay.Forum.ListedSitePictureSweep},
+      {"*/5 * * * *", Regents.Patchbay.Offers.Watch},
       {"0 6 * * 1", Regents.Patchbay.AnswerWatch.Ask},
       {"@hourly", Regents.Patchbay.IndexNow},
       {"0 * * * *", Regents.Patchbay.Incidents.CveNow},

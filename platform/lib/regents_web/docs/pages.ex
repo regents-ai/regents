@@ -38,6 +38,13 @@ defmodule RegentsWeb.Docs.Pages do
              source: {:regents_file, "overview"}
            },
            %{
+             key: "cutover",
+             name: "Migration",
+             description:
+               "Move existing product integrations to the shared Regents address and SIWA audience.",
+             source: {:regents_file, "cutover"}
+           },
+           %{
              key: "limits",
              name: "Limits",
              description:
@@ -58,7 +65,7 @@ defmodule RegentsWeb.Docs.Pages do
              key: "products",
              name: "Products",
              description:
-               "Cloak, Techtree, Keyfleet, Autolaunch and Patchbay as JSON, with each one's summary and links.",
+               "Techtree, Keyfleet, Autolaunch and Patchbay as JSON, with summaries and links.",
              source: {:regents_file, "products"}
            },
            %{
@@ -102,6 +109,20 @@ defmodule RegentsWeb.Docs.Pages do
              name: "WebMCP",
              description: "Every page offers read tools to browsers that support WebMCP.",
              source: {:regents_file, "webmcp"}
+           },
+           %{
+             key: "mcp",
+             name: "Hosted MCP",
+             description:
+               "Connect Streamable HTTP MCP clients and OAuth connectors to POST /mcp.",
+             source: {:regents_file, "mcp"}
+           },
+           %{
+             key: "cli",
+             name: "CLI",
+             description:
+               "Install regents-cli for cross-product commands, WebMCP browser sessions, and MCP.",
+             source: {:regents_file, "cli"}
            }
          ]},
         {"Account",
@@ -328,7 +349,7 @@ defmodule RegentsWeb.Docs.Pages do
                "Quickstart, served agent files, open fleet directory, and Base Key metadata for Keyfleet.",
              source:
                {:doc_sections, "/keyfleet/docs",
-                ["Quickstart", "Served files", "Directory", "Key metadata"], include_intro: true}
+                ["quickstart", "served-files", "directory", "key-metadata"], include_intro: true}
            },
            %{
              key: "keyfleet/sign-in-sync",
@@ -338,14 +359,14 @@ defmodule RegentsWeb.Docs.Pages do
              source:
                {:doc_sections, "/keyfleet/docs",
                 [
-                  "Sign-in",
-                  "Profile",
-                  "Shards",
-                  "Sync",
-                  "Live feed",
-                  "Checkpoints",
-                  "Previews",
-                  "Links"
+                  "sign-in",
+                  "profile",
+                  "shards",
+                  "sync",
+                  "live-feed",
+                  "checkpoints",
+                  "previews",
+                  "links"
                 ], include_intro: false}
            }
          ]},
@@ -359,14 +380,14 @@ defmodule RegentsWeb.Docs.Pages do
              source:
                {:doc_sections, "/keyfleet/docs",
                 [
-                  "Rooms",
-                  "Post wall",
-                  "Key page",
-                  "Activity",
-                  "Search",
-                  "Polls",
-                  "Seasons",
-                  "Direct messages"
+                  "rooms",
+                  "post-wall",
+                  "key-page",
+                  "activity",
+                  "search",
+                  "polls",
+                  "seasons",
+                  "direct-messages"
                 ], include_intro: false}
            },
            %{
@@ -375,7 +396,7 @@ defmodule RegentsWeb.Docs.Pages do
              description:
                "Shared fleet goals, tasks, evidence, Git code repositories via SIWA, and collaborative notebooks.",
              source:
-               {:doc_sections, "/keyfleet/docs", ["Workspace", "Code", "Notebooks"],
+               {:doc_sections, "/keyfleet/docs", ["workspace", "code", "notebooks"],
                 include_intro: false}
            }
          ]},
@@ -389,13 +410,13 @@ defmodule RegentsWeb.Docs.Pages do
              source:
                {:doc_sections, "/keyfleet/docs",
                 [
-                  "Public treasury",
-                  "Proposals",
-                  "Onchain actions",
-                  "Risks",
-                  "Account",
-                  "Points",
-                  "Messages"
+                  "public-treasury",
+                  "proposals",
+                  "onchain-actions",
+                  "risks",
+                  "account",
+                  "points",
+                  "messages"
                 ], include_intro: false}
            }
          ]},
@@ -409,13 +430,13 @@ defmodule RegentsWeb.Docs.Pages do
              source:
                {:doc_sections, "/keyfleet/docs",
                 [
-                  "Runtime notes",
-                  "Lost answers",
-                  "Errors",
-                  "Rate limits",
-                  "Versioning",
-                  "Browser tools",
-                  "Contracts"
+                  "runtime-notes",
+                  "lost-answers",
+                  "errors",
+                  "rate-limits",
+                  "versioning",
+                  "browser-tools",
+                  "contracts"
                 ], include_intro: false}
            }
          ]}
@@ -440,7 +461,7 @@ defmodule RegentsWeb.Docs.Pages do
              description:
                "Read auctions, graduated tokens, bid quotes, and treasury security reports on Base and Robinhood Chain.",
              source:
-               {:doc_sections, "/autolaunch/docs", ["Public HTTP API", "Stored token details"],
+               {:doc_sections, "/autolaunch/docs", ["public-http-api", "stored-token-details"],
                 include_intro: true}
            },
            %{
@@ -450,7 +471,7 @@ defmodule RegentsWeb.Docs.Pages do
                "Signed agent capabilities, browser WebMCP tools, covered calls, Earn, and hosted MCP access.",
              source:
                {:doc_sections, "/autolaunch/docs",
-                ["Agent access", "In the browser (WebMCP)", "Hosted MCP"], include_intro: false}
+                ["agent-access", "in-the-browser-webmcp", "hosted-mcp"], include_intro: false}
            }
          ]},
         {"Reference",
@@ -463,11 +484,11 @@ defmodule RegentsWeb.Docs.Pages do
              source:
                {:doc_sections, "/autolaunch/docs",
                 [
-                  "Errors",
-                  "Rate limits",
-                  "Versioning and deprecation",
-                  "What needs a person and a wallet",
-                  "More"
+                  "errors",
+                  "rate-limits",
+                  "versioning-and-deprecation",
+                  "what-needs-a-person-and-a-wallet",
+                  "more"
                 ], include_intro: false}
            }
          ]}
@@ -493,7 +514,7 @@ defmodule RegentsWeb.Docs.Pages do
                "Search agent threads, tool histories, thread fields, and the Patchbay CLI with no sign-in required for reads.",
              source:
                {:doc_sections, "/patchbay/docs",
-                ["Quick start", "Addresses", "Fields", "Command line"], include_intro: true}
+                ["quick-start", "addresses", "fields", "command-line"], include_intro: true}
            },
            %{
              key: "patchbay/start",
@@ -512,7 +533,7 @@ defmodule RegentsWeb.Docs.Pages do
                "Core and extended Patchbay tools, hosted MCP endpoint, SIWA sign-in test, and agent pairing.",
              source:
                {:doc_sections, "/patchbay/docs",
-                ["Tools", "Hosted MCP", "Sign-in test", "Pairing"], include_intro: false}
+                ["tools", "hosted-mcp", "sign-in-test", "pairing"], include_intro: false}
            },
            %{
              key: "patchbay/webmcp",
@@ -539,13 +560,13 @@ defmodule RegentsWeb.Docs.Pages do
              source:
                {:doc_sections, "/patchbay/docs",
                 [
-                  "Reference",
-                  "Errors",
-                  "Rate limits",
-                  "Directory",
-                  "Other limits",
-                  "More",
-                  "Versioning"
+                  "reference",
+                  "errors",
+                  "rate-limits",
+                  "directory",
+                  "other-limits",
+                  "more",
+                  "versioning"
                 ], include_intro: false}
            }
          ]}
@@ -601,6 +622,27 @@ defmodule RegentsWeb.Docs.Pages do
 
   @by_path Map.new(@pages, &{&1.path, &1})
   @paths Enum.map(@pages, & &1.path)
+
+  excerpt_sources = %{
+    "/keyfleet/docs" => Application.app_dir(:regents, "priv/keyfleet/public/docs.md"),
+    "/autolaunch/docs" => Application.app_dir(:regents, "priv/autolaunch/public/docs.md"),
+    "/patchbay/docs" => Path.expand("../patchbay/pages_md/docs.md.eex", __DIR__)
+  }
+
+  for {doc_path, file} <- excerpt_sources do
+    @external_resource file
+    markers =
+      Regex.scan(~r/^<!-- docs-section: ([a-z0-9-]+) -->$/m, File.read!(file),
+        capture: :all_but_first
+      )
+
+    ids = List.flatten(markers)
+    if Enum.uniq(ids) != ids, do: raise("Duplicate docs section identifier in #{file}")
+
+    for %{source: {:doc_sections, ^doc_path, wanted, _opts}} <- @pages, id <- wanted do
+      unless id in ids, do: raise("Missing docs section #{id} in #{file}")
+    end
+  end
 
   @product_summaries Enum.map(@products, fn product ->
                        pages = Enum.filter(@pages, &(&1.product == product.id))

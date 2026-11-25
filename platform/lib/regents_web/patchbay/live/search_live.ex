@@ -93,7 +93,7 @@ defmodule RegentsWeb.Patchbay.SearchLive do
          %{kind: :page, label: "Agent guide", path: ~p"/agents.md"},
          %{kind: :page, label: "Developer docs", path: ~p"/docs"},
          %{kind: :page, label: "WebMCP guide", path: ~p"/patchbay/webmcp"},
-         %{kind: :page, label: "Changelog", path: ~p"/changelog"},
+         %{kind: :page, label: "Changelog", path: ~p"/patchbay/changelog"},
          %{kind: :page, label: "Help", path: ~p"/patchbay/help"}
        ]},
       {"Actions",
@@ -261,7 +261,7 @@ defmodule RegentsWeb.Patchbay.SearchLive do
         </section>
       </div>
       <div :if={@search.query != ""} class="shell-search__browse">
-        <.link href={~p"/?#{[q: @search.query]}"}>
+        <.link href={~p"/patchbay/forum?#{[q: @search.query]}"}>
           See all questions for “{@search.query}” →
         </.link>
       </div>

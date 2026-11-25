@@ -18,14 +18,15 @@ type Hit = {
 }
 
 const MAX_HITS = 10
+const indexes = new Map<string, Promise<Page[]>>()
 
 type DocsHook = {el: HTMLElement; controller?: AbortController; observer?: IntersectionObserver}
 
 /**
  * The unified all-products docs pages: cross-product search, the "On this page"
  * list that follows the reader, Ask AI popover, and the phone menu closing once
- * a page is chosen. Everything it needs is on the page already. Each docs page
- * mounts it afresh, and leaving the page takes every listener with it.
+ * a page is chosen. The shared search index loads on demand. Each docs page
+ * mounts afresh, and leaving the page takes every listener with it.
  */
 export const Docs = {
   mounted(this: DocsHook) {
@@ -46,10 +47,8 @@ export const Docs = {
 function installSearch(root: HTMLElement, signal: AbortSignal) {
   const input = root.querySelector<HTMLInputElement>("#docs-search-input")
   const list = root.querySelector<HTMLUListElement>("#docs-search-results")
-  const source = root.querySelector<HTMLScriptElement>("#docs-search-index")
-  if (!input || !list || !source) return
-
-  const pages = JSON.parse(source.textContent ?? "[]") as Page[]
+  const indexUrl = root.dataset.docsSearchUrl
+  if (!input || !list || !indexUrl) return
   let hits: Hit[] = []
   let active = -1
 
@@ -71,9 +70,20 @@ function installSearch(root: HTMLElement, signal: AbortSignal) {
     })
   }
 
-  const show = () => {
+  let searchRevision = 0
+  const show = async () => {
+    const revision = ++searchRevision
     const query = input.value.trim().toLowerCase()
     if (!query) return close()
+
+    let pages: Page[]
+    try {
+      pages = await searchIndex(indexUrl)
+    } catch {
+      if (!signal.aborted && revision === searchRevision) close()
+      return
+    }
+    if (signal.aborted || revision !== searchRevision || document.activeElement !== input) return
 
     hits = search(pages, query)
     list.replaceChildren(...(hits.length ? hits.map(result) : [none()]))
@@ -97,6 +107,7 @@ function installSearch(root: HTMLElement, signal: AbortSignal) {
       close()
       anchor?.click()
     } else if (event.key === "Escape") {
+      searchRevision++
       if (list.hidden) input.blur()
       close()
     }
@@ -121,6 +132,21 @@ function installSearch(root: HTMLElement, signal: AbortSignal) {
     input.focus()
     input.select()
   }, {signal})
+}
+
+function searchIndex(url: string): Promise<Page[]> {
+  const existing = indexes.get(url)
+  if (existing) return existing
+
+  const loading = fetch(url).then(response => {
+    if (!response.ok) throw new Error("Docs search unavailable")
+    return response.json() as Promise<Page[]>
+  }).catch(error => {
+    indexes.delete(url)
+    throw error
+  })
+  indexes.set(url, loading)
+  return loading
 }
 
 // Every word of the query has to appear; product name + page title matches
@@ -233,10 +259,13 @@ function installSpy(root: HTMLElement): IntersectionObserver | undefined {
     .filter((heading): heading is HTMLElement => heading !== null)
   if (!headings.length) return
 
-  const band = Math.round(root.querySelector(".docs-bar")?.getBoundingClientRect().bottom ?? 120)
+  const scroller = root.closest<HTMLElement>("#app-shell-scroller")
+  const scrollerTop = scroller ? scroller.getBoundingClientRect().top : 0
+  const barBottom = root.querySelector(".docs-bar")?.getBoundingClientRect().bottom ?? scrollerTop + 120
+  const band = Math.max(0, Math.round(barBottom - scrollerTop))
   const visible = new Set<Element>()
   const mark = () => {
-    const current = headings.find(heading => visible.has(heading)) ?? above(headings, band)
+    const current = headings.find(heading => visible.has(heading)) ?? above(headings, barBottom)
     links.forEach((link, id) => {
       if (current && id === current.id) link.setAttribute("aria-current", "true")
       else link.removeAttribute("aria-current")
@@ -248,7 +277,7 @@ function installSpy(root: HTMLElement): IntersectionObserver | undefined {
       entries.forEach(entry => (entry.isIntersecting ? visible.add(entry.target) : visible.delete(entry.target)))
       mark()
     },
-    {rootMargin: `-${band}px 0px -60% 0px`},
+    {root: scroller, rootMargin: `-${band}px 0px -60% 0px`},
   )
   headings.forEach(heading => observer.observe(heading))
   return observer

@@ -3,27 +3,27 @@ defmodule RegentsWeb.Chain.OnchainSteps do
   The server half of a wallet-button component. `skills/onchain-buttons` has the
   rules; The Stake and Redeem components use it.
 
-  The component builds a `RegentChain.Review` for the account's main wallet and
+  The component builds a `RegentChain.Review` for the signing wallet and
   hands it to `put_review/2`, which remembers it and pushes it to the page
   before anyone presses. The page reports each press against the review it sent from.
   Every sent step is then read at the latest block of the review's chain, every
-  quarter second, until it lands or the page stops asking. Nothing is kept beyond
+  two seconds, until it lands or the page stops asking. Nothing is kept beyond
   the page. A step that lands asks every reader of its chain to read it again
   (`Regents.Chain.Refresh`), so the shared figures show what it changed.
 
-  Signed in, every review is built for the account's main wallet
-  (`RegentsWeb.Account.Identity.main_wallet/1`), and the page sends only from
+  Signed in, every review is built for the account's signing wallet
+  (`RegentsWeb.Account.Identity.signing_wallet/2`), and the page sends only from
   that wallet. Signed out there is no review.
   """
 
   use Phoenix.Component
-  import Phoenix.LiveView, only: [push_event: 3, start_async: 3]
+  import Phoenix.LiveView, only: [push_event: 3]
 
-  alias RegentChain.{Outcome, Presses}
+  alias RegentChain.Presses
   alias Regents.Chain.{Client, Refresh}
+  alias RegentsWeb.Chain.ReceiptCheck
   alias RegentsWeb.EventInput
 
-  @recheck_ms 250
   @refusals ~w(wallet_declined switch_declined network_mismatch insufficient_funds)
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
 
@@ -267,12 +267,7 @@ defmodule RegentsWeb.Chain.OnchainSteps do
 
   defp check(socket, %{step: nil}), do: socket
 
-  defp check(socket, %{hash: hash, reads: reads, review: review, step: step}) do
-    start_async(socket, {:onchain_step, hash}, fn ->
-      if reads > 0, do: Process.sleep(@recheck_ms)
-      Outcome.of(Client, review, step, hash)
-    end)
-  end
+  defp check(socket, press), do: ReceiptCheck.start(socket, Client, press)
 
   defp review_id(nil), do: nil
   defp review_id(%{id: id}), do: id

@@ -20,21 +20,31 @@ defmodule RegentsWeb.Account.Identity do
   end
 
   @doc """
-  The signed-in account's main wallet, lowercased: the one its menu shows and
-  the only one Stake and Redeem act for. `nil` signed out.
+  The signed-in account's main wallet, lowercased. `nil` signed out.
   """
   def main_wallet(nil), do: nil
   def main_wallet(account), do: String.downcase(account.wallet_address)
 
   @doc """
-  The wallet Stake and Redeem show. Signed in, the account's main wallet,
-  whichever wallet the browser has open. Signed out, the wallet the browser has
-  open.
+  The signed-in account's active linked wallet, with its main wallet as fallback.
+  Signed out, there is no signing wallet.
+  """
+  def signing_wallet(nil, _active), do: nil
+
+  def signing_wallet(account, active) do
+    if active in Human.for_account(account).wallet_addresses,
+      do: active,
+      else: main_wallet(account)
+  end
+
+  @doc """
+  The wallet Stake and Redeem show. Signed in, it is the signing wallet.
+  Signed out, the page can show the active wallet's public figures.
   """
   def position_wallet(%{access_context: access_context, browser_wallet: browser_wallet}) do
     case current_account(access_context) do
       nil -> browser_wallet
-      account -> main_wallet(account)
+      account -> signing_wallet(account, browser_wallet)
     end
   end
 end

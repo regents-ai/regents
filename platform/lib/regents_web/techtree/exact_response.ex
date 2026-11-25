@@ -19,6 +19,7 @@ defmodule RegentsWeb.Techtree.ExactResponse do
   import Plug.Conn
 
   alias Regents.Techtree.Catalog.Error
+  alias RegentsWeb.PublicResponse
 
   # A content address cannot change meaning, so a client may keep it forever.
   @immutable "public, max-age=31536000, immutable"
@@ -71,7 +72,7 @@ defmodule RegentsWeb.Techtree.ExactResponse do
       |> put_resp_header("etag", etag)
       |> put_resp_header("cache-control", cache_control(caching))
 
-    if holds?(conn, etag) do
+    if PublicResponse.holds?(conn, etag) do
       conn
       |> delete_resp_header("content-type")
       |> send_resp(304, "")
@@ -142,12 +143,4 @@ defmodule RegentsWeb.Techtree.ExactResponse do
   # charset parameter.
   defp charset("text/" <> _subtype), do: "utf-8"
   defp charset(_media_type), do: nil
-
-  defp holds?(conn, etag) do
-    conn
-    |> get_req_header("if-none-match")
-    |> Enum.flat_map(&String.split(&1, ","))
-    |> Enum.map(&String.trim/1)
-    |> Enum.any?(&(&1 == etag or &1 == "*"))
-  end
 end

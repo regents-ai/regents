@@ -36,7 +36,7 @@ defmodule Regents.Patchbay.Offers.Board do
       |> Offers.open_placements!(market)
       |> Enum.sort_by(&Source.rank(&1.source_origin))
 
-    current = chain_id |> Offers.live_leases!(market) |> Enum.uniq_by(&{&1.placement_id, &1.slot})
+    current = current_leases(chain_id, market, placements)
 
     # A slot names its offer only while Patchbay shows it there: a campaign
     # pulled, blocked or otherwise not eligible keeps its slot and names nothing.
@@ -56,6 +56,29 @@ defmodule Regents.Patchbay.Offers.Board do
         end),
       fresh?: fresh?(chain_id, market)
     }
+  end
+
+  @doc "Counts leases held by these campaigns in open slots of the current market."
+  def count_market_leases([]), do: 0
+
+  def count_market_leases(campaigns) do
+    %{chain_id: chain_id} = Offers.chain()
+    market = Offers.market()
+    campaign_ids = MapSet.new(campaigns, & &1.campaign_id)
+    placements = Offers.open_placements!(chain_id, market)
+
+    chain_id
+    |> current_leases(market, placements)
+    |> Enum.count(&MapSet.member?(campaign_ids, &1.campaign_id))
+  end
+
+  defp current_leases(chain_id, market, placements) do
+    ids = MapSet.new(placements, & &1.placement_id)
+
+    chain_id
+    |> Offers.live_leases!(market)
+    |> Enum.uniq_by(&{&1.placement_id, &1.slot})
+    |> Enum.filter(&MapSet.member?(ids, &1.placement_id))
   end
 
   @doc """
@@ -79,13 +102,7 @@ defmodule Regents.Patchbay.Offers.Board do
       |> Offers.open_placements!(market)
       |> Enum.filter(&Source.site?(&1.source_origin))
 
-    ids = MapSet.new(placements, & &1.placement_id)
-
-    leases =
-      chain_id
-      |> Offers.live_leases!(market)
-      |> Enum.uniq_by(&{&1.placement_id, &1.slot})
-      |> Enum.filter(&(&1.placement_id in ids))
+    leases = current_leases(chain_id, market, placements)
 
     placements
     |> Eligibility.runnable(leases)

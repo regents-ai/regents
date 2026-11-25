@@ -202,22 +202,53 @@ defmodule Regents.Patchbay.Escrow do
   defp read_amount(_unreadable), do: {:error, :unreadable_amount}
 
   @doc """
-  Pushes everything the contract keeps for REGENT staking into the staking
-  contract, and returns the hash of the transaction that does it.
-
-  The push is tried against the chain before it is sent and only sent when
-  it would go through, so a paused staking contract costs no gas: the answer
-  is then `:push_refused`, and the money stays kept for a later push.
+  Prepares a fee push and returns its signed bytes and hash before broadcast.
+  A paused staking contract is refused during the chain simulation.
   """
-  @spec push_revenue() :: {:ok, String.t()} | {:error, term()}
-  def push_revenue do
+  @spec prepare_revenue_push() :: {:ok, %{raw: String.t(), hash: String.t()}} | {:error, term()}
+  def prepare_revenue_push do
     tx_data = Contract.push_revenue()
 
     with {:ok, operator} <- operator(),
-         :ok <- would_go_through(tx_data, operator) do
-      submit(tx_data)
+         :ok <- would_go_through(tx_data, operator),
+         {:ok, nonce} <-
+           Ethers.get_transaction_count(operator.address,
+             block: "pending",
+             rpc_opts: [url: operator.rpc_url]
+           ),
+         {:ok, raw} <-
+           Ethers.sign_transaction(with_builder_code(tx_data),
+             from: operator.address,
+             to: operator.contract_address,
+             chain_id: 8453,
+             nonce: nonce,
+             signer: Ethers.Signer.Local,
+             signer_opts: [private_key: operator.private_key],
+             rpc_opts: [url: operator.rpc_url]
+           ) do
+      hash = raw |> Ethers.Utils.hex_decode!() |> Ethers.keccak_module().hash_256()
+      {:ok, %{raw: raw, hash: Ethers.Utils.hex_encode(hash)}}
+    else
+      {:error, reason} when reason in [:not_configured, :push_refused] -> {:error, reason}
+      {:error, _reason} -> {:error, :prepare_push_failed}
     end
+  rescue
+    _exception -> {:error, :prepare_push_failed}
   end
+
+  @doc "Broadcasts previously recorded bytes. Repeating this call sends the same transaction."
+  def broadcast_revenue_push("0x" <> _hex = raw) do
+    with {:ok, operator} <- operator(),
+         {:ok, _hash} <- Ethers.send_transaction(raw, rpc_opts: [url: operator.rpc_url]) do
+      :ok
+    else
+      {:error, _reason} -> {:error, :push_broadcast_unconfirmed}
+    end
+  rescue
+    _exception -> {:error, :push_broadcast_unconfirmed}
+  end
+
+  def broadcast_revenue_push(_raw), do: {:error, :push_transaction_missing}
 
   defp would_go_through(tx_data, operator) do
     case Ethers.call(tx_data,

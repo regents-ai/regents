@@ -182,15 +182,17 @@ defmodule Regents.Keyfleet.Graph.Object do
               )
     end
 
-    # The tasks that deliver on one of a shown project's goals (`implements`),
-    # as its page shows anyone beside the goal, once the Key holding the
-    # project shows it to everyone: the most recently changed first, not
-    # archived, each with its title and standing alone. Callers bound it with
-    # a limit.
+    # The most recently changed tasks for each requested goal of a public
+    # project. The limit applies to each goal, even when a task serves several.
     read :shown_goal_tasks do
       argument :fleet_id, :string, allow_nil?: false
       argument :project, :string, allow_nil?: false, constraints: @text
-      argument :goal, :string, allow_nil?: false, constraints: @text
+
+      argument :goals, {:array, :string},
+        allow_nil?: false,
+        constraints: [items: @text, max_length: 20]
+
+      argument :per_goal, :integer, allow_nil?: false, constraints: [min: 1, max: 20]
 
       filter expr(
                fleet_id == ^arg(:fleet_id) and project == ^arg(:project) and type == "task" and
@@ -201,17 +203,35 @@ defmodule Regents.Keyfleet.Graph.Object do
                    project
                  ) and
                  fragment(
-                   "? IN (SELECT link.source FROM keyfleet_app.graph_relations AS link WHERE link.fleet_id = ? AND link.target = ? AND link.type = 'implements')",
+                   """
+                   ? IN (
+                     SELECT newest.id
+                     FROM unnest(?::text[]) AS goal(id)
+                     CROSS JOIN LATERAL (
+                       SELECT DISTINCT task.id, task.changed_seq
+                       FROM keyfleet_app.graph_relations AS link
+                       JOIN keyfleet_app.graph_objects AS task
+                         ON task.fleet_id = link.fleet_id AND task.id = link.source
+                       WHERE link.fleet_id = ? AND link.target = goal.id AND link.type = 'implements'
+                         AND task.project = ? AND task.type = 'task'
+                         AND (task.sys ->> 'archived') IS DISTINCT FROM 'true'
+                       ORDER BY task.changed_seq DESC, task.id
+                       LIMIT ?
+                     ) AS newest
+                   )
+                   """,
                    id,
+                   ^arg(:goals),
                    ^arg(:fleet_id),
-                   ^arg(:goal)
+                   ^arg(:project),
+                   ^arg(:per_goal)
                  )
              )
 
       prepare build(
-                sort: [changed_seq: :desc],
+                sort: [changed_seq: :desc, id: :asc],
                 select: [:fleet_id, :id, :type, :project, :changed_seq],
-                load: [:title, :standing]
+                load: [:title, :standing, :implemented_goal_ids]
               )
     end
 
@@ -715,6 +735,16 @@ defmodule Regents.Keyfleet.Graph.Object do
   end
 
   calculations do
+    calculate :implemented_goal_ids,
+              {:array, :string},
+              expr(
+                fragment(
+                  "ARRAY(SELECT DISTINCT link.target FROM keyfleet_app.graph_relations AS link WHERE link.fleet_id = ? AND link.source = ? AND link.type = 'implements')",
+                  fleet_id,
+                  id
+                )
+              )
+
     # When the object last changed, as a time (`changed_at` is the log's own text).
     calculate :changed, :utc_datetime_usec, expr(fragment("(?::timestamptz)", changed_at))
 

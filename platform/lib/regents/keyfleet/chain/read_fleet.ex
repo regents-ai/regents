@@ -38,16 +38,12 @@ defmodule Regents.Keyfleet.Chain.ReadFleet do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"fleet_id" => fleet_id}}) do
-    if Regents.ProductActivity.active?(:keyfleet) do
-      case Fleets.get_fleet!(fleet_id) do
-        %{manager_address: address} = fleet when is_binary(address) ->
-          pass(fleet)
+    case Fleets.get_fleet!(fleet_id) do
+      %{manager_address: address} = fleet when is_binary(address) ->
+        pass(fleet)
 
-        _not_deployed ->
-          {:cancel, :not_deployed}
-      end
-    else
-      :ok
+      _not_deployed ->
+        {:cancel, :not_deployed}
     end
   end
 

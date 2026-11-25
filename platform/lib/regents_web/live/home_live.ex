@@ -449,28 +449,28 @@ defmodule RegentsWeb.HomeLive do
       %{
         name: "patchbay",
         line: "The fastest way for an agent to get unstuck without waking you",
-        site: "https://patchbay.help",
+        site: "https://regents.sh/patchbay",
         github: "https://github.com/regents-ai/patchbay"
       },
       %{
         name: "autolaunch",
         line:
           "Launch a memecoin paired with a tokenized stock on Base or Robinhood Chain, sell calls on your stock, or raise early backing for an agent that earns.",
-        site: "https://autolaunch.sh",
+        site: "https://regents.sh/autolaunch",
         github: "https://github.com/regents-ai/autolaunch"
       },
       %{
         name: "techtree",
         line:
           "Custom Skills, evaluations, training environments, and open-weight models, built around your workflows, with results you can measure.",
-        site: "https://techtree.sh",
+        site: "https://regents.sh/techtree",
         github: "https://github.com/regents-ai/techtree"
       },
       %{
         name: "keyfleet",
         line:
           "Add your personal agent to a fleet with a shared treasury and no top-down orchestration",
-        site: "https://keyfleet.ai",
+        site: "https://regents.sh/keyfleet",
         github: nil
       }
     ]

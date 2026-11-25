@@ -96,7 +96,15 @@ defmodule RegentsWeb.Cloak do
     hint: "Phrasing changes locally while necessary identifiers like PR #418 stay intact."
   }
 
+  @hardware "Apple silicon Mac with macOS 26+. NEAR AI Gateway needs 8 GB+ RAM (0 GB download); Local Mode (Fast MLX) needs 16 GB+ RAM (10.21 GB download); Tor modes and Pi agent need 16 GB+ RAM (5.69 GB Qwen 3.5 9B rewriter)."
   @needs "Requirements depend on the mode. NEAR AI Gateway needs 8 GB+ RAM, 0 GB of model downloads, and a NEAR AI Cloud key. Local Mode (Fast MLX) needs a 16 GB+ Mac and downloads 10.21 GB (optional GGUF tiers: 13.63–17.63 GB on 24 GB+ Macs). Token Inference, zkAPI Anon Inference, Connected Apps, and the sandboxed Pi agent need a 16 GB+ Mac and the 5.69 GB Qwen 3.5 9B local rewriter. Paid modes use Base USDC, Tempo USDC.e, ETH on Ethereum Mainnet, or your own Venice/NEAR API key."
+
+  @mode_access %{
+    "Local" => "Free local model download (10.21 GB MLX)",
+    "NEAR AI Gateway" => "NEAR AI Cloud API key",
+    "Token Inference" => "Base USDC (Venice x402), Venice key, or Tempo USDC.e (Boundless MPP)",
+    "zkAPI Anon Inference" => "ETH deposit on Ethereum Mainnet (30-day protocol limit)"
+  }
   @caution "Cloak v0.2 is beta software and its privacy protections have not been independently audited. Keep wallet balances small, back up or withdraw funds before wiping your Mac (keys never sync to iCloud), and note the 30-day protocol limit on untouched zkAPI deposits."
   @feedback %{
     before: "Questions or bug reports? Post on ",
@@ -147,6 +155,8 @@ defmodule RegentsWeb.Cloak do
   @install_path "/cloak/install"
   @install_heading "Install Cloak"
   @install_steps [
+    {"Build",
+     "Start with the signed Regents-Cloak.dmg provided with your build. The install page guides you once you have that file."},
     {"Drag",
      "Open Regents-Cloak.dmg from your Downloads folder and drag Cloak onto Applications."},
     {"Open",
@@ -213,14 +223,12 @@ defmodule RegentsWeb.Cloak do
   @doc "The page as Markdown, what `/cloak` answers when Markdown is asked for."
   def markdown do
     modes =
-      @modes
-      |> Enum.with_index(1)
-      |> Enum.map_join("\n", fn
-        {{name, nil, sentence}, n} ->
-          "#{n}. **#{name}.** #{sentence}"
+      Enum.map_join(@modes, "\n", fn
+        {name, nil, sentence} ->
+          "| #{name} | #{sentence} | #{@mode_access[name]} |"
 
-        {{name, credit, sentence}, n} ->
-          "#{n}. **#{name}.** #{credit.before}[#{credit.link}](#{credit.href})#{credit.after} #{sentence}"
+        {name, credit, sentence} ->
+          "| #{name} | #{String.trim_trailing(sentence, ".")}. #{credit.before}[#{credit.link}](#{credit.href})#{credit.after} | #{@mode_access[name]} |"
       end)
 
     agent_docs =
@@ -246,6 +254,8 @@ defmodule RegentsWeb.Cloak do
 
     ## #{@modes_title}
 
+    | Mode | Where the prompt is handled | What you need |
+    | --- | --- | --- |
     #{modes}
 
     ## #{@agent.title}
@@ -279,7 +289,7 @@ defmodule RegentsWeb.Cloak do
 
     ## Needs
 
-    #{@needs}
+    #{@hardware}
 
     ## Caution
 

@@ -119,7 +119,11 @@ changes ticks once. What is drawn only with the page is kept as drawn
           href={PostAddress.path(@report, after: @next_cursor, replies: @reply_filter) <> "#patchbay-replies"}
         >More replies →</a>
       </nav>
-      <.reply_sign_in report={@report} current_profile={@current_profile} />
+      <.reply_sign_in
+        report={@report}
+        current_profile={@current_profile}
+        csrf_token={@csrf_token}
+      />
     </:footer>
   </Regent.Discussion.replies>
 

@@ -14,6 +14,15 @@
 	}
 	@has_query expression `{query} != ""`
 
+	@shared_discovery path /openapi.json /.well-known/oauth-protected-resource /.well-known/api-catalog /.well-known/ai-catalog.json /mcp/server-card /server.json
+	handle @shared_discovery {
+		import perm_redir "https://regents.sh{uri}"
+	}
+
+	handle /capabilities.json {
+		import perm_redir "https://regents.sh/api/v1/autolaunch/capabilities"
+	}
+
 	handle /healthz {
 		respond "ok" 200
 	}

@@ -1,18 +1,18 @@
 # Public API
 
-Public reads need no account. The [OpenAPI description](/openapi.json) types every address, and the [API catalog](/.well-known/api-catalog) points to it and to this page.
+Public reads need no account. The [Regents OpenAPI description](/openapi.json) covers the shared API. This page lists the Techtree operations and the [capabilities manifest](/api/v1/techtree/capabilities) describes the browser tools.
 
-- `GET /api/v1/bootstrap`: the installation contract for this release.
-- `GET /api/v1/catalog`: the published Climbs.
-- `GET /api/v1/climbs/{slug}`: one Climb.
-- `GET /api/v1/objects/{digest}`: one published object, byte for byte.
-- `GET /api/v1/publications`: published Results, newest first.
-- `GET /api/v1/publications/{bundle_digest}`: one published Result, and `/bundle` for the exact bytes it was submitted as.
-- `GET /api/v1/publication-keys/{key_id}`: the key this site signs receipts with.
-- `POST /api/v1/publications`: publish or withdraw a Result. The CLI does this for you.
+- `GET /api/v1/techtree/bootstrap`: the installation contract for this release.
+- `GET /api/v1/techtree/catalog`: the published Climbs.
+- `GET /api/v1/techtree/climbs/{slug}`: one Climb.
+- `GET /api/v1/techtree/objects/{digest}`: one published object, byte for byte.
+- `GET /api/v1/techtree/publications`: published Results, newest first.
+- `GET /api/v1/techtree/publications/{bundle_digest}`: one published Result, and `/bundle` for the exact bytes it was submitted as.
+- `GET /api/v1/techtree/publication-keys/{key_id}`: the key this site signs receipts with.
+- `POST /api/v1/techtree/publications`: publish or withdraw a Result. The CLI does this for you.
 - `POST /api/agents/v1/pair` and `GET /api/agents/v1/whoami`: an agent pairs with its person's Regent account and checks its identity, signing each request with its own key. The CLI's `regents techtree agents pair` and `agents whoami` sign them; private codes go through JSON stdin. The [agent sign-in guide](https://siwa.regents.sh/skill.md) shows how.
 - `GET /api/v1/techtree/account/projects`: a paired agent lists the projects Techtree delivered to its person. Append `/{id}` for the report and checksum, or `/{id}/package` for the archive. Each read needs a fresh signature. Skills projects include a structured summary, cases, selection and setup. On Evals, Environments and Models projects those fields are null and the Markdown report holds the evidence.
-- `POST /api/v1/messages/{topic}`: an agent leaves Techtree's team a private message under a topic the site names, such as `watchdog`, signing the request with its own key; it needs no pairing. The body is `{"body", "reply_to", "operation_id"}`: up to 2,000 characters, where to answer (optional), and a UUID to keep when retrying. Only the team reads it. The browser tool and the hosted MCP tool `messages_leave` do the same.
+- `POST /api/v1/messages/{topic}`: an agent leaves Techtree's team a private message under a topic the site names, such as `watchdog`, signing the request with its own key; it needs a current pairing. The body is `{"body", "reply_to", "operation_id"}`: up to 2,000 characters, where to answer (optional), and a UUID to keep when retrying. Only the team reads it. The browser tool and the hosted MCP tool `messages_leave` do the same.
 - `GET /healthz`: `ok` while the site is serving a release. `GET /api/v1/health` answers the same check as JSON, `{"status": "ok", "migrations_applied": true}`, or 503 with `unavailable`; `migrations_applied` is false while the running release waits on a database change.
 
 The CLI's `--json` flag prints one machine-readable answer per command.
@@ -22,7 +22,7 @@ The CLI's `--json` flag prints one machine-readable answer per command.
 Every JSON error is an `error` object with a stable `code`, a `message` and a `hint` that says what to do next:
 
 ```json
-{"error": {"code": "publication_missing", "message": "no run is published under that fingerprint", "hint": "Use a fingerprint listed at https://techtree.sh/api/v1/publications."}}
+{"error": {"code": "publication_missing", "message": "no run is published under that fingerprint", "hint": "Use a fingerprint listed at https://regents.sh/api/v1/techtree/publications."}}
 ```
 
 Branch on the status and the `code`, never on the wording of `message`.
@@ -43,7 +43,7 @@ RateLimit: "default";r=119;t=42
 ## Versioning
 
 - The API version is in the path (`/api/v1`) and in `info.version` of the [OpenAPI description](/openapi.json). Every document Techtree publishes also names its own format in `schema_version`. New addresses, response fields and optional inputs can appear at any time, so ignore fields you do not recognise; an added response field moves the number after the point (7.1 added `migrations_applied` to the health answer).
-- A breaking change, such as removing or renaming a field, address or error code, changing a type or making an input required, ships in place under the same path. It is listed below on the day it ships and `info.version` moves to a new major number. There is no notice period and no `Deprecation` or `Sunset` header, so check `info.version` before relying on a field.
+- See the [Regents versioning and deprecation policy](/docs/contracts#versioning-and-deprecation) for stable operations. The history below describes the pre-consolidation API.
 - While a Result is published, its bundle is served as the exact bytes it was submitted as, in the format it was submitted in.
 
 ### Breaking changes

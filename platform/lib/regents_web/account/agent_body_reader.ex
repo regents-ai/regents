@@ -6,9 +6,10 @@ defmodule RegentsWeb.Account.AgentBodyReader do
   bodies are read as before.
   """
 
-  # The largest body the API takes is a private profile, which
-  # `RegentIdentity.BodyReader` caps at the same size.
+  # Ordinary signed bodies use the same limit as RegentIdentity.BodyReader.
   @limit 8192
+  # A 2 MiB picture expands to this size in base64, plus the draft's text.
+  @draft_limit 4 * div(2 * 1024 * 1024 + 2, 3) + @limit
 
   def read_body(conn, opts) do
     cond do
@@ -21,6 +22,9 @@ defmodule RegentsWeb.Account.AgentBodyReader do
           opts,
           Regents.Techtree.ModelClimb.Proof.maximum_bytes()
         )
+
+      autolaunch_draft_patch?(conn) ->
+        Siwa.AgentAuthPlug.read_body(conn, opts, @draft_limit)
 
       signed?(conn) ->
         Siwa.AgentAuthPlug.read_body(conn, opts, @limit)
@@ -52,6 +56,15 @@ defmodule RegentsWeb.Account.AgentBodyReader do
        do: true
 
   defp techtree_model_climb_post?(_conn), do: false
+
+  defp autolaunch_draft_patch?(%{
+         method: "PATCH",
+         path_info: ["api", "agent", "v1", "autolaunch", "drafts", kind]
+       })
+       when kind in ["revstake", "memestock"],
+       do: true
+
+  defp autolaunch_draft_patch?(_conn), do: false
 
   defp signed?(%{method: "POST", path_info: ["mcp"]}), do: true
 

@@ -7,6 +7,20 @@ five surfaces: the website in headless Chromium, WebMCP, hosted MCP at `/mcp` fo
 signed agents, the Claude connector (the `/mcp` a person adds to their Claude account,
 signed in with OAuth), and the regents CLI. This file has one row per action.
 
+## Consolidated site
+
+The four folded products share the Regents SIWA audience, account and hosted `/mcp` entry point. The current public capability records are under `/api/v1/<product>/capabilities`, and the registered hosted tools are in `platform/lib/regents_web/<product>/agent_tools.ex` where that product has a hosted domain. OAuth access depends on the deployment and the connector’s scope. The published CLI and native browser execution need their own verification.
+
+| Action | HTTP / browser | Hosted MCP | Gap |
+| --- | --- | --- | --- |
+| Patchbay public search and thread | Mounted HTTP reads and product WebMCP | `patchbay_search_threads`, `patchbay_get_thread` | Confirm the deployed tool schema after release |
+| Patchbay question and reply | Signed HTTP with current pairing | Unavailable in the consolidated registry | Restore through the same authorized forum actions |
+| Techtree catalog and publications | Public product HTTP and WebMCP | Product capabilities list the actual supported transport | Confirm published CLI against the active bootstrap release |
+| Keyfleet agent feed | Signed HTTP stream and catch-up | The stream uses HTTP | Confirm reconnect, missed-event read and full sync in a paired session |
+| Autolaunch private positions | Browser session reads and signed agent HTTP | Consult the registered hosted tools | Confirm a signed-in read and current pairing after release |
+
+## Historical inventory
+
 Audited on regents main `4948e2d1` (29 Oct 2026), read from the committed tree only.
 Credits were removed on 12 Nov 2026: their rows are gone and R7 and R8 are closed.
 Sources: `platform/lib/regents_web/router.ex`, `platform/lib/regents_web/endpoint.ex`,

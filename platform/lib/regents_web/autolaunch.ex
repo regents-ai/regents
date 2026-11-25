@@ -4,7 +4,7 @@ defmodule RegentsWeb.Autolaunch do
   `/api/agent/v1/autolaunch`, and `/auth/x`.
   """
   use Boundary,
-    deps: [RegentsWeb, RegentsWeb.Stake, Regents.Chain, Regents.Autolaunch],
+    deps: [RegentsWeb, RegentsWeb.Chain, RegentsWeb.Stake, Regents.Chain, Regents.Autolaunch],
     exports: [
       AgentAccountController,
       AgentBidController,

@@ -675,8 +675,18 @@ defmodule Regents.Autolaunch do
     end
   end
 
-  @doc "`:ok`: Autolaunch runtime health."
-  def health, do: :ok
+  @doc "Counts the caller’s auctions independently of the recent-auctions limit."
+  def count_my_auctions!(opts) do
+    Regents.Autolaunch.Auction
+    |> Ash.Query.for_read(:by_creator, %{}, opts)
+    |> Ash.Query.unset([:limit, :sort])
+    |> Ash.count!(opts)
+  end
+
+  @doc "Checks that the auction table answers a bounded read."
+  def health do
+    with {:ok, _rows} <- sitemap_auctions(query: [limit: 1, select: [:id]]), do: :ok
+  end
 
   @doc "Observes Base and persists one immutable treasury security report."
   def observe_treasury_security(address, evidence, opts \\ []) do

@@ -135,7 +135,7 @@ defmodule RegentsWeb.Autolaunch.Prelaunch do
         {:cont, socket}
 
       socket.view in [RegentsWeb.Autolaunch.StocksCreateLive, RegentsWeb.Autolaunch.CreateLive] ->
-        {:halt, Phoenix.LiveView.redirect(socket, to: "/")}
+        {:halt, Phoenix.LiveView.redirect(socket, to: "/autolaunch/app")}
 
       true ->
         {:cont,

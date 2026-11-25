@@ -22,11 +22,13 @@ defmodule Regents.Autolaunch.ChainWatch do
 
   @impl Oban.Worker
   def perform(%Oban.Job{} = job) do
-    if ProductActivity.cron_allowed?(:autolaunch, job) do
-      (AuctionMarket.jobs() ++
-         Discovery.jobs() ++ AuctionActivity.jobs() ++ TokenTrades.jobs() ++ Sales.jobs())
-      |> Enum.each(&Oban.insert!/1)
-    end
+    market =
+      if ProductActivity.cron_allowed?(:autolaunch, job),
+        do: AuctionMarket.jobs() ++ TokenTrades.jobs(),
+        else: []
+
+    (market ++ Discovery.jobs() ++ AuctionActivity.jobs() ++ Sales.jobs())
+    |> Enum.each(&Oban.insert!/1)
 
     :ok
   end
@@ -37,17 +39,5 @@ defmodule Regents.Autolaunch.ChainWatch do
   sooner, or running, keeps its time, so presses that keep coming never put the
   read off.
   """
-  @spec soon(Ecto.Changeset.t()) :: :ok
-  def soon(changeset) do
-    soon = DateTime.add(DateTime.utc_now(), ChainRefresh.gap_s())
-    changeset |> Oban.insert!() |> bring_forward(soon)
-  end
-
-  defp bring_forward(%Oban.Job{state: state, scheduled_at: at} = job, soon)
-       when state in ["scheduled", "retryable"] do
-    if DateTime.after?(at, soon), do: {:ok, _job} = Oban.update_job(job, %{scheduled_at: soon})
-    :ok
-  end
-
-  defp bring_forward(%Oban.Job{}, _soon), do: :ok
+  defdelegate soon(changeset), to: ChainRefresh
 end

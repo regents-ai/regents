@@ -4,7 +4,7 @@ defmodule RegentsWeb.Patchbay do
   `/api/agent/v1/patchbay/...`.
   """
   use Boundary,
-    deps: [RegentsWeb, Regents.Chain, Regents.Patchbay],
+    deps: [RegentsWeb, RegentsWeb.Chain, Regents.Chain, Regents.Patchbay],
     exports: [
       AdminMessagesLive,
       AgentAPI.ProfileController,

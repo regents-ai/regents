@@ -17,10 +17,12 @@ defmodule Regents.Keyfleet.Chain.Watch do
 
   @impl Oban.Worker
   def perform(%Oban.Job{} = job) do
-    if Regents.ProductActivity.cron_allowed?(:keyfleet, job) do
-      Regents.Keyfleet.Fleets.list_deployed_fleets!()
-      |> Enum.flat_map(&[ReadFleet.new(%{fleet_id: &1.id}), ReadBalances.new(%{fleet_id: &1.id})])
-      |> Enum.each(&Oban.insert!/1)
+    for fleet <- Regents.Keyfleet.Fleets.list_deployed_fleets!() do
+      Oban.insert!(ReadFleet.new(%{fleet_id: fleet.id}))
+
+      if Regents.ProductActivity.cron_allowed?(:keyfleet, job) do
+        Oban.insert!(ReadBalances.new(%{fleet_id: fleet.id}))
+      end
     end
 
     :ok
@@ -33,23 +35,15 @@ defmodule Regents.Keyfleet.Chain.Watch do
   """
   @impl ChainRefresh
   def refresh(chain_id) do
-    soon = DateTime.add(DateTime.utc_now(), ChainRefresh.gap_s())
-
     Regents.Keyfleet.Fleets.list_deployed_fleets!()
     |> Enum.filter(&(&1.chain_id == chain_id))
-    |> Enum.each(fn fleet ->
-      %{fleet_id: fleet.id} |> ReadFleet.new() |> Oban.insert!() |> bring_forward(soon)
-      Oban.insert!(ReadBalances.new(%{fleet_id: fleet.id}))
+    |> Enum.reduce_while(:ok, fn fleet, :ok ->
+      with :ok <- ChainRefresh.soon(ReadFleet.new(%{fleet_id: fleet.id})),
+           {:ok, _job} <- Oban.insert(ReadBalances.new(%{fleet_id: fleet.id})) do
+        {:cont, :ok}
+      else
+        {:error, _reason} = failure -> {:halt, failure}
+      end
     end)
   end
-
-  # A waiting history read due later than `soon` moves to `soon`; one due
-  # sooner keeps its time, so presses that keep coming never put the read off.
-  defp bring_forward(%Oban.Job{state: state, scheduled_at: at} = job, soon)
-       when state in ["scheduled", "retryable"] do
-    if DateTime.after?(at, soon), do: {:ok, _job} = Oban.update_job(job, %{scheduled_at: soon})
-    :ok
-  end
-
-  defp bring_forward(%Oban.Job{}, _soon), do: :ok
 end

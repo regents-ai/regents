@@ -1,0 +1,211 @@
+{
+  "managed": [
+    {"app": "regent_mcp_agents", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "mcp_agents"},
+    {"app": "regent_oauth", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "oauth"},
+    {"app": "regent_privy", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "privy"},
+    {"app": "regent_agent_access", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "agent_access"},
+    {"app": "regent_format", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "format"},
+    {"app": "regent_chain", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "chain"},
+    {"app": "regent_http", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "http"},
+    {"app": "regent_blog", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "blog"},
+    {"app": "credo_ash", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "credo_ash"},
+    {"app": "ens_elixir", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "ens"},
+    {"app": "siwa", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "siwa/siwa-elixir/apps/siwa"},
+    {"app": "siwa_keyring", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "siwa/siwa-elixir/apps/siwa_keyring"},
+    {"app": "regent_ui", "repository": "https://github.com/regents-ai/design-system.git", "sparse": "regent_ui"},
+    {"app": "regent_identity", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "ash_components/identity", "previous_sources": [{"repository": "https://github.com/regents-ai/regents.git", "sparse": "identity"}]},
+    {"app": "regent_payments", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "ash_components/payments", "previous_sources": [{"repository": "https://github.com/regents-ai/regents.git", "sparse": "payments"}]},
+    {"app": "regent_agents", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "ash_components/agents", "previous_sources": [{"repository": "https://github.com/regents-ai/regents.git", "sparse": "agents"}]},
+    {"app": "regent_openai", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "openai"},
+    {"app": "regent_anthropic", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "anthropic"},
+    {"app": "regent_mcp_events", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "mcp_events"},
+    {"app": "regent_jev", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "jev"},
+    {"app": "regent_sprites", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "sprites"},
+    {"app": "regent_points", "repository": "https://github.com/regents-ai/elixir-utils.git", "sparse": "points"},
+    {"app": "ash_postgres", "repository": "https://github.com/ash-project/ash_postgres.git", "sparse": null}
+  ],
+  "fixes": [
+    {
+      "id": "EEF-CVE-2026-124283",
+      "summary": "Ash before 3.38.1 allowed code execution and SQL injection via struct-wrapped values in a forged keyset pagination cursor (plus EEF-CVE-2026-120299 in Ash.Type.Keyword); 3.38.1 fixes both.",
+      "kind": "hex",
+      "package": "ash",
+      "requirement": ">= 3.38.1"
+    },
+    {
+      "id": "EEF-CVE-2026-133555",
+      "summary": "db_connection before 2.10.3 allowed code execution via the :log option of forged DBConnection.Stream structs; 2.10.3 fixes it.",
+      "kind": "hex",
+      "package": "db_connection",
+      "requirement": ">= 2.10.3"
+    },
+    {
+      "id": "EEF-CVE-2026-119613",
+      "summary": "ash_ai before 1.5.1 sent the text of a tool error that ToToolError does not describe to the agent word for word, disclosing internal details; 1.5.1 sends an error id instead.",
+      "kind": "hex",
+      "package": "ash_ai",
+      "requirement": ">= 1.5.1"
+    },
+    {
+      "id": "EEF-CVE-2026-118391",
+      "summary": "Ecto before 3.14.3 kept a query cache entry, and with ecto_sql a prepared statement on each connection, for every distinct interpolated JSON path key and splice list length, so request data reaching either could exhaust memory in the application and the database.",
+      "kind": "hex",
+      "package": "ecto",
+      "requirement": ">= 3.14.3"
+    },
+    {
+      "id": "2026-11-04-ash-sql-query-cache",
+      "summary": "ash_sql 0.8.3 through 0.8.5 are retired on Hex for security: an Ecto query cache issue causes unpredictable query returns. 0.8.6 fixes it.",
+      "kind": "hex",
+      "package": "ash_sql",
+      "requirement": ">= 0.8.6"
+    },
+    {
+      "id": "EEF-CVE-2026-117645",
+      "summary": "phoenix_html before 4.4.0 let unvalidated attribute names through attributes_escape/1, allowing attribute injection.",
+      "kind": "hex",
+      "package": "phoenix_html",
+      "requirement": ">= 4.4.0"
+    },
+    {
+      "id": "EEF-CVE-2026-117666",
+      "summary": "ssl_verify_fun before 1.1.8 let a partial-label wildcard certificate such as f*.example.net match across a dot, so a certificate could be accepted for another host.",
+      "kind": "hex",
+      "package": "ssl_verify_fun",
+      "requirement": ">= 1.1.8"
+    },
+    {
+      "id": "EEF-CVE-2026-117656",
+      "summary": "assent 0.1.25 before 0.3.2 let an unverified Sign in with Apple callback parameter override the verified ID token's claims.",
+      "kind": "hex",
+      "package": "assent",
+      "requirement": ">= 0.3.2"
+    },
+    {
+      "id": "EEF-CVE-2026-116078",
+      "summary": "Bandit before 1.14.1 let an HTTP/2 request body sent as 1-byte DATA frames grow memory far beyond the body's size.",
+      "kind": "hex",
+      "package": "bandit",
+      "requirement": ">= 1.14.1"
+    },
+    {
+      "id": "EEF-CVE-2026-117680",
+      "summary": "jsv before 0.26.2 treated a regular expression that ran out of its match budget as a non-match, so patternProperties and not schemas could let invalid input through.",
+      "kind": "hex",
+      "package": "jsv",
+      "requirement": ">= 0.26.2"
+    },
+    {
+      "id": "EEF-CVE-2026-65629",
+      "summary": "jose before 1.11.13 had eight advisories (one high): weak PBKDF2 settings for password-encrypted key export, forgeable short AES-GCM tags, an RSA PKCS1 padding oracle, unbounded zlib decompression, infinite recursion in shared_secret, an X25519 timing leak, factoring an attacker's RSA modulus, and unchecked ECDSA signature length (EEF-CVE-2026-65625 to -65632).",
+      "kind": "hex",
+      "package": "jose",
+      "requirement": ">= 1.11.13"
+    },
+    {
+      "id": "EEF-CVE-2026-108525",
+      "summary": "Bandit before 1.14.0 had eleven advisories (nine high): HTTP/2 flow control, HPACK table and cookie sizes, SETTINGS and WINDOW_UPDATE work, stream error recovery, 1-byte chunked bodies, chunk extension smuggling, Content-Length and Host parsing, and WebSocket fragments and frames after close.",
+      "kind": "hex",
+      "package": "bandit",
+      "requirement": ">= 1.14.0"
+    },
+    {
+      "id": "EEF-CVE-2026-114214",
+      "summary": "Ash before 3.37.1 ignored the through path when loading a through relationship with a limit of 1, returning unrelated records; before 3.37.2 an upsert on the primary key ignored attribute multitenancy (EEF-CVE-2026-96581).",
+      "kind": "hex",
+      "package": "ash",
+      "requirement": ">= 3.37.2"
+    },
+    {
+      "id": "EEF-CVE-2026-105659",
+      "summary": "Bandit HTTP/2 blocked sends could be kept alive indefinitely with tiny WINDOW_UPDATE or empty SETTINGS frames, until the progress-based deadline fix released in 1.13.0.",
+      "kind": "hex",
+      "package": "bandit",
+      "requirement": ">= 1.13.0"
+    },
+    {
+      "id": "2026-10-09-agent-payment-pairing",
+      "summary": "Delegated payments freeze their original beneficiary and pairing, recheck that episode before settlement, and restrict recovery to the already authorized effect.",
+      "kind": "git",
+      "commit": "1564d79eb3b653f06ab11b6c422bd4d6283ea199",
+      "apps": ["regent_payments"]
+    },
+    {
+      "id": "EEF-CVE-2026-101028",
+      "summary": "Ash count, exists and aggregate skipped related resource read policies in user filters before 3.34.6.",
+      "kind": "hex",
+      "package": "ash",
+      "requirement": ">= 3.34.6"
+    },
+    {
+      "id": "2026-09-27-privy-signed-in-wallet",
+      "summary": "regent_privy named the first linked wallet as the signed-in wallet; it now names the wallet Privy verified most recently.",
+      "kind": "git",
+      "commit": "7a876e8673a230e8fb2f7b6f64fe1dec5579fab8",
+      "apps": ["regent_privy"]
+    },
+    {
+      "id": "2026-09-24-keccak",
+      "summary": "SIWA and ENS hashed with keccak_ex 0.4.2, which gives wrong hashes; they now hash with ex_keccak.",
+      "kind": "git",
+      "commit": "3e782153c94f1bd07a0941149ddbe5517d05e603",
+      "apps": ["ens_elixir", "siwa"]
+    },
+    {
+      "id": "EEF-CVE-2026-93477",
+      "summary": "Ash before 3.33.11 let user input set private action arguments in bulk update and destroy.",
+      "kind": "hex",
+      "package": "ash",
+      "requirement": ">= 3.33.11"
+    },
+    {
+      "id": "EEF-CVE-2026-94201",
+      "summary": "Ash before 3.34.3 turned filter values for an :atom attribute declared with unsafe_to_atom? into new atoms, which can exhaust the atom table and crash the node.",
+      "kind": "hex",
+      "package": "ash",
+      "requirement": ">= 3.34.3"
+    },
+    {
+      "id": "2026-10-20-emudhra-roots",
+      "summary": "eMudhra's intermediate certificates were compromised (20 Oct 2026). castore 1.0.22 drops the emSign ECC Root CA - G3, emSign Root CA - C1 and emSign ECC Root CA - C3 roots that Debian bookworm's ca-certificates still trusts, and the application loads castore's list as the one every outbound TLS connection trusts.",
+      "kind": "hex",
+      "package": "castore",
+      "requirement": ">= 1.0.22"
+    },
+    {
+      "id": "2026-10-26-ash-postgres-upsert-schema",
+      "summary": "ash_postgres 2.10.0 through 2.15.2 writes Ash.update_many and upserts with only the resource's schema or tenant as the prefix and ignores the Repo's default prefix, which is how every Regent site picks its schema in the shared production database, so those writes land in public. ash-project/ash_postgres#910, merged on main after 2.15.2 and released in 2.16.0, keeps the Repo prefix; it also carries the 2.15.2 fixes for EEF-CVE-2026-115635 and EEF-CVE-2026-115627, the two advisories on 2.13.0.",
+      "kind": "git",
+      "commit": "55db7d449aad351d200c5f300fca2a83e0a8734c",
+      "apps": ["ash_postgres"]
+    },
+    {
+      "id": "EEF-CVE-2026-82672",
+      "summary": "Mint before 1.10.1 accepted malformed chunk-size lines, allowing response smuggling on pooled connections.",
+      "kind": "hex",
+      "package": "mint",
+      "requirement": ">= 1.10.1"
+    },
+    {
+      "id": "EEF-CVE-2026-92106",
+      "summary": "lazy_html before 0.1.13 wrote SVG and MathML style and script text unescaped, allowing mutation XSS.",
+      "kind": "hex",
+      "package": "lazy_html",
+      "requirement": ">= 0.1.13"
+    },
+    {
+      "id": "EEF-CVE-2026-91043",
+      "summary": "Mint before 1.11.0 let HTTP/2 cookie headers exhaust memory, with two further advisories (EEF-CVE-2026-92103, EEF-CVE-2026-94194) including chunked framing smuggling.",
+      "kind": "hex",
+      "package": "mint",
+      "requirement": ">= 1.11.0"
+    },
+    {
+      "id": "EEF-CVE-2026-82710",
+      "summary": "usage_rules before 1.2.8 printed terminal control sequences from package documentation in search results, letting a published package's docs rewrite what the terminal shows.",
+      "kind": "hex",
+      "package": "usage_rules",
+      "requirement": ">= 1.2.8"
+    }
+  ]
+}

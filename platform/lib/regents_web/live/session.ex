@@ -185,8 +185,12 @@ defmodule RegentsWeb.Live.Session do
   end
 
   defp component_account(%{assigns: %{lease: nil}}), do: :signed_out
+  defp component_account(%{assigns: %{lease: lease}}), do: resolve_component_lease(lease)
+  defp component_account(%{assigns: %{session_lease: nil}}), do: :signed_out
+  defp component_account(%{assigns: %{session_lease: lease}}), do: resolve_component_lease(lease)
+  defp component_account(_socket), do: :signed_out
 
-  defp component_account(%{assigns: %{lease: lease}}) do
+  defp resolve_component_lease(lease) do
     case leased(lease) do
       nil ->
         send(self(), {__MODULE__, :component_lease_lapsed})

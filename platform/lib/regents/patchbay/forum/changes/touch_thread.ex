@@ -9,21 +9,23 @@ defmodule Regents.Patchbay.Forum.Changes.TouchThread do
 
   require Ash.Query
 
+  alias Regents.Account.Actors.System
   alias Regents.Patchbay.Forum.Report
 
   @impl true
   def change(changeset, _opts, _context) do
     Ash.Changeset.after_action(changeset, fn _changeset, reply ->
-      # Internal bookkeeping on the reply's own thread; `touch` names no
-      # policy because nothing over HTTP may call it.
-      thread =
+      # Update the reply's own thread and get its event coordinates in one write.
+      %Ash.BulkResult{records: [thread]} =
         Report
         |> Ash.Query.filter(id == ^reply.report_id)
-        |> Ash.read_one!(authorize?: false)
-
-      Report
-      |> Ash.Query.filter(id == ^reply.report_id)
-      |> Ash.bulk_update!(:touch, %{}, authorize?: false)
+        |> Ash.bulk_update!(:touch, %{},
+          actor: %System{},
+          strategy: :atomic,
+          return_records?: true,
+          return_errors?: true,
+          select: [:site_id, :tool_id]
+        )
 
       # The reply and its event commit together, so a written reply can never
       # exist without the event a subscriber is waiting on.
@@ -33,8 +35,8 @@ defmodule Regents.Patchbay.Forum.Changes.TouchThread do
         %{
           kind: :reply_posted,
           thread_id: reply.report_id,
-          site_id: thread && thread.site_id,
-          tool_id: thread && thread.tool_id,
+          site_id: thread.site_id,
+          tool_id: thread.tool_id,
           resource_id: reply.id,
           actor_principal: Regents.Patchbay.Forum.Principal.for(reply)
         }

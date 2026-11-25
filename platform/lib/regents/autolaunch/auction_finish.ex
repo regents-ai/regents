@@ -91,7 +91,7 @@ defmodule Regents.Autolaunch.AuctionFinish do
   end
 
   policies do
-    bypass AshOban.Checks.AshObanInteraction do
+    bypass [action([:read, :finish, :discover]), AshOban.Checks.AshObanInteraction] do
       authorize_if always()
     end
 

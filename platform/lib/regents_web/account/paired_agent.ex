@@ -6,7 +6,7 @@ defmodule RegentsWeb.Account.PairedAgent do
   alias Regents.Account.Actors.{Agent, Human}
 
   @not_paired_message "This agent has no current pairing."
-  @not_paired_hint "Ask your person to sign in on this site and pair you with Pair New Agent on their Agents page, then send the request again. Help: https://patchbay.help/errors/agent_not_paired"
+  @not_paired_hint "Ask your person to sign in on this site and pair you with Pair New Agent on their Agents page, then send the request again. Help: https://regents.sh/patchbay/errors/agent_not_paired"
 
   def init(opts), do: opts
 
@@ -43,7 +43,7 @@ defmodule RegentsWeb.Account.PairedAgent do
       {:ok, %Agent{pairing: %Human{}} = actor} ->
         conn
         |> assign(:actor, actor)
-        |> register_before_send(&recheck(&1, actor))
+        |> recheck_before_response(actor)
 
       {:ok, %Agent{pairing: :none}} ->
         refuse(conn, 403, "agent_not_paired", @not_paired_message, @not_paired_hint)
@@ -54,7 +54,7 @@ defmodule RegentsWeb.Account.PairedAgent do
           403,
           "person_not_here",
           "The person this agent is paired with hasn't signed in on this site yet.",
-          "Ask your person to sign in on this site once, then send the request again. Help: https://patchbay.help/errors/person_not_here"
+          "Ask your person to sign in on this site once, then send the request again. Help: https://regents.sh/patchbay/errors/person_not_here"
         )
 
       {:error, _} ->
@@ -85,15 +85,13 @@ defmodule RegentsWeb.Account.PairedAgent do
     end
   end
 
-  # The agent the verified request names: its wallet and what the SIWA service
-  # said of it, this site's audience, which the request was verified for, and
-  # its credential. The SIWA answer as the shared hook keeps it carries neither
-  # the chain, the verification method nor the receipt's end, so those are nil.
+  # Build the actor only from the proof the SIWA service verified.
   defp agent(%RegentAgents.Agent{} = verified, credential_ref) do
     %Agent{
       wallet_address: verified.wallet,
-      chain_id: nil,
-      verification_method: nil,
+      chain_id: verified.chain_id,
+      verification_method: verification_method(verified.verification_method),
+      receipt_expires_at: expiry(verified.receipt_expires_at),
       audience: Broker.audience(),
       credential_ref: credential_ref,
       registry_url: verified.registry_listing,
@@ -102,14 +100,33 @@ defmodule RegentsWeb.Account.PairedAgent do
     }
   end
 
+  defp verification_method("eoa_recovery"), do: :eoa_recovery
+  defp verification_method("erc1271"), do: :erc1271
+  defp verification_method("erc6492"), do: :erc6492
+  defp verification_method(_other), do: nil
+
+  defp expiry(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, expires_at, _offset} -> expires_at
+      _invalid -> nil
+    end
+  end
+
+  defp expiry(_absent), do: nil
+
+  @doc "Rechecks the same pairing episode before returning a private answer."
+  def recheck_before_response(conn, %Agent{} = actor),
+    do: recheck_before_response(conn, actor.wallet_address, actor.pairing_id, actor.privy_user_id)
+
+  @doc "Rechecks a verified agent’s pairing when a product uses its own actor."
+  def recheck_before_response(conn, wallet, pairing_id, owner),
+    do: register_before_send(conn, &recheck(&1, wallet, pairing_id, owner))
+
   # The read ran after the pairing was resolved. Before anything is sent, the
-  # wallet's current pairing must still be this request's episode and owner;
-  # otherwise the answer is replaced, so a revoke or re-pairing during the read
-  # never sends the former owner's data.
-  defp recheck(conn, %Agent{} = actor) do
-    case Authority.resolve(Regents.Repo, actor.wallet_address) do
-      {:ok, %{id: id, privy_user_id: owner}}
-      when id == actor.pairing_id and owner == actor.privy_user_id ->
+  # wallet's current pairing must still be this request's episode and owner.
+  defp recheck(conn, wallet, pairing_id, owner) do
+    case Authority.resolve(Regents.Repo, wallet) do
+      {:ok, %{id: ^pairing_id, privy_user_id: ^owner}} ->
         conn
 
       {:error, reason} when reason != :not_paired and conn.status not in 200..299 ->

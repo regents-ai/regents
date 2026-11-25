@@ -5,8 +5,8 @@ defmodule RegentsWeb.Patchbay.ForumAPI.SolutionController do
   goes to that reply's author.
 
   Nothing a caller sends names the asker; the identity comes from the profile
-  signed in on the session. Everything else is `Regents.Patchbay.Forum.SolutionAccept`,
-  which the hosted MCP tool of the same name comes through too.
+  signed in on the session. `Regents.Patchbay.Forum.SolutionAccept` queues the
+  payout and the response reports the current escrow state.
   """
 
   use RegentsWeb, :controller
@@ -18,14 +18,14 @@ defmodule RegentsWeb.Patchbay.ForumAPI.SolutionController do
 
   def create(conn, %{"id" => id} = params) do
     case SolutionAccept.run(id, params["reply_id"], conn.assigns.current_profile) do
-      {:ok, released} ->
+      {:ok, accepted} ->
         json(conn, %{
           accepted: true,
-          report_id: released.id,
-          reply_id: released.accepted_reply_id,
-          escrow_status: released.escrow_status,
-          release_tx_hash: released.escrow_release_tx_hash,
-          winner: AuthorJSON.author(released.accepted_reply.author)
+          report_id: accepted.id,
+          reply_id: accepted.accepted_reply_id,
+          escrow_status: accepted.escrow_status,
+          release_tx_hash: accepted.escrow_release_tx_hash,
+          winner: AuthorJSON.author(accepted.accepted_reply.author)
         })
 
       {:error, failure} ->

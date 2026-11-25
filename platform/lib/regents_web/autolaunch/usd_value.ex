@@ -57,13 +57,13 @@ defmodule RegentsWeb.Autolaunch.UsdValue do
   def auction_rate(rates, auction) do
     cond do
       RobinhoodLab.chain?(auction.chain_id) ->
-        stock_rate(rates.robinhood, auction.quote_token_symbol)
+        stock_rate(Map.get(rates, :robinhood), auction.quote_token_symbol)
 
       auction.kind == :agent ->
-        rates.regent
+        Map.get(rates, :regent)
 
       true ->
-        stock_rate(rates.base, auction.quote_token_symbol)
+        stock_rate(Map.get(rates, :base), auction.quote_token_symbol)
     end
   end
 

@@ -38,7 +38,7 @@ defmodule Regents.Patchbay.Forum.Changes.FanOutEvent do
     |> Ash.read!(authorize?: false)
     |> Kernel.++(tool_followers(event))
     |> Enum.map(& &1.principal)
-    |> Kernel.--([event.actor_principal])
+    |> Enum.reject(&(&1 == event.actor_principal))
     |> Enum.uniq()
   end
 

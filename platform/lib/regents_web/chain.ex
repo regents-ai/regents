@@ -1,7 +1,6 @@
 defmodule RegentsWeb.Chain do
   @moduledoc """
-  The wallet steps, on-chain button, receipts and token display that Stake and Redeem
-  pages share.
+  The shared wallet steps, on-chain button, receipts and token display.
   """
   use Boundary,
     deps: [RegentsWeb],
@@ -9,6 +8,7 @@ defmodule RegentsWeb.Chain do
       OnchainButton,
       OnchainSteps,
       ReadBudget,
+      ReceiptCheck,
       SubmittedTransactions,
       TokenDisplay,
       TransactionReceipt

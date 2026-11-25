@@ -46,20 +46,16 @@ defmodule Regents.Autolaunch.Robinhood.Discovery do
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
-    if Regents.ProductActivity.active?(:autolaunch) do
-      case pass() do
-        :ok ->
-          {:snooze, if(Lab.test_chain?(), do: 1, else: 300)}
+    case pass() do
+      :ok ->
+        {:snooze, if(Lab.test_chain?(), do: 1, else: 300)}
 
-        {:error, reason} when reason in @unavailable ->
-          Logger.warning("Robinhood launches not read (#{reason}); reading again in a minute")
-          {:snooze, 60}
+      {:error, reason} when reason in @unavailable ->
+        Logger.warning("Robinhood launches not read (#{reason}); reading again in a minute")
+        {:snooze, 60}
 
-        {:error, reason} ->
-          {:error, reason}
-      end
-    else
-      :ok
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

@@ -1,4 +1,5 @@
-import type {Address, Hash, Hex} from "viem"
+import {createWalletClient, custom, defineChain, type Address, type Hash, type Hex} from "viem"
+import {getCapabilities, sendCalls, waitForCallsStatus} from "viem/actions"
 
 import type {EthereumProvider, SelectedWallet} from "./connected_wallet"
 
@@ -6,7 +7,7 @@ import type {EthereumProvider, SelectedWallet} from "./connected_wallet"
  * The chain a step goes to. The server's review also names it and its public
  * node; the wallet takes those from Privy's own list of networks instead.
  */
-export type StepChain = {chain_id: number}
+export type StepChain = {chain_id: number; name?: string; rpc_url?: string}
 
 /** One transaction a button sends, built on the server. */
 export type TransactionStep = {kind: "transaction"; step: string; to: Address; data: Hex; value: Hex}
@@ -55,6 +56,71 @@ export async function sendStep(
     throw new Error("The wallet did not return a transaction hash.")
   }
   return hash as Hash
+}
+
+export async function sendsAtomically(
+  chain: StepChain,
+  signer: Address,
+  provider: EthereumProvider,
+): Promise<boolean> {
+  try {
+    const capabilities = await getCapabilities(walletClient(provider, signer), {chainId: chain.chain_id})
+    return capabilities.atomic?.status === "supported" || capabilities.atomic?.status === "ready"
+  } catch {
+    return false
+  }
+}
+
+export async function sendSteps(
+  chain: StepChain,
+  signer: Address,
+  steps: TransactionStep[],
+  wallet: () => SelectedWallet | null,
+  sending: () => void,
+): Promise<{id: string; provider: EthereumProvider}> {
+  const provider = await ready(chain, signer, wallet)
+  const network = defineChain({
+    id: chain.chain_id,
+    name: chain.name ?? String(chain.chain_id),
+    nativeCurrency: {name: "Ether", symbol: "ETH", decimals: 18},
+    rpcUrls: {default: {http: chain.rpc_url ? [chain.rpc_url] : []}},
+  })
+  sending()
+  const {id} = await sendCalls(walletClient(provider, signer), {
+    chain: network,
+    calls: steps.map(({to, data, value}) => ({to, data, value: BigInt(value)})),
+    forceAtomic: true,
+  })
+  return {id, provider}
+}
+
+export async function landedCalls(
+  signer: Address,
+  provider: EthereumProvider,
+  id: string,
+  stop: AbortSignal,
+): Promise<{status: "success" | "failure"; hashes: Hash[]} | undefined> {
+  try {
+    const {status, receipts} = await waitForCallsStatus(walletClient(provider, signer), {
+      id,
+      pollingInterval: 1_000,
+      timeout: 180_000,
+      status: ({statusCode}) => stop.aborted || statusCode === 200 || statusCode >= 300,
+    })
+    if (stop.aborted || (status !== "success" && status !== "failure")) return undefined
+    return {status, hashes: [...new Set((receipts ?? []).map(receipt => receipt.transactionHash))]}
+  } catch {
+    return undefined
+  }
+}
+
+export function refusedAtomic(error: unknown): boolean {
+  return [4200, 5700, 5710, 5760].some(code => hasCode(error, code)) ||
+    causes(error).some(candidate => (candidate as {name?: unknown}).name === "AtomicityNotSupportedError")
+}
+
+function walletClient(provider: EthereumProvider, signer: Address) {
+  return createWalletClient({account: signer, transport: custom(provider, {retryCount: 0})})
 }
 
 /**

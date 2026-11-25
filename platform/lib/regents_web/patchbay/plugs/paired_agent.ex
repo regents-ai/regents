@@ -4,11 +4,12 @@ defmodule RegentsWeb.Patchbay.Plugs.PairedAgent do
   @behaviour Siwa.AgentAuthPlug.Hooks
   import Plug.Conn
 
-  alias Regents.Account.Accounts
+  alias Regents.Account.Actors.Agent
   alias Regents.Patchbay.Agents.Actor
   alias Regents.Patchbay.Members
   alias Regents.Patchbay.Members.Member
-  alias RegentsWeb.Patchbay.{ApiError, Plugs.WalletAuthor, SiteEdition}
+  alias RegentsWeb.Account.PairedAgent, as: SharedPairing
+  alias RegentsWeb.Patchbay.{ApiError, CurrentProfile, Plugs.WalletAuthor, SiteEdition}
 
   @unsigned_hint "The request's signature headers are missing, too old or malformed. Get the newest client " <>
                    "with `curl -fsSO https://siwa.regents.sh/agent/siwa_agent.py`, or if you use regents-cli, " <>
@@ -58,61 +59,39 @@ defmodule RegentsWeb.Patchbay.Plugs.PairedAgent do
   end
 
   @impl Siwa.AgentAuthPlug.Hooks
-  def accept(
-        conn,
-        %{
-          "verified" => true,
-          "walletAddress" => address,
-          "principal" => %{
-            "kind" => "wallet",
-            "wallet_address" => address,
-            "chain_id" => 8453,
-            "audience" => "regents"
-          }
-        },
-        _context
-      )
-      when is_binary(address) do
-    attach_verified_wallet(conn, address)
+  def accept(conn, data, context) do
+    with {:ok, conn} <- RegentAgents.HTTP.Hooks.accept(conn, data, context),
+         %RegentAgents.Agent{wallet: address} <- conn.assigns.regent_agent,
+         "0x" <> _hex = claimed <- data["walletAddress"],
+         true <- String.downcase(claimed) == address do
+      attach_verified_wallet(conn, address)
+    else
+      _ -> refused(:unsupported_principal)
+    end
   end
-
-  def accept(_conn, _data, _context), do: refused(:unsupported_principal)
 
   @doc "Resolve delegation after the caller has already verified this exact SIWA wallet request."
   def attach_verified_wallet(conn, address) do
     with true <- Regex.match?(~r/\A0x[0-9a-f]{40}\z/, address),
-         {:ok, pairing} <- RegentAgents.Authority.resolve(Regents.Repo, address),
-         {:ok, %{} = beneficiary} <- local_profile(pairing.privy_user_id),
+         {:ok, pairing, account} <- Agent.pairing_account(address),
+         %Member{} = beneficiary <- CurrentProfile.member_for_account(account),
          true <- Member.may_act?(beneficiary),
-         {:ok, %{} = account} <- local_account(pairing.privy_user_id),
          {:ok, profile} <-
            Members.upsert_from_wallet(%{wallet_address: address}, upsert_fields: []),
          true <- Member.may_act?(profile) do
       actor = Actor.new(profile, beneficiary, account, pairing)
+
       # A stable agent identity preserves request keys across MCP reconnects and CLI calls.
       {:ok,
        conn
        |> assign(:agent_actor, actor)
        |> assign(:current_profile, actor)
-       |> assign(:forum_session_id, pairing.id)}
+       |> assign(:forum_session_id, pairing.id)
+       |> SharedPairing.recheck_before_response(address, pairing.id, pairing.privy_user_id)}
     else
       {:error, :not_paired} -> refused(:agent_not_paired)
       {:error, :person_not_here} -> refused(:person_not_here)
       _ -> refused(:agent_unavailable)
-    end
-  end
-
-  defp local_profile(did) do
-    case Members.get_profile_by_privy_user_id(did) do
-      {:ok, nil} -> {:error, :person_not_here}
-      answer -> answer
-    end
-  end
-
-  defp local_account(did) do
-    case Accounts.get_by_privy_did(did, actor: %Regents.Account.Actors.System{}) do
-      {:ok, nil} -> {:error, :person_not_here}
-      answer -> answer
     end
   end
 
@@ -133,7 +112,7 @@ defmodule RegentsWeb.Patchbay.Plugs.PairedAgent do
       {"The person this agent is paired with hasn't signed in on this site yet.",
        "Ask your person to sign in on this site once, then send the request again. Help: #{help(edition)}/errors/person_not_here"}
 
-  defp help(:main), do: "https://patchbay.help"
+  defp help(:main), do: "https://regents.sh/patchbay"
   defp help(:open), do: SiteEdition.url(:open)
 
   @impl Siwa.AgentAuthPlug.Hooks
