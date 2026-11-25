@@ -23,9 +23,151 @@ defmodule RegentsWeb.Cloak do
   @forum_path "/patchbay/cloak"
   @film "/images/cloak/intro.mp4"
   @releases_url "https://github.com/regents-ai/cloak/releases"
+  @download_url "https://github.com/regents-ai/cloak/releases/latest/download/Regents-Cloak.dmg"
   @source_url "https://github.com/regents-ai/cloak"
   @docs_path "/docs/cloak/reference"
   @facts "v0.2.0 Beta · Apple silicon · macOS 26+ · Unaudited beta — keep wallet balances small."
+
+  @menubar_callouts [
+    %{
+      n: 1,
+      title: "Open chat",
+      body:
+        "Chat offline on Apple silicon, verify hardware TEEs, or route prompts through local rewriting, Tor, and one-time crypto payments."
+    },
+    %{
+      n: 2,
+      title: "A private local API",
+      body:
+        "Your apps connect at 127.0.0.1:8742/v1. It speaks the OpenAI API, rewrites user prompts locally, and routes over Tor."
+    },
+    %{
+      n: 3,
+      title: "5 modes, one menu bar",
+      body:
+        "Switch between Local MLX, NEAR AI Gateway, Token Inference, zkAPI Anon Inference, and Darkbloom Serving in one click."
+    }
+  ]
+
+  @menubar_modes [
+    %{name: "Local", tag: "MLX", meta: "Inkling 2 Mini · 10.2 GB", badge: "Offline"},
+    %{name: "NEAR AI Gateway", tag: "TEE", meta: "Qwen3.8-27B · 0 GB", badge: "E2EE"},
+    %{name: "Token Inference", tag: "Tor", meta: "Boundless · Venice", badge: "USDC"},
+    %{name: "zkAPI Anon", tag: "Tor", meta: "Fresh key per turn", badge: "ETH"}
+  ]
+
+  @boundaries [
+    %{
+      icon: "rewrite",
+      title: "Local prompt rewriter",
+      detail: "Strips writing style via Qwen 3.5 9B; fails closed on error",
+      status: "Auto"
+    },
+    %{
+      icon: "vm",
+      title: "NIC-less Linux microVM",
+      detail: "Zero virtual network interfaces; exits only via Tor vsock",
+      status: "Isolated"
+    },
+    %{
+      icon: "tee",
+      title: "Hardware TEE verifier",
+      detail: "Checks Intel TDX quotes & NVIDIA verdicts before E2EE v2",
+      status: "Pinned"
+    },
+    %{
+      icon: "tor",
+      title: "Per-chat Tor circuits",
+      detail: "Dedicated IsolateSOCKSAuth circuit + optional live cover traffic",
+      status: "Auto"
+    },
+    %{
+      icon: "keychain",
+      title: "6 isolated Keychain vaults",
+      detail: "Device-only keys per wallet; never synced to iCloud",
+      status: "Local"
+    }
+  ]
+
+  @mode_cards [
+    %{
+      id: "near",
+      ram: "8 GB Mac or more · 0 GB download",
+      name: "NEAR AI Gateway",
+      body:
+        "Verifies Intel TDX and NVIDIA GPU attestation on your Mac before sealing prompts with E2EE v2. Optional Tor and local trace exports.",
+      credit: [
+        {:text, "Hardware-verified on "},
+        {:link, "NEAR AI Cloud", "https://cloud.near.ai"}
+      ]
+    },
+    %{
+      id: "local",
+      ram: "16 GB Mac or more · 10.21 GB",
+      name: "Local (Inkling 2 Mini)",
+      body:
+        "Runs offline on Apple MLX at 56–64 tok/s or Metal llama.cpp with offline Local Access for PDFs, OCR, and folders. Free, no account.",
+      credit: [
+        {:text, "Powered by "},
+        {:link, "Thinking Machines", "https://thinkingmachines.ai"}
+      ]
+    },
+    %{
+      id: "token",
+      ram: "16 GB Mac or more · Pay per call",
+      name: "Token Inference",
+      body:
+        "Local rewrite and per-chat Tor circuits with Boundless (Tempo USDC.e) or Venice AI (Base USDC x402 / API key). Confirms before switching mid-thread.",
+      credit: [
+        {:link, "Boundless", "https://boundless.network"},
+        {:text, " · "},
+        {:link, "Venice AI", "https://venice.ai"}
+      ]
+    },
+    %{
+      id: "zkapi",
+      ram: "16 GB Mac or more · Ethereum Mainnet",
+      name: "zkAPI Anon Inference",
+      body:
+        "Local rewrite, Tor, optional cover traffic, and a fresh one-time zkAPI key per turn drawn from a reusable ETH deposit — no provider account or linked API key.",
+      credit: [
+        {:text, "Inspired by Vitalik's "},
+        {:link, "X post", "https://x.com/VitalikButerin/status/2111046730959433793"}
+      ]
+    },
+    %{
+      id: "darkbloom",
+      ram: "macOS 27+ · Apple silicon",
+      name: "Darkbloom Serving",
+      body:
+        "Serve local models for your own apps or earn payouts on idle Apple silicon memory with automatic pause while you work.",
+      credit: [
+        {:text, "Powered by "},
+        {:link, "Darkbloom", "https://darkbloom.dev"},
+        {:text, " · "},
+        {:link, "EigenLayer", "https://eigenlayer.xyz"}
+      ]
+    }
+  ]
+
+  @api_bullets [
+    "Localhost-only http://127.0.0.1:8742/v1 with per-app bearer keys",
+    "Rewrites user text only — code, tools, and system prompts pass unchanged",
+    "Paid automatically via zkAPI with a fresh one-time key per request",
+    "Built-in Pi coding agent inside an ephemeral, NIC-less Linux microVM",
+    "Native cloak CLI plus progressive Offline Data packs (Kiwix, DevDocs, PubMed)"
+  ]
+
+  @curl_example """
+  curl http://127.0.0.1:8742/v1/chat/completions \\
+    -H "Authorization: Bearer cloak-..." \\
+    -H "Content-Type: application/json" \\
+    -d '{
+      "model": "auto",
+      "messages": [{"role": "user", "content": "Review PR #418 for edge cases."}]
+    }'
+  """
+  |> String.trim()
 
   @ecosystem_heading "One app to aggregate best-in-class local models, cryptographic AI privacy in the cloud, and inference serving"
   @ecosystem [
@@ -255,8 +397,15 @@ defmodule RegentsWeb.Cloak do
   def forum_path, do: @forum_path
   def film, do: @film
   def releases_url, do: @releases_url
+  def download_url, do: @download_url
   def source_url, do: @source_url
   def docs_path, do: @docs_path
+  def menubar_callouts, do: @menubar_callouts
+  def menubar_modes, do: @menubar_modes
+  def boundaries, do: @boundaries
+  def mode_cards, do: @mode_cards
+  def api_bullets, do: @api_bullets
+  def curl_example, do: @curl_example
   def agent, do: @agent
   def facts, do: @facts
   def ecosystem_heading, do: @ecosystem_heading
