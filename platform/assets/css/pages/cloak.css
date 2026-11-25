@@ -181,23 +181,23 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: var(--space-2);
+  gap: 12px;
   margin-block-start: var(--space-5);
 }
 
 .cloak-button {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  min-height: 60px;
+  gap: 10px;
+  min-height: 50px;
   margin: 0;
-  padding: 0 30px;
+  padding: 0 24px;
   border: 1px solid var(--hairline-strong);
-  border-radius: var(--cloak-round-button);
-  background: color-mix(in srgb, var(--color-fg) 6%, var(--color-bg));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-fg) 5%, var(--color-bg));
   color: var(--color-fg);
   font-family: var(--cloak-sans);
-  font-size: 1.25rem;
+  font-size: 0.96875rem;
   font-weight: 600;
   line-height: 1.2;
   text-decoration: none;
@@ -224,8 +224,8 @@
 
 .cloak-button svg {
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
 }
 
 .cloak-button__time {
@@ -240,7 +240,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .cloak-button:hover {
-    background: color-mix(in srgb, var(--color-fg) 12%, var(--color-bg));
+    background: color-mix(in srgb, var(--color-fg) 10%, var(--color-bg));
   }
 
   .cloak-button--main:hover {
@@ -249,10 +249,33 @@
 }
 
 .cloak-hero__facts {
-  margin: var(--space-3) 0 0;
+  margin: 18px 0 0;
   color: var(--color-fg-muted);
-  font-size: 1.0625rem;
+  font-size: 0.9375rem;
   line-height: 1.5;
+}
+
+.cloak-hero__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px 10px;
+  margin-block-start: 8px;
+  font-size: 0.875rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-hero__links a {
+  color: var(--color-fg-muted);
+  text-decoration: none;
+  transition: color var(--duration-fast) ease;
+}
+
+.cloak-hero__links a:hover {
+  color: var(--color-fg);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* ==========================================================================

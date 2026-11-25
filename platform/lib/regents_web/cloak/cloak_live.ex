@@ -49,9 +49,21 @@ defmodule RegentsWeb.Cloak.CloakLive do
         </h1>
         <p class="cloak-hero__subtitle">{Cloak.subtitle()}</p>
         <div class="cloak-hero__actions">
+          <a
+            id="cloak-download"
+            class="cloak-button cloak-button--main"
+            href={Cloak.download_url()}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <svg viewBox="0 0 170 170" fill="currentColor" aria-hidden="true" focusable="false">
+              <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.13-1.9-14.34-6.08-3.69-3.03-7.61-7.82-11.77-14.37-5.03-7.89-9.16-17.02-12.4-27.39-3.24-10.36-4.86-20.38-4.86-30.05 0-11.29 2.84-20.99 8.51-29.09 4.46-6.37 10.32-11.41 17.59-15.13 7.26-3.71 14.95-5.64 23.06-5.78 4.58 0 10.61 1.42 18.11 4.24 7.49 2.83 12.31 4.27 14.44 4.32 1.67 0 6.97-1.69 15.9-5.05 8.43-3.06 15.55-4.32 21.37-3.82 15.79 1.28 27.67 7.51 35.61 18.73-14.12 8.58-21.08 20.57-20.89 35.97.17 12.01 4.53 22 13.06 29.93 5.95 5.66 13.07 9.57 21.37 11.75-1.71 5.14-3.71 10.02-6.01 14.66zM119.22 31.01c0 9.39-3.43 18.16-10.27 26.28-8.26 9.65-18.23 15.22-29.04 14.33-.15-1.15-.23-2.36-.23-3.65 0-9.02 3.92-18.67 10.97-26.64 3.51-4.03 7.97-7.38 13.39-10.05 5.41-2.66 10.52-4.13 15.32-4.39.18 1.43.26 2.82.26 4.12z" />
+            </svg>
+            <span>Download for Mac</span>
+          </a>
           <button
             id="cloak-watch"
-            class="cloak-button cloak-button--main"
+            class="cloak-button"
             type="button"
             aria-haspopup="dialog"
             aria-controls="cloak-intro"
@@ -70,30 +82,19 @@ defmodule RegentsWeb.Cloak.CloakLive do
             <span>{Cloak.watch_label()}</span>
             <span class="cloak-button__time">{Cloak.watch_time()}</span>
           </button>
-          <a
-            class="cloak-button"
-            href={Cloak.releases_url()}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span>View releases</span>
-          </a>
-          <a class="cloak-button" href={Cloak.docs_path()}>
-            <span>Read docs</span>
-          </a>
-          <a id="cloak-forum-link" class="cloak-button" href={~p"/patchbay/cloak"}>
-            <span>{Cloak.forum_label()}</span>
-          </a>
-          <a
-            class="cloak-button"
-            href={Cloak.source_url()}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span>View source</span>
-          </a>
         </div>
         <p class="cloak-hero__facts">{Cloak.facts()}</p>
+        <nav class="cloak-hero__links" aria-label="Cloak resources">
+          <.link navigate={~p"/cloak/install"}>Install &amp; checksums</.link>
+          <span aria-hidden="true">·</span>
+          <a href={Cloak.docs_path()}>Docs</a>
+          <span aria-hidden="true">·</span>
+          <a id="cloak-forum-link" href={~p"/patchbay/cloak"}>{Cloak.forum_label()}</a>
+          <span aria-hidden="true">·</span>
+          <a href={Cloak.releases_url()} target="_blank" rel="noopener noreferrer">Releases</a>
+          <span aria-hidden="true">·</span>
+          <a href={Cloak.source_url()} target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
       </header>
 
       <%!-- Section 1: Menu-bar app callout card (llama.app showcase) --%>
