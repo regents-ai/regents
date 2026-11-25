@@ -24,10 +24,10 @@ defmodule RegentsWeb.Cloak do
   @film "/images/cloak/intro.mp4"
   @releases_url "https://github.com/regents-ai/cloak/releases"
   @download_page_path "/cloak/download/mac"
-  @download_url "https://github.com/regents-ai/cloak/releases/download/0.2.0-290/Regents-Cloak-0.2.0-290.dmg"
+  @download_url "https://github.com/regents-ai/cloak/releases/download/0.2.1-295/Regents-Cloak-0.2.1-295.dmg"
   @source_url "https://github.com/regents-ai/cloak"
   @docs_path "/docs/cloak/reference"
-  @facts "v0.2.0 Beta · Apple silicon · macOS 26+ · Unaudited beta — keep wallet balances small."
+  @facts "v0.2.1 Beta · Apple silicon · macOS 26+ · Unaudited beta — keep wallet balances small."
 
   @menubar_callouts [
     %{
@@ -332,8 +332,8 @@ defmodule RegentsWeb.Cloak do
   @install_heading "Install Cloak"
   @install_steps [
     {"Download",
-     "Get the signed Regents-Cloak-0.2.0-290.dmg from /cloak/download/mac or GitHub Releases."},
-    {"Drag", "Open Regents-Cloak-0.2.0-290.dmg and drag Cloak into Applications."},
+     "Get the signed Regents-Cloak-0.2.1-295.dmg from /cloak/download/mac or GitHub Releases."},
+    {"Drag", "Open Regents-Cloak-0.2.1-295.dmg and drag Cloak into Applications."},
     {"Open", "Launch Cloak from Applications. Builds are signed and notarized by Apple."},
     {"Choose",
      "Pick Local (10.21 GB MLX on 16 GB+ Macs) or NEAR AI Gateway (0 GB download on 8 GB+ Macs). Tor modes download the 5.69 GB Qwen 3.5 9B rewriter."},
@@ -346,22 +346,22 @@ defmodule RegentsWeb.Cloak do
   # regents-ai/cloak Releases (`SHA256SUMS.txt` and `checksums.json`). Update
   # these values whenever a new release is published by `app/publish.sh`.
   @release_checksums %{
-    tag: "0.2.0-290",
-    dmg_filename: "Regents-Cloak-0.2.0-290.dmg",
-    dmg_sha256: "de16b986247fa84084677f04ad456efd57d278cac2335357a75e1e3455551940",
+    tag: "0.2.1-295",
+    dmg_filename: "Regents-Cloak-0.2.1-295.dmg",
+    dmg_sha256: "28492fc334367c31915f7ba283d92b46d2974e292b134f59e6136ca931283b5d",
     # Populated on releases published by the updated app/release.sh + app/publish.sh
     # (e.g. {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)", "..."},
     # {"Apple Code Signature CDHash", "..."}).
     extra_hashes: [
       {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)",
-       "daf9f28930d9ecd841dcde8c82d043baebdfe1a0b60171a67085a69af4bd0083"},
-      {"Apple Code Signature CDHash", "c05bacf04b9bd022446a104bce6a3b66584fc0bf"}
+       "e1486acaa0a24bca11eb7515478591370e5dc155089414a57de75a3e1b3bfa3f"},
+      {"Apple Code Signature CDHash", "9ffdcd3940b6c5937b937fdd0bf7bc222010c55f"}
     ],
     team_id: "367G3Z7G3J",
     release_url: "https://github.com/regents-ai/cloak/releases/latest",
     sums_url: "https://github.com/regents-ai/cloak/releases/latest/download/SHA256SUMS.txt",
     commands: [
-      {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/Regents-Cloak-0.2.0-290.dmg"},
+      {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/Regents-Cloak-0.2.1-295.dmg"},
       {"Verify app binary SHA-256",
        "shasum -a 256 \"/Applications/Cloak.app/Contents/MacOS/RegentsCloak\""},
       {"Verify Apple signature (Team 367G3Z7G3J)",

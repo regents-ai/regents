@@ -90,7 +90,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Your download of Regents Cloak for Apple silicon Mac is starting. Drag Cloak to Applications and find it in the menu bar."},
     "/cloak/install" =>
       {"Install Cloak",
-       "Download Regents-Cloak-0.2.0-290.dmg, drag Cloak into Applications, pick a mode, and verify the SHA-256 checksum."},
+       "Download Regents-Cloak-0.2.1-295.dmg, drag Cloak into Applications, pick a mode, and verify the SHA-256 checksum."},
     "/siwa" =>
       {"SIWA",
        "Pair an agent with a person's account using a one-time code and its own SIWA key."},
