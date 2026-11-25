@@ -43,17 +43,26 @@ defmodule RegentsWeb.Cloak do
     },
     %{
       n: 3,
-      title: "5 modes, one menu bar",
+      title: "3 modes, one menu bar",
       body:
-        "Switch between Local MLX, NEAR AI Gateway, Token Inference, zkAPI Anon Inference, and Darkbloom Serving in one click."
+        "Switch between Local AI, Private Cloud Inference (NEAR, Venice, Boundless, zkAPI), and Inference Serving with EigenLayer's Darkbloom."
     }
   ]
 
   @menubar_modes [
-    %{name: "Local", tag: "MLX", meta: "Inkling 2 Mini · 10.2 GB", badge: "Offline"},
-    %{name: "NEAR AI Gateway", tag: "TEE", meta: "Qwen3.8-27B · 0 GB", badge: "E2EE"},
-    %{name: "Token Inference", tag: "Tor", meta: "Boundless · Venice", badge: "USDC"},
-    %{name: "zkAPI Anon", tag: "Tor", meta: "Fresh key per turn", badge: "ETH"}
+    %{name: "Local AI", tag: "MLX", meta: "Inkling 2 Mini · 10.2 GB", badge: "Offline"},
+    %{
+      name: "Private Cloud",
+      tag: "TEE · Tor",
+      meta: "NEAR · Venice · Boundless · zkAPI",
+      badge: "4 rails"
+    },
+    %{
+      name: "Inference Serving",
+      tag: "macOS 27+",
+      meta: "EigenLayer's Darkbloom",
+      badge: "Earn"
+    }
   ]
 
   @boundaries [
@@ -91,61 +100,43 @@ defmodule RegentsWeb.Cloak do
 
   @mode_cards [
     %{
-      id: "near",
-      ram: "8 GB Mac or more · 0 GB download",
-      name: "NEAR AI Gateway",
-      body:
-        "Verifies Intel TDX and NVIDIA GPU attestation on your Mac before sealing prompts with E2EE v2. Optional Tor and local trace exports.",
-      credit: [
-        {:text, "Hardware-verified on "},
-        {:link, "NEAR AI Cloud", "https://cloud.near.ai"}
-      ]
-    },
-    %{
       id: "local",
-      ram: "16 GB Mac or more · 10.21 GB",
-      name: "Local (Inkling 2 Mini)",
+      ram: "16 GB Mac or more · Offline",
+      name: "Local AI",
       body:
-        "Runs offline on Apple MLX at 56–64 tok/s or Metal llama.cpp with offline Local Access for PDFs, OCR, and folders. Free, no account.",
+        "Runs offline on Apple MLX (Inkling 2 Mini at 56–64 tok/s) or Metal llama.cpp with offline Local Access for PDFs, OCR, and approved folders. Free, no account.",
       credit: [
         {:text, "Powered by "},
         {:link, "Thinking Machines", "https://thinkingmachines.ai"}
       ]
     },
     %{
-      id: "token",
-      ram: "16 GB Mac or more · Pay per call",
-      name: "Token Inference",
+      id: "private-cloud",
+      ram: "8 GB+ Mac · Hardware TEE, Tor & crypto",
+      name: "Private Cloud Inference",
       body:
-        "Local rewrite and per-chat Tor circuits with Boundless (Tempo USDC.e) or Venice AI (Base USDC x402 / API key). Confirms before switching mid-thread.",
+        "Pick your privacy rail per thread: hardware-verified NEAR AI Cloud (0 GB download), Venice AI (Base USDC x402), Boundless (Tempo USDC.e), or zkAPI (fresh one-time key per turn from an ETH deposit) with local rewriting and Tor.",
       credit: [
+        {:link, "NEAR", "https://cloud.near.ai"},
+        {:text, " · "},
+        {:link, "Venice", "https://venice.ai"},
+        {:text, " · "},
         {:link, "Boundless", "https://boundless.network"},
         {:text, " · "},
-        {:link, "Venice AI", "https://venice.ai"}
+        {:link, "zkAPI", "https://x.com/VitalikButerin/status/2111046730959433793"}
       ]
     },
     %{
-      id: "zkapi",
-      ram: "16 GB Mac or more · Ethereum Mainnet",
-      name: "zkAPI Anon Inference",
-      body:
-        "Local rewrite, Tor, optional cover traffic, and a fresh one-time zkAPI key per turn drawn from a reusable ETH deposit — no provider account or linked API key.",
-      credit: [
-        {:text, "Inspired by Vitalik's "},
-        {:link, "X post", "https://x.com/VitalikButerin/status/2111046730959433793"}
-      ]
-    },
-    %{
-      id: "darkbloom",
+      id: "serving",
       ram: "macOS 27+ · Apple silicon",
-      name: "Darkbloom Serving",
+      name: "Inference Serving",
       body:
-        "Serve local models for your own apps or earn payouts on idle Apple silicon memory with automatic pause while you work.",
+        "Serve local models for your own apps or earn payouts on idle Apple silicon memory with EigenLayer's Darkbloom, pausing automatically while you work.",
       credit: [
         {:text, "Powered by "},
-        {:link, "Darkbloom", "https://darkbloom.dev"},
-        {:text, " · "},
-        {:link, "EigenLayer", "https://eigenlayer.xyz"}
+        {:link, "EigenLayer", "https://eigenlayer.xyz"},
+        {:text, "'s "},
+        {:link, "Darkbloom", "https://darkbloom.dev"}
       ]
     }
   ]
@@ -228,42 +219,32 @@ defmodule RegentsWeb.Cloak do
     docs_href: "/docs/cloak/reference"
   }
 
-  @modes_title "5 modes"
+  @modes_title "3 modes"
 
-  # Each mode, in the order a new user decides: local first, then each remote
-  # option and local/network serving.
+  # Three top-level modes: Local AI, Private Cloud Inference (NEAR, Venice,
+  # Boundless, zkAPI), and Inference Serving with EigenLayer's Darkbloom.
   @modes [
-    {"Local", nil,
-     "Runs on your Mac with Apple MLX (Inkling 2 Mini) or llama.cpp. Offline after download — no account, no fees."},
-    {"NEAR AI Gateway",
+    {"Local AI", nil,
+     "Runs offline on your Mac with Apple MLX (Inkling 2 Mini) or llama.cpp and offline Local Access — no account, no fees."},
+    {"Private Cloud Inference",
      [
-       {:text, "Hardware-verified on "},
+       {:text, "Includes "},
        {:link, "NEAR AI Cloud", "https://cloud.near.ai"},
-       {:text, "."}
-     ],
-     "Verifies Intel TDX and NVIDIA GPU attestation before encrypting prompts end-to-end. Uses your NEAR key; Tor and trace exports are optional."},
-    {"Token Inference",
-     [
-       {:text, "Served by "},
+       {:text, ", "},
        {:link, "Venice AI", "https://venice.ai"},
-       {:text, " or "},
+       {:text, ", "},
        {:link, "Boundless", "https://boundless.network"},
+       {:text, ", and "},
+       {:link, "zkAPI", "https://x.com/VitalikButerin/status/2111046730959433793"},
        {:text, "."}
      ],
-     "Rewrites prompts locally and routes over Tor. Pay per call with Tempo USDC.e via Boundless, or Base USDC (x402) / a Venice API key."},
-    {"zkAPI Anon Inference",
-     [
-       {:text, "Inspired by Vitalik's "},
-       {:link, "X post", "https://x.com/VitalikButerin/status/2111046730959433793"},
-       {:text, "."}
-     ],
-     "Local rewrite, Tor, optional cover traffic, and a fresh one-time zkAPI key per turn drawn from a reusable ETH deposit — no provider account or linked API key."},
-    {"Darkbloom Serving",
+     "Pick your cloud privacy rail per thread: hardware-verified Intel TDX + NVIDIA TEEs on NEAR, or local Qwen 3.5 9B prompt rewriting + per-chat Tor over Venice (Base USDC), Boundless (Tempo USDC.e), or zkAPI (fresh one-time key per turn from an ETH deposit)."},
+    {"Inference Serving",
      [
        {:text, "Powered by "},
-       {:link, "Darkbloom", "https://darkbloom.dev"},
-       {:text, " and "},
        {:link, "EigenLayer", "https://eigenlayer.xyz"},
+       {:text, "'s "},
+       {:link, "Darkbloom", "https://darkbloom.dev"},
        {:text, "."}
      ],
      "Serve local models on Apple silicon for your own Mac apps or earn payouts on the Darkbloom network while idle (macOS 27+)."}
@@ -293,11 +274,10 @@ defmodule RegentsWeb.Cloak do
   @needs "Apple silicon Mac, macOS 26+ (macOS 27+ for Darkbloom serving). NEAR AI Gateway needs 8 GB RAM; Local MLX (10.21 GB) and Tor/rewriter modes (5.69 GB) need 16 GB."
 
   @mode_access %{
-    "Local" => "Free local model (10.21 GB MLX)",
-    "NEAR AI Gateway" => "NEAR AI Cloud key",
-    "Token Inference" => "Tempo USDC.e (Boundless MPP), Base USDC (Venice x402), or Venice key",
-    "zkAPI Anon Inference" => "ETH deposit on Ethereum Mainnet (30-day limit)",
-    "Darkbloom Serving" => "macOS 27+ (Off / Local Only / Network + Local)"
+    "Local AI" => "Free local model (10.21 GB MLX)",
+    "Private Cloud Inference" =>
+      "NEAR API key (0 GB download), Boundless Tempo USDC.e, Venice Base USDC / key, or zkAPI ETH deposit",
+    "Inference Serving" => "macOS 27+ · EigenLayer's Darkbloom (Off / Local Only / Network + Local)"
   }
   @caution "Beta software — not independently audited. Keep wallet balances small, back up keys before wiping your Mac (no iCloud sync), and note the 30-day limit on untouched zkAPI deposits."
   @feedback %{
@@ -326,9 +306,9 @@ defmodule RegentsWeb.Cloak do
     },
     %{
       id: "modes-and-payments",
-      summary: "Modes, routing, and payments",
+      summary: "3 modes: Local AI, Private Cloud Inference, and Inference Serving",
       body:
-        "1) Local: Apple MLX (Inkling 2 Mini, 10.21 GB) or llama.cpp GGUF, free and offline. 2) NEAR AI Gateway: verifies Intel TDX + NVIDIA GPU attestation before E2EE v2 to NEAR AI Cloud (Qwen3.8-27B); optional Tor and local trace export. 3) Token Inference: local Qwen 3.5 9B rewrite + Tor; Boundless (Tempo USDC.e MPP) or Venice AI (Base USDC x402 or API key). 4) zkAPI Anon Inference: local rewrite + Tor + optional cover traffic + fresh one-time zkAPI key per turn drawn from a reusable Ethereum Mainnet ETH deposit. 5) Darkbloom Serving: serve local models on Apple silicon for your own apps or earn payouts on Darkbloom / EigenLayer while idle (macOS 27+). Also includes the sandboxed Pi agent microVM, CloakDoor (http://127.0.0.1:8742/v1), and Offline Data packs."
+        "1) Local AI: Apple MLX (Inkling 2 Mini, 10.21 GB) or llama.cpp GGUF, free and offline with Local Access. 2) Private Cloud Inference: includes NEAR AI Gateway (Intel TDX + NVIDIA GPU TEE, E2EE v2, 0 GB download), Venice AI (Base USDC x402 or API key), Boundless (Tempo USDC.e MPP), and zkAPI (local Qwen 3.5 9B rewrite + Tor + fresh one-time key per turn from a reusable ETH deposit). 3) Inference Serving: serve local models on Apple silicon or earn payouts with EigenLayer's Darkbloom while idle (macOS 27+). Also includes the sandboxed Pi agent microVM, CloakDoor (http://127.0.0.1:8742/v1), and Offline Data packs."
     },
     %{
       id: "requirements-and-install",
