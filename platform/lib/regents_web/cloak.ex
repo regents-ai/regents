@@ -22,7 +22,7 @@ defmodule RegentsWeb.Cloak do
   @forum_label "Cloak Forum"
   @forum_path "/patchbay/cloak"
   @film "/images/cloak/intro.mp4"
-  @releases_url "https://github.com/regents-ai/cloak-releases/releases"
+  @releases_url "https://github.com/regents-ai/cloak/releases"
   @source_url "https://github.com/regents-ai/cloak"
   @docs_path "/docs/cloak/reference"
   @facts "v0.2.0 Beta · Apple silicon · macOS 26+ · Unaudited beta — keep wallet balances small."
@@ -192,7 +192,7 @@ defmodule RegentsWeb.Cloak do
       id: "requirements-and-install",
       summary: "Requirements and downloads",
       body:
-        "Apple silicon Mac, macOS 26+ (macOS 27+ for Darkbloom serving). 8 GB+ RAM for NEAR AI Gateway (0 GB download); 16 GB+ RAM for Local MLX (10.21 GB) and Tor/rewriter modes (5.69 GB Qwen 3.5 9B). Signed, notarized DMGs (Team 367G3Z7G3J) and SHA-256 checksums live at https://github.com/regents-ai/cloak-releases/releases; source at https://github.com/regents-ai/cloak."
+        "Apple silicon Mac, macOS 26+ (macOS 27+ for Darkbloom serving). 8 GB+ RAM for NEAR AI Gateway (0 GB download); 16 GB+ RAM for Local MLX (10.21 GB) and Tor/rewriter modes (5.69 GB Qwen 3.5 9B). Signed, notarized DMGs (Team 367G3Z7G3J), Sparkle appcast.xml, and SHA-256 checksums are published directly on https://github.com/regents-ai/cloak/releases."
     },
     %{
       id: "agent-discovery",
@@ -218,23 +218,23 @@ defmodule RegentsWeb.Cloak do
   @updates "Signed Sparkle updates check automatically unless disabled in Settings."
 
   # Official release checksums published alongside every signed build in
-  # regents-ai/cloak-releases (`SHA256SUMS.txt` and `checksums.json`). Update
+  # regents-ai/cloak Releases (`SHA256SUMS.txt` and `checksums.json`). Update
   # these values whenever a new release is published by `app/publish.sh`.
   @release_checksums %{
-    tag: "0.2.0-282",
-    dmg_filename: "Regents-Cloak-0.2.0-282.dmg",
-    dmg_sha256: "b2893a6e13db9b13a5b99cdbd1747e5090f1f630d11a067fcf2fdd2703df2236",
+    tag: "0.2.0-284",
+    dmg_filename: "Regents-Cloak-0.2.0-284.dmg",
+    dmg_sha256: "13e0f23c02e34b2696ce16ff9ce5d135f26a1d9d421d6224408b7a3c56fc7a9b",
     # Populated on releases published by the updated app/release.sh + app/publish.sh
     # (e.g. {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)", "..."},
     # {"Apple Code Signature CDHash", "..."}).
     extra_hashes: [
       {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)",
-       "d3de82e536fce81c3bd3e3dd201a9044d802001b420f16fc2faa1b9c28731564"},
-      {"Apple Code Signature CDHash", "b8e53f39d0cd73eb02bad7f167f242cf33df2b23"}
+       "5decd598167a96bbbe94d1717bb40854801b82d6a55c87c3319c631cac29cf54"},
+      {"Apple Code Signature CDHash", "552aceb39dea63c1950198197243c3371239c44d"}
     ],
     team_id: "367G3Z7G3J",
-    release_url: "https://github.com/regents-ai/cloak-releases/releases/latest",
-    sums_url: "https://raw.githubusercontent.com/regents-ai/cloak-releases/main/SHA256SUMS.txt",
+    release_url: "https://github.com/regents-ai/cloak/releases/latest",
+    sums_url: "https://github.com/regents-ai/cloak/releases/latest/download/SHA256SUMS.txt",
     commands: [
       {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/Regents-Cloak.dmg"},
       {"Verify app binary SHA-256",
