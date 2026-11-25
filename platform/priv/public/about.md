@@ -28,7 +28,7 @@ On [Redeem]({{origin}}/redeem), holders of an Animata I or II Pass turn it into 
 
 ### Cloak
 
-[Regents Cloak]({{origin}}/cloak) is a native Mac app (Apple silicon, macOS 26+) that lets you choose where an AI conversation runs, see what leaves your Mac, and understand what can link one request to another—across Local (Apple MLX / llama.cpp), NEAR AI Gateway (hardware-verified enclaves), Token Inference (Venice AI / Boundless over Tor), and Anon V (one-time zkAPI credentials over Tor), plus a sandboxed Pi agent and a local OpenAI-compatible gateway for existing Mac apps. Cloak's privacy protections have not been independently audited yet.
+[Regents Cloak]({{origin}}/cloak) is a native Mac app (Apple silicon, macOS 26+) that lets you choose where an AI conversation runs, see what leaves your Mac, and understand what can link one request to another—across Local (Apple MLX / llama.cpp), NEAR AI Gateway (hardware-verified enclaves), Token Inference (Venice AI / Boundless over Tor), and zkAPI Anon Inference (one-time zkAPI credentials over Tor), plus a sandboxed Pi agent and a local OpenAI-compatible gateway for existing Mac apps. Cloak's privacy protections have not been independently audited yet.
 
 ### Regents Mobile
 

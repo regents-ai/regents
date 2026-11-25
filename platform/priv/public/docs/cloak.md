@@ -14,7 +14,7 @@ Cloak coordinates five purpose-built helpers across process and virtualization b
 - **Native Rust TEE verifier** (`cloak-near`, built with `dcap-qvl`, `rustls`, `curve25519-dalek`, and `chacha20poly1305`) that independently verifies Intel TDX quotes and NVIDIA GPU attestation verdicts on your Mac before encrypting prompts end-to-end.
 - **Bundled Tor daemon** (`tor 0.4.9.16`) listening strictly on an owner-only Unix SOCKS5 socket (`IsolateSOCKSAuth`, remote DNS).
 - **Ephemeral, NIC-less Linux arm64 microVM** via Apple's `Virtualization.framework` (`2 vCPU`, `1 GiB RAM`). It has **zero** virtual network interfaces—its only egress is `vsock:9050` straight into the host's Tor socket.
-- **Six separate macOS Data Protection Keychain entries** (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`), scoped via a Developer ID provisioning profile (`367G3Z7G3J.sh.regents.cloak`) so your chat master key, NEAR key, Venice Base wallet, Boundless/Tempo wallet, Venice API key, and Anon V payment-disk key stay strictly separated.
+- **Six separate macOS Data Protection Keychain entries** (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`), scoped via a Developer ID provisioning profile (`367G3Z7G3J.sh.regents.cloak`) so your chat master key, NEAR key, Venice Base wallet, Boundless/Tempo wallet, Venice API key, and zkAPI ETH wallet key stay strictly separated.
 
 Every bundled binary and downloaded model weight is verified by **SHA-256** against Cloak's embedded manifest before execution.
 
@@ -25,7 +25,7 @@ Every bundled binary and downloaded model weight is verified by **SHA-256** agai
 | **1. Local** | On your Mac (`vmlx-swift` MLX or `llama.cpp` GGUF) | Nothing during chat once weights are downloaded | Free · no account | Nothing leaves your Mac during inference |
 | **2. NEAR AI Gateway** | NEAR AI Cloud (`Qwen3.8-27B`, Intel TDX + NVIDIA GPU) | Prompt as written, E2EE v2 encrypted to the hardware-verified enclave (optional Tor) | Your NEAR AI Cloud API key | Your NEAR API key identifies your NEAR account |
 | **3. Token Inference** | Venice AI (default) or Boundless on Tempo | Locally rephrased user text over per-conversation Tor circuits | Local Base USDC wallet (`x402`) / Venice API key, or Tempo `USDC.e` (`MPP`) | A reused wallet address, payment channel, or API key can link chats |
-| **4. Anon V (`zkAPI`)** | Open Anonymity (`zkAPI`) over Tor | Locally rephrased user text over per-conversation Tor circuits | Fresh one-time zero-knowledge spend credential per request (from an ETH deposit) | No reusable payment credential; prompt text, conversation history, and timing can still correlate requests |
+| **4. zkAPI Anon Inference** | Open Anonymity (`zkAPI`) over Tor | Locally rephrased user text over per-conversation Tor circuits | Fresh one-time zero-knowledge spend credential per request (from an ETH deposit) | No reusable payment credential; prompt text, conversation history, and timing can still correlate requests |
 
 ### Mode 1: Local (`vmlx-swift` MLX + `llama.cpp`)
 
@@ -57,9 +57,9 @@ Sends locally rephrased prompts over per-conversation Tor circuits with no centr
 - **Venice AI (Default · Base USDC `x402` or API Key):** Generates a dedicated Base USDC wallet (`sh.regents.cloak.venice-wallet`, kept separate from the Boundless/Tempo wallet to avoid cross-chain address reuse), authenticates with Sign-In with Ethereum (`EIP-4361`), and tops up credit via HTTP `x402` (`EIP-3009`). Cloak defaults to Venice's `Private` and `TEE` model tiers and refuses silent mid-conversation downgrades. **Important distinction:** Venice's zero-retention policy and `Private`/`TEE` tier labels are provider-reported by Venice—Cloak does not independently verify a Venice TEE quote, and a reused wallet or API key can still link requests made with it.
 - **Boundless + Tempo (`USDC.e` via HTTP 402 `MPP`):** Uses a separate Tempo wallet (`sh.regents.cloak.wallet`) with session payment channels, cooperative instant **Close**, and a unilateral on-chain **Withdraw** escape hatch (15-minute grace period).
 
-### Mode 4: Anon V (`zkAPI`)
+### Mode 4: zkAPI Anon Inference
 
-Inspired by [Vitalik Buterin's private AI architecture](https://x.com/VitalikButerin/status/2111046730959433793), Anon V runs [Open Anonymity's zkAPI](https://zkapi.openanonymity.ai) ([ethereum/zkapi](https://github.com/ethereum/zkapi)) on Ethereum Mainnet.
+Inspired by [Vitalik Buterin's private AI architecture](https://x.com/VitalikButerin/status/2111046730959433793), zkAPI Anon Inference runs [Open Anonymity's zkAPI](https://zkapi.openanonymity.ai) ([ethereum/zkapi](https://github.com/ethereum/zkapi)) on Ethereum Mainnet.
 
 - **Guest-only LUKS2 payment disk:** Your Ethereum Mainnet deposit and `zkAPI` note secrets live inside a 1 GiB sparse LUKS2-encrypted disk image (`payment-disk.img`) mounted only inside the Linux microVM under a dedicated `cloak-pay` user, isolated even from the built-in coding agent.
 - **One-time zero-knowledge spend credentials:** For every request, `zkapi-walletd` proves deposit ownership in zero knowledge (`zkapi-v2-note-bound-v1`) and leases a fresh one-time OpenRouter credential over a per-conversation Tor circuit—avoiding any reusable wallet address or API key across requests.
@@ -69,7 +69,7 @@ Inspired by [Vitalik Buterin's private AI architecture](https://x.com/VitalikBut
 
 ## Local Prompt Rephrasing
 
-Before any prompt leaves in Token Inference, Anon V, Local Agent Box, or Connected Apps, Cloak runs a sandboxed local rewriter ([Qwen 3.5 9B](https://huggingface.co/unsloth/Qwen3.5-9B-GGUF), 5.69 GB) on Metal `llama.cpp` with GBNF grammar constraints.
+Before any prompt leaves in Token Inference, zkAPI Anon Inference, Local Agent Box, or Connected Apps, Cloak runs a sandboxed local rewriter ([Qwen 3.5 9B](https://huggingface.co/unsloth/Qwen3.5-9B-GGUF), 5.69 GB) on Metal `llama.cpp` with GBNF grammar constraints.
 
 - **What it changes:** Strips writing style, filler, politeness, and irrelevant personal framing, and **fails closed** if rewriting errors (the original text is never sent automatically on failure).
 - **What it preserves verbatim:** By design (`Rewrite.swift`), it keeps **names, identifiers, file paths, URLs, numbers, code, and exact quotations verbatim** so technical requests remain accurate—do not paste secrets you do not want transmitted.
@@ -77,7 +77,7 @@ Before any prompt leaves in Token Inference, Anon V, Local Agent Box, or Connect
 
 ## Tor Network, MicroVM & Live Cover Traffic
 
-- **Per-conversation Tor circuits:** Token Inference and Anon V allocate a dedicated `IsolateSOCKSAuth` Tor circuit per conversation with remote DNS resolution.
+- **Per-conversation Tor circuits:** Token Inference and zkAPI Anon Inference allocate a dedicated `IsolateSOCKSAuth` Tor circuit per conversation with remote DNS resolution.
 - **No virtual NIC:** The Linux arm64 microVM has zero `VZVirtioNetworkDevice`. Every outbound packet from `cloak-sender`, `cloak-pay`, or the `Pi` agent exits exclusively over `vsock:9050` into the host's Tor relay.
 - **Instant Live Cover Traffic + Local Log:** Toggling Cover Traffic ON or OFF takes effect instantaneously with **zero Tor or VM restart**. Running natively on the host over Tor's Unix SOCKS5 socket, it fetches ~3 random public HTTPS pages per minute from a curated 58-URL pool, each on its own fresh Tor circuit, and appends every fetch to an owner-only (`0600`), Time-Machine-excluded log (`cover-log.jsonl`) that you can inspect, copy, or clear (last hour or all) in **Settings → Advanced**.
 
@@ -86,18 +86,18 @@ Before any prompt leaves in Token Inference, Anon V, Local Agent Box, or Connect
 Every chat thread in Cloak is **strictly self-contained**—across different modes and across separate threads within the same mode:
 
 - **No cross-thread access:** Every mode constructs its request solely from the single active thread's history. A cloud model can never read a Local thread or any other thread.
-- **Mode locked on turn 1:** Once a thread sends its first turn, its mode (`Local`, `NEAR AI Gateway`, `Token Inference`, or `Anon V`) is fixed permanently—a Local thread can never be routed to a remote provider.
+- **Mode locked on turn 1:** Once a thread sends its first turn, its mode (`Local`, `NEAR AI Gateway`, `Token Inference`, or `zkAPI Anon Inference`) is fixed permanently—a Local thread can never be routed to a remote provider.
 - **Offline-only Local Access:** Opt-in **Settings → Local Access** sources (basic Mac info, Hermes-compatible `USER.md`/`MEMORY.md` memory, read-only approved local folders, per-turn PDF/document/image-OCR/text file attachments via picker or drag & drop, and macOS Calendar/Reminders/Contacts) are available **exclusively in Local Mode**. Cloud modes, the Pi Agent VM, and Connected Apps have zero code path to Local Access data, and pending local attachments automatically clear when switching threads or leaving Local Mode.
 - **What to keep in mind:**
   - Sources enabled under **Settings → Local Access** apply across your **Local Mode** threads only (never cloud threads).
   - Toggling the **Venice ↔ Boundless** pill mid-chat inside a single **Token Inference** thread carries that one thread's (locally rewritten) history to the newly selected Token Inference provider—still isolated from all other threads and modes.
-  - Separate threads in **NEAR** (same API key) or **Token Inference** (same Venice or Boundless wallet) never share conversation content, though the provider can see both requests were paid by the same key or wallet. **Anon V (`zkAPI`)** breaks payment-level linkability per prompt, and **Local Mode** never leaves your Mac.
+  - Separate threads in **NEAR** (same API key) or **Token Inference** (same Venice or Boundless wallet) never share conversation content, though the provider can see both requests were paid by the same key or wallet. **zkAPI Anon Inference** breaks payment-level linkability per prompt, and **Local Mode** never leaves your Mac.
 
 ## Local Agent Box & Connected Apps
 
 ### Local Agent Box (`Pi`)
 
-Toggle the hammer icon below the composer in **Token Inference** or **Anon V** to turn a chat into an autonomous multi-step agent session:
+Toggle the hammer icon below the composer in **Token Inference** or **zkAPI Anon Inference** to turn a chat into an autonomous multi-step agent session:
 
 - Runs [Pi Coding Agent](https://github.com/earendil-works/pi) (`v1.3.0` on Node.js `v24.22.2`) inside the ephemeral, NIC-less Linux microVM over `vsock:8030`.
 - Shell and file tools (`bash`, `read`, `edit`, `write`) execute strictly inside the throwaway Linux VM—never touching your macOS filesystem.
@@ -124,8 +124,8 @@ client.chat.completions.create(
 
 | Caller | Endpoint / Mode | Payment Rail | Sandbox |
 | --- | --- | --- | --- |
-| **External Mac app** (Cursor, Cline, Aider, Python) | `http://127.0.0.1:8742/v1` | **Anon V (`zkAPI`)** | External app keeps its own macOS filesystem & network permissions |
-| **Built-in Pi Agent** in Anon V | `vsock:8030` → `vsock:8742` | **Anon V (`zkAPI`)** | Sealed NIC-less Linux microVM |
+| **External Mac app** (Cursor, Cline, Aider, Python) | `http://127.0.0.1:8742/v1` | **zkAPI Anon Inference** | External app keeps its own macOS filesystem & network permissions |
+| **Built-in Pi Agent** in zkAPI Anon Inference | `vsock:8030` → `vsock:8742` | **zkAPI Anon Inference** | Sealed NIC-less Linux microVM |
 | **Built-in Pi Agent** in Token Inference | `vsock:8030` → `vsock:8742` | **Boundless / Tempo (`USDC.e`)** | Sealed NIC-less Linux microVM |
 | **Interactive Chat** (Token Inference) | `vsock:8020` | **Venice AI** (default) or **Boundless / Tempo** | NIC-less Linux microVM (`cloak-sender`) |
 | **Interactive Chat** (NEAR AI Gateway / Local) | `cloak-near` / local worker | NEAR API key / Free | Native Rust verifier / sandboxed local worker |
@@ -146,7 +146,7 @@ Cloak integrates **Inference Serving** via [Darkbloom](https://darkbloom.dev) ([
 | **NEAR AI Gateway** | 8 GB+ | **0 GB** | No |
 | **Local (Fast MLX — `Inkling 2 Mini`)** | 16 GB+ | **10.21 GB** | No |
 | **Local (GGUF + optional 44 MB LoRA)** | 24 GB+ / 32 GB+ | **13.63 GB** / **17.63 GB** | No |
-| **Token Inference, Anon V, Connected Apps, Agent** | 16 GB+ | **5.69 GB** (`Qwen 3.5 9B`) | Yes |
+| **Token Inference, zkAPI Anon Inference, Connected Apps, Agent** | 16 GB+ | **5.69 GB** (`Qwen 3.5 9B`) | Yes |
 
 - **Encrypted local storage & native math:** Saved chats, Connected App hashes, and Tempo deposit state are authenticated with ChaCha20-Poly1305 inside owner-only (`0700`) Application Support folders, rendered with pure-Swift Markdown and LaTeX math. Ephemeral mode (`Save chat history: Off`) keeps new threads strictly in RAM.
 - **Menu bar, Quick Prompt, Widgets & CLI:** Native Liquid Glass menu bar panel, Carbon-hotkey Quick Prompt (zero Accessibility permission required), Control Center toggles, Desktop widgets, `cloak` CLI over an owner-only Unix socket, and EdDSA-signed updates via [Sparkle 2.8.1](https://sparkle-project.org).

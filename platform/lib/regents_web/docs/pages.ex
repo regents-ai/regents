@@ -156,7 +156,7 @@ defmodule RegentsWeb.Docs.Pages do
              name: "Overview & modes",
              title: "Cloak · Docs",
              description:
-               "Local AI on Apple MLX and llama.cpp, hardware-verified NEAR AI Gateway, Token Inference (Venice AI or Boundless), and Anon V (zkAPI) over Tor.",
+               "Local AI on Apple MLX and llama.cpp, hardware-verified NEAR AI Gateway, Token Inference (Venice AI or Boundless), and zkAPI Anon Inference over Tor.",
              source: {:doc, "/cloak"}
            },
            %{

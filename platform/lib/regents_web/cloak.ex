@@ -33,10 +33,10 @@ defmodule RegentsWeb.Cloak do
   @agent %{
     title: "Local Agent Box & Connected Apps",
     summary:
-      "Toggle the hammer in Token Inference or Anon V to run Cloak's built-in Pi coding agent inside an ephemeral, NIC-less Linux microVM—shell and file tools never touch your Mac, and every web or model request leaves through Tor with local prompt rephrasing. You can also connect Cursor, Cline, Aider, or any OpenAI-compatible Mac app via CloakDoor at http://127.0.0.1:8742/v1.",
+      "Toggle the hammer in Token Inference or zkAPI Anon Inference to run Cloak's built-in Pi coding agent inside an ephemeral, NIC-less Linux microVM—shell and file tools never touch your Mac, and every web or model request leaves through Tor with local prompt rephrasing. You can also connect Cursor, Cline, Aider, or any OpenAI-compatible Mac app via CloakDoor at http://127.0.0.1:8742/v1.",
     bullets: [
       "Isolated Linux VM: Pi's bash, read, edit, and write tools run inside a throwaway arm64 Linux microVM with zero access to your macOS files.",
-      "Tor-only egress: All agent web traffic goes through torsocks, and model calls route through Cloak's local prompt rewriter and Anon V (zkAPI) or Boundless/Tempo (USDC.e).",
+      "Tor-only egress: All agent web traffic goes through torsocks, and model calls route through Cloak's local prompt rewriter and zkAPI Anon Inference or Boundless/Tempo (USDC.e).",
       "Clear boundaries: Connecting an external Mac app changes its inference endpoint (not its macOS permissions), and CloakDoor rephrases user-message text only—tool results and code pass through unchanged."
     ],
     docs_label: "Read the Cloak documentation",
@@ -66,7 +66,7 @@ defmodule RegentsWeb.Cloak do
        after: " (default) or Boundless."
      },
      "User text is rephrased locally and sent over a per-conversation Tor circuit. Pay from a local Base USDC wallet (x402), a Venice API key, or Tempo USDC.e via Boundless. Venice's Private and TEE tiers are provider-reported, and a reused wallet or key can link chats."},
-    {"Anon V",
+    {"zkAPI Anon Inference",
      %{
        before: "Inspired by Vitalik's ",
        link: "X post",
@@ -81,7 +81,7 @@ defmodule RegentsWeb.Cloak do
   # intentionally keeps (necessary identifiers such as PR #418).
   @window %{
     title: "Chat",
-    mode: "Anon V",
+    mode: "zkAPI Anon Inference",
     mode_note: "Rephrased locally · Tor circuit · One-time zkAPI credential",
     original_label: "Original (stays on your Mac)",
     original:
@@ -92,11 +92,11 @@ defmodule RegentsWeb.Cloak do
     answered:
       "Hi — could we move the 3:00 PM review of PR #418 to Thursday? Let me know what time works best.",
     field: "Message",
-    switch: ["Local", "NEAR AI Gateway", "Token Inference", "Anon V", "Agent"],
+    switch: ["Local", "NEAR AI Gateway", "Token Inference", "zkAPI Anon Inference", "Agent"],
     hint: "Phrasing changes locally while necessary identifiers like PR #418 stay intact."
   }
 
-  @needs "Requirements depend on the mode. NEAR AI Gateway needs 8 GB+ RAM, 0 GB of model downloads, and a NEAR AI Cloud key. Local Mode (Fast MLX) needs a 16 GB+ Mac and downloads 10.21 GB (optional GGUF tiers: 13.63–17.63 GB on 24 GB+ Macs). Token Inference, Anon V, Connected Apps, and the sandboxed Pi agent need a 16 GB+ Mac and the 5.69 GB Qwen 3.5 9B local rewriter. Paid modes use Base USDC, Tempo USDC.e, ETH on Ethereum Mainnet, or your own Venice/NEAR API key."
+  @needs "Requirements depend on the mode. NEAR AI Gateway needs 8 GB+ RAM, 0 GB of model downloads, and a NEAR AI Cloud key. Local Mode (Fast MLX) needs a 16 GB+ Mac and downloads 10.21 GB (optional GGUF tiers: 13.63–17.63 GB on 24 GB+ Macs). Token Inference, zkAPI Anon Inference, Connected Apps, and the sandboxed Pi agent need a 16 GB+ Mac and the 5.69 GB Qwen 3.5 9B local rewriter. Paid modes use Base USDC, Tempo USDC.e, ETH on Ethereum Mainnet, or your own Venice/NEAR API key."
   @caution "Cloak's privacy protections have not been independently audited. Understand each mode's limits—including what stays intact during prompt rephrasing and what passes through unchanged in Connected Apps—before relying on it for sensitive work."
   @feedback %{
     before: "Questions or bug reports? Post on ",
@@ -120,19 +120,19 @@ defmodule RegentsWeb.Cloak do
       id: "runtime-boundary",
       summary: "Runtime boundary: macOS desktop app (no live web chat backend)",
       body:
-        "Cloak is a native macOS menu bar application for Apple silicon; this page is product documentation and the chat window shown above is a static illustration of the Mac app, not a live hosted chat endpoint. Local runs entirely on the user's Mac through Apple MLX (vmlx-swift) or Metal llama.cpp with zero inference network traffic once model weights are downloaded, while NEAR AI Gateway, Token Inference, and Anon V send requests through external privacy-preserving inference backends. Every thread is isolated and locked to its mode on turn 1, and opt-in Local Access context (memory, approved folders, drag-and-drop PDF/document/image-OCR/code attachments, Calendar/Reminders/Contacts) stays strictly offline in Local Mode."
+        "Cloak is a native macOS menu bar application for Apple silicon; this page is product documentation and the chat window shown above is a static illustration of the Mac app, not a live hosted chat endpoint. Local runs entirely on the user's Mac through Apple MLX (vmlx-swift) or Metal llama.cpp with zero inference network traffic once model weights are downloaded, while NEAR AI Gateway, Token Inference, and zkAPI Anon Inference send requests through external privacy-preserving inference backends. Every thread is isolated and locked to its mode on turn 1, and opt-in Local Access context (memory, approved folders, drag-and-drop PDF/document/image-OCR/code attachments, Calendar/Reminders/Contacts) stays strictly offline in Local Mode."
     },
     %{
       id: "modes-and-payments",
       summary: "Comparing the 4 modes, routing, and payment rails",
       body:
-        "1) Local: runs Apple MLX (default Inkling 2 Mini JANGH2, 10.21 GB) or llama.cpp GGUF + optional uncensored LoRA directly on the Mac for free with no account, no inference network traffic, and no Tor startup required. 2) NEAR AI Gateway: verifies Intel TDX and NVIDIA GPU attestation locally on your Mac before encrypting prompts end-to-end (E2EE v2) to NEAR AI Cloud (Qwen3.8-27B) using a NEAR API key; Tor routing is optional, and opt-in Letta Trajectory v1 trace exports stay local until shared in the NEAR AI Gateway app. 3) Token Inference: rephrases user text locally and routes over per-conversation Tor circuits; defaults to Venice AI (local Base USDC wallet via x402, or optional Venice API key) and also supports Boundless (USDC.e on Tempo via MPP). 4) Anon V (zkAPI): rephrases user text locally, routes over Tor with optional live cover traffic, and pays each turn with a fresh one-time zero-knowledge credential from an Ethereum Mainnet ETH deposit. Cloak also includes the sandboxed Pi Local Agent Box (ephemeral NIC-less Linux microVM), Connected Apps (CloakDoor at http://127.0.0.1:8742/v1), progressive Offline Data packs (Kiwix, DevDocs, CourtListener, PubMed Central, Tinfoil Kit), and optional Darkbloom Inference Serving (macOS 27+, Off / Local Only / Network + Local)."
+        "1) Local: runs Apple MLX (default Inkling 2 Mini JANGH2, 10.21 GB) or llama.cpp GGUF + optional uncensored LoRA directly on the Mac for free with no account, no inference network traffic, and no Tor startup required. 2) NEAR AI Gateway: verifies Intel TDX and NVIDIA GPU attestation locally on your Mac before encrypting prompts end-to-end (E2EE v2) to NEAR AI Cloud (Qwen3.8-27B) using a NEAR API key; Tor routing is optional, and opt-in Letta Trajectory v1 trace exports stay local until shared in the NEAR AI Gateway app. 3) Token Inference: rephrases user text locally and routes over per-conversation Tor circuits; defaults to Venice AI (local Base USDC wallet via x402, or optional Venice API key) and also supports Boundless (USDC.e on Tempo via MPP). 4) zkAPI Anon Inference: rephrases user text locally, routes over Tor with optional live cover traffic, and pays each turn with a fresh one-time zero-knowledge credential from an Ethereum Mainnet ETH deposit. Cloak also includes the sandboxed Pi Local Agent Box (ephemeral NIC-less Linux microVM), Connected Apps (CloakDoor at http://127.0.0.1:8742/v1), progressive Offline Data packs (Kiwix, DevDocs, CourtListener, PubMed Central, Tinfoil Kit), and optional Darkbloom Inference Serving (macOS 27+, Off / Local Only / Network + Local)."
     },
     %{
       id: "requirements-and-install",
       summary: "Hardware requirements, model downloads, and install steps",
       body:
-        "Requires an Apple silicon Mac running macOS 26 or later (macOS 27+ for optional Darkbloom Inference Serving). NEAR AI Gateway works on 8 GB+ Macs with 0 GB of model downloads. Local (Fast MLX) needs 16 GB+ RAM and downloads 10.21 GB (optional GGUF tiers: 13.63–17.63 GB on 24 GB+/32 GB+ Macs). Token Inference, Anon V, Connected Apps, and the sandboxed Pi agent need 16 GB+ RAM and the 5.69 GB Qwen 3.5 9B local prompt rewriter. Signed, notarized .dmg builds (Apple Developer ID Team 367G3Z7G3J) and SHA-256 checksums (SHA256SUMS.txt / checksums.json) are published at https://github.com/regents-ai/cloak-releases/releases (source at https://github.com/regents-ai/cloak), and install and verification steps are at /cloak/install. Neither /cloak nor /cloak/install serves the .dmg file directly."
+        "Requires an Apple silicon Mac running macOS 26 or later (macOS 27+ for optional Darkbloom Inference Serving). NEAR AI Gateway works on 8 GB+ Macs with 0 GB of model downloads. Local (Fast MLX) needs 16 GB+ RAM and downloads 10.21 GB (optional GGUF tiers: 13.63–17.63 GB on 24 GB+/32 GB+ Macs). Token Inference, zkAPI Anon Inference, Connected Apps, and the sandboxed Pi agent need 16 GB+ RAM and the 5.69 GB Qwen 3.5 9B local prompt rewriter. Signed, notarized .dmg builds (Apple Developer ID Team 367G3Z7G3J) and SHA-256 checksums (SHA256SUMS.txt / checksums.json) are published at https://github.com/regents-ai/cloak-releases/releases (source at https://github.com/regents-ai/cloak), and install and verification steps are at /cloak/install. Neither /cloak nor /cloak/install serves the .dmg file directly."
     },
     %{
       id: "agent-discovery",
@@ -154,7 +154,7 @@ defmodule RegentsWeb.Cloak do
     {"Choose",
      "Cloak opens its Welcome Tour and checks your Mac's memory. Pick Local (10.21 GB MLX download on 16 GB+ Macs) or NEAR AI Gateway (0 GB download, works on 8 GB+ Macs); Tor modes download the 5.69 GB Qwen 3.5 9B rewriter."},
     {"Start",
-     "Cloak lives in the menu bar and stays paused until you press Start. Local and direct NEAR AI Gateway work immediately; press Start in the crown menu for Tor routing, Token Inference, Anon V, Connected Apps, or the sandboxed Pi agent."}
+     "Cloak lives in the menu bar and stays paused until you press Start. Local and direct NEAR AI Gateway work immediately; press Start in the crown menu for Tor routing, Token Inference, zkAPI Anon Inference, Connected Apps, or the sandboxed Pi agent."}
   ]
   @updates "Cloak checks for signed Sparkle updates automatically unless you turn that off in Settings."
 

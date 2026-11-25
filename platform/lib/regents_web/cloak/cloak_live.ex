@@ -101,7 +101,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
         <div
           class="cloak-window"
           role="img"
-          aria-label="The Cloak chat window showing an Original to Sent local prompt rephrasing in Anon V mode, with mode switch: Local, NEAR AI Gateway, Token Inference, Anon V, and Agent."
+          aria-label="The Cloak chat window showing an Original to Sent local prompt rephrasing in zkAPI Anon Inference mode, with mode switch: Local, NEAR AI Gateway, Token Inference, zkAPI Anon Inference, and Agent."
         >
           <div class="cloak-window__bar"><i></i><i></i><i></i><span>{@window.title}</span></div>
           <div class="cloak-window__state"><b>{@window.mode}</b>{@window.mode_note}</div>

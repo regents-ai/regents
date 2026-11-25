@@ -40,7 +40,7 @@ defmodule RegentsWeb.ProductDirectory do
       kicker: "regents.sh/cloak · Private AI for macOS",
       headline: "Choose what leaves your Mac.",
       summary:
-        "Native macOS app for running AI locally on Apple Silicon or choosing explicitly how prompts reach remote models — with local prompt rewriting, Tor routing, hardware-verified NEAR enclaves, Token Inference, Anon V (zkAPI), a sealed Linux Pi coding agent, and a local OpenAI-compatible API.",
+        "Native macOS app for running AI locally on Apple Silicon or choosing explicitly how prompts reach remote models — with local prompt rewriting, Tor routing, hardware-verified NEAR enclaves, Token Inference, zkAPI Anon Inference, a sealed Linux Pi coding agent, and a local OpenAI-compatible API.",
       cards: [
         %{
           name: "Local Mode",
@@ -67,7 +67,7 @@ defmodule RegentsWeb.ProductDirectory do
           href: page_url <> "#modes"
         },
         %{
-          name: "Anon V (zkAPI)",
+          name: "zkAPI Anon Inference",
           headline: "Unlinkable one-time payment keys",
           line:
             "Pays each prompt over Tor with a fresh zero-knowledge credential from an Ethereum Mainnet ETH deposit.",
@@ -86,7 +86,7 @@ defmodule RegentsWeb.ProductDirectory do
           name: "Connected Apps",
           headline: "Local OpenAI-compatible gateway",
           line:
-            "Point Cursor, Cline, Aider, or Python at 127.0.0.1:8742/v1 to rewrite user prompts locally and pay via Anon V over Tor.",
+            "Point Cursor, Cline, Aider, or Python at 127.0.0.1:8742/v1 to rewrite user prompts locally and pay via zkAPI Anon Inference over Tor.",
           action: "Read docs",
           href: docs_url
         }
@@ -95,7 +95,7 @@ defmodule RegentsWeb.ProductDirectory do
         %{
           title: "Four isolated chat modes",
           copy:
-            "Every chat thread is self-contained and locks its mode on turn 1: Local, NEAR AI Gateway, Token Inference (Venice or Boundless), or Anon V (zkAPI).",
+            "Every chat thread is self-contained and locks its mode on turn 1: Local, NEAR AI Gateway, Token Inference (Venice or Boundless), or zkAPI Anon Inference.",
           status: "live",
           link: %{label: "Install Cloak", href: install_url}
         },
@@ -116,7 +116,7 @@ defmodule RegentsWeb.ProductDirectory do
       ],
       about: [
         "Cloak lets you choose where an AI conversation runs, see what leaves your Mac, and understand what can link one request to another.",
-        "It combines on-device Apple Silicon inference, client-verified NEAR hardware enclaves, Tor-routed Token Inference (Venice AI and Boundless), unlinkable Anon V (zkAPI) payments, opt-in offline Local Access, and a sealed Linux microVM agent in one native macOS app."
+        "It combines on-device Apple Silicon inference, client-verified NEAR hardware enclaves, Tor-routed Token Inference (Venice AI and Boundless), unlinkable zkAPI Anon Inference payments, opt-in offline Local Access, and a sealed Linux microVM agent in one native macOS app."
       ],
       audience: [
         "Mac users who want fast local AI with optional offline context that never touches a cloud provider.",
