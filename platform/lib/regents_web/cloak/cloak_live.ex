@@ -27,7 +27,16 @@ defmodule RegentsWeb.Cloak.CloakLive do
     ~H"""
     <section id="cloak-page" class="cloak" aria-labelledby="cloak-heading">
       <header class="cloak-hero">
-        <img class="cloak-hero__icon" src={~p"/images/cloak/icon.png"} width="72" height="72" alt="" />
+        <picture class="cloak-hero__icon-wrap">
+          <source srcset={~p"/images/cloak/icon.png"} media="(prefers-reduced-motion: reduce)" />
+          <img
+            class="cloak-hero__icon"
+            src={~p"/images/cloak/icon-loop.gif"}
+            width="128"
+            height="128"
+            alt=""
+          />
+        </picture>
         <p class="cloak-pill">{Cloak.pill()}</p>
         <h1 id="cloak-heading" tabindex="-1">
           <span class="cloak-hero__first">{hd(Cloak.heading())}</span>
@@ -312,7 +321,16 @@ defmodule RegentsWeb.Cloak.CloakLive do
     ~H"""
     <section id="cloak-install" class="cloak" aria-labelledby="cloak-install-heading">
       <header class="cloak-hero">
-        <img class="cloak-hero__icon" src={~p"/images/cloak/icon.png"} width="72" height="72" alt="" />
+        <picture class="cloak-hero__icon-wrap">
+          <source srcset={~p"/images/cloak/icon.png"} media="(prefers-reduced-motion: reduce)" />
+          <img
+            class="cloak-hero__icon"
+            src={~p"/images/cloak/icon-loop.gif"}
+            width="128"
+            height="128"
+            alt=""
+          />
+        </picture>
         <h1 id="cloak-install-heading" class="cloak-hero__small" tabindex="-1">
           {Cloak.install_heading()}
         </h1>
