@@ -104,6 +104,35 @@ defmodule RegentsWeb.Cloak.CloakLive do
         </nav>
       </header>
 
+      <%!-- Integrations banner: logos + company names for Cloak's modes --%>
+      <section class="cloak-integrations" aria-labelledby="cloak-integrations-heading">
+        <div class="cloak-integrations__head">
+          <h2 id="cloak-integrations-heading" class="cloak-integrations__title">Integrations</h2>
+        </div>
+        <ul class="cloak-integrations__grid">
+          <li :for={group <- @ecosystem} class="cloak-integrations__card">
+            <span class="cloak-integrations__mode">{group.mode}</span>
+            <div class="cloak-integrations__logos">
+              <%= for {partner, idx} <- Enum.with_index(group.partners) do %>
+                <span :if={idx > 0} class="cloak-integrations__plus" aria-hidden="true">+</span>
+                <a
+                  class="cloak-integrations__partner"
+                  href={partner.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <.partner_mark id={partner.id} />
+                  <span class={if Map.get(partner, :wordmark), do: "cloak-sr-only"}>
+                    {partner.name}
+                  </span>
+                </a>
+              <% end %>
+            </div>
+            <span class="cloak-integrations__note">{group.note}</span>
+          </li>
+        </ul>
+      </section>
+
       <%!-- Section 1: Menu-bar app callout card (llama.app showcase) --%>
       <section class="cloak-stage" aria-label="Cloak in the menu bar">
         <div class="cloak-stage__panel">
@@ -1236,6 +1265,17 @@ defmodule RegentsWeb.Cloak.CloakLive do
         <path d="M257 79H288V86H264V98H286V104.5H264V117H288V124H257Z" />
         <path d="M303.5 79H323.5L330 85.5V91H322.5V88L320.5 86H306.5L304.5 88V95.5L306.5 97.5H323.5L330 104V117.5L323.5 124H303.5L297 117.5V111H304.5V115L306.5 117H320.5L322.5 115V106.5L320.5 104.5H303.5L297 98V85.5Z" />
       </g>
+    </svg>
+    """
+  end
+
+  defp partner_mark(%{id: "near"} = assigns) do
+    ~H"""
+    <svg class="cloak-ecosystem__mark" viewBox="0 0 90 90" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M70.6 5.2L53.4 33.1c-1.3 1.9 1.2 4.2 3 2.6L74.9 17.6c.5-.4 1.2-.1 1.2.6v52.2c0 .7-.9 1-1.3.5L21.9 5.5C19.6 2.7 16.3 1 12.7 1H11C4.9 1 0 5.9 0 12v66c0 6.1 4.9 11 11 11 3.8 0 7.4-2 9.4-5.2l16.2-26.9c1.3-1.9-1.2-4.2-3-2.6L15.1 72.4c-.5.4-1.2.1-1.2-.6V19.6c0-.7.9-1 1.3-.5l52.9 65.4c2.3 2.8 5.6 4.5 9.2 4.5H79c6.1 0 11-4.9 11-11V12c0-6.1-4.9-11-11-11-3.8 0-7.4 2-9.4 4.2Z"
+      />
     </svg>
     """
   end

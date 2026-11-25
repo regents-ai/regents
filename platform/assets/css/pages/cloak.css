@@ -327,12 +327,162 @@
 }
 
 /* ==========================================================================
+   Integrations banner (between hero links and menu-bar showcase)
+   ========================================================================== */
+
+.cloak-integrations {
+  max-width: var(--cloak-max);
+  margin: 34px auto 0;
+}
+
+.cloak-integrations__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-block-end: 14px;
+}
+
+.cloak-integrations__head::before,
+.cloak-integrations__head::after {
+  content: "";
+  flex: 1 1 0;
+  max-width: 120px;
+  height: 1px;
+  background: var(--hairline);
+}
+
+.cloak-integrations__title {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-family: var(--cloak-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cloak-integrations__grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cloak-integrations__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  min-width: 0;
+  padding: 12px 10px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 14px;
+  background: var(--cloak-card-bg);
+  text-align: center;
+}
+
+.cloak-integrations__mode {
+  color: var(--color-fg-muted);
+  font-size: 0.65625rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cloak-integrations__logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 5px 6px;
+  min-height: 26px;
+}
+
+.cloak-integrations__partner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-fg);
+  font-size: 0.84375rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.cloak-integrations__partner:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cloak-integrations__partner:hover {
+    opacity: 0.72;
+  }
+}
+
+.cloak-integrations__card .cloak-ecosystem__mark {
+  width: 16px;
+  height: 16px;
+}
+
+.cloak-integrations__card .cloak-ecosystem__wordmark {
+  height: 22px;
+}
+
+.cloak-integrations__plus {
+  color: var(--color-fg-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.cloak-integrations__note {
+  color: var(--color-fg-muted);
+  font-size: 0.71875rem;
+  line-height: 1.25;
+}
+
+@media (max-width: 64rem) {
+  .cloak-integrations__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 36rem) {
+  .cloak-integrations {
+    margin-block-start: 28px;
+  }
+
+  .cloak-integrations__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .cloak-integrations__card {
+    padding: 10px 8px;
+  }
+
+  .cloak-integrations__partner {
+    font-size: 0.8125rem;
+  }
+}
+
+/* ==========================================================================
    llama.app-inspired sections below the hero header
    ========================================================================== */
 
 .cloak-stage {
   max-width: var(--cloak-max);
-  margin: 56px auto 0;
+  margin: 34px auto 0;
 }
 
 .cloak-stage__panel {

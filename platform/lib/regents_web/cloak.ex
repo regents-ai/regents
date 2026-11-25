@@ -174,7 +174,8 @@ defmodule RegentsWeb.Cloak do
   @ecosystem [
     %{
       id: "thinking-machines",
-      note: "Local models · Inkling 2 Mini",
+      mode: "Local AI",
+      note: "Inkling 2 Mini",
       partners: [
         %{
           id: "thinking-machines",
@@ -185,15 +186,16 @@ defmodule RegentsWeb.Cloak do
       ]
     },
     %{
-      id: "boundless-tempo",
-      note: "Tempo USDC.e · MPP",
+      id: "near",
+      mode: "Private Cloud",
+      note: "Hardware TEE",
       partners: [
-        %{id: "boundless", name: "Boundless", href: "https://boundless.network"},
-        %{id: "tempo", name: "Tempo", href: "https://tempo.xyz"}
+        %{id: "near", name: "NEAR AI", href: "https://cloud.near.ai"}
       ]
     },
     %{
       id: "venice-base",
+      mode: "Private Cloud",
       note: "Base USDC · x402",
       partners: [
         %{id: "venice", name: "Venice", href: "https://venice.ai"},
@@ -201,7 +203,17 @@ defmodule RegentsWeb.Cloak do
       ]
     },
     %{
+      id: "boundless-tempo",
+      mode: "Private Cloud",
+      note: "Tempo USDC.e · MPP",
+      partners: [
+        %{id: "boundless", name: "Boundless", href: "https://boundless.network"},
+        %{id: "tempo", name: "Tempo", href: "https://tempo.xyz"}
+      ]
+    },
+    %{
       id: "ethereum",
+      mode: "Private Cloud",
       note: "zkAPI · ETH",
       partners: [
         %{id: "ethereum", name: "Ethereum", href: "https://ethereum.org"}
@@ -209,7 +221,8 @@ defmodule RegentsWeb.Cloak do
     },
     %{
       id: "eigenlayer",
-      note: "Darkbloom serving",
+      mode: "Serving",
+      note: "Darkbloom",
       partners: [
         %{id: "eigenlayer", name: "EigenLayer", href: "https://eigenlayer.xyz"}
       ]
