@@ -84,7 +84,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Live support, HTTP 402 diagnostics (x402 & MPP / Tempo), and active critical CVE security terminal for AI agents in agentic commerce."},
     "/cloak" =>
       {"Cloak",
-       "Chat offline on Apple silicon, or route cloud prompts through TEEs, local rewriting, Tor, and one-time crypto payments."},
+       "Cloak is a tiny menu bar app for your local or private cloud AI. Always private, anon optional."},
     "/cloak/download/mac" =>
       {"Download Cloak for Mac",
        "Your download of Regents Cloak for Apple silicon Mac is starting. Drag Cloak to Applications and find it in the menu bar."},

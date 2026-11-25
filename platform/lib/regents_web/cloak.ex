@@ -10,28 +10,17 @@ defmodule RegentsWeb.Cloak do
   # The subtitle's first sentence is also the page's description in `RegentsWeb.PublicDocuments`;
   # change it there too.
   @heading [
-    "Choose what leaves your Mac.",
-    "Run locally, or pick your privacy in the cloud."
+    "Your AI.",
+    "Always private, anon optional"
   ]
-  @subtitle "Cloak is the simple app to try your first private, local AI"
+  @subtitle "Cloak is a tiny menu bar app for your local or private cloud AI. Inspired by Vitalik's anon 'paranoid mode' way to use agents."
 
-  @hero_bullets [
-    [
-      {:text,
-       "Local, offline models just had an upgrade. Your MacBook can run Inkling 2 Mini and it "},
-      {:link, "is better", "https://benchlm.ai/compare/gpt-5-vs-inkling-2-mini"},
-      {:text, " than GPT-5."}
-    ],
-    [
-      {:text, "Private cloud LLMs are the safer way to use AI. Cloak aggregates 4 of them."}
-    ],
-    [
-      {:text, "Inspired by Vitalik's anon "},
-      {:link, "'paranoid mode'", "https://x.com/VitalikButerin/status/2111046730959433793"},
-      {:text, " way to use agents."}
-    ]
+  @hero_compact [
+    {:text,
+     "Cloak is a tiny menu bar app for your local or private cloud AI. Inspired by Vitalik's anon "},
+    {:link, "'paranoid mode'", "https://x.com/VitalikButerin/status/2111046730959433793"},
+    {:text, " way to use agents."}
   ]
-  @hero_callout "Cloak is the simple app to try your first private, local AI"
 
   @pill "Simple Local AI. Private Cloud AI Aggregator."
 
@@ -123,10 +112,12 @@ defmodule RegentsWeb.Cloak do
       ram: "16 GB Mac or more · Offline",
       name: "Local AI",
       body:
-        "Runs offline on Apple MLX (Inkling 2 Mini at 56–64 tok/s) or Metal llama.cpp with offline Local Access for PDFs, OCR, and approved folders. Free, no account.",
+        "Local, offline models just had an upgrade: your MacBook can run Inkling 2 Mini on Apple MLX at 56–64 tok/s (outperforming GPT-5) or Metal llama.cpp with offline Local Access for PDFs, OCR, and approved folders. Free, no account.",
       credit: [
         {:text, "Powered by "},
-        {:link, "Thinking Machines", "https://thinkingmachines.ai"}
+        {:link, "Thinking Machines", "https://thinkingmachines.ai"},
+        {:text, " · "},
+        {:link, "BenchLM vs GPT-5", "https://benchlm.ai/compare/gpt-5-vs-inkling-2-mini"}
       ]
     },
     %{
@@ -134,7 +125,7 @@ defmodule RegentsWeb.Cloak do
       ram: "8 GB+ Mac · Hardware TEE, Tor & crypto",
       name: "Private Cloud Inference",
       body:
-        "Pick your privacy rail per thread: hardware-verified NEAR AI Cloud (0 GB download), Venice AI (Base USDC x402), Boundless (Tempo USDC.e), or zkAPI (fresh one-time key per turn from an ETH deposit) with local rewriting and Tor.",
+        "Private cloud LLMs are the safer way to use AI — Cloak aggregates 4 of them per thread: hardware-verified NEAR AI Cloud (0 GB download), Venice AI (Base USDC x402), Boundless (Tempo USDC.e), and zkAPI (fresh one-time key per turn from an ETH deposit) with local rewriting and Tor.",
       credit: [
         {:link, "NEAR", "https://cloud.near.ai"},
         {:text, " · "},
@@ -391,8 +382,7 @@ defmodule RegentsWeb.Cloak do
 
   def heading, do: @heading
   def subtitle, do: @subtitle
-  def hero_bullets, do: @hero_bullets
-  def hero_callout, do: @hero_callout
+  def hero_compact, do: @hero_compact
   def pill, do: @pill
   def watch_label, do: @watch_label
   def watch_time, do: @watch_time
@@ -459,27 +449,15 @@ defmodule RegentsWeb.Cloak do
 
     film = RegentsWeb.Endpoint.static_url() <> RegentsWeb.Endpoint.static_path(@film)
 
-    hero_bullets_md =
-      Enum.map_join(@hero_bullets, "\n", fn parts ->
-        line =
-          Enum.map_join(parts, "", fn
-            {:text, text} -> text
-            {:link, label, href} -> "[#{label}](#{href})"
-          end)
-
-        "- #{line}"
-      end)
-
     """
     #{@pill}
 
     # #{Enum.join(@heading, " ")}
 
-    #{hero_bullets_md}
+    Cloak is a tiny menu bar app for your local or private cloud AI. Inspired by Vitalik's anon ['paranoid mode'](https://x.com/VitalikButerin/status/2111046730959433793) way to use agents.
 
-    ```
-    #{@hero_callout}
-    ```
+    - Local, offline models just had an upgrade. Your MacBook can run Inkling 2 Mini and it [is better](https://benchlm.ai/compare/gpt-5-vs-inkling-2-mini) than GPT-5.
+    - Private cloud LLMs are the safer way to use AI. Cloak aggregates 4 of them. Using it is a hedge against a more-dangerous future: your personal and business info is being tracked and logged, and the future usage of your most important personal information is unknown and historically dangerous for some groups of people.
 
     - [Download for Mac (Regents-Cloak-0.2.1-295.dmg)](#{@download_url})
     - [#{@watch_label} (#{@watch_time})](#{film})

@@ -194,43 +194,25 @@
   display: block;
 }
 
-/* The heading's second sentence: the same face, half the size. */
+/* The heading's second line: bold and balanced directly under "Your AI." */
 .cloak-hero__second {
-  margin-block-start: 0.35em;
-  font-size: 0.5em;
-  line-height: 1.08;
-  letter-spacing: -0.035em;
+  margin-block-start: 0.22em;
+  font-size: 0.68em;
+  line-height: 1.06;
+  letter-spacing: -0.04em;
 }
 
 .cloak-hero__subtitle {
-  max-width: 40em;
+  max-width: 36em;
   margin: var(--space-4) 0 0;
-  color: color-mix(in srgb, var(--color-fg) 88%, transparent);
-  font-size: clamp(1rem, 1.5vw, 1.375rem);
-  line-height: 1.45;
+  color: color-mix(in srgb, var(--color-fg) 90%, transparent);
+  font-size: clamp(1.0625rem, 1.5vw, 1.3125rem);
+  line-height: 1.5;
   letter-spacing: -0.01em;
   text-wrap: balance;
 }
 
-.cloak-hero__bullets {
-  display: grid;
-  gap: 10px;
-  max-width: 42rem;
-  margin: var(--space-4) auto 0;
-  padding: 0 0 0 1.25rem;
-  list-style: disc;
-  text-align: left;
-  color: color-mix(in srgb, var(--color-fg) 90%, transparent);
-  font-size: clamp(0.975rem, 1.35vw, 1.125rem);
-  line-height: 1.5;
-  letter-spacing: -0.01em;
-}
-
-.cloak-hero__bullets li::marker {
-  color: color-mix(in srgb, var(--color-fg) 55%, transparent);
-}
-
-.cloak-hero__bullets a {
+.cloak-hero__subtitle a {
   color: var(--color-fg);
   font-weight: 500;
   text-decoration: underline;
@@ -239,31 +221,8 @@
   transition: text-decoration-color var(--duration-fast) ease;
 }
 
-.cloak-hero__bullets a:hover {
+.cloak-hero__subtitle a:hover {
   text-decoration-color: var(--color-fg);
-}
-
-.cloak-hero__callout {
-  max-width: 100%;
-  margin: var(--space-4) 0 0;
-  padding: 14px 24px;
-  border: 1px solid var(--cloak-card-border);
-  border-radius: 12px;
-  background: var(--cloak-card-bg);
-  color: var(--color-fg);
-  font-family: var(--cloak-mono);
-  font-size: clamp(1rem, 1.75vw, 1.3125rem);
-  font-weight: 500;
-  line-height: 1.4;
-  letter-spacing: -0.02em;
-  white-space: pre-wrap;
-  text-wrap: balance;
-}
-
-.cloak-hero__callout code {
-  font: inherit;
-  color: inherit;
-  background: transparent;
 }
 
 .cloak-hero__actions {
@@ -271,7 +230,7 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 12px;
-  margin-block-start: var(--space-4);
+  margin-block-start: var(--space-5);
 }
 
 .cloak-button {

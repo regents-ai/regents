@@ -47,19 +47,16 @@ defmodule RegentsWeb.Cloak.CloakLive do
           <span class="cloak-hero__first">{hd(Cloak.heading())}</span>
           <span class="cloak-hero__second">{List.last(Cloak.heading())}</span>
         </h1>
-        <ul class="cloak-hero__bullets">
-          <li :for={parts <- Cloak.hero_bullets()}>
-            <%= for part <- parts do %>
-              <%= case part do %>
-                <% {:text, text} -> %>
-                  {text}
-                <% {:link, label, href} -> %>
-                  <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
-              <% end %>
+        <p class="cloak-hero__subtitle">
+          <%= for part <- Cloak.hero_compact() do %>
+            <%= case part do %>
+              <% {:text, text} -> %>
+                {text}
+              <% {:link, label, href} -> %>
+                <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
             <% end %>
-          </li>
-        </ul>
-        <pre class="cloak-hero__callout"><code>{Cloak.hero_callout()}</code></pre>
+          <% end %>
+        </p>
         <div class="cloak-hero__actions">
           <.link
             id="cloak-download"
@@ -305,14 +302,17 @@ defmodule RegentsWeb.Cloak.CloakLive do
       <%!-- Section 3: Zero-config privacy boundaries (llama.app "Nothing to set up") --%>
       <section class="cloak-section cloak-split" aria-labelledby="cloak-boundaries-heading">
         <div class="cloak-split__copy">
-          <h2 id="cloak-boundaries-heading">Privacy boundaries, enforced by default</h2>
+          <h2 id="cloak-boundaries-heading">A hedge against a more-dangerous future</h2>
           <p>
-            Private AI used to mean wiring up Tor, isolated VMs, local rewriters, and
-            hardware attestation by hand. Cloak checks your Mac and enforces every boundary
-            automatically — you only pick the mode.
+            Private cloud LLMs are the safer way to use AI — Cloak aggregates 4 of them. Your
+            personal and business info is being tracked and logged across mainstream AI tools, and
+            the future usage of your most important personal information is unknown and historically
+            dangerous for some groups of people.
           </p>
           <p class="cloak-split__aside">
-            Want to inspect every step? Live attestation proofs, Original vs. Sent diffs, cover traffic logs, and bundle SHA-256 hashes are built right into Settings.
+            Cloak enforces Tor, isolated VMs, local rewriters, and hardware TEE attestation by
+            default — with live attestation proofs, Original vs. Sent diffs, cover traffic logs, and
+            bundle SHA-256 hashes built right into Settings.
           </p>
         </div>
 
@@ -352,10 +352,17 @@ defmodule RegentsWeb.Cloak.CloakLive do
       <%!-- Section 4: Built for Apple silicon (llama.app 3-card bento) --%>
       <section class="cloak-section" aria-labelledby="cloak-silicon-heading">
         <div class="cloak-section__head">
-          <h2 id="cloak-silicon-heading">Built for Apple silicon</h2>
+          <h2 id="cloak-silicon-heading">Local, offline models just had an upgrade</h2>
           <p>
-            Fast native MLX inference, strict on-disk encryption, and automatic memory
-            release when you stop chatting.
+            Your MacBook can run Inkling 2 Mini and it
+            <a
+              class="cloak-text-link"
+              href="https://benchlm.ai/compare/gpt-5-vs-inkling-2-mini"
+              target="_blank"
+              rel="noopener noreferrer"
+            >is better</a>
+            than GPT-5 — running natively on Apple MLX with strict on-disk encryption and automatic
+            memory release when you stop chatting.
           </p>
         </div>
 
