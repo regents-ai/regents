@@ -18,7 +18,6 @@ defmodule RegentsWeb.Cloak.CloakLive do
   def page(assigns) do
     assigns =
       assign(assigns,
-        pill: Cloak.pill(),
         ecosystem: Cloak.ecosystem(),
         window: Cloak.window(),
         modes: Enum.with_index(Cloak.modes(), 1),
@@ -29,9 +28,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
     <section id="cloak-page" class="cloak" aria-labelledby="cloak-heading">
       <header class="cloak-hero">
         <img class="cloak-hero__icon" src={~p"/images/cloak/icon.png"} width="72" height="72" alt="" />
-        <p class="cloak-pill">
-          {@pill.before}<a href={@pill.href}>{@pill.link}</a>{@pill.after}
-        </p>
+        <p class="cloak-pill">{Cloak.pill()}</p>
         <h1 id="cloak-heading" tabindex="-1">
           <span class="cloak-hero__first">{hd(Cloak.heading())}</span>
           <span class="cloak-hero__second">{List.last(Cloak.heading())}</span>

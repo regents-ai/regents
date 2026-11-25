@@ -15,12 +15,7 @@ defmodule RegentsWeb.Cloak do
   ]
   @subtitle "Chat offline on Apple silicon, or route cloud prompts through TEEs, local rewriting, Tor, and one-time crypto payments."
 
-  @pill %{
-    before: "Apple MLX · ",
-    link: "llama.cpp",
-    href: "https://github.com/ggml-org/llama.cpp",
-    after: " · Tor · NEAR AI"
-  }
+  @pill "Simple Local AI. Private Cloud AI Aggregator."
 
   @watch_label "Watch the intro"
   @watch_time "0:20"
@@ -295,7 +290,7 @@ defmodule RegentsWeb.Cloak do
     film = RegentsWeb.Endpoint.static_url() <> RegentsWeb.Endpoint.static_path(@film)
 
     """
-    #{@pill.before}[#{@pill.link}](#{@pill.href})#{@pill.after}
+    #{@pill}
 
     # #{Enum.join(@heading, " ")}
 
