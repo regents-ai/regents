@@ -442,7 +442,9 @@ defmodule RegentsWeb.Cloak do
 
     #{@subtitle}
 
+    - [Download for Mac (Regents-Cloak.dmg)](#{@download_url})
     - [#{@watch_label} (#{@watch_time})](#{film})
+    - [Install & checksums](#{RegentsWeb.PublicDocuments.url(@install_path)})
     - [View releases](#{@releases_url})
     - [Read docs](#{RegentsWeb.PublicDocuments.url(@docs_path)})
     - [#{@forum_label}](#{RegentsWeb.PublicDocuments.url(@forum_path)})
