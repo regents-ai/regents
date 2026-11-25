@@ -18,7 +18,7 @@ defmodule RegentsWeb.Cloak do
   @pill "Simple Local AI. Private Cloud AI Aggregator."
 
   @watch_label "Watch the intro"
-  @watch_time "0:20"
+  @watch_time "0:35"
   @forum_label "Cloak Forum"
   @forum_path "/patchbay/cloak"
   @film "/images/cloak/intro.mp4"
@@ -221,14 +221,16 @@ defmodule RegentsWeb.Cloak do
   # regents-ai/cloak-releases (`SHA256SUMS.txt` and `checksums.json`). Update
   # these values whenever a new release is published by `app/publish.sh`.
   @release_checksums %{
-    tag: "0.2.0-278",
-    dmg_filename: "Regents-Cloak-0.2.0-278.dmg",
-    dmg_sha256: "25af4b52ad5b207cbbb6fe312006de7339921c24db2a523f61ef9c403908d150",
+    tag: "0.2.0-282",
+    dmg_filename: "Regents-Cloak-0.2.0-282.dmg",
+    dmg_sha256: "b2893a6e13db9b13a5b99cdbd1747e5090f1f630d11a067fcf2fdd2703df2236",
     # Populated on releases published by the updated app/release.sh + app/publish.sh
     # (e.g. {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)", "..."},
     # {"Apple Code Signature CDHash", "..."}).
     extra_hashes: [
-      {"Apple Code Signature CDHash", "4cb692562950116b14ef4a5acf8ea7e0aa8cfb2b"}
+      {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)",
+       "d3de82e536fce81c3bd3e3dd201a9044d802001b420f16fc2faa1b9c28731564"},
+      {"Apple Code Signature CDHash", "b8e53f39d0cd73eb02bad7f167f242cf33df2b23"}
     ],
     team_id: "367G3Z7G3J",
     release_url: "https://github.com/regents-ai/cloak-releases/releases/latest",
