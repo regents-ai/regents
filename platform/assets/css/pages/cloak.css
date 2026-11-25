@@ -22,6 +22,14 @@
 }
 
 .cloak {
+  /* Crisp pure-white dark-mode palette matching llama.app (overrides the site's
+     warm paper off-white on /cloak so headings, buttons, and cards stay stark
+     white on dark). Light mode inherits the crisp dark-on-light foreground. */
+  --color-fg: #fafafa;
+  --color-fg-muted: #a1a1aa;
+  --hairline: rgb(255 255 255 / 0.12);
+  --hairline-strong: rgb(255 255 255 / 0.2);
+
   /* What the design needs and the system lacks: round corners, and the panel's
      blues and the drawn window's greys, dark in both themes. */
   --cloak-sans: "Geist", system-ui, sans-serif;
@@ -70,6 +78,10 @@
 }
 
 :root[data-theme="light"] .cloak {
+  --color-fg: #09090b;
+  --color-fg-muted: #52525b;
+  --hairline: rgb(9 9 11 / 0.11);
+  --hairline-strong: rgb(9 9 11 / 0.18);
   --cloak-stage-bg:
     radial-gradient(ellipse at 15% 10%, #dcecfb 0%, transparent 58%),
     radial-gradient(ellipse at 90% 95%, #e8f2fc 0%, transparent 55%),
@@ -89,6 +101,10 @@
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) .cloak {
+    --color-fg: #09090b;
+    --color-fg-muted: #52525b;
+    --hairline: rgb(9 9 11 / 0.11);
+    --hairline-strong: rgb(9 9 11 / 0.18);
     --cloak-stage-bg:
       radial-gradient(ellipse at 15% 10%, #dcecfb 0%, transparent 58%),
       radial-gradient(ellipse at 90% 95%, #e8f2fc 0%, transparent 55%),
@@ -147,6 +163,7 @@
 
 .cloak-hero h1 {
   margin: var(--space-4) 0 0;
+  color: var(--color-fg);
   font-family: var(--cloak-sans);
   font-size: clamp(2.5rem, 5.1vw, 4.75rem);
   font-weight: 600;
@@ -171,6 +188,7 @@
 .cloak-hero__subtitle {
   max-width: 40em;
   margin: var(--space-4) 0 0;
+  color: color-mix(in srgb, var(--color-fg) 88%, transparent);
   font-size: clamp(1rem, 1.5vw, 1.375rem);
   line-height: 1.45;
   letter-spacing: -0.01em;
