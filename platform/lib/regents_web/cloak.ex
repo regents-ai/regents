@@ -23,7 +23,7 @@ defmodule RegentsWeb.Cloak do
   }
 
   @watch_label "Watch the intro"
-  @watch_time "0:35"
+  @watch_time "0:20"
   @forum_label "Cloak Forum"
   @forum_path "/patchbay/cloak"
   @film "/images/cloak/intro.mp4"
