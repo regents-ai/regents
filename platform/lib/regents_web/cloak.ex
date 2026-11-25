@@ -62,7 +62,16 @@ defmodule RegentsWeb.Cloak do
     hint: "The model on this Mac answers. Nothing is sent."
   }
 
-  @needs "16 GB of memory and 10 GB free; the app downloads a 5.7 GB model on first run. V takes a deposit of ETH, Token Inference takes USDC.e on Tempo, and NEAR Private AI takes a NEAR AI Cloud key. Cards are not accepted."
+  @hardware "16 GB of memory and 10 GB free. The app downloads a 5.7 GB model on first run."
+  @needs @hardware <>
+           " V takes a deposit of ETH, Token Inference takes USDC.e on Tempo, and NEAR Private AI takes a NEAR AI Cloud key. Cards are not accepted."
+
+  @mode_access %{
+    "V" => "ETH deposit",
+    "Token Inference" => "USDC.e on Tempo",
+    "NEAR Private AI" => "NEAR AI Cloud key",
+    "Local Llama" => "Local model download"
+  }
   @caution "This build is for testing. Its protections have not been independently checked, so don't rely on it for anything sensitive yet."
   @feedback %{
     before: "Something broke? Tell us at ",
@@ -146,14 +155,12 @@ defmodule RegentsWeb.Cloak do
   @doc "The page as Markdown, what `/cloak` answers when Markdown is asked for."
   def markdown do
     modes =
-      @modes
-      |> Enum.with_index(1)
-      |> Enum.map_join("\n", fn
-        {{name, nil, sentence}, n} ->
-          "#{n}. **#{name}.** #{sentence}"
+      Enum.map_join(@modes, "\n", fn
+        {name, nil, sentence} ->
+          "| #{name} | #{sentence} | #{@mode_access[name]} |"
 
-        {{name, credit, sentence}, n} ->
-          "#{n}. **#{name}.** #{credit.before}[#{credit.link}](#{credit.href})#{credit.after} #{sentence}"
+        {name, credit, sentence} ->
+          "| #{name} | #{String.trim_trailing(sentence, ".")}. #{credit.before}[#{credit.link}](#{credit.href})#{credit.after} | #{@mode_access[name]} |"
       end)
 
     agent_docs =
@@ -176,6 +183,8 @@ defmodule RegentsWeb.Cloak do
 
     ## #{@modes_title}
 
+    | Mode | Where the prompt is handled | What you need |
+    | --- | --- | --- |
     #{modes}
 
     ## #{@agent_docs_title}
@@ -186,7 +195,7 @@ defmodule RegentsWeb.Cloak do
 
     ## Needs
 
-    #{@needs}
+    #{@hardware}
 
     ## Caution
 

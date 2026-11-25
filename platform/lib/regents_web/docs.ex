@@ -181,10 +181,10 @@ defmodule RegentsWeb.Docs do
     end
   end
 
-  defp resolve_source({:doc_sections, doc_path, section_names, opts}) do
+  defp resolve_source({:doc_sections, doc_path, section_ids, opts}) do
     markdown = resolve_source({:doc, doc_path}) |> strip_trailer()
-    {intro, sections_by_name} = split_h2_sections(markdown)
-    wanted = Enum.map(section_names, &Map.get(sections_by_name, &1)) |> Enum.reject(&is_nil/1)
+    {intro, sections} = split_h2_sections(markdown)
+    wanted = Enum.map(section_ids, &Map.fetch!(sections, &1))
 
     parts =
       if Keyword.get(opts, :include_intro, false) do
@@ -197,8 +197,8 @@ defmodule RegentsWeb.Docs do
     Enum.join(parts, "\n\n")
   end
 
-  # Splits Markdown into `{intro, %{heading => "## Heading\n..."}}` while
-  # ignoring `## ` lines inside fenced code blocks.
+  # Excerpts use an authored identifier on the line after a heading, so the
+  # heading can change without breaking the excerpts. Skip fenced examples.
   defp split_h2_sections(markdown) do
     lines = String.split(markdown, "\n")
 
@@ -208,8 +208,12 @@ defmodule RegentsWeb.Docs do
         trimmed = String.trim_leading(line)
         toggles_fence? = String.starts_with?(trimmed, "```")
         next_fence = if(toggles_fence?, do: not in_fence, else: in_fence)
+        section_id = excerpt_id(in_fence, buf, line)
 
         cond do
+          section_id ->
+            {intro, sections, section_id, buf, next_fence}
+
           not in_fence and not toggles_fence? and String.starts_with?(line, "## ") ->
             next_sections = flush_section(sections, heading, buf)
             new_heading = line |> String.trim_leading("## ") |> String.trim()
@@ -228,6 +232,11 @@ defmodule RegentsWeb.Docs do
     intro = intro_rev |> Enum.reverse() |> Enum.join("\n")
     {intro, Map.new(sections)}
   end
+
+  defp excerpt_id(false, [_heading], "<!-- docs-section: " <> rest),
+    do: String.trim_trailing(rest, " -->")
+
+  defp excerpt_id(_in_fence, _lines, _line), do: nil
 
   defp flush_section(sections, nil, _buf), do: sections
 

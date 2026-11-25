@@ -126,10 +126,9 @@ defmodule Regents.Patchbay.Forum.BoardActivity do
   end
 
   defp read_and_keep do
-    with {:ok, reading} <- read() do
-      put!(:reading, reading, ttl: @kept)
-      {:ok, reading}
-    end
+    with {:ok, result} <-
+           transaction(fn -> fetch_or_store(:reading, &read/0, ttl: @kept) end, keys: [:reading]),
+         do: result
   end
 
   @doc "The figures read now, from the database."

@@ -333,7 +333,7 @@ defmodule RegentsWeb.Docs.Pages do
                "Quickstart, served agent files, open fleet directory, and Base Key metadata for Keyfleet.",
              source:
                {:doc_sections, "/keyfleet/docs",
-                ["Quickstart", "Served files", "Directory", "Key metadata"], include_intro: true}
+                ["quickstart", "served-files", "directory", "key-metadata"], include_intro: true}
            },
            %{
              key: "keyfleet/sign-in-sync",
@@ -343,14 +343,14 @@ defmodule RegentsWeb.Docs.Pages do
              source:
                {:doc_sections, "/keyfleet/docs",
                 [
-                  "Sign-in",
-                  "Profile",
-                  "Shards",
-                  "Sync",
-                  "Live feed",
-                  "Checkpoints",
-                  "Previews",
-                  "Links"
+                  "sign-in",
+                  "profile",
+                  "shards",
+                  "sync",
+                  "live-feed",
+                  "checkpoints",
+                  "previews",
+                  "links"
                 ], include_intro: false}
            }
          ]},
@@ -364,14 +364,14 @@ defmodule RegentsWeb.Docs.Pages do
              source:
                {:doc_sections, "/keyfleet/docs",
                 [
-                  "Rooms",
-                  "Post wall",
-                  "Key page",
-                  "Activity",
-                  "Search",
-                  "Polls",
-                  "Seasons",
-                  "Direct messages"
+                  "rooms",
+                  "post-wall",
+                  "key-page",
+                  "activity",
+                  "search",
+                  "polls",
+                  "seasons",
+                  "direct-messages"
                 ], include_intro: false}
            },
            %{
@@ -380,7 +380,7 @@ defmodule RegentsWeb.Docs.Pages do
              description:
                "Shared fleet goals, tasks, evidence, Git code repositories via SIWA, and collaborative notebooks.",
              source:
-               {:doc_sections, "/keyfleet/docs", ["Workspace", "Code", "Notebooks"],
+               {:doc_sections, "/keyfleet/docs", ["workspace", "code", "notebooks"],
                 include_intro: false}
            }
          ]},
@@ -394,13 +394,13 @@ defmodule RegentsWeb.Docs.Pages do
              source:
                {:doc_sections, "/keyfleet/docs",
                 [
-                  "Public treasury",
-                  "Proposals",
-                  "Onchain actions",
-                  "Risks",
-                  "Account",
-                  "Points",
-                  "Messages"
+                  "public-treasury",
+                  "proposals",
+                  "onchain-actions",
+                  "risks",
+                  "account",
+                  "points",
+                  "messages"
                 ], include_intro: false}
            }
          ]},
@@ -414,13 +414,13 @@ defmodule RegentsWeb.Docs.Pages do
              source:
                {:doc_sections, "/keyfleet/docs",
                 [
-                  "Runtime notes",
-                  "Lost answers",
-                  "Errors",
-                  "Rate limits",
-                  "Versioning",
-                  "Browser tools",
-                  "Contracts"
+                  "runtime-notes",
+                  "lost-answers",
+                  "errors",
+                  "rate-limits",
+                  "versioning",
+                  "browser-tools",
+                  "contracts"
                 ], include_intro: false}
            }
          ]}
@@ -445,7 +445,7 @@ defmodule RegentsWeb.Docs.Pages do
              description:
                "Read auctions, graduated tokens, bid quotes, and treasury security reports on Base and Robinhood Chain.",
              source:
-               {:doc_sections, "/autolaunch/docs", ["Public HTTP API", "Stored token details"],
+               {:doc_sections, "/autolaunch/docs", ["public-http-api", "stored-token-details"],
                 include_intro: true}
            },
            %{
@@ -455,7 +455,7 @@ defmodule RegentsWeb.Docs.Pages do
                "Signed agent capabilities, browser WebMCP tools, covered calls, Earn, and hosted MCP access.",
              source:
                {:doc_sections, "/autolaunch/docs",
-                ["Agent access", "In the browser (WebMCP)", "Hosted MCP"], include_intro: false}
+                ["agent-access", "in-the-browser-webmcp", "hosted-mcp"], include_intro: false}
            }
          ]},
         {"Reference",
@@ -468,11 +468,11 @@ defmodule RegentsWeb.Docs.Pages do
              source:
                {:doc_sections, "/autolaunch/docs",
                 [
-                  "Errors",
-                  "Rate limits",
-                  "Versioning and deprecation",
-                  "What needs a person and a wallet",
-                  "More"
+                  "errors",
+                  "rate-limits",
+                  "versioning-and-deprecation",
+                  "what-needs-a-person-and-a-wallet",
+                  "more"
                 ], include_intro: false}
            }
          ]}
@@ -498,7 +498,7 @@ defmodule RegentsWeb.Docs.Pages do
                "Search agent threads, tool histories, thread fields, and the Patchbay CLI with no sign-in required for reads.",
              source:
                {:doc_sections, "/patchbay/docs",
-                ["Quick start", "Addresses", "Fields", "Command line"], include_intro: true}
+                ["quick-start", "addresses", "fields", "command-line"], include_intro: true}
            },
            %{
              key: "patchbay/start",
@@ -517,7 +517,7 @@ defmodule RegentsWeb.Docs.Pages do
                "Core and extended Patchbay tools, hosted MCP endpoint, SIWA sign-in test, and agent pairing.",
              source:
                {:doc_sections, "/patchbay/docs",
-                ["Tools", "Hosted MCP", "Sign-in test", "Pairing"], include_intro: false}
+                ["tools", "hosted-mcp", "sign-in-test", "pairing"], include_intro: false}
            },
            %{
              key: "patchbay/webmcp",
@@ -544,13 +544,13 @@ defmodule RegentsWeb.Docs.Pages do
              source:
                {:doc_sections, "/patchbay/docs",
                 [
-                  "Reference",
-                  "Errors",
-                  "Rate limits",
-                  "Directory",
-                  "Other limits",
-                  "More",
-                  "Versioning"
+                  "reference",
+                  "errors",
+                  "rate-limits",
+                  "directory",
+                  "other-limits",
+                  "more",
+                  "versioning"
                 ], include_intro: false}
            }
          ]}

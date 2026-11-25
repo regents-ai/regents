@@ -8698,3 +8698,6 @@ seasons), on the shared Points library regents.sh was already on.
 - Update product documentation, tool discovery, and legacy redirects for the consolidated site. Load the docs search index on demand.
 - Show linked active wallets on Stake and Redeem, restore compatible wallet batching for Autolaunch rewards, and use one interval for browser receipt checks.
 - Accept full-size pictures on Autolaunch's signed draft endpoint. Read Keyfleet project tasks and Techtree catalog matches in PostgreSQL with the selection applied before returning records.
+- Use the shared SIWA proof and account lookup for Patchbay, and keep the thread reply form tied to the page's browser session.
+- Recover late Keyfleet feed events on reconnect. Use stable section identifiers for product docs and share canonical transaction verification with Autolaunch.
+- Let Patchbay fee jobs resume from their recorded transaction hashes while Base confirms a push.

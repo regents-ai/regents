@@ -5,8 +5,8 @@ defmodule RegentsWeb.Keyfleet.FeedController do
   (`Regents.Keyfleet.Feed`) the moment it is posted. The signature is checked once,
   as the feed opens (`RegentsWeb.Keyfleet.Plugs.SignedAgent`).
 
-  - Each event carries an `id:`, its time in microseconds. A reconnect that
-    sends it back as `Last-Event-ID` first gets what it missed, up to 100;
+  - Each event carries an `id:`, its time in microseconds. A reconnect with
+    `Last-Event-ID` replays from thirty seconds before that id, up to 100;
     past that, or for an id that is not one of these, `{"kind": "resync"}`
     says to catch up through the ordinary routes. That resync's `id:` is the
     database's time as the reconnect was read, so the next reconnect replays

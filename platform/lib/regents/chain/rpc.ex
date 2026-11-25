@@ -102,17 +102,22 @@ defmodule Regents.Chain.Rpc do
   @spec canonical_outcome(String.t(), String.t(), String.t(), String.t(), block(), keyword()) ::
           {:ok, :pending | :reverted | {:success, [map()]}} | {:error, atom()}
   def canonical_outcome(hash, signer, to, data, safe_block, opts \\ []) do
-    with {:ok, receipt} <- identified_receipt(hash, signer, to, data, opts),
+    canonical_outcome_with(hash, signer, to, data, safe_block, &request(&1, &2, opts))
+  end
+
+  @doc "Verifies a submitted transaction using the caller's chain transport."
+  def canonical_outcome_with(hash, signer, to, data, safe_block, request) do
+    with {:ok, receipt} <- identified_receipt(hash, signer, to, data, request),
          {:ok, number, block_hash} <- receipt_block(receipt),
-         :ok <- canonical(number, block_hash, safe_block, opts) do
+         :ok <- canonical(number, block_hash, safe_block, request) do
       settled(receipt)
     end
   end
 
-  defp identified_receipt(hash, signer, to, data, opts) do
+  defp identified_receipt(hash, signer, to, data, request) do
     with true <- valid_hash?(hash),
-         {:ok, receipt} <- request("eth_getTransactionReceipt", [hash], opts),
-         {:ok, transaction} <- request("eth_getTransactionByHash", [hash], opts),
+         {:ok, receipt} <- request.("eth_getTransactionReceipt", [hash]),
+         {:ok, transaction} <- request.("eth_getTransactionByHash", [hash]),
          :ok <- verify_receipt_hash(receipt, hash),
          :ok <- observed_identity(receipt, transaction, hash, signer, to, data) do
       {:ok, receipt}
@@ -191,8 +196,8 @@ defmodule Regents.Chain.Rpc do
   # whichever status the receipt carries right now.
   defp canonical(number, _hash, %{number: safe}, _opts) when number > safe, do: {:ok, :pending}
 
-  defp canonical(number, hash, _safe, opts) do
-    with {:ok, header} <- request("eth_getBlockByNumber", [hex_quantity(number), false], opts),
+  defp canonical(number, hash, _safe, request) do
+    with {:ok, header} <- request.("eth_getBlockByNumber", [hex_quantity(number), false]),
          {:ok, %{hash: ^hash}} <- block_identity(header) do
       :ok
     else

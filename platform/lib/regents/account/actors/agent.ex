@@ -127,17 +127,25 @@ defmodule Regents.Account.Actors.Agent do
   """
   @spec with_pairing(t()) :: {:ok, t()} | {:error, term()}
   def with_pairing(%__MODULE__{} = agent) do
-    with {:ok, pairing} <- Authority.resolve(Regents.Repo, agent.wallet_address),
-         {:ok, account} <-
-           Accounts.get_by_privy_did(pairing.privy_user_id, actor: %System{}) do
-      {:ok, paired(agent, pairing, account)}
-    else
+    case pairing_account(agent.wallet_address) do
+      {:ok, pairing, account} -> {:ok, paired(agent, pairing, account)}
       {:error, :not_paired} -> {:ok, unpaired(agent, :none)}
+      {:error, :person_not_here} -> {:ok, unpaired(agent, :person_not_here)}
       {:error, error} -> {:error, error}
     end
   end
 
-  defp paired(agent, _pairing, nil), do: unpaired(agent, :person_not_here)
+  @doc "Resolves a verified wallet's live pairing and its local account."
+  def pairing_account(wallet) do
+    with {:ok, pairing} <- Authority.resolve(Regents.Repo, wallet),
+         {:ok, %{} = account} <-
+           Accounts.get_by_privy_did(pairing.privy_user_id, actor: %System{}) do
+      {:ok, pairing, account}
+    else
+      {:ok, nil} -> {:error, :person_not_here}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
   defp paired(agent, pairing, account) do
     human = Human.for_account(account)

@@ -91,9 +91,8 @@ defmodule Regents.Keyfleet.Feed do
   # this long of its id. One whose transaction still takes longer can be
   # passed, and a sync covers it. A cursor later than the settled moment, an
   # id the open feed sent lately, answers nothing, and the next read may
-  # repeat what the feed sent. Any id from the feed shares a reconnect's gap:
-  # a message stamped before it and still being saved when the feed dropped
-  # is passed.
+  # repeat what the feed sent. A reconnect looks back this far before the
+  # supplied id to recover posts committed out of order.
   @settling_seconds 30
   # A line named by its room and place is read wherever it is.
   @any_time ~U[1970-01-01 00:00:00.000000Z]
@@ -172,12 +171,11 @@ defmodule Regents.Keyfleet.Feed do
   def id(%DateTime{} = at), do: at |> DateTime.to_unix(:microsecond) |> Integer.to_string()
 
   @doc """
-  Every event after the one whose id is `id` and no later than a moment read
-  once from the database's clock, oldest first: now for a reconnect
-  (`:now`), whose open feed hears the rest, and the settled moment, thirty
-  seconds before now, for the missed events' read (`:settled`). With them
-  comes that moment's id, the cursor to read on from, whatever `id` was; an
-  `id` later than the moment answers no events.
+  Reads events up to a moment from the database clock, oldest first.
+  A reconnect (`:now`) looks back thirty seconds before `id` to recover
+  late commits. Polling (`:settled`) reads strictly after `id` through the
+  settled moment, thirty seconds before now. The response includes the id
+  of the cutoff. A polling cursor later than the cutoff returns no events.
 
   `{:resync, cursor}`, with that moment's id, when there are more than a
   reconnect gets, or for an id that is no event's: anything but 1 to 20
@@ -190,7 +188,7 @@ defmodule Regents.Keyfleet.Feed do
       until = until(now, upto)
 
       with {:ok, since} <- since(id, now),
-           {:ok, events} <- between(feed, since, until) do
+           {:ok, events} <- between(feed, replay_start(since, upto), until) do
         {:ok, events, id(until)}
       else
         :resync -> {:resync, id(until)}
@@ -215,6 +213,9 @@ defmodule Regents.Keyfleet.Feed do
 
   defp until(now, :now), do: now
   defp until(now, :settled), do: DateTime.add(now, -@settling_seconds, :second)
+
+  defp replay_start(since, :now), do: DateTime.add(since, -@settling_seconds, :second)
+  defp replay_start(since, :settled), do: since
 
   defp since(id, now) do
     with true <- String.match?(id, ~r/\A[0-9]{1,20}\z/),

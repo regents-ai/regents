@@ -127,6 +127,7 @@ defmodule Regents.Patchbay.Forum.Report do
       trigger :push_escrow_revenue do
         action(:push_escrow_revenue)
         queue(:patchbay_fees)
+        default_actor(%Regents.Account.Actors.System{})
 
         where(expr(escrow_status in [:released, :refunded] and is_nil(escrow_revenue_pushed_at)))
 
@@ -1542,8 +1543,8 @@ defmodule Regents.Patchbay.Forum.Report do
     update :push_escrow_revenue do
       description("""
       Sends the 10% the escrow kept from this bounty, with whatever else it
-      keeps, to the REGENT revenue staking contract. It waits on Base, so
-      nothing here holds a transaction open.
+      keeps, to the REGENT revenue staking contract. Its job checks the
+      receipt between runs.
       """)
 
       accept([])
@@ -1673,13 +1674,17 @@ defmodule Regents.Patchbay.Forum.Report do
       authorize_if(actor_attribute_equals(:role, :system))
     end
 
-    policy action(:touch) do
+    policy action([:touch, :record_escrow_revenue_pushed]) do
+      authorize_if(actor_attribute_equals(:role, :system))
+    end
+
+    policy action(:push_escrow_revenue) do
+      forbid_unless(AshOban.Checks.AshObanInteraction)
       authorize_if(actor_attribute_equals(:role, :system))
     end
 
     # `claim_escrow_credit`, `record_escrow_credit`, `confirm_escrow_credit`,
-    # `push_escrow_revenue`,
-    # `record_escrow_revenue_pushed`, `read_escrow_credit`,
+    # `read_escrow_credit`,
     # `read_escrow_refund`, `read_by_jev` and `give_up_on_jev` are named by no
     # policy, so nothing that arrives over HTTP can reach them. The settlement,
     # confirmation, acceptance, refund, push and escrow-watch paths skip

@@ -58,7 +58,7 @@ defmodule RegentsWeb.Patchbay.ThreadLive do
 
     socket =
       socket
-      |> assign(path: path, refused: %{})
+      |> assign(path: path, refused: %{}, csrf_token: session["csrf_token"])
       |> assign_new(:site_edition, fn -> :main end)
       |> sign_in(session)
       |> assign_new(:forum_session_id, fn -> session["forum_session_id"] end)
