@@ -155,7 +155,7 @@ defmodule RegentsWeb.Cloak do
     -H "Content-Type: application/json" \\
     -d '{
       "model": "auto",
-      "messages": [{"role": "user", "content": "Review PR #418 for edge cases."}]
+      "messages": [{"role": "user", "content": "Review PR #418."}]
     }'
   """
   |> String.trim()
