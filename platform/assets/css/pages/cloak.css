@@ -25,14 +25,34 @@
   /* What the design needs and the system lacks: round corners, and the panel's
      blues and the drawn window's greys, dark in both themes. */
   --cloak-sans: "Geist", system-ui, sans-serif;
+  --cloak-mono: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
   --cloak-round-pill: 999px;
   --cloak-round-button: 14px;
-  --cloak-round-panel: 28px;
-  --cloak-round-window: 16px;
+  --cloak-round-panel: 20px;
+  --cloak-round-window: 14px;
+  --cloak-max: 1080px;
   --cloak-panel-a: #1d3156;
   --cloak-panel-b: #131f38;
   --cloak-panel-text: #fff;
   --cloak-panel-muted: #b9c3d6;
+  --cloak-stage-bg:
+    radial-gradient(ellipse at 15% 10%, #22385c 0%, transparent 55%),
+    radial-gradient(ellipse at 90% 95%, #1e3752 0%, transparent 50%),
+    linear-gradient(160deg, #152238 0%, #172a42 55%, #1a3049 100%);
+  --cloak-stage-fg: #f8fafc;
+  --cloak-stage-muted: rgb(226 232 240 / 0.72);
+  --cloak-popover-bg: rgb(15 17 22 / 0.86);
+  --cloak-popover-border: rgb(255 255 255 / 0.13);
+  --cloak-popover-line: rgb(255 255 255 / 0.09);
+  --cloak-popover-fg: #f4f4f5;
+  --cloak-popover-muted: #9ca3af;
+  --cloak-popover-link: #60a5fa;
+  --cloak-highlight: #38bdf8;
+  --cloak-highlight-soft: rgb(56 189 248 / 0.11);
+  --cloak-highlight-border: rgb(56 189 248 / 0.35);
+  --cloak-card-bg: color-mix(in srgb, var(--color-fg) 2.5%, var(--color-bg));
+  --cloak-card-border: color-mix(in srgb, var(--color-fg) 11%, transparent);
+  --cloak-card-inner: var(--color-bg);
   --cloak-window: #1f1f20;
   --cloak-window-line: rgb(255 255 255 / 0.1);
   --cloak-window-text: #e6e6e3;
@@ -47,6 +67,44 @@
   font-family: var(--cloak-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme="light"] .cloak {
+  --cloak-stage-bg:
+    radial-gradient(ellipse at 15% 10%, #dcecfb 0%, transparent 58%),
+    radial-gradient(ellipse at 90% 95%, #e8f2fc 0%, transparent 55%),
+    linear-gradient(160deg, #c4ddf6 0%, #d4e6f9 55%, #dfecf9 100%);
+  --cloak-stage-fg: #0f172a;
+  --cloak-stage-muted: rgb(15 23 42 / 0.68);
+  --cloak-popover-bg: rgb(255 255 255 / 0.88);
+  --cloak-popover-border: rgb(255 255 255 / 0.78);
+  --cloak-popover-line: rgb(15 23 42 / 0.09);
+  --cloak-popover-fg: #0f172a;
+  --cloak-popover-muted: #64748b;
+  --cloak-popover-link: #2563eb;
+  --cloak-highlight: #0284c7;
+  --cloak-highlight-soft: rgb(2 132 199 / 0.09);
+  --cloak-highlight-border: rgb(2 132 199 / 0.34);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .cloak {
+    --cloak-stage-bg:
+      radial-gradient(ellipse at 15% 10%, #dcecfb 0%, transparent 58%),
+      radial-gradient(ellipse at 90% 95%, #e8f2fc 0%, transparent 55%),
+      linear-gradient(160deg, #c4ddf6 0%, #d4e6f9 55%, #dfecf9 100%);
+    --cloak-stage-fg: #0f172a;
+    --cloak-stage-muted: rgb(15 23 42 / 0.68);
+    --cloak-popover-bg: rgb(255 255 255 / 0.88);
+    --cloak-popover-border: rgb(255 255 255 / 0.78);
+    --cloak-popover-line: rgb(15 23 42 / 0.09);
+    --cloak-popover-fg: #0f172a;
+    --cloak-popover-muted: #64748b;
+    --cloak-popover-link: #2563eb;
+    --cloak-highlight: #0284c7;
+    --cloak-highlight-soft: rgb(2 132 199 / 0.09);
+    --cloak-highlight-border: rgb(2 132 199 / 0.34);
+  }
 }
 
 /* ---- First screen ---- */
@@ -193,7 +251,1306 @@
   line-height: 1.5;
 }
 
-/* ---- Ecosystem stack banner ---- */
+/* ==========================================================================
+   llama.app-inspired sections below the hero header
+   ========================================================================== */
+
+.cloak-stage {
+  max-width: var(--cloak-max);
+  margin: 56px auto 0;
+}
+
+.cloak-stage__panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 21.5rem;
+  align-items: center;
+  gap: 48px;
+  padding: 48px 56px;
+  border-radius: var(--cloak-round-panel);
+  background: var(--cloak-stage-bg);
+  color: var(--cloak-stage-fg);
+}
+
+.cloak-callouts {
+  display: grid;
+  gap: 32px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cloak-callouts__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 14px;
+}
+
+.cloak-callouts__item h2 {
+  margin: 1px 0 6px;
+  font-family: var(--cloak-sans);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  color: var(--cloak-stage-fg);
+}
+
+.cloak-callouts__item p {
+  margin: 0;
+  max-width: 40ch;
+  color: var(--cloak-stage-muted);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.cloak-num {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--cloak-stage-fg);
+  color: var(--cloak-popover-bg);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.cloak-menubar {
+  display: grid;
+  gap: 8px;
+  user-select: none;
+}
+
+.cloak-menubar__strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px;
+  color: var(--cloak-stage-fg);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.cloak-menubar__app-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.cloak-menubar__app-pill img {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.cloak-menubar__sys {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.88;
+}
+
+.cloak-menubar__sys svg {
+  width: 15px;
+  height: 15px;
+}
+
+.cloak-popover {
+  position: relative;
+  border: 1px solid var(--cloak-popover-border);
+  border-radius: 14px;
+  background: var(--cloak-popover-bg);
+  color: var(--cloak-popover-fg);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  box-shadow:
+    0 24px 48px rgb(0 0 0 / 0.36),
+    0 4px 12px rgb(0 0 0 / 0.2);
+  font-size: 0.8125rem;
+}
+
+.cloak-popover__head {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px 12px;
+  border-block-end: 1px solid var(--cloak-popover-line);
+}
+
+.cloak-popover__title-row,
+.cloak-popover__api-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cloak-popover__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.cloak-popover__dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.cloak-popover__chat-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.cloak-popover__link {
+  color: var(--cloak-popover-link);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.cloak-popover__api-row code {
+  font-family: var(--cloak-mono);
+  font-size: 0.78rem;
+  color: var(--cloak-popover-muted);
+}
+
+.cloak-popover__route {
+  font-size: 0.72rem;
+  color: var(--cloak-popover-muted);
+}
+
+.cloak-popover__section {
+  padding: 10px 16px;
+  border-block-end: 1px solid var(--cloak-popover-line);
+}
+
+.cloak-popover__label-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-block-end: 8px;
+}
+
+.cloak-popover__label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--cloak-popover-muted);
+}
+
+.cloak-popover__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.cloak-popover__row-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cloak-popover__row-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.cloak-popover__row-sub {
+  font-size: 0.75rem;
+  color: var(--cloak-popover-muted);
+}
+
+.cloak-popover__row-meta {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--cloak-popover-muted);
+}
+
+.cloak-mini-tag {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  font-family: var(--cloak-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  opacity: 0.78;
+}
+
+.cloak-popover__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  font-size: 0.75rem;
+  color: var(--cloak-popover-muted);
+}
+
+.cloak-popover__btns {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.cloak-popover__btns span {
+  padding: 3px 9px;
+  border: 1px solid var(--cloak-popover-line);
+  border-radius: 6px;
+  color: var(--cloak-popover-fg);
+  font-size: 0.72rem;
+}
+
+.cloak-num--pin {
+  position: absolute;
+  box-shadow: 0 0 0 2.5px var(--cloak-popover-bg);
+}
+
+.cloak-num--left {
+  inset-inline-start: -28px;
+}
+
+.cloak-num--right {
+  inset-inline-end: -28px;
+}
+
+/* ---- Standard vertical rhythm & card system ---- */
+
+.cloak-section {
+  max-width: var(--cloak-max);
+  margin: 0 auto;
+  padding-block: 76px;
+  scroll-margin-top: 84px;
+}
+
+.cloak-section__head {
+  max-width: 42rem;
+  margin-block-end: 36px;
+}
+
+.cloak-section__head h2,
+.cloak-split__copy h2 {
+  margin: 0 0 14px;
+  font-family: var(--cloak-sans);
+  font-size: clamp(1.75rem, 2.8vw, 2.125rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--color-fg);
+}
+
+.cloak-section__head p,
+.cloak-split__copy p {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.cloak-card {
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 16px;
+  background: var(--cloak-card-bg);
+  padding: 24px;
+}
+
+.cloak-card--tight {
+  padding: 18px;
+}
+
+.cloak-eyebrow {
+  display: block;
+  margin-block-end: 6px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
+}
+
+.cloak-card__title {
+  margin: 0 0 18px;
+  font-family: var(--cloak-sans);
+  font-size: 1.1875rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-fg);
+}
+
+.cloak-card__muted {
+  font-weight: 400;
+  color: var(--color-fg-muted);
+}
+
+.cloak-card__foot {
+  margin: 16px 0 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-fg-muted);
+}
+
+.cloak-card__foot code {
+  font-family: var(--cloak-mono);
+  font-size: 0.84rem;
+  color: var(--color-fg);
+}
+
+/* ---- Section 2: Dual cards + hairline connectors + shared bar ---- */
+
+.cloak-dual {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cloak-dual .cloak-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.cloak-mini-chat {
+  flex: 1;
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 12px;
+  background: var(--cloak-card-inner);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.cloak-mini-chat__state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-block-end: 8px;
+  border-block-end: 1px solid var(--cloak-card-border);
+  font-size: 0.75rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-mini-chat__state b {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--cloak-highlight-soft);
+  color: var(--cloak-highlight);
+  font-weight: 600;
+}
+
+.cloak-mini-chat__mine,
+.cloak-mini-chat__sent {
+  justify-self: end;
+  max-width: 90%;
+  padding: 9px 12px;
+  border-radius: 12px;
+}
+
+.cloak-mini-chat__mine {
+  background: color-mix(in srgb, var(--color-fg) 8%, var(--color-bg));
+  color: var(--color-fg);
+}
+
+.cloak-mini-chat__sent {
+  border: 1px solid var(--cloak-highlight-border);
+  background: var(--cloak-highlight-soft);
+  color: var(--color-fg);
+}
+
+.cloak-mini-chat__tag {
+  display: block;
+  margin-block-end: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
+}
+
+.cloak-mini-chat__mine p,
+.cloak-mini-chat__sent p,
+.cloak-mini-chat__reply {
+  margin: 0;
+}
+
+.cloak-mini-chat__reply {
+  max-width: 92%;
+  color: var(--color-fg-muted);
+}
+
+.cloak-app-rows {
+  flex: 1;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.cloak-app-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 10px;
+  background: var(--cloak-card-inner);
+  font-size: 0.9rem;
+}
+
+.cloak-app-row__left {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  font-weight: 500;
+  color: var(--color-fg);
+}
+
+.cloak-app-row__icon {
+  font-family: var(--cloak-mono);
+  font-size: 0.78rem;
+  color: var(--color-fg-muted);
+  min-width: 22px;
+  text-align: center;
+}
+
+.cloak-app-row__right {
+  font-size: 0.8125rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-connectors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  height: 20px;
+}
+
+.cloak-connectors span {
+  justify-self: center;
+  width: 1px;
+  height: 100%;
+  background: var(--cloak-card-border);
+}
+
+.cloak-shared-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+  padding: 16px 22px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 14px;
+  background: var(--cloak-card-bg);
+}
+
+.cloak-shared-bar__lead {
+  font-size: 0.9375rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-shared-bar__lead strong {
+  color: var(--color-fg);
+  font-weight: 600;
+}
+
+.cloak-shared-bar__partners {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cloak-partner-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 9px;
+  background: var(--cloak-card-inner);
+}
+
+.cloak-partner-chip__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-fg);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.cloak-partner-chip__link:hover {
+  opacity: 0.72;
+}
+
+.cloak-partner-chip__plus {
+  font-size: 0.75rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-partner-chip .cloak-ecosystem__mark {
+  width: 15px;
+  height: 15px;
+}
+
+.cloak-partner-chip .cloak-ecosystem__wordmark {
+  height: 18px;
+}
+
+/* ---- Section 3: Zero-config boundaries split ---- */
+
+.cloak-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  align-items: center;
+  gap: 48px;
+}
+
+.cloak-split__copy {
+  display: grid;
+  gap: 14px;
+  max-width: 30rem;
+}
+
+.cloak-split__copy h2 {
+  margin: 0;
+}
+
+.cloak-split__aside {
+  font-size: 0.875rem !important;
+  opacity: 0.78;
+}
+
+.cloak-spec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 6px 14px;
+}
+
+.cloak-spec-head__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+
+.cloak-spec-head__ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8125rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-spec-head__ok svg {
+  width: 15px;
+  height: 15px;
+  color: var(--cloak-highlight);
+}
+
+.cloak-spec-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 12px;
+  background: var(--cloak-card-inner);
+  overflow: hidden;
+}
+
+.cloak-spec-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+}
+
+.cloak-spec-row + .cloak-spec-row {
+  border-block-start: 1px solid var(--cloak-card-border);
+}
+
+.cloak-spec-row__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 8px;
+  background: var(--cloak-card-bg);
+  color: var(--color-fg-muted);
+}
+
+.cloak-spec-row__icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.cloak-spec-row__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cloak-spec-row__text strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+
+.cloak-spec-row__text span {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--color-fg-muted);
+}
+
+.cloak-auto-pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--cloak-highlight-soft);
+  color: var(--cloak-highlight);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* ---- Section 4: 3-column Apple silicon bento ---- */
+
+.cloak-bento {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cloak-bento__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cloak-bento__card h3 {
+  margin: 0;
+  font-family: var(--cloak-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+
+.cloak-bento__card p {
+  margin: 0 0 18px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-fg-muted);
+}
+
+.cloak-sizes {
+  margin-block-start: auto;
+  display: grid;
+  gap: 12px;
+}
+
+.cloak-sizes__row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.cloak-sizes__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 8px;
+  background: var(--cloak-card-inner);
+  font-family: var(--cloak-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-fg-muted);
+}
+
+.cloak-sizes__row div {
+  display: grid;
+  gap: 1px;
+}
+
+.cloak-sizes__row strong {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+
+.cloak-sizes__row span {
+  font-size: 0.75rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-sizes__row code {
+  font-family: var(--cloak-mono);
+  font-size: 0.84rem;
+  color: var(--color-fg);
+}
+
+.cloak-tree {
+  margin-block-start: auto;
+  display: grid;
+}
+
+.cloak-tree__top {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.cloak-tree__top span {
+  padding: 5px 6px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 7px;
+  background: var(--cloak-card-inner);
+  font-size: 0.72rem;
+  text-align: center;
+  color: var(--color-fg);
+  white-space: nowrap;
+}
+
+.cloak-tree__lines {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  height: 16px;
+}
+
+.cloak-tree__lines span {
+  justify-self: center;
+  width: 1px;
+  height: 100%;
+  background: var(--cloak-card-border);
+}
+
+.cloak-tree__box {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 9px;
+  background: var(--cloak-card-inner);
+}
+
+.cloak-tree__box strong {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+
+.cloak-tree__box span {
+  font-size: 0.72rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-chart {
+  margin-block-start: auto;
+}
+
+.cloak-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.cloak-chart__fill-a {
+  fill: color-mix(in srgb, var(--cloak-highlight) 20%, transparent);
+}
+
+.cloak-chart__fill-b {
+  fill: color-mix(in srgb, var(--cloak-highlight) 10%, transparent);
+}
+
+.cloak-chart__stroke {
+  stroke: var(--cloak-highlight);
+}
+
+.cloak-chart__label {
+  fill: var(--color-fg);
+  font-family: var(--cloak-sans);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.cloak-chart__muted {
+  fill: var(--color-fg-muted);
+  font-family: var(--cloak-sans);
+  font-size: 11px;
+}
+
+/* ---- Section 5: 5 modes grid ---- */
+
+.cloak-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cloak-mode-card {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cloak-mode-card:nth-child(4),
+.cloak-mode-card:nth-child(5) {
+  grid-column: span 3;
+}
+
+.cloak-mode-card__ram {
+  font-size: 0.78rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-mode-card h3 {
+  margin: 0;
+  font-family: var(--cloak-sans);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--color-fg);
+}
+
+.cloak-mode-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-fg-muted);
+  text-wrap: pretty;
+}
+
+.cloak-mode-card__credit {
+  margin-block-start: auto !important;
+  padding-block-start: 6px;
+  font-size: 0.8125rem !important;
+}
+
+.cloak-mode-card__credit a {
+  color: var(--color-fg);
+  text-underline-offset: 3px;
+}
+
+.cloak-links-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-block-start: 22px;
+}
+
+.cloak-links-row--inline {
+  margin-block-start: 18px;
+}
+
+.cloak-text-link {
+  color: var(--color-fg);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: color-mix(in srgb, var(--color-fg) 40%, transparent);
+  transition: text-decoration-color var(--duration-fast) ease;
+}
+
+.cloak-text-link:hover {
+  text-decoration-color: var(--color-fg);
+}
+
+/* ---- Section 6: Build on Cloak + comparison figure ---- */
+
+.cloak-dev {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+  align-items: start;
+  gap: 40px;
+}
+
+.cloak-dev__copy h3,
+.cloak-compare-wrap h3 {
+  margin: 0 0 10px;
+  font-family: var(--cloak-sans);
+  font-size: 1.1875rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--color-fg);
+}
+
+.cloak-dev__copy p,
+.cloak-compare-wrap__sub {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.cloak-checks {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cloak-checks li {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  align-items: start;
+  gap: 10px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--color-fg);
+}
+
+.cloak-checks svg {
+  width: 15px;
+  height: 15px;
+  margin-block-start: 3px;
+  color: var(--color-fg-muted);
+}
+
+.cloak-terminal {
+  overflow: hidden;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 14px;
+  background: #111113;
+  color: #e7e7e9;
+}
+
+.cloak-terminal__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border-block-end: 1px solid rgb(255 255 255 / 0.09);
+}
+
+.cloak-terminal__dots {
+  display: inline-flex;
+  gap: 7px;
+}
+
+.cloak-terminal__dots i {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.18);
+}
+
+.cloak-copy-btn,
+.cloak-copy-icon {
+  padding: 4px 10px;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.06);
+  color: #d4d4d8;
+  font-family: var(--cloak-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease;
+}
+
+.cloak-copy-btn:hover,
+.cloak-copy-icon:hover {
+  background: rgb(255 255 255 / 0.14);
+}
+
+.cloak-terminal__code {
+  margin: 0;
+  padding: 18px 20px;
+  overflow-x: auto;
+  font-family: var(--cloak-mono);
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.cloak-tok-prompt {
+  color: #f97316;
+}
+
+.cloak-tok-cmd {
+  color: #38bdf8;
+}
+
+.cloak-tok-str {
+  color: #fbbf24;
+}
+
+.cloak-compare-wrap {
+  margin-block-start: 64px;
+}
+
+.cloak-compare-wrap__sub {
+  max-width: 44rem;
+  margin-block-end: 24px;
+}
+
+.cloak-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.cloak-compare__side {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+
+.cloak-compare__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.8125rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-compare__apps,
+.cloak-compare__stacks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cloak-compare__apps span {
+  padding: 10px 8px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 9px;
+  background: var(--cloak-card-inner);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--color-fg);
+}
+
+.cloak-compare__box {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 9px;
+  background: var(--cloak-card-inner);
+  font-size: 0.78rem;
+  color: var(--color-fg);
+}
+
+.cloak-compare__box hr,
+.cloak-compare__pipe hr {
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--cloak-card-border);
+}
+
+.cloak-compare__muted {
+  color: var(--color-fg-muted);
+}
+
+.cloak-compare__cloak {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: stretch;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--cloak-highlight-border);
+  border-radius: 10px;
+  background: var(--cloak-highlight-soft);
+}
+
+.cloak-compare__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding-inline-end: 14px;
+  border-inline-end: 1px solid var(--cloak-highlight-border);
+  font-size: 0.84rem;
+  color: var(--color-fg);
+}
+
+.cloak-compare__brand img {
+  display: block;
+  border-radius: 4px;
+}
+
+.cloak-compare__pipe {
+  display: grid;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--color-fg);
+}
+
+.cloak-compare__pipe > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cloak-compare__tag {
+  flex: none;
+  font-family: var(--cloak-mono);
+  font-size: 0.72rem;
+  color: var(--cloak-highlight);
+}
+
+/* ---- Verify card on /cloak ---- */
+
+.cloak-verify-card {
+  display: grid;
+  gap: 20px;
+  padding: 28px 32px;
+}
+
+/* ---- Section 8: Closing CTA ---- */
+
+.cloak-closing {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  max-width: var(--cloak-max);
+  margin: 0 auto;
+  padding: 64px 0 96px;
+  text-align: center;
+}
+
+.cloak-closing h2 {
+  margin: 0;
+  font-family: var(--cloak-sans);
+  font-size: clamp(2rem, 3.8vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  color: var(--color-fg);
+}
+
+.cloak-closing__sub {
+  margin: 0;
+  font-size: 1.0625rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-closing__actions {
+  margin-block-start: 6px;
+}
+
+.cloak-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 24px;
+  border-radius: 10px;
+  background: var(--color-fg);
+  color: var(--color-bg);
+  font-family: var(--cloak-sans);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    opacity var(--duration-fast) ease,
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.cloak-cta:hover {
+  opacity: 0.88;
+}
+
+.cloak-cta:active {
+  transform: translateY(1px);
+}
+
+.cloak-cta svg {
+  width: 17px;
+  height: 17px;
+}
+
+.cloak-closing__pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.cloak-closing__or {
+  font-size: 0.84rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-cmd-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 14px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 9px;
+  background: var(--cloak-card-bg);
+  font-family: var(--cloak-mono);
+  font-size: 0.8125rem;
+  color: var(--color-fg);
+}
+
+.cloak-cmd-pill .cloak-copy-icon {
+  border-color: var(--cloak-card-border);
+  background: var(--cloak-card-inner);
+  color: var(--color-fg-muted);
+}
+
+.cloak-closing__note {
+  max-width: 60ch;
+  margin: 24px 0 0;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: var(--color-fg-muted);
+}
+
+.cloak-closing__note a {
+  color: var(--color-fg);
+  text-underline-offset: 3px;
+}
+
+/* ---- Ecosystem stack banner (kept for shared mark sizing) ---- */
 
 .cloak-ecosystem {
   max-width: 1240px;
@@ -636,9 +1993,9 @@
 /* ---- Docs for agents ---- */
 
 .cloak-agent-docs {
-  max-width: 1240px;
-  margin: var(--space-6) auto 0;
-  padding: 0 var(--space-8);
+  max-width: var(--cloak-max);
+  margin: 28px auto 0;
+  padding: 0;
 }
 
 .cloak-agent-docs__head {
@@ -921,6 +2278,74 @@
 }
 
 @media (max-width: 56.25rem) {
+  .cloak-stage__panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+    padding: 28px 20px;
+  }
+
+  .cloak-num--left {
+    inset-inline-start: -12px;
+  }
+
+  .cloak-num--right {
+    inset-inline-end: -12px;
+  }
+
+  .cloak-section {
+    padding-block: 48px;
+  }
+
+  .cloak-dual,
+  .cloak-split,
+  .cloak-bento,
+  .cloak-dev,
+  .cloak-compare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cloak-connectors {
+    display: none;
+  }
+
+  .cloak-shared-bar {
+    margin-block-start: 16px;
+  }
+
+  .cloak-mode-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cloak-mode-card,
+  .cloak-mode-card:nth-child(4),
+  .cloak-mode-card:nth-child(5) {
+    grid-column: span 1;
+  }
+
+  .cloak-compare__apps,
+  .cloak-compare__stacks {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cloak-compare__cloak {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cloak-compare__brand {
+    padding-inline-end: 0;
+    padding-block-end: 10px;
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--cloak-highlight-border);
+  }
+
+  .cloak-verify-card {
+    padding: 20px;
+  }
+
+  .cloak-closing {
+    padding: 40px 0 64px;
+  }
+
   .cloak-hero__icon-wrap {
     margin-block-end: 20px;
   }

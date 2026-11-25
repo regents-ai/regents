@@ -20,7 +20,12 @@ defmodule RegentsWeb.Cloak.CloakLive do
       assign(assigns,
         ecosystem: Cloak.ecosystem(),
         window: Cloak.window(),
-        modes: Enum.with_index(Cloak.modes(), 1),
+        menubar_callouts: Cloak.menubar_callouts(),
+        menubar_modes: Cloak.menubar_modes(),
+        boundaries: Cloak.boundaries(),
+        mode_cards: Cloak.mode_cards(),
+        api_bullets: Cloak.api_bullets(),
+        curl_example: Cloak.curl_example(),
         checksums: Cloak.release_checksums()
       )
 
@@ -91,17 +96,187 @@ defmodule RegentsWeb.Cloak.CloakLive do
         <p class="cloak-hero__facts">{Cloak.facts()}</p>
       </header>
 
-      <section class="cloak-ecosystem" aria-labelledby="cloak-ecosystem-heading">
-        <h2 id="cloak-ecosystem-heading" class="cloak-ecosystem__eyebrow">
-          {Cloak.ecosystem_heading()}
-        </h2>
-        <ul class="cloak-ecosystem__grid">
-          <li :for={group <- @ecosystem} class="cloak-ecosystem__group" data-group={group.id}>
-            <div class="cloak-ecosystem__logos">
+      <%!-- Section 1: Menu-bar app callout card (llama.app showcase) --%>
+      <section class="cloak-stage" aria-label="Cloak in the menu bar">
+        <div class="cloak-stage__panel">
+          <ol class="cloak-callouts">
+            <li :for={item <- @menubar_callouts} class="cloak-callouts__item">
+              <span class="cloak-num" aria-hidden="true">{item.n}</span>
+              <div>
+                <h2>{item.title}</h2>
+                <p>{item.body}</p>
+              </div>
+            </li>
+          </ol>
+
+          <div class="cloak-menubar" aria-hidden="true">
+            <div class="cloak-menubar__strip">
+              <span class="cloak-menubar__app-pill">
+                <img src={~p"/images/cloak/icon.png"} width="14" height="14" alt="" />
+              </span>
+              <span class="cloak-menubar__sys">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M2.5 6.2a8 8 0 0 1 11 0M4.8 8.8a4.8 4.8 0 0 1 6.4 0M7.2 11.4a1.3 1.3 0 0 1 1.6 0" stroke-linecap="round" />
+                </svg>
+                <svg viewBox="0 0 20 14" fill="none" stroke="currentColor" stroke-width="1.4">
+                  <rect x="1" y="2.5" width="15" height="9" rx="2" />
+                  <rect x="3" y="4.5" width="10" height="5" rx="0.8" fill="currentColor" stroke="none" />
+                  <path d="M18 5.2v3.6" stroke-linecap="round" />
+                </svg>
+                <span>Wed Nov 25 10:24</span>
+              </span>
+            </div>
+
+            <div class="cloak-popover">
+              <div class="cloak-popover__head">
+                <div class="cloak-popover__title-row">
+                  <span class="cloak-popover__name">
+                    Cloak <i class="cloak-popover__dot"></i>
+                  </span>
+                  <span class="cloak-popover__chat-wrap">
+                    <span class="cloak-popover__link">Open chat</span>
+                    <span class="cloak-num cloak-num--pin cloak-num--right">1</span>
+                  </span>
+                </div>
+                <div class="cloak-popover__api-row">
+                  <span class="cloak-num cloak-num--pin cloak-num--left">2</span>
+                  <code>127.0.0.1:8742</code>
+                  <span class="cloak-popover__route">Tor · Active</span>
+                </div>
+              </div>
+
+              <div class="cloak-popover__section">
+                <div class="cloak-popover__label-row">
+                  <span class="cloak-num cloak-num--pin cloak-num--left">3</span>
+                  <span class="cloak-popover__label">Modes</span>
+                </div>
+                <div :for={mode <- @menubar_modes} class="cloak-popover__row">
+                  <div class="cloak-popover__row-main">
+                    <span class="cloak-popover__row-title">
+                      {mode.name}
+                      <span class="cloak-mini-tag">{mode.tag}</span>
+                    </span>
+                    <span class="cloak-popover__row-sub">{mode.meta}</span>
+                  </div>
+                  <span class="cloak-popover__row-meta">{mode.badge}</span>
+                </div>
+              </div>
+
+              <div class="cloak-popover__section">
+                <div class="cloak-popover__row">
+                  <div class="cloak-popover__row-main">
+                    <span class="cloak-popover__row-title">Darkbloom Serving</span>
+                    <span class="cloak-popover__row-sub">macOS 27+ · Apple silicon</span>
+                  </div>
+                  <span class="cloak-popover__row-meta">Off</span>
+                </div>
+              </div>
+
+              <div class="cloak-popover__foot">
+                <span class="cloak-popover__ver">Cloak {@checksums.tag}</span>
+                <span class="cloak-popover__btns">
+                  <span>Settings</span>
+                  <span>Quit</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <%!-- Section 2: Chat + API comparison with connected ecosystem bar --%>
+      <section class="cloak-section" aria-labelledby="cloak-dual-heading">
+        <div class="cloak-section__head">
+          <h2 id="cloak-dual-heading">Chat locally, or cloak your cloud</h2>
+          <p>
+            Start free and offline on Apple silicon. When you need frontier cloud models,
+            Cloak adds hardware attestation, local prompt rewriting, Tor circuits, and crypto payments.
+          </p>
+        </div>
+
+        <div class="cloak-dual">
+          <article class="cloak-card">
+            <span class="cloak-eyebrow">For you</span>
+            <h3 class="cloak-card__title">
+              Chat <span class="cloak-card__muted">· 4 privacy tiers</span>
+            </h3>
+            <div class="cloak-mini-chat" aria-label="Example Original to Sent local prompt rewrite">
+              <div class="cloak-mini-chat__state">
+                <b>{@window.mode}</b>
+                <span>{@window.mode_note}</span>
+              </div>
+              <div class="cloak-mini-chat__mine">
+                <span class="cloak-mini-chat__tag">{@window.original_label}</span>
+                <p>{@window.original}</p>
+              </div>
+              <div class="cloak-mini-chat__sent">
+                <span class="cloak-mini-chat__tag">{@window.sent_label}</span>
+                <p>{@window.sent}</p>
+              </div>
+              <p class="cloak-mini-chat__reply">{@window.answered}</p>
+            </div>
+            <p class="cloak-card__foot">
+              Threads lock to their mode on turn 1. Identifiers like <code>PR #418</code> stay intact.
+            </p>
+          </article>
+
+          <article class="cloak-card">
+            <span class="cloak-eyebrow">For your apps &amp; agents</span>
+            <h3 class="cloak-card__title">
+              CloakDoor <span class="cloak-card__muted">· OpenAI API + Pi VM</span>
+            </h3>
+            <div class="cloak-app-rows">
+              <div class="cloak-app-row">
+                <span class="cloak-app-row__left">
+                  <span class="cloak-app-row__icon" aria-hidden="true">&gt;_</span>
+                  <span>Built-in Pi agent</span>
+                </span>
+                <span class="cloak-app-row__right">NIC-less Linux VM</span>
+              </div>
+              <div class="cloak-app-row">
+                <span class="cloak-app-row__left">
+                  <span class="cloak-app-row__icon" aria-hidden="true">&lt;/&gt;</span>
+                  <span>Coding editors</span>
+                </span>
+                <span class="cloak-app-row__right">Cursor, Cline, Aider</span>
+              </div>
+              <div class="cloak-app-row">
+                <span class="cloak-app-row__left">
+                  <span class="cloak-app-row__icon" aria-hidden="true">[]</span>
+                  <span>Local Access</span>
+                </span>
+                <span class="cloak-app-row__right">PDFs, OCR, folders (offline)</span>
+              </div>
+              <div class="cloak-app-row">
+                <span class="cloak-app-row__left">
+                  <span class="cloak-app-row__icon" aria-hidden="true">{}</span>
+                  <span>Your own code</span>
+                </span>
+                <span class="cloak-app-row__right">Any OpenAI SDK</span>
+              </div>
+            </div>
+            <p class="cloak-card__foot">
+              Point any OpenAI-compatible app at <code>127.0.0.1:8742/v1</code>
+            </p>
+          </article>
+        </div>
+
+        <div class="cloak-connectors" aria-hidden="true">
+          <span></span>
+          <span></span>
+        </div>
+
+        <div class="cloak-shared-bar" aria-label={Cloak.ecosystem_heading()}>
+          <div class="cloak-shared-bar__lead">
+            <strong>One app</strong>
+            <span>· local engines, TEEs, and crypto rails</span>
+          </div>
+          <ul class="cloak-shared-bar__partners">
+            <li :for={group <- @ecosystem} class="cloak-partner-chip">
               <%= for {partner, idx} <- Enum.with_index(group.partners) do %>
-                <span :if={idx > 0} class="cloak-ecosystem__plus" aria-hidden="true">+</span>
+                <span :if={idx > 0} class="cloak-partner-chip__plus" aria-hidden="true">+</span>
                 <a
-                  class="cloak-ecosystem__partner"
+                  class="cloak-partner-chip__link"
                   href={partner.href}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -110,168 +285,399 @@ defmodule RegentsWeb.Cloak.CloakLive do
                   <span class={if Map.get(partner, :wordmark), do: "cloak-sr-only"}>{partner.name}</span>
                 </a>
               <% end %>
-            </div>
-            <p class="cloak-ecosystem__note">{group.note}</p>
-          </li>
-        </ul>
-      </section>
-
-      <section id="modes" class="cloak-show" aria-labelledby="cloak-modes-heading">
-        <div>
-          <h2 id="cloak-modes-heading" class="cloak-show__title">{Cloak.modes_title()}</h2>
-          <ol class="cloak-modes">
-            <li :for={{{name, credit, sentence}, n} <- @modes}>
-              <span class="cloak-badge" aria-hidden="true">{n}</span>
-              <div>
-                <h3>{name}</h3>
-                <p :if={credit} class="cloak-modes__credit">
-                  <%= for part <- credit do %>
-                    <%= case part do %>
-                      <% {:text, text} -> %>
-                        {text}
-                      <% {:link, label, href} -> %>
-                        <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
-                    <% end %>
-                  <% end %>
-                </p>
-                <p>{sentence}</p>
-              </div>
             </li>
-          </ol>
-        </div>
-
-        <div
-          class="cloak-window"
-          role="img"
-          aria-label="The Cloak chat window showing an Original to Sent local prompt rephrasing in zkAPI Anon Inference mode, with mode switch: Local, NEAR AI Gateway, Token Inference, zkAPI Anon Inference, and Agent."
-        >
-          <div class="cloak-window__bar"><i></i><i></i><i></i><span>{@window.title}</span></div>
-          <div class="cloak-window__state"><b>{@window.mode}</b>{@window.mode_note}</div>
-          <div class="cloak-window__chat">
-            <div class="cloak-bubble cloak-bubble--mine">
-              <span class="cloak-bubble__label">{@window.original_label}</span>
-              {@window.original}
-            </div>
-            <div class="cloak-bubble cloak-bubble--sent">
-              <span class="cloak-bubble__label">{@window.sent_label}</span>
-              {@window.sent}
-            </div>
-            <div class="cloak-bubble">{@window.answered}</div>
-          </div>
-          <div class="cloak-window__compose">
-            <div class="cloak-window__field">{@window.field}</div>
-            <div class="cloak-switch">
-              <span
-                :for={{label, n} <- Enum.with_index(@window.switch, 1)}
-                class={label == @window.mode && "is-on"}
-              >
-                <span :if={n <= 4} class="cloak-badge">{n}</span>{label}
-              </span>
-            </div>
-            <p class="cloak-window__hint">{@window.hint}</p>
-          </div>
+          </ul>
         </div>
       </section>
 
-      <section id="agent" class="cloak-agent" aria-labelledby="cloak-agent-heading">
-        <div class="cloak-agent__head">
-          <h2 id="cloak-agent-heading">{Cloak.agent().title}</h2>
-          <p>{Cloak.agent().summary}</p>
+      <%!-- Section 3: Zero-config privacy boundaries (llama.app "Nothing to set up") --%>
+      <section class="cloak-section cloak-split" aria-labelledby="cloak-boundaries-heading">
+        <div class="cloak-split__copy">
+          <h2 id="cloak-boundaries-heading">Privacy boundaries, enforced by default</h2>
+          <p>
+            Private AI used to mean wiring up Tor, isolated VMs, local rewriters, and
+            hardware attestation by hand. Cloak checks your Mac and enforces every boundary
+            automatically — you only pick the mode.
+          </p>
+          <p class="cloak-split__aside">
+            Want to inspect every step? Live attestation proofs, Original vs. Sent diffs, cover traffic logs, and bundle SHA-256 hashes are built right into Settings.
+          </p>
         </div>
-        <ul class="cloak-agent__list">
-          <li :for={bullet <- Cloak.agent().bullets}>{bullet}</li>
-        </ul>
-        <div class="cloak-agent__actions">
-          <a class="cloak-button" href={Cloak.agent().docs_href}>
-            <span>{Cloak.agent().docs_label}</span>
+
+        <div class="cloak-card cloak-card--tight">
+          <div class="cloak-spec-head">
+            <span class="cloak-spec-head__name">
+              Cloak Sandbox <span class="cloak-mini-tag">arm64</span>
+            </span>
+            <span class="cloak-spec-head__ok">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M3.5 8.5 6.5 11.5 12.5 4.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              Verified on every start
+            </span>
+          </div>
+          <ul class="cloak-spec-list">
+            <li :for={row <- @boundaries} class="cloak-spec-row">
+              <span class="cloak-spec-row__icon" aria-hidden="true">
+                <.boundary_icon kind={row.icon} />
+              </span>
+              <div class="cloak-spec-row__text">
+                <strong>{row.title}</strong>
+                <span>{row.detail}</span>
+              </div>
+              <span class="cloak-auto-pill">{row.status}</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <%!-- Section 4: Built for Apple silicon (llama.app 3-card bento) --%>
+      <section class="cloak-section" aria-labelledby="cloak-silicon-heading">
+        <div class="cloak-section__head">
+          <h2 id="cloak-silicon-heading">Built for Apple silicon</h2>
+          <p>
+            Fast native MLX inference, strict on-disk encryption, and automatic memory
+            release when you stop chatting.
+          </p>
+        </div>
+
+        <div class="cloak-bento">
+          <article class="cloak-card cloak-bento__card">
+            <h3>56–64 tok/s local MLX</h3>
+            <p>
+              Sandboxed pure-Swift Apple MLX and Metal llama.cpp workers over binary IPC — no local web server.
+            </p>
+            <div class="cloak-sizes">
+              <div class="cloak-sizes__row">
+                <span class="cloak-sizes__icon" aria-hidden="true">M</span>
+                <div>
+                  <strong>Inkling 2 Mini</strong>
+                  <span>Apple MLX · 16 GB+</span>
+                </div>
+                <code>10.2 GB</code>
+              </div>
+              <div class="cloak-sizes__row">
+                <span class="cloak-sizes__icon" aria-hidden="true">R</span>
+                <div>
+                  <strong>Qwen 3.5 9B</strong>
+                  <span>Prompt rewriter</span>
+                </div>
+                <code>5.69 GB</code>
+              </div>
+            </div>
+          </article>
+
+          <article class="cloak-card cloak-bento__card">
+            <h3>Strict thread isolation</h3>
+            <p>
+              Local Access files, OCR, and memory stay offline in Local Mode — cloud modes have no path to them.
+            </p>
+            <div class="cloak-tree" aria-hidden="true">
+              <div class="cloak-tree__top">
+                <span>Local</span>
+                <span>NEAR TEE</span>
+                <span>Tor / zkAPI</span>
+              </div>
+              <div class="cloak-tree__lines">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <div class="cloak-tree__box">
+                <strong>Encrypted store</strong>
+                <span>ChaCha20-Poly1305 · 0700 on this Mac</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="cloak-card cloak-bento__card">
+            <h3>Unloads when idle</h3>
+            <p>
+              The local rewriter loads on demand and automatically frees unified memory after 15 minutes idle.
+            </p>
+            <div class="cloak-chart" aria-hidden="true">
+              <svg viewBox="0 0 280 96" fill="none">
+                <rect x="26" y="14" width="90" height="72" class="cloak-chart__fill-a" />
+                <rect x="116" y="14" width="84" height="72" class="cloak-chart__fill-b" />
+                <path
+                  d="M0 86 H26 V14 H200 V86 H280"
+                  class="cloak-chart__stroke"
+                  stroke-width="1.5"
+                />
+                <text x="71" y="54" text-anchor="middle" class="cloak-chart__label">In use</text>
+                <text x="158" y="54" text-anchor="middle" class="cloak-chart__label">15 min idle</text>
+                <text x="240" y="77" text-anchor="middle" class="cloak-chart__muted">Unloaded</text>
+              </svg>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <%!-- Section 5: 5 modes for every Mac (llama.app "A great model for every Mac") --%>
+      <section id="modes" class="cloak-section" aria-labelledby="cloak-modes-heading">
+        <div class="cloak-section__head">
+          <h2 id="cloak-modes-heading">A mode for every Mac</h2>
+          <p>
+            Start with zero downloads on an 8 GB Mac, or run local MLX and Tor privacy tiers on 16 GB+ Apple silicon.
+          </p>
+        </div>
+
+        <div class="cloak-mode-grid">
+          <article :for={card <- @mode_cards} class="cloak-card cloak-mode-card" data-mode={card.id}>
+            <span class="cloak-mode-card__ram">{card.ram}</span>
+            <h3>{card.name}</h3>
+            <p>{card.body}</p>
+            <p :if={card.credit} class="cloak-mode-card__credit">
+              <%= for part <- card.credit do %>
+                <%= case part do %>
+                  <% {:text, text} -> %>
+                    {text}
+                  <% {:link, label, href} -> %>
+                    <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
+                <% end %>
+              <% end %>
+            </p>
+          </article>
+        </div>
+
+        <div class="cloak-links-row">
+          <a class="cloak-text-link" href={Cloak.docs_path()}>
+            Compare all 5 modes &amp; privacy boundaries →
+          </a>
+          <a class="cloak-text-link" href="/docs/cloak/wallets">
+            Wallet security &amp; 30-day zkAPI limit →
           </a>
         </div>
       </section>
 
-      <section class="cloak-agent-docs" aria-labelledby="cloak-agent-docs-heading">
-        <div class="cloak-agent-docs__head">
-          <h2 id="cloak-agent-docs-heading">{Cloak.agent_docs_title()}</h2>
-          <p>{Cloak.agent_docs_intro()}</p>
+      <%!-- Section 6: Build on Cloak (llama.app "Build on Llama" + comparison diagram) --%>
+      <section id="agent" class="cloak-section" aria-labelledby="cloak-build-heading">
+        <div class="cloak-section__head">
+          <h2 id="cloak-build-heading">Build on Cloak</h2>
+          <p>
+            Give your coding agents, editors, and scripts a localhost OpenAI API with automatic local prompt rewriting and Tor routing.
+          </p>
         </div>
-        <div class="cloak-agent-docs__list">
-          <details
-            :for={doc <- Cloak.agent_docs()}
-            id={"cloak-agent-doc-#{doc.id}"}
-            class="cloak-agent-doc"
-            phx-mounted={JS.ignore_attributes(["open"])}
+
+        <div class="cloak-dev">
+          <div class="cloak-dev__copy">
+            <h3>OpenAI-compatible API</h3>
+            <p>
+              Point Cursor, Cline, Aider, or any OpenAI SDK at CloakDoor. User messages rewrite locally on your Mac before leaving over Tor.
+            </p>
+            <ul class="cloak-checks">
+              <li :for={bullet <- @api_bullets}>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                  <path d="M3.5 8.5 6.5 11.5 12.5 4.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span>{bullet}</span>
+              </li>
+            </ul>
+            <div class="cloak-links-row cloak-links-row--inline">
+              <a class="cloak-text-link" href={Cloak.docs_path()}>API &amp; agent reference →</a>
+              <.link navigate={~p"/cloak/install"} class="cloak-text-link">Install &amp; checksums →</.link>
+            </div>
+          </div>
+
+          <div class="cloak-terminal">
+            <div class="cloak-terminal__bar">
+              <div class="cloak-terminal__dots" aria-hidden="true">
+                <i></i><i></i><i></i>
+              </div>
+              <button
+                id="cloak-copy-curl"
+                type="button"
+                class="cloak-copy-btn"
+                phx-hook=".CopyCommand"
+                data-copy={@curl_example}
+                aria-label="Copy curl command"
+              >
+                Copy
+              </button>
+            </div>
+            <pre class="cloak-terminal__code"><code><span class="cloak-tok-prompt">$</span> <span class="cloak-tok-cmd">curl</span> http://127.0.0.1:8742/v1/chat/completions \
+      -H <span class="cloak-tok-str">"Authorization: Bearer cloak-..."</span> \
+      -H <span class="cloak-tok-str">"Content-Type: application/json"</span> \
+      -d <span class="cloak-tok-str">'&#123;</span>
+    <span class="cloak-tok-str">    "model": "auto",</span>
+    <span class="cloak-tok-str">    "messages": [&#123;"role": "user", "content": "Review PR #418 for edge cases."&#125;]</span>
+    <span class="cloak-tok-str">  &#125;'</span></code></pre>
+          </div>
+        </div>
+
+        <div class="cloak-compare-wrap">
+          <h3>Keep your identity out of every prompt</h3>
+          <p class="cloak-compare-wrap__sub">
+            Instead of sending your IP address, account key, and raw writing style to every cloud model, Cloak inserts a local privacy pipeline shared by Chat, the sandboxed Pi agent, and Connected Apps.
+          </p>
+
+          <figure class="cloak-compare">
+            <div class="cloak-card cloak-compare__side">
+              <div class="cloak-compare__top">
+                <span>Direct cloud AI</span>
+                <span>IP + account + style</span>
+              </div>
+              <div class="cloak-compare__apps">
+                <span>Chat app</span>
+                <span>Coding agent</span>
+                <span>Your app</span>
+              </div>
+              <div class="cloak-compare__stacks">
+                <div class="cloak-compare__box">
+                  <span>Raw prompt</span>
+                  <hr />
+                  <span class="cloak-compare__muted">Account key + IP</span>
+                </div>
+                <div class="cloak-compare__box">
+                  <span>Raw prompt</span>
+                  <hr />
+                  <span class="cloak-compare__muted">Account key + IP</span>
+                </div>
+                <div class="cloak-compare__box">
+                  <span>Raw prompt</span>
+                  <hr />
+                  <span class="cloak-compare__muted">Account key + IP</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="cloak-card cloak-compare__side">
+              <div class="cloak-compare__top">
+                <span>With Cloak</span>
+                <span>Rewritten · Tor · Unlinked</span>
+              </div>
+              <div class="cloak-compare__apps">
+                <span>Chat</span>
+                <span>Pi VM agent</span>
+                <span>CloakDoor API</span>
+              </div>
+              <div class="cloak-compare__cloak">
+                <div class="cloak-compare__brand">
+                  <img src={~p"/images/cloak/icon.png"} width="18" height="18" alt="" />
+                  <strong>Cloak</strong>
+                </div>
+                <div class="cloak-compare__pipe">
+                  <div>
+                    <span>Local Qwen 3.5 9B rewrite</span>
+                    <span class="cloak-compare__tag">On-device</span>
+                  </div>
+                  <hr />
+                  <div>
+                    <span>NIC-less VM · Per-chat Tor · One-time zkAPI key</span>
+                    <span class="cloak-compare__tag">Isolated</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <%!-- Section 7: Verify checksums + Agent Docs disclosure --%>
+      <section id="verify" class="cloak-section" aria-labelledby="cloak-verify-heading">
+        <div class="cloak-card cloak-verify-card">
+          <div class="cloak-verify__head">
+            <h2 id="cloak-verify-heading">Verify your download</h2>
+            <p>
+              Compare checksums across this page,
+              <a href={@checksums.release_url} target="_blank" rel="noopener noreferrer">
+                GitHub Releases
+              </a>
+              (<a href={@checksums.sums_url} target="_blank" rel="noopener noreferrer">SHA256SUMS.txt</a>),
+              and <strong>Settings → Status</strong>.
+            </p>
+          </div>
+
+          <dl class="cloak-verify__facts">
+            <div>
+              <dt>Published release</dt>
+              <dd><code>{@checksums.tag}</code></dd>
+            </div>
+            <div>
+              <dt>Apple Developer ID Team</dt>
+              <dd><code>{@checksums.team_id}</code></dd>
+            </div>
+            <div class="cloak-verify__wide">
+              <dt>DMG SHA-256 ({@checksums.dmg_filename})</dt>
+              <dd><code>{@checksums.dmg_sha256}</code></dd>
+            </div>
+            <div :for={{label, value} <- @checksums.extra_hashes} class="cloak-verify__wide">
+              <dt>{label}</dt>
+              <dd><code>{value}</code></dd>
+            </div>
+          </dl>
+
+          <div class="cloak-verify__commands">
+            <div :for={{label, cmd} <- @checksums.commands} class="cloak-verify__cmd">
+              <span class="cloak-verify__cmd-label">{label}</span>
+              <pre><code>{cmd}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="cloak-agent-docs" aria-labelledby="cloak-agent-docs-heading">
+          <div class="cloak-agent-docs__head">
+            <h2 id="cloak-agent-docs-heading">{Cloak.agent_docs_title()}</h2>
+            <p>{Cloak.agent_docs_intro()}</p>
+          </div>
+          <div class="cloak-agent-docs__list">
+            <details
+              :for={doc <- Cloak.agent_docs()}
+              id={"cloak-agent-doc-#{doc.id}"}
+              class="cloak-agent-doc"
+              phx-mounted={JS.ignore_attributes(["open"])}
+            >
+              <summary>{doc.summary}</summary>
+              <p>{doc.body}</p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <%!-- Section 8: Closing CTA (llama.app "Local AI starts here") --%>
+      <section class="cloak-closing" aria-labelledby="cloak-closing-heading">
+        <h2 id="cloak-closing-heading">Private AI starts here</h2>
+        <p class="cloak-closing__sub">
+          Open source, signed and notarized, and zero telemetry.
+        </p>
+        <div class="cloak-closing__actions">
+          <a
+            class="cloak-cta"
+            href={Cloak.download_url()}
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            <summary>{doc.summary}</summary>
-            <p>{doc.body}</p>
-          </details>
-        </div>
-      </section>
-
-      <section id="verify" class="cloak-verify" aria-labelledby="cloak-verify-heading">
-        <div class="cloak-verify__head">
-          <h2 id="cloak-verify-heading">Verify your download</h2>
-          <p>
-            Compare checksums across this page,
-            <a href={@checksums.release_url} target="_blank" rel="noopener noreferrer">
-              GitHub Releases
-            </a>
-            (<a href={@checksums.sums_url} target="_blank" rel="noopener noreferrer">SHA256SUMS.txt</a>),
-            and <strong>Settings → Status</strong>.
-          </p>
+            <svg viewBox="0 0 170 170" fill="currentColor" aria-hidden="true">
+              <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.13-1.9-14.34-6.08-3.69-3.03-7.61-7.82-11.77-14.37-5.03-7.89-9.16-17.02-12.4-27.39-3.24-10.36-4.86-20.38-4.86-30.05 0-11.29 2.84-20.99 8.51-29.09 4.46-6.37 10.32-11.41 17.59-15.13 7.26-3.71 14.95-5.64 23.06-5.78 4.58 0 10.61 1.42 18.11 4.24 7.49 2.83 12.31 4.27 14.44 4.32 1.67 0 6.97-1.69 15.9-5.05 8.43-3.06 15.55-4.32 21.37-3.82 15.79 1.28 27.67 7.51 35.61 18.73-14.12 8.58-21.08 20.57-20.89 35.97.17 12.01 4.53 22 13.06 29.93 5.95 5.66 13.07 9.57 21.37 11.75-1.71 5.14-3.71 10.02-6.01 14.66zM119.22 31.01c0 9.39-3.43 18.16-10.27 26.28-8.26 9.65-18.23 15.22-29.04 14.33-.15-1.15-.23-2.36-.23-3.65 0-9.02 3.92-18.67 10.97-26.64 3.51-4.03 7.97-7.38 13.39-10.05 5.41-2.66 10.52-4.13 15.32-4.39.18 1.43.26 2.82.26 4.12z" />
+            </svg>
+            <span>Download for Mac</span>
+          </a>
         </div>
 
-        <dl class="cloak-verify__facts">
-          <div>
-            <dt>Published release</dt>
-            <dd><code>{@checksums.tag}</code></dd>
-          </div>
-          <div>
-            <dt>Apple Developer ID Team</dt>
-            <dd><code>{@checksums.team_id}</code></dd>
-          </div>
-          <div class="cloak-verify__wide">
-            <dt>DMG SHA-256 ({@checksums.dmg_filename})</dt>
-            <dd><code>{@checksums.dmg_sha256}</code></dd>
-          </div>
-          <div :for={{label, value} <- @checksums.extra_hashes} class="cloak-verify__wide">
-            <dt>{label}</dt>
-            <dd><code>{value}</code></dd>
-          </div>
-        </dl>
+        <div class="cloak-closing__pill-row">
+          <span class="cloak-closing__or">verify</span>
+          <span class="cloak-cmd-pill">
+            <code><span class="cloak-tok-cmd">shasum</span> -a 256 ~/Downloads/Regents-Cloak.dmg</code>
+            <button
+              id="cloak-copy-shasum"
+              type="button"
+              class="cloak-copy-icon"
+              phx-hook=".CopyCommand"
+              data-copy="shasum -a 256 ~/Downloads/Regents-Cloak.dmg"
+              aria-label="Copy shasum command"
+            >
+              Copy
+            </button>
+          </span>
+        </div>
 
-        <div class="cloak-verify__commands">
-          <div :for={{label, cmd} <- @checksums.commands} class="cloak-verify__cmd">
-            <span class="cloak-verify__cmd-label">{label}</span>
-            <pre><code>{cmd}</code></pre>
-          </div>
-        </div>
-      </section>
-
-      <section class="cloak-notes" aria-label="Details">
-        <div>
-          <h2>Needs</h2>
-          <p>{Cloak.needs()}</p>
-        </div>
-        <div>
-          <h2>Caution · Beta</h2>
-          <p>
-            {Cloak.caution()}
-            <a href="/docs/cloak/wallets">Wallet security &amp; 30-day zkAPI limit</a>.
-          </p>
-        </div>
-        <p class="cloak-notes__last">
-          {Cloak.feedback().before}<a
-            href={Cloak.feedback().href}
-            target="_blank"
-            rel="noopener noreferrer"
-          >{Cloak.feedback().link}</a>{Cloak.feedback().github_middle}<a
-            href={Cloak.feedback().github_href}
-            target="_blank"
-            rel="noopener noreferrer"
-          >{Cloak.feedback().github_link}</a>{Cloak.feedback().middle}<a
-            href={Cloak.feedback().social_href}
-            target="_blank"
-            rel="noopener noreferrer"
-          >{Cloak.feedback().social_link}</a>{Cloak.feedback().after}
+        <p class="cloak-closing__note">
+          {Cloak.caution()}
+          <a href="/docs/cloak/wallets">Wallet security</a> ·
+          <.link navigate={~p"/cloak/install"}>Install guide</.link> ·
+          <a href={Cloak.feedback().href} target="_blank" rel="noopener noreferrer">Cloak Forum</a> ·
+          <a href={Cloak.feedback().github_href} target="_blank" rel="noopener noreferrer">GitHub</a> ·
+          <a href={Cloak.feedback().social_href} target="_blank" rel="noopener noreferrer">@regents_sh</a>
         </p>
       </section>
 
@@ -311,6 +717,29 @@ defmodule RegentsWeb.Cloak.CloakLive do
           },
           destroyed() {
             this.trigger.removeEventListener("click", this.open)
+          }
+        }
+      </script>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyCommand">
+        export default {
+          mounted() {
+            this.idle = this.el.textContent
+            this.onClick = () => {
+              const text = this.el.dataset.copy || ""
+              if (!text || !navigator.clipboard) return
+              navigator.clipboard.writeText(text).then(() => {
+                this.el.textContent = "Copied"
+                clearTimeout(this.timer)
+                this.timer = setTimeout(() => {
+                  this.el.textContent = this.idle
+                }, 1600)
+              }).catch(() => {})
+            }
+            this.el.addEventListener("click", this.onClick)
+          },
+          destroyed() {
+            clearTimeout(this.timer)
+            this.el.removeEventListener("click", this.onClick)
           }
         }
       </script>
@@ -447,6 +876,53 @@ defmodule RegentsWeb.Cloak.CloakLive do
         </p>
       </section>
     </section>
+    """
+  end
+
+  attr :kind, :string, required: true
+
+  defp boundary_icon(%{kind: "rewrite"} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M11.5 2.5 13.5 4.5 6 12H4v-2l7.5-7.5Z" stroke-linejoin="round" />
+    </svg>
+    """
+  end
+
+  defp boundary_icon(%{kind: "vm"} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="2.5" y="3" width="11" height="10" rx="2" />
+      <path d="M5.5 6.5 7.5 8 5.5 9.5M8.8 9.5h2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    """
+  end
+
+  defp boundary_icon(%{kind: "tee"} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M8 2 13 4v4c0 3-2.1 5.1-5 6-2.9-.9-5-3-5-6V4l5-2Z" stroke-linejoin="round" />
+      <path d="M6 8.2 7.4 9.6 10.4 6.5" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    """
+  end
+
+  defp boundary_icon(%{kind: "tor"} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="8" cy="8" r="5.5" />
+      <circle cx="8" cy="8" r="2.6" />
+      <circle cx="8" cy="8" r="0.8" fill="currentColor" stroke="none" />
+    </svg>
+    """
+  end
+
+  defp boundary_icon(assigns) do
+    ~H"""
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+      <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke-linecap="round" />
+    </svg>
     """
   end
 
