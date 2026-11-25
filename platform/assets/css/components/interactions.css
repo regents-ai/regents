@@ -234,7 +234,6 @@ a.rg-discussion__author {
 .docs-menu a,
 .docs-pager a,
 .docs-crumbs a,
-.docs-search__results a,
 .agent-start__tabs a {
   cursor: pointer;
   transition:
@@ -504,7 +503,6 @@ a.wallet-bench__score {
   .stake-switch [role="tab"]:not([aria-selected="true"]):hover,
   .stake-contract-details summary:hover,
   .cloak-agent-doc summary:hover,
-  .docs-search__results a:hover,
   .docs-nav__group summary:hover,
   .docs-toc-phone summary:hover {
     color: var(--color-fg);

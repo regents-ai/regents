@@ -84,7 +84,7 @@
   background: var(--docs-product-accent);
 }
 
-/* Search and Ask AI stay at the top of the page. */
+/* Ask AI stays at the top of the page. */
 
 .docs-bar {
   position: sticky;
@@ -95,143 +95,13 @@
 
 .docs-top {
   display: flex;
+  justify-content: flex-end;
   align-items: center;
   gap: var(--space-2);
   min-height: var(--docs-top);
   padding-inline: var(--space-3);
   border-bottom: 1px solid var(--docs-rule);
   background: var(--color-bg);
-}
-
-/* Search */
-
-.docs-search {
-  position: relative;
-  flex: 1 1 auto;
-  max-width: 28rem;
-  margin-inline-start: auto;
-}
-
-.docs-search input {
-  width: 100%;
-  min-height: 2.5rem;
-  padding: 0 2.5rem 0 var(--space-2);
-  border: 1px solid var(--ash-quiet);
-  background: var(--color-surface);
-  color: var(--color-fg);
-}
-
-.docs-search input::placeholder {
-  color: var(--color-fg-muted);
-}
-
-.docs-search input::-webkit-search-cancel-button {
-  display: none;
-}
-
-.docs-search__key {
-  position: absolute;
-  top: 50%;
-  right: var(--space-1);
-  padding: 0 0.4rem;
-  border: 1px solid var(--docs-rule);
-  color: var(--color-fg-muted);
-  font-size: 0.75rem;
-  line-height: 1.4;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-.docs-search:focus-within .docs-search__key {
-  display: none;
-}
-
-/* The results are a tip: the firmest edge, the raised fill, the shortest stay. */
-.docs-search__results {
-  position: absolute;
-  top: calc(100% + var(--space-1));
-  right: 0;
-  left: 0;
-  z-index: var(--rg-layer-tip);
-  max-height: min(28rem, 70dvh);
-  margin: 0;
-  padding: var(--space-1) 0;
-  overflow-y: auto;
-  border: 1px solid var(--ash-quiet);
-  background: var(--color-surface-elevated);
-  box-shadow: var(--rg-layer-tip-shadow);
-  list-style: none;
-  transform-origin: top center;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .docs-search__results:not([hidden]) {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    transition:
-      opacity 150ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
-      transform 150ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
-
-    @starting-style {
-      opacity: 0;
-      transform: translateY(-4px) scale(0.97);
-    }
-  }
-}
-
-.docs-search__results a {
-  display: block;
-  padding: var(--space-1) var(--space-2);
-  color: var(--color-fg);
-  text-decoration: none;
-}
-
-.docs-search__results [aria-selected="true"] a {
-  background: var(--ash-raised);
-  box-shadow: inset 2px 0 0 var(--color-fg);
-}
-
-.docs-search__head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.docs-search__product {
-  flex: none;
-  padding: 0.08rem 0.35rem;
-  border: 1px solid color-mix(in srgb, var(--docs-product-accent) 45%, var(--docs-rule));
-  color: var(--docs-product-accent);
-  font-family: var(--font-family-mono);
-  font-size: 0.6875rem;
-  font-style: normal;
-  letter-spacing: 0.08em;
-  line-height: 1.3;
-  text-transform: uppercase;
-}
-
-.docs-search__results strong {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.docs-search__results span {
-  display: block;
-  margin-top: 0.15rem;
-  overflow: hidden;
-  color: var(--color-fg-muted);
-  font-size: 0.8125rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.docs-search__results .docs-search__none {
-  padding: var(--space-1) var(--space-2);
-  color: var(--color-fg-muted);
 }
 
 /* Ask AI */
@@ -758,10 +628,10 @@
   }
 }
 
-/* A phone: the search takes its own row. */
+/* The docs layout on a phone. */
 @container docs (max-width: 39.99rem) {
   .docs-body {
-    --docs-stuck: 6.5rem;
+    --docs-stuck: 4rem;
   }
 
   .docs-top {
@@ -772,17 +642,6 @@
 
   .docs-ask {
     margin-inline-start: auto;
-  }
-
-  .docs-search {
-    order: 1;
-    flex-basis: 100%;
-    max-width: none;
-    margin: 0;
-  }
-
-  .docs-search__key {
-    display: none;
   }
 
   .docs-hub {
@@ -812,7 +671,6 @@
 }
 
 @media (hover: none), (pointer: coarse) {
-  .docs-search input,
   .docs-menu a,
   .docs-toc__list a {
     min-height: 2.75rem;

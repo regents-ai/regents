@@ -60,8 +60,14 @@ defmodule RegentsWeb.Components.AppSidebar do
       class="workspace-bar"
       phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-collapsed", "data-mobile-open"])}
     >
-      <a class="workspace-bar__account" href="/account" aria-current={@path == "/account" && "page"}>
-        <Regent.Icons.icon name="user-round" /> Account
+      <a
+        class="workspace-bar__account"
+        href="/account"
+        aria-label="Account"
+        aria-current={@path == "/account" && "page"}
+      >
+        <Regent.Icons.icon name="user-round" />
+        <span>Account</span>
       </a>
       <button
         type="button"
@@ -140,6 +146,19 @@ defmodule RegentsWeb.Components.AppSidebar do
         tabindex="-1"
         aria-label="Close products"
       ></button>
+      <button
+        type="button"
+        class="workspace-search-trigger"
+        data-workspace-search={search_product(@path, @product)}
+        aria-label="Search"
+        aria-haspopup="dialog"
+        aria-controls="shell-search"
+        command="show-modal"
+        commandfor="shell-search"
+      >
+        <Regent.Icons.icon name="search" />
+        <span>Search</span>
+      </button>
       <div class="workspace-bar__controls">{render_slot(@controls)}</div>
     </div>
     """
@@ -214,7 +233,8 @@ defmodule RegentsWeb.Components.AppSidebar do
     """
   end
 
-  defp groups do
+  @doc "The product destinations in the workspace navigation."
+  def groups do
     [
       {"regents", "Regents", "layout-dashboard",
        [{"Overview", "/app"}, {"Stake", "/stake"}, {"Redeem", "/redeem"}, {"Docs", "/docs"}]},
@@ -259,6 +279,16 @@ defmodule RegentsWeb.Components.AppSidebar do
        [{"Overview", "/cloak"}, {"Install", "/cloak/install"}, {"Docs", "/docs/cloak"}]}
     ]
   end
+
+  @doc "The product that should get a boost in workspace search."
+  def search_product("/docs/" <> _ = path, fallback) do
+    case RegentsWeb.Docs.Pages.page(path) do
+      %{product: product} -> product
+      nil -> fallback
+    end
+  end
+
+  def search_product(_path, product), do: product
 
   defp earn_links do
     if Regents.Autolaunch.Earn.Catalog.enabled?(), do: [{"Earn", "/autolaunch/earn"}], else: []

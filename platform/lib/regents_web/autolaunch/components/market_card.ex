@@ -347,7 +347,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
 
   @doc """
   The filters above a list page's table: chain, status (auctions only), the
-  creator's verified connections, and search. They send "filter" and "search".
+  and the creator's verified connections. They send "filter".
   """
   def list_tools(assigns) do
     assigns =
@@ -421,19 +421,12 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
           </fieldset>
         </details>
       </form>
-      <form id={"#{@kind}-search"} class="market-list__search" phx-submit="search" phx-change="search">
-        <label>
-          <span class="visually-hidden">Search {@kind}</span>
-          <input
-            type="search"
-            name="q"
-            value={@options.q}
-            placeholder="Search name, ticker, stock, creator or address"
-            phx-debounce="300"
-            autocomplete="off"
-          />
-        </label>
-      </form>
+      <.link
+        :if={@options.q != ""}
+        patch={RegentsWeb.Autolaunch.HomeMarket.path(@options, %{q: ""}, "/autolaunch/#{@kind}")}
+      >
+        Clear “{@options.q}”
+      </.link>
     </div>
     """
   end

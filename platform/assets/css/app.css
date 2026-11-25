@@ -6,6 +6,7 @@
 @import "./tokens/root.css";
 @import "./components/shell.css";
 @import "./components/app_sidebar.css";
+@import "./components/workspace_search.css";
 @import "./components/theme_switch.css";
 @import "./components/page_head.css";
 @import "./components/loading.css";

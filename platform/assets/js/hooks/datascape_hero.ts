@@ -27,8 +27,9 @@ import {randomCrownStyle, randomPanelSeed} from "../datascape/world"
 import type {Hook} from "../hook_composition"
 
 const OPENING = 680
+const ENTRANCE_EXTRA = 200
 const MORPH_OUT = 260
-const MORPH_IN = 580
+const MORPH_IN = 580 + ENTRANCE_EXTRA
 const ASSEMBLY = 2200
 const FLASH = 0.55
 const STAGGER = 500
@@ -161,6 +162,11 @@ export const DatascapeHero: Hook = {
     let crownShown = false
     let quietAim = -1
     let crownMiddle: [number, number] = [0, 0]
+    const stillArea = {left: 0, right: 0, top: 0, bottom: 0}
+
+    const inStillArea = ({pageX, pageY}: PointerEvent) =>
+      pageX >= stillArea.left && pageX <= stillArea.right &&
+      pageY >= stillArea.top && pageY < stillArea.bottom
 
     const closed = () => docRoot.dataset.hero === "closed"
 
@@ -173,11 +179,11 @@ export const DatascapeHero: Hook = {
         animate(panel, {
           grow: {
             to: 1,
-            duration: large ? OPENING : OPENING / 2,
+            duration: (large ? OPENING : OPENING / 2) + ENTRANCE_EXTRA,
             ease: large ? "outBack(1.6)" : "outExpo",
           },
-          flash: {from: large ? FLASH : 0, to: 0, duration: OPENING, ease: "outQuad"},
-          assemble: {to: 1, duration: ASSEMBLY, ease: "outCubic"},
+          flash: {from: large ? FLASH : 0, to: 0, duration: OPENING + ENTRANCE_EXTRA, ease: "outQuad"},
+          assemble: {to: 1, duration: ASSEMBLY + ENTRANCE_EXTRA, ease: "outCubic"},
           delay: wait(distance, panel.seed),
           onBegin: () => {
             if (large) scape?.field.burst(panel, OPENING_SPARKS)
@@ -190,7 +196,7 @@ export const DatascapeHero: Hook = {
       runScoped(() => {
         animate(tube, {
           drawn: tube.length,
-          duration: (tube.length / TUBE_SPEED) * 1000,
+          duration: (tube.length / TUBE_SPEED) * 1000 + ENTRANCE_EXTRA,
           delay: wait(distance, tube.seed),
           ease: "inOutQuad",
         })
@@ -345,6 +351,10 @@ export const DatascapeHero: Hook = {
     const measure = () => {
       const box = canvas.getBoundingClientRect()
       const wordsBox = words.getBoundingClientRect()
+      stillArea.left = wordsBox.left + window.scrollX
+      stillArea.right = wordsBox.right + window.scrollX
+      stillArea.top = box.top + window.scrollY
+      stillArea.bottom = wordsBox.top + window.scrollY
       quiet.band = bar.offsetHeight + BAND_ROOM
       quiet.x = wordsBox.left + wordsBox.width / 2 - (box.left + box.width / 2)
       quiet.y = wordsBox.top + wordsBox.height / 2 - (box.top + box.height / 2)
@@ -503,14 +513,19 @@ export const DatascapeHero: Hook = {
           stage.dataset.datascapeDragging = ""
           rest(null)
         }
-        if (dragging) scape.field.pointer = pointOf(event)
+        if (dragging) {
+          scape.field.cameraHeld = false
+          scape.field.pointer = pointOf(event)
+        }
         return
       }
       if (event.pointerType === "mouse") {
+        scape.field.cameraHeld = inStillArea(event)
         // Pause steering when interacting with the top nav bar or an open modal dialog.
         if (
-          event.target instanceof Element &&
-          (event.target.closest("[data-bar]") || document.querySelector("dialog[open]"))
+          scape.field.cameraHeld ||
+          (event.target instanceof Element &&
+            (event.target.closest("[data-bar]") || document.querySelector("dialog[open]")))
         ) {
           scape.field.pointer = null
           rest(null)
@@ -567,7 +582,10 @@ export const DatascapeHero: Hook = {
 
     const onPointerLeave = (event: PointerEvent) => {
       if (event.pointerType === "mouse") {
-        if (scape) scape.field.pointer = null
+        if (scape) {
+          scape.field.cameraHeld = false
+          scape.field.pointer = null
+        }
         if (!down) rest(null)
       }
     }
@@ -583,6 +601,10 @@ export const DatascapeHero: Hook = {
 
     const onAim = (event: PointerEvent) => {
       if (!scape || event.pointerType === "touch" || !fine.matches) return
+      if (inStillArea(event)) {
+        scape.crown.aim = null
+        return
+      }
       const across = (event.pageX - crownMiddle[0]) / (window.innerWidth / 2)
       const upDown = (event.pageY - crownMiddle[1]) / (window.innerHeight / 2)
       scape.crown.aim = [Math.max(-1, Math.min(1, across)), Math.max(-1, Math.min(1, upDown))]

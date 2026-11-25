@@ -5,7 +5,6 @@
 .market-list__header h1 { margin: 0; font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem); font-weight: 650; letter-spacing: -.02em; }
 .market-list__tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .market-list__filters { display: flex; flex-wrap: wrap; gap: 8px; }
-.market-list__search input { min-height: 44px; padding: 8px 12px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-surface); color: var(--color-fg); font: inherit; font-size: .8125rem; }
 /* The dropdowns are the shared pills (rg-pill-select), at the list's smaller type. */
 .market-list__filters .rg-pill-select > :is(select, summary) { font-size: .8125rem; }
 .market-list__verified-menu.is-active summary { border-color: var(--color-fg); }
@@ -13,9 +12,6 @@
 .market-list__verified-menu legend { float: left; margin-bottom: 2px; color: var(--color-fg-muted); font-size: .75rem; }
 .market-list__verified-menu label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .market-list__verified-menu small { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.4; }
-.market-list__search { flex: 1 1 240px; max-width: 360px; }
-.market-list__search label { display: block; }
-.market-list__search input { width: 100%; }
 .market-list__pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .market-list__pills a { display: inline-flex; align-items: center; --pill-h: 2.75rem; min-height: var(--pill-h); padding: 4px 14px; border: 1px solid var(--hairline); border-radius: calc(var(--pill-h) / 2); color: var(--color-fg-muted); font-size: .8125rem; text-decoration: none; }
 .market-list__pills a:hover { color: var(--color-fg); border-color: var(--hairline-strong); }
@@ -69,7 +65,6 @@
 .auction-outcome small { white-space: nowrap; }
 .auction-outcome svg { display: inline-block; width: 12px; height: 12px; margin-right: 3px; vertical-align: -1px; color: var(--color-success); }
 @media (max-width: 42rem) {
-  .market-list__search { flex-basis: 100%; max-width: none; }
   /* The Verified menu opens from the filter row's left edge, under the row, so on a
      phone it stays inside the screen wherever the Verified pill falls. */
   .market-list__filters { position: relative; }

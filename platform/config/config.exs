@@ -404,7 +404,7 @@ config :regents, :limits,
   # Stack CVE checks against mirrored cve.now active criticals.
   patchbay_stack_checks: [limit: 60, window_seconds: 60],
   # Command-palette searches on /patchbay/app.
-  patchbay_command_search: [limit: 120, window_seconds: 60],
+  regents_workspace_search: [limit: 120, window_seconds: 60],
   # Reads one address's open Techtree Projects pages make as they connect and
   # move between the list and a project: as many a minute as the address has
   # reads of the site.

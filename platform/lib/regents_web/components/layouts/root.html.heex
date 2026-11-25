@@ -108,6 +108,7 @@
       current_path={@conn.request_path}
     />
     {@inner_content}
+    {RegentsWeb.SearchLive.dialog(@conn)}
     <Regent.Structure.confirm />
     <.product_links :if={
       !home? and !marketing_page and !shell? and

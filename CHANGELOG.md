@@ -8743,3 +8743,13 @@ seasons), on the shared Points library regents.sh was already on.
 ## 2026-11-25 — Home announcement
 
 - Add an App Home link to the Products menu and a Cloak release announcement below the home header.
+- Stop cursor steering above the hero copy, slow camera movement by 33%, and give canvas elements another 200 ms to appear.
+
+## 2026-11-25 — Shared workspace search
+
+- Add search to the shared app header. The centered dialog searches public results
+  across products and gives the active product a ranking boost. Keep each fleet’s
+  search inside the fleet.
+- Use the shared search for documentation headings and remove the separate docs and
+  Patchbay Terminal search controls and the Autolaunch market search fields. Keep
+  the theme switch in the account menu without its visible label.

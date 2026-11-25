@@ -18,8 +18,7 @@ defmodule RegentsWeb.Docs do
   @max_part_chars 360
 
   # The page's own element ids, so no heading takes one.
-  @shell_ids ~w(docs-article docs-ask-menu docs-copy docs-nav docs-search
-                docs-search-index docs-search-input docs-search-results docs-toc-phone
+  @shell_ids ~w(docs-article docs-ask-menu docs-copy docs-nav docs-toc-phone
                 docs-toc-phone-list docs-toc-spy docs-toc-title)
 
   # Product doc paths rewritten to stay inside unified `/docs`.
@@ -81,12 +80,55 @@ defmodule RegentsWeb.Docs do
   with product metadata and compact prose excerpts. Cached per origin.
   """
   def search_index do
-    origin = PublicDocuments.url("")
-    cache_key = {__MODULE__, :search_index_v3, origin}
+    {_pages, json} = cached_search_index()
+    json
+  end
+
+  @doc "Matching documentation pages and headings for the workspace search."
+  def search_matches(query) do
+    {pages, _json} = cached_search_index()
+    words = query |> String.downcase() |> String.split()
+
+    hits =
+      Enum.flat_map(pages, fn page ->
+        page.parts
+        |> Enum.flat_map(&search_part(page, &1, words))
+        |> Enum.take(2)
+      end)
+
+    {:ok, hits}
+  end
+
+  defp search_part(page, part, words) do
+    title = if part.title, do: page.name <> " · " <> part.title, else: page.name
+    keywords = [title, page.product_name, page.description, part.text]
+    haystack = keywords |> Enum.join(" ") |> String.downcase()
+
+    if Enum.all?(words, &String.contains?(haystack, &1)) do
+      path = if part.id, do: page.path <> "#" <> part.id, else: page.path
+
+      [
+        %{
+          kind: :doc,
+          label: title,
+          path: path,
+          product: page.product,
+          detail: if(part.id, do: "Docs · " <> page.product_name, else: page.description),
+          fallback: 5
+        }
+      ]
+    else
+      []
+    end
+  end
+
+  defp cached_search_index do
+    cache_key = {__MODULE__, :search_index_v4, PublicDocuments.url("")}
 
     case :persistent_term.get(cache_key, nil) do
       nil ->
-        index = Jason.encode!(build_search_index())
+        pages = build_search_index()
+        index = {pages, Jason.encode!(pages)}
         :persistent_term.put(cache_key, index)
         index
 

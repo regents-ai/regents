@@ -36,6 +36,7 @@ import {installPublicHeader, MarketingPage} from "./hooks/marketing_page"
 import {MotionCount, MotionList, MotionNote, MotionRefusal, MotionTick} from "./hooks/motion/moments"
 import {MotionCascade, MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {MotionPanels} from "./hooks/motion/slides"
+import {WorkspaceSearch} from "./hooks/workspace_search"
 import {InfoDialog} from "./hooks/info_dialog"
 import {LabBlocks} from "./hooks/lab_blocks"
 import {OnchainSteps} from "./hooks/onchain_steps"
@@ -306,6 +307,7 @@ const hooks = {
   ...marketingHooks,
   ...keyfleetHooks,
   ...autolaunchHooks,
+  WorkspaceSearch,
   AgentVersions,
   CopyCommandPage,
   CopyCommandPageView,

@@ -8,12 +8,13 @@ defmodule RegentsWeb.Patchbay.AppLive do
 
   use RegentsWeb, :live_view
 
-  alias Regents.Limits
+  import RegentsWeb.Patchbay.Search,
+    only: [cve_matches_query?: 3, filter_incidents: 2, filter_known_fixes: 3]
+
   alias Regents.Patchbay.Assist.KnownFixes
   alias Regents.Patchbay.Commerce.Catalog
   alias Regents.Patchbay.Forum.PostAddress
   alias Regents.Patchbay.Forum.PostSummary
-  alias Regents.Patchbay.Incidents
   alias Regents.Patchbay.Incidents.CveNow
   alias Regents.Patchbay.Playbooks
   alias Regents.Patchbay.TelemetryBoard
@@ -61,19 +62,17 @@ defmodule RegentsWeb.Patchbay.AppLive do
   ]
 
   @impl true
-  def mount(_params, session, socket) do
+  def mount(_params, _session, socket) do
     if connected?(socket) do
       :ok = Phoenix.PubSub.subscribe(Regents.PubSub, CveNow.topic())
     end
 
     snap = TelemetryBoard.snapshot()
-    visitor = session["client_tag"] || "anon"
 
     {:ok,
      socket
      |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/app"))
      |> assign(
-       visitor: visitor,
        snap: snap,
        chart: "criticals",
        board: "criticals",
@@ -97,10 +96,6 @@ defmodule RegentsWeb.Patchbay.AppLive do
        threads: load_threads("newest", "recent", ""),
        known_fixes: KnownFixes.all(),
        playbooks: Playbooks.all(),
-       palette_open?: false,
-       palette_q: "",
-       palette_limited?: false,
-       palette_results: palette_results("", snap.cves),
        onboarding_open?: false,
        onboarding_step: 1,
        onboarding_steps: @onboarding_steps,
@@ -255,34 +250,6 @@ defmodule RegentsWeb.Patchbay.AppLive do
      )}
   end
 
-  def handle_event("open_palette", _params, socket) do
-    {:noreply,
-     assign(socket,
-       palette_open?: true,
-       palette_limited?: false,
-       palette_results: palette_results(socket.assigns.palette_q, socket.assigns.snap.cves)
-     )}
-  end
-
-  def handle_event("close_palette", _params, socket) do
-    {:noreply, assign(socket, palette_open?: false)}
-  end
-
-  def handle_event("palette_search", %{"q" => q}, socket) do
-    q = clean(q, 100)
-
-    if q == "" or Limits.spend(:patchbay_command_search, socket.assigns.visitor) == :ok do
-      {:noreply,
-       assign(socket,
-         palette_q: q,
-         palette_limited?: false,
-         palette_results: palette_results(q, socket.assigns.snap.cves)
-       )}
-    else
-      {:noreply, assign(socket, palette_q: q, palette_limited?: true)}
-    end
-  end
-
   def handle_event("open_onboarding", _params, socket) do
     {:noreply, assign(socket, onboarding_open?: true, onboarding_step: 1)}
   end
@@ -329,7 +296,7 @@ defmodule RegentsWeb.Patchbay.AppLive do
 
     ~H"""
     <div id="pb-terminal-app" class="pbt-shell" phx-hook=".TerminalShortcuts">
-      <%!-- Sub-header Utility Bar: Brand, Cmd+K Command Palette Trigger, Quick Actions --%>
+      <%!-- Sub-header Utility Bar: Brand and Quick Actions --%>
       <header class="pbt-topbar">
         <div class="pbt-topbar__brand">
           <span class="pbt-pulse-dot" aria-hidden="true"></span>
@@ -340,18 +307,6 @@ defmodule RegentsWeb.Patchbay.AppLive do
             </div>
           </div>
         </div>
-
-        <button
-          type="button"
-          class="pbt-search-trigger"
-          phx-click="open_palette"
-          aria-label="Open command palette"
-        >
-          <span class="pbt-search-trigger__placeholder">
-            Search CVEs, x402/MPP services, playbooks, or fixes…
-          </span>
-          <kbd class="pbt-kbd">⌘K</kbd>
-        </button>
 
         <nav class="pbt-topbar__actions" aria-label="Patchbay terminal actions">
           <button type="button" class="pbt-btn pbt-btn--ghost" phx-click="open_onboarding">
@@ -1235,79 +1190,6 @@ defmodule RegentsWeb.Patchbay.AppLive do
         </div>
       </section>
 
-      <%!-- Global Cmd+K Command Palette Modal --%>
-      <div
-        :if={@palette_open?}
-        class="pbt-modal-backdrop"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Patchbay command palette"
-      >
-        <div class="pbt-modal pbt-palette">
-          <form phx-change="palette_search" phx-submit="palette_search" class="pbt-palette__head">
-            <span class="pbt-mono pbt-muted">&gt;_</span>
-            <input
-              id="pbt-palette-input"
-              type="search"
-              name="q"
-              value={@palette_q}
-              placeholder="Search critical CVEs, x402/MPP services, playbooks, known fixes…"
-              autocomplete="off"
-              phx-debounce="120"
-              autofocus
-            />
-            <button type="button" class="pbt-kbd" phx-click="close_palette">ESC</button>
-          </form>
-
-          <p :if={@palette_limited?} class="pbt-palette__notice">
-            Searching quickly — wait a moment and type again.
-          </p>
-
-          <div class="pbt-palette__results">
-            <div :if={@palette_results.criticals != []} class="pbt-palette__group">
-              <h3>ACTIVE CRITICALS (cve.now)</h3>
-              <a :for={item <- @palette_results.criticals} href={item.href} class="pbt-palette__row">
-                <span class="pbt-badge pbt-badge--critical">{item.badge}</span>
-                <span class="pbt-palette__label">{item.label}</span>
-                <span class="pbt-palette__meta">{item.meta}</span>
-              </a>
-            </div>
-
-            <div :if={@palette_results.services != []} class="pbt-palette__group">
-              <h3>COMMERCE SERVICES (x402 / MPP)</h3>
-              <a :for={item <- @palette_results.services} href={item.href} class="pbt-palette__row">
-                <span class="pbt-badge pbt-badge--amber">{item.badge}</span>
-                <span class="pbt-palette__label">{item.label}</span>
-                <span class="pbt-palette__meta">{item.meta}</span>
-              </a>
-            </div>
-
-            <div :if={@palette_results.playbooks != []} class="pbt-palette__group">
-              <h3>SUPPORT PLAYBOOKS</h3>
-              <a :for={item <- @palette_results.playbooks} href={item.href} class="pbt-palette__row">
-                <span class="pbt-badge pbt-badge--mpp">{item.badge}</span>
-                <span class="pbt-palette__label">{item.label}</span>
-                <span class="pbt-palette__meta">{item.meta}</span>
-              </a>
-            </div>
-
-            <div :if={@palette_results.fixes != []} class="pbt-palette__group">
-              <h3>KNOWN FIXES</h3>
-              <a :for={item <- @palette_results.fixes} href={item.href} class="pbt-palette__row">
-                <span class="pbt-badge pbt-badge--good">{item.badge}</span>
-                <span class="pbt-palette__label">{item.label}</span>
-                <span class="pbt-palette__meta">{item.meta}</span>
-              </a>
-            </div>
-          </div>
-
-          <div class="pbt-palette__foot">
-            <a href={~p"/patchbay/validate"}>Validate an x402 / MPP endpoint →</a>
-            <a href={~p"/patchbay/validate?tab=stack"}>Run Stack CVE Check →</a>
-          </div>
-        </div>
-      </div>
-
       <%!-- Interactive Get Started Terminal Modal --%>
       <div
         :if={@onboarding_open?}
@@ -1385,11 +1267,7 @@ defmodule RegentsWeb.Patchbay.AppLive do
         export default {
           mounted() {
             this.onKeyDown = (e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-                e.preventDefault()
-                this.pushEvent("open_palette", {})
-              } else if (e.key === "Escape") {
-                this.pushEvent("close_palette", {})
+              if (e.key === "Escape" && !e.defaultPrevented) {
                 this.pushEvent("close_onboarding", {})
               }
             }
@@ -1526,23 +1404,6 @@ defmodule RegentsWeb.Patchbay.AppLive do
   defp flag_ok?(false, _value), do: true
   defp flag_ok?(true, value), do: value
 
-  defp cve_matches_query?(_post, _facts, ""), do: true
-
-  defp cve_matches_query?(post, facts, q) do
-    haystack =
-      [
-        post.cve_now_id,
-        post.title,
-        facts && facts.product,
-        Enum.join((facts && facts.ecosystems) || [], " ")
-      ]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join(" ")
-      |> String.downcase()
-
-    String.contains?(haystack, q)
-  end
-
   defp load_threads(scope, sort, q) do
     case Discussions.filters(%{"scope" => scope, "sort" => sort, "q" => q}) do
       {:ok, filters} ->
@@ -1554,105 +1415,6 @@ defmodule RegentsWeb.Patchbay.AppLive do
       _ ->
         []
     end
-  end
-
-  defp filter_incidents(incidents, q) do
-    needle = String.downcase(String.trim(q || ""))
-
-    if needle == "" do
-      incidents
-    else
-      Enum.filter(incidents, fn inc ->
-        haystack =
-          String.downcase("#{inc.name} #{inc.title} #{inc.summary} #{inc.post_site} #{inc.tag}")
-
-        String.contains?(haystack, needle)
-      end)
-    end
-  end
-
-  defp filter_known_fixes(fixes, q, protocol) do
-    q = String.downcase(q || "")
-    proto = String.downcase(protocol || "")
-
-    Enum.filter(fixes, fn fix ->
-      haystack = String.downcase("#{fix.id} #{fix.title} #{fix.applies_when} #{fix.tools}")
-
-      (q == "" or String.contains?(haystack, q)) and
-        (proto == "" or String.contains?(haystack, proto))
-    end)
-  end
-
-  defp palette_results(q, cves) do
-    needle = String.downcase(q || "")
-
-    matched_cves =
-      cves
-      |> Enum.filter(&cve_matches_query?(&1, &1.cve_facts, needle))
-      |> Enum.take(4)
-      |> Enum.map(fn post ->
-        %{
-          badge: if(post.cve_facts && post.cve_facts.exploited, do: "KEV", else: "CVE"),
-          label: post.cve_now_id,
-          meta: (post.cve_facts && post.cve_facts.product) || IncidentHTML.cve_title(post),
-          href: PostAddress.path(post)
-        }
-      end)
-
-    matched_incidents =
-      if matched_cves == [] do
-        Incidents.active()
-        |> filter_incidents(needle)
-        |> Enum.take(3)
-        |> Enum.map(fn inc ->
-          %{
-            badge: "LIVE",
-            label: inc.title,
-            meta: inc.post_site,
-            href: "/patchbay/incidents/#{inc.name}"
-          }
-        end)
-      else
-        []
-      end
-
-    matched_services =
-      Catalog.filter(%{"q" => needle})
-      |> Enum.take(5)
-      |> Enum.map(fn svc ->
-        %{
-          badge: svc["protocols"] |> List.first("API") |> String.upcase(),
-          label: svc["name"],
-          meta: "#{svc["domain"]} · #{svc["avg_price"]}",
-          href: "/patchbay/#{svc["domain"]}"
-        }
-      end)
-
-    matched_playbooks =
-      Playbooks.search(needle)
-      |> Enum.take(4)
-      |> Enum.map(fn pb ->
-        %{
-          badge: String.upcase(pb.pillar),
-          label: pb.title,
-          meta: pb.estimated_cost,
-          href: "/patchbay/playbooks/#{pb.slug}"
-        }
-      end)
-
-    matched_fixes =
-      filter_known_fixes(KnownFixes.all(), needle, "")
-      |> Enum.take(4)
-      |> Enum.map(fn fix ->
-        %{badge: "FIX", label: fix.title, meta: fix.id, href: "/patchbay/known-fixes/#{fix.id}"}
-      end)
-
-    %{
-      criticals: matched_cves ++ matched_incidents,
-      services: matched_services,
-      playbooks: matched_playbooks,
-      fixes: matched_fixes
-    }
   end
 
   defp build_path(assigns, overrides) do

@@ -13,6 +13,7 @@ import {CELL, KIND, LAYERS, cellContents, type Colour, type PanelSeed, type Tube
 export const SPEED = 3800
 /** A smaller picture flies slower: its longer side this many times a second, so panels still have time to open. */
 const PACE = 2.5
+const PAN_SCALE = 0.67
 /** How far ahead of the camera cells are brought in, in seconds of travel, so each is ready before it comes into sight. */
 const LEAD = 0.6
 /** How long the camera takes to answer the pointer, in seconds. */
@@ -30,7 +31,7 @@ const LEAN = (2.8 * Math.PI) / 180
 /** How far the camera pulls back at full speed, as a share of the picture. */
 const PULL = 0.25
 /** How fast the camera drifts while nothing steers it, in world units a second. */
-const DRIFT: readonly [number, number] = [12, 7]
+const DRIFT: readonly [number, number] = [12 * PAN_SCALE, 7 * PAN_SCALE]
 /** Cells kept beyond the picture's edge, so a panel is ready before it shows. */
 const MARGIN = 0.55
 /** How much further out a cell must be before it is dropped, so one on the edge does not flicker. */
@@ -116,6 +117,8 @@ export type Field = {
   time: number
   /** Where the pointer is, measured from the picture's middle in CSS pixels, or null when it is away. */
   pointer: readonly [number, number] | null
+  /** Holds the current view while the pointer is in the hero's no-steering area. */
+  cameraHeld: boolean
   /** Where the pointer steers nothing, round the picture's middle: shares of half its width and of half its height. */
   calm: readonly [number, number]
   /** Moves the field on by this many seconds, for a picture this many CSS pixels wide and tall. */
@@ -135,7 +138,8 @@ export type Field = {
 }
 
 /** The fastest the camera flies over a picture this many CSS pixels wide and tall. */
-export const topSpeed = (width: number, height: number) => Math.min(SPEED, PACE * Math.max(width, height))
+export const topSpeed = (width: number, height: number) =>
+  PAN_SCALE * Math.min(SPEED, PACE * Math.max(width, height))
 
 /**
  * How fast the camera should go for a pointer this far from the middle on one axis, from -1 to 1,
@@ -249,29 +253,37 @@ export function createField(watcher: Watcher): Field {
     sparks,
     time: 0,
     pointer: null,
+    cameraHeld: false,
     calm: [REST, REST],
     advance(elapsed, width, height) {
       const dt = Math.min(MAX_STEP, elapsed)
       field.time += dt
       const top = topSpeed(width, height)
-      const steered: readonly [number, number] | null = field.pointer && [
-        steerSpeed(field.pointer[0] / (width / 2), top, field.calm[0]),
-        steerSpeed(field.pointer[1] / (height / 2), top, field.calm[1]),
-      ]
+      const steered: readonly [number, number] | null = field.cameraHeld || !field.pointer
+        ? null
+        : [
+          steerSpeed(field.pointer[0] / (width / 2), top, field.calm[0]),
+          steerSpeed(field.pointer[1] / (height / 2), top, field.calm[1]),
+        ]
       const now = steered !== null && (steered[0] !== 0 || steered[1] !== 0)
       if (now !== steering) {
         steering = now
         watcher.steer(now)
       }
-      const [aimX, aimY] = steered ?? DRIFT
-      const answer = 1 - Math.exp((-dt * 3) / LAG)
-      camera.vx += (aimX - camera.vx) * answer
-      camera.vy += (aimY - camera.vy) * answer
-      camera.x += camera.vx * dt
-      camera.y += camera.vy * dt
-      const pace = Math.min(1, Math.hypot(camera.vx, camera.vy) / top)
-      camera.lean += ((-camera.vx / top) * LEAN - camera.lean) * answer
-      camera.zoom += (1 - PULL * pace - camera.zoom) * answer
+      if (field.cameraHeld) {
+        camera.vx = 0
+        camera.vy = 0
+      } else {
+        const [aimX, aimY] = steered ?? DRIFT
+        const answer = 1 - Math.exp((-dt * 3) / LAG)
+        camera.vx += (aimX - camera.vx) * answer
+        camera.vy += (aimY - camera.vy) * answer
+        camera.x += camera.vx * dt
+        camera.y += camera.vy * dt
+        const pace = Math.min(1, Math.hypot(camera.vx, camera.vy) / top)
+        camera.lean += ((-camera.vx / top) * LEAN - camera.lean) * answer
+        camera.zoom += (1 - PULL * pace - camera.zoom) * answer
+      }
       sync(width, height)
       sight(width, height)
       for (const cell of cells.values()) {

@@ -33,9 +33,6 @@ defmodule RegentsWeb.Autolaunch.TokensLive do
     {:noreply, LiveListings.filtered(socket, options)}
   end
 
-  def handle_event("search", params, socket),
-    do: {:noreply, patch(socket, %{q: Map.get(params, "q", "")})}
-
   def handle_event("filter", params, socket) do
     changes =
       params

@@ -27,6 +27,7 @@ body:has(.workspace-bar[data-collapsed="true"]) {
 
 .workspace-bar__controls {
   display: flex;
+  flex: none;
   align-items: center;
   gap: .5rem;
   min-inline-size: 0;
@@ -302,13 +303,21 @@ body:has(.workspace-bar[data-collapsed="true"]) {
 
   .workspace-bar__account {
     display: flex;
+    flex: none;
+    justify-content: center;
+    inline-size: 2.75rem;
     min-block-size: 2.75rem;
-    padding-inline: .25rem;
-    font-size: .875rem;
+    padding: 0;
+  }
+
+  .workspace-bar__account span {
+    display: none;
   }
 
   .workspace-toggle {
     position: static;
+    flex: none;
+    order: -1;
     translate: none;
     inline-size: 2.75rem;
   }
@@ -356,6 +365,12 @@ body:has(.workspace-bar[data-collapsed="true"]) {
     padding: 0;
     border: 0;
     background: color-mix(in oklch, var(--color-fg) 18%, transparent);
+  }
+}
+
+@media (max-width: 24rem) {
+  .workspace-bar__account {
+    display: none;
   }
 }
 

@@ -61,6 +61,7 @@ defmodule RegentsWeb.Patchbay do
       Plugs.X402Test,
       PostPictureController,
       PublicDocuments,
+      Search,
       SiteEdition,
       SiteScreenshotController,
       SiwaTestController,

@@ -52,7 +52,6 @@ defmodule RegentsWeb.DocsLive do
       html: html,
       toc: toc,
       markdown: Docs.markdown(page, body),
-      search_url: "/docs-search.json?" <> URI.encode_query(build: build_commit()),
       markdown_path: page.path <> ".md",
       name: name,
       heading: if(page.path == "/docs", do: "Regents Labs Docs", else: name),
@@ -62,10 +61,6 @@ defmodule RegentsWeb.DocsLive do
       claude: "https://claude.ai/new?" <> URI.encode_query(q: ask),
       chatgpt: "https://chatgpt.com/?" <> URI.encode_query(q: ask)
     }
-  end
-
-  defp build_commit do
-    Application.fetch_env!(:regents, :build).commit || "dev"
   end
 
   defp page_count_label(1), do: "1 page"
@@ -79,35 +74,10 @@ defmodule RegentsWeb.DocsLive do
       id={@docs.dom_id}
       class="docs"
       data-docs-product={@docs.product.id}
-      data-docs-search-url={@docs.search_url}
       phx-hook="Docs"
     >
       <div class="docs-bar">
         <header class="docs-top">
-          <div id="docs-search" class="docs-search" role="search" phx-update="ignore">
-            <label class="visually-hidden" for="docs-search-input">Search all docs</label>
-            <input
-              id="docs-search-input"
-              type="search"
-              placeholder="Search all product docs"
-              autocomplete="off"
-              spellcheck="false"
-              role="combobox"
-              aria-expanded="false"
-              aria-controls="docs-search-results"
-              aria-autocomplete="list"
-            />
-            <kbd class="docs-search__key" aria-hidden="true">/</kbd>
-            <ul
-              id="docs-search-results"
-              class="docs-search__results"
-              role="listbox"
-              aria-label="Results"
-              hidden
-            >
-            </ul>
-          </div>
-
           <span class="docs-ask">
             <Regent.Primitives.button
               id="docs-ask-trigger"

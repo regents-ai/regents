@@ -39,6 +39,7 @@ defmodule RegentsWeb.Autolaunch do
       Prelaunch,
       PublicDocuments,
       PublicPagesController,
+      Search,
       RegentLive,
       ShareCardController,
       ShareVideo.Render,

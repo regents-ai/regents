@@ -49,7 +49,7 @@
   /* Sub-header Utility Bar */
   .pbt-topbar {
     display: grid;
-    grid-template-columns: auto minmax(14rem, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 0.85rem;
     padding: 0.75rem 1rem;
@@ -83,35 +83,6 @@
   .pbt-topbar__sub {
     font-size: 0.75rem;
     color: var(--pbt-muted);
-  }
-
-  .pbt-search-trigger {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    width: 100%;
-    min-width: 0;
-    padding: 0.5rem 0.75rem;
-    background: var(--pbt-panel-alt);
-    border: 1px solid var(--pbt-border);
-    border-radius: var(--pbt-radius);
-    color: var(--pbt-muted);
-    font-size: 0.8125rem;
-    cursor: pointer;
-    text-align: left;
-  }
-
-  .pbt-search-trigger__placeholder {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-  }
-
-  .pbt-search-trigger:hover {
-    border-color: var(--pbt-border-strong);
-    color: var(--pbt-fg);
   }
 
   .pbt-kbd {
@@ -952,7 +923,7 @@
   .pbt-cta-banner p { margin: 0; max-width: 46rem; color: var(--pbt-muted); font-size: 0.9rem; line-height: 1.5; }
   .pbt-cta-banner__actions { display: flex; gap: 0.6rem; flex-wrap: wrap; padding-top: 0.35rem; }
 
-  /* Modals (Command Palette & Onboarding) */
+  /* Onboarding modal */
   .pbt-modal-backdrop {
     position: fixed;
     inset: 0;
@@ -972,48 +943,6 @@
     border-radius: 8px;
     display: flex;
     flex-direction: column;
-  }
-
-  .pbt-palette__head {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid var(--pbt-border);
-  }
-
-  .pbt-palette__head input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    color: var(--pbt-fg);
-    font-size: 0.92rem;
-    outline: none;
-  }
-
-  .pbt-palette__results { padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.9rem; }
-  .pbt-palette__group h3 { margin: 0 0 0.4rem; font-family: var(--pbt-mono); font-size: 0.68rem; color: var(--pbt-muted); letter-spacing: 0.06em; }
-  .pbt-palette__row {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 0.6rem;
-    align-items: center;
-    padding: 0.45rem 0.55rem;
-    border-radius: 4px;
-    text-decoration: none;
-    color: var(--pbt-fg);
-  }
-  .pbt-palette__row:hover { background: var(--pbt-panel-alt); }
-  .pbt-palette__label { font-size: 0.85rem; font-weight: 600; }
-  .pbt-palette__meta { font-family: var(--pbt-mono); font-size: 0.72rem; color: var(--pbt-muted); }
-  .pbt-palette__notice { padding: 0.5rem 1rem; color: var(--pbt-amber); font-size: 0.8rem; margin: 0; }
-  .pbt-palette__foot {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.75rem 1rem;
-    border-top: 1px solid var(--pbt-border);
-    font-family: var(--pbt-mono);
-    font-size: 0.76rem;
   }
 
   .pbt-onboarding__head {
@@ -1190,6 +1119,7 @@
 
   @media (max-width: 48rem) {
     .pbt-topbar { grid-template-columns: minmax(0, 1fr); }
+    .pbt-chart-panel__head { flex-wrap: wrap; }
     .pbt-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .pbt-playbook-grid, .pbt-fix-grid, .pbt-diag-grid { grid-template-columns: minmax(0, 1fr); }
     .pbt-probe-form { grid-template-columns: minmax(0, 1fr); }

@@ -78,7 +78,6 @@ defmodule RegentsWeb.Components.Shell do
             </:picture>
             <:agents>{render_slot(@agents)}</:agents>
             <:theme>
-              <span class="shell-theme-label" aria-hidden="true">Light theme</span>
               <.theme_toggle id="account-menu-theme" />
             </:theme>
           </Regent.Account.menu>
@@ -255,7 +254,6 @@ defmodule RegentsWeb.Components.Shell do
         </a>
       </div>
       <div class="rg-account-menu__theme">
-        <span class="shell-theme-label" aria-hidden="true">Light theme</span>
         <.theme_toggle id="account-menu-theme" />
       </div>
       <div class="rg-account-menu__foot">
