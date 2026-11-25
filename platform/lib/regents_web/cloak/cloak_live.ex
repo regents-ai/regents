@@ -193,7 +193,44 @@ defmodule RegentsWeb.Cloak.CloakLive do
         </div>
       </section>
 
-      <%!-- Section 2: Chat + API comparison with connected ecosystem bar --%>
+      <%!-- Section 2: 3 modes for every Mac (exact llama.app 3-card grid) --%>
+      <section id="modes" class="cloak-section" aria-labelledby="cloak-modes-heading">
+        <div class="cloak-section__head">
+          <h2 id="cloak-modes-heading">3 modes, built for every Mac</h2>
+          <p>
+            Run Local AI offline on Apple silicon, step up to Private Cloud Inference (NEAR, Venice, Boundless, zkAPI), or serve models with EigenLayer's Darkbloom.
+          </p>
+        </div>
+
+        <div class="cloak-mode-grid">
+          <article :for={card <- @mode_cards} class="cloak-card cloak-mode-card" data-mode={card.id}>
+            <span class="cloak-mode-card__ram">{card.ram}</span>
+            <h3>{card.name}</h3>
+            <p>{card.body}</p>
+            <p :if={card.credit} class="cloak-mode-card__credit">
+              <%= for part <- card.credit do %>
+                <%= case part do %>
+                  <% {:text, text} -> %>
+                    {text}
+                  <% {:link, label, href} -> %>
+                    <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
+                <% end %>
+              <% end %>
+            </p>
+          </article>
+        </div>
+
+        <div class="cloak-links-row">
+          <a class="cloak-text-link" href={Cloak.docs_path()}>
+            Compare all 3 modes &amp; privacy rails →
+          </a>
+          <a class="cloak-text-link" href="/docs/cloak/wallets">
+            Wallet security &amp; 30-day zkAPI limit →
+          </a>
+        </div>
+      </section>
+
+      <%!-- Section 3: Chat + API comparison with connected ecosystem bar --%>
       <section class="cloak-section" aria-labelledby="cloak-dual-heading">
         <div class="cloak-section__head">
           <h2 id="cloak-dual-heading">Chat locally, or cloak your cloud</h2>
@@ -437,43 +474,6 @@ defmodule RegentsWeb.Cloak.CloakLive do
               </svg>
             </div>
           </article>
-        </div>
-      </section>
-
-      <%!-- Section 5: 3 modes for every Mac (exact llama.app 3-card grid) --%>
-      <section id="modes" class="cloak-section" aria-labelledby="cloak-modes-heading">
-        <div class="cloak-section__head">
-          <h2 id="cloak-modes-heading">3 modes, built for every Mac</h2>
-          <p>
-            Run Local AI offline on Apple silicon, step up to Private Cloud Inference (NEAR, Venice, Boundless, zkAPI), or serve models with EigenLayer's Darkbloom.
-          </p>
-        </div>
-
-        <div class="cloak-mode-grid">
-          <article :for={card <- @mode_cards} class="cloak-card cloak-mode-card" data-mode={card.id}>
-            <span class="cloak-mode-card__ram">{card.ram}</span>
-            <h3>{card.name}</h3>
-            <p>{card.body}</p>
-            <p :if={card.credit} class="cloak-mode-card__credit">
-              <%= for part <- card.credit do %>
-                <%= case part do %>
-                  <% {:text, text} -> %>
-                    {text}
-                  <% {:link, label, href} -> %>
-                    <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
-                <% end %>
-              <% end %>
-            </p>
-          </article>
-        </div>
-
-        <div class="cloak-links-row">
-          <a class="cloak-text-link" href={Cloak.docs_path()}>
-            Compare all 3 modes &amp; privacy rails →
-          </a>
-          <a class="cloak-text-link" href="/docs/cloak/wallets">
-            Wallet security &amp; 30-day zkAPI limit →
-          </a>
         </div>
       </section>
 

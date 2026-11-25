@@ -22,7 +22,7 @@ defmodule RegentsWeb.Cloak do
     {:text, " way to use agents."}
   ]
 
-  @pill "Simple Local AI. Private Cloud AI Aggregator."
+  @pill "MacOS app. Local models. Private cloud AI aggregator."
 
   @watch_label "Watch the intro"
   @watch_time "0:35"
