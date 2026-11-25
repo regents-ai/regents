@@ -8739,3 +8739,7 @@ seasons), on the shared Points library regents.sh was already on.
 - Put the current product's routes directly below Account and move the Account tabs into its disclosure. Keep the sidebar on Patchbay threads, profiles and site pages.
 - Add the Regents crown above Account as a link to the app overview. The expanded sidebar also shows the Regents Labs name.
 - Use the workspace sidebar across apps and documentation, with guide links in the shared rail. Give articles, reading pages and public product pages the marketing header.
+
+## 2026-11-25 — Home announcement
+
+- Add an App Home link to the Products menu and a Cloak release announcement below the home header.

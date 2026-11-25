@@ -342,6 +342,31 @@
     letter-spacing: 0.16em;
     text-transform: uppercase;
   }
+  .products-heading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .products-heading__home {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 1.625rem;
+    padding-inline: .55rem;
+    border: 1px solid var(--panel-line, var(--rule));
+    color: var(--panel-ink, var(--color-fg));
+    font-family: var(--font-family-ui);
+    font-size: .8125rem;
+    letter-spacing: normal;
+    text-transform: none;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .products-heading__home:is(:hover, :focus-visible) {
+    background: var(--panel-tint, var(--color-surface));
+  }
+  .sheet .products-heading__home {
+    min-block-size: 2.75rem;
+  }
   .menu__link {
     display: grid;
     grid-template-columns: auto 1fr;

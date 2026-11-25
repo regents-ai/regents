@@ -59,6 +59,15 @@
       opacity 360ms var(--ease-out) 500ms,
       transform 360ms var(--ease-out) 500ms;
   }
+
+  :root[data-marketing] .hero__announcement {
+    animation: hero-announcement-in 240ms var(--ease-out) 500ms both;
+  }
+}
+
+@keyframes hero-announcement-in {
+  from { opacity: 0; visibility: hidden; translate: 0 4px; }
+  to { opacity: 1; visibility: visible; translate: 0; }
 }
 
 @scope (:root[data-marketing]) {
@@ -75,9 +84,11 @@
     position: relative;
     isolation: isolate;
     display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
     place-items: center;
+    row-gap: var(--space-3);
     min-block-size: 100svh;
-    padding: calc(var(--bar-h) + var(--space-5)) var(--gutter) var(--space-6);
+    padding: calc(var(--bar-h) + var(--space-3)) var(--gutter) var(--space-6);
     overflow: hidden;
     background: #020307;
     color: var(--color-fg);
@@ -114,6 +125,31 @@
   }
   .hero__stage[data-datascape-dragging] .hero__canvas {
     cursor: grabbing;
+  }
+
+  .hero__announcement {
+    max-inline-size: min(100%, 62rem);
+    padding: .5rem .85rem;
+    border: 1px solid var(--rule-strong);
+    background: var(--color-surface);
+    color: var(--color-fg);
+    font-size: .9375rem;
+    line-height: 1.45;
+    text-align: center;
+    text-wrap: pretty;
+  }
+  .hero__announcement-date {
+    margin-inline-end: .55em;
+    color: var(--color-fg-muted);
+    font-family: var(--font-family-mono);
+    font-size: .6875rem;
+    white-space: nowrap;
+  }
+  .hero__announcement a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: .18em;
+    white-space: nowrap;
   }
 
   .hero__words {

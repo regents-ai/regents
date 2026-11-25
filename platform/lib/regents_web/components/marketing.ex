@@ -257,7 +257,7 @@ defmodule RegentsWeb.Components.Marketing do
                 </button>
                 <div class="menu menu--products" id="menu-products">
                   <div class="menu__column">
-                    <p class="menu__heading">Products</p>
+                    <.products_heading class="menu__heading" />
                     <a
                       class="menu__link"
                       href="/cloak"
@@ -514,7 +514,7 @@ defmodule RegentsWeb.Components.Marketing do
     <div class="sheet" id="sheet">
       <nav class="sheet__inner" aria-label="Main">
         <div class="sheet__section">
-          <p class="sheet__heading label">Products</p>
+          <.products_heading class="sheet__heading label" />
           <a class="sheet__link" href="/cloak">
             <span class="tile" data-id="cloak" aria-hidden="true">
               <svg><use href="#mark-crown" /></svg>
@@ -617,6 +617,17 @@ defmodule RegentsWeb.Components.Marketing do
         <path class="btn__head" d="m7 4 4 4-4 4" />
       </svg>
     </a>
+    """
+  end
+
+  attr :class, :string, required: true
+
+  defp products_heading(assigns) do
+    ~H"""
+    <div class={[@class, "products-heading"]}>
+      <span>Products</span>
+      <a class="products-heading__home" href="/app">App Home</a>
+    </div>
     """
   end
 

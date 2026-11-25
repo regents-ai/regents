@@ -180,6 +180,15 @@ defmodule RegentsWeb.HomeLive do
               loading="lazy"
             />
           </div>
+          <p class="hero__announcement">
+            <span class="hero__announcement-date">
+              <time datetime="2026-11-25">Nov 25th</time> release
+            </span>
+            <span>
+              A simple macOS app for local AI and private cloud AI, inspired by Vitalik’s
+              “paranoid mode” for LLMs. <a href="/cloak">Test out Cloak</a>
+            </span>
+          </p>
           <div class="hero__words">
             <p class="hero__label label">Regents Labs</p>
             <h1 class="hero__title" id="hero-title">Agent-native</h1>
