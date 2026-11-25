@@ -8737,3 +8737,4 @@ seasons), on the shared Points library regents.sh was already on.
 
 - Put Account and expandable product navigation in one sidebar across the app routes. The desktop rail remembers its width, and phones open the same product groups from the top bar.
 - Put the current product's routes directly below Account and move the Account tabs into its disclosure. Keep the sidebar on Patchbay threads, profiles and site pages.
+- Add the Regents crown above Account as a link to the app overview. The expanded sidebar also shows the Regents Labs name.

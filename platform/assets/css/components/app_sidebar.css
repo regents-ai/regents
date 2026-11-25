@@ -79,8 +79,22 @@ body:has(.workspace-bar[data-collapsed="true"]) {
 }
 
 .workspace-sidebar__account,
+.workspace-sidebar__brand,
 .workspace-bar__account {
   font-weight: 650;
+}
+
+.workspace-sidebar__brand {
+  margin-block-end: .625rem;
+}
+
+.workspace-sidebar__crown {
+  flex: none;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  background: currentColor;
+  mask: url("/images/brand/regents-crown-flat-dark-clear.svg") center / 1.6rem auto no-repeat;
+  forced-color-adjust: none;
 }
 
 .workspace-account {
@@ -234,7 +248,11 @@ body:has(.workspace-bar[data-collapsed="true"]) {
 }
 
 @media (min-width: 48rem) {
-  .workspace-bar[data-collapsed="true"] .workspace-sidebar :is(summary, .workspace-sidebar__account) {
+  .workspace-bar[data-collapsed="true"] .workspace-sidebar :is(
+    summary,
+    .workspace-sidebar__account,
+    .workspace-sidebar__brand
+  ) {
     justify-content: center;
     padding-inline: 0;
   }

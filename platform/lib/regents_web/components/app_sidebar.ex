@@ -79,6 +79,10 @@ defmodule RegentsWeb.Components.AppSidebar do
         </span>
       </button>
       <nav id="workspace-sidebar" class="workspace-sidebar" aria-label="Workspace">
+        <a class="workspace-sidebar__brand" href="/app" aria-label="Regents Labs" title="Regents Labs">
+          <span class="workspace-sidebar__crown" aria-hidden="true"></span>
+          <span class="workspace-sidebar__label">Regents Labs</span>
+        </a>
         <div class="workspace-account">
           <a
             class="workspace-sidebar__account"
