@@ -159,7 +159,10 @@ defmodule Regents.Keyfleet.Keys.KeyPicture do
   end
 
   policies do
-    bypass AshOban.Checks.AshObanInteraction do
+    bypass [
+      action([:make_close_up, :close_up_failed, :make_small_card, :small_card_failed]),
+      AshOban.Checks.AshObanInteraction
+    ] do
       authorize_if always()
     end
 

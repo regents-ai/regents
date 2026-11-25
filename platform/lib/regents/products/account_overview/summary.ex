@@ -8,7 +8,7 @@ defmodule Regents.Products.AccountOverview.Summary do
     domain: Regents.Products.AccountOverview,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias RegentAgents.Person
+  alias RegentAgents.{PairedAgent, Person}
   alias Regents.Account.Accounts
   alias Regents.Account.Actors.{Agent, Human}
   alias Regents.Autolaunch
@@ -62,21 +62,22 @@ defmodule Regents.Products.AccountOverview.Summary do
     end
   end
 
-  defp resolve_account(%Human{human_account_id: id} = human) do
-    case Accounts.get_human_account(id, actor: human) do
-      {:ok, %{} = account} -> {:ok, account, human}
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  defp resolve_account(%Human{} = human), do: resolve_account(human, human)
 
-  defp resolve_account(%Agent{human_account_id: id, pairing: %Human{} = human} = agent) do
-    case Accounts.get_human_account(id, actor: agent) do
-      {:ok, %{} = account} -> {:ok, account, human}
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  defp resolve_account(
+         %Agent{human_account_id: id, pairing: %Human{human_account_id: id} = human} = agent
+       ),
+       do: resolve_account(agent, human)
 
   defp resolve_account(_actor), do: {:error, :unauthorized}
+
+  defp resolve_account(actor, %Human{human_account_id: id} = human) do
+    case Accounts.get_human_account(id, actor: actor) do
+      {:ok, %{} = account} -> {:ok, account, human}
+      {:ok, nil} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
   defp account_summary(account, actor, paired_agents, points) do
     base = %{
@@ -85,6 +86,7 @@ defmodule Regents.Products.AccountOverview.Summary do
       ens_name: account.ens_name,
       wallet_address: account.wallet_address,
       wallet_count: length(linked_wallets(account)),
+      paired_agents_status: paired_agents.status,
       paired_agents_count: paired_agents.count,
       paired_agents: paired_agents.items,
       points_balance: points
@@ -112,29 +114,34 @@ defmodule Regents.Products.AccountOverview.Summary do
 
   defp read_paired_agents(%{privy_user_id: privy_user_id}) when is_binary(privy_user_id) do
     person = %Person{privy_user_id: privy_user_id}
+    query = Ash.Query.for_read(PairedAgent, :mine, %{}, actor: person)
 
-    case RegentAgents.list_my_agents(actor: person) do
-      {:ok, agents} when is_list(agents) ->
-        items =
-          agents
-          |> Enum.take(@preview_limit)
-          |> Enum.map(fn agent ->
-            %{
-              id: agent.id,
-              name: agent.name,
-              harness: to_string(agent.harness),
-              wallet: agent.wallet
-            }
-          end)
+    with {:ok, count} <- Ash.count(query),
+         {:ok, agents} <-
+           query
+           |> Ash.Query.select([:id, :name, :harness, :wallet])
+           |> Ash.Query.limit(@preview_limit)
+           |> Ash.read() do
+      items =
+        Enum.map(agents, fn agent ->
+          %{
+            id: agent.id,
+            name: agent.name,
+            harness: to_string(agent.harness),
+            wallet: agent.wallet
+          }
+        end)
 
-        %{count: length(agents), items: items}
-
+      %{status: "ready", count: count, items: items}
+    else
       _ ->
-        %{count: 0, items: []}
+        unavailable_paired_agents()
     end
   end
 
-  defp read_paired_agents(_), do: %{count: 0, items: []}
+  defp read_paired_agents(_), do: unavailable_paired_agents()
+
+  defp unavailable_paired_agents, do: %{status: "unavailable", count: 0, items: []}
 
   defp read_points(actor) do
     case RegentPoints.summary(actor: actor) do
@@ -529,7 +536,7 @@ defmodule Regents.Products.AccountOverview.Summary do
   defp build_next_steps(keyfleet, autolaunch, patchbay, techtree, paired_agents) do
     []
     |> maybe_step(
-      paired_agents.count == 0,
+      paired_agents.status == "ready" and paired_agents.count == 0,
       "agents",
       "Pair an agent so it can act for your account across Regents.",
       "/account/agents"

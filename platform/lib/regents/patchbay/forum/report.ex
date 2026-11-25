@@ -1593,6 +1593,10 @@ defmodule Regents.Patchbay.Forum.Report do
   end
 
   policies do
+    policy action([:read_by_jev, :give_up_on_jev, :read_escrow_credit, :read_escrow_refund]) do
+      authorize_if(AshOban.Checks.AshObanInteraction)
+    end
+
     policy actor_attribute_equals(:role, :payment_completion) do
       forbid_unless(action(:file_priority_report))
       authorize_if(always())
@@ -1684,12 +1688,8 @@ defmodule Regents.Patchbay.Forum.Report do
     end
 
     # `claim_escrow_credit`, `record_escrow_credit`, `confirm_escrow_credit`,
-    # `read_escrow_credit`,
-    # `read_escrow_refund`, `read_by_jev` and `give_up_on_jev` are named by no
-    # policy, so nothing that arrives over HTTP can reach them. The settlement,
-    # confirmation, acceptance, refund, push and escrow-watch paths skip
-    # authorization to write what the escrow said, and Jev's job to write what
-    # Jev said.
+    # These bookkeeping updates are called internally after escrow operations.
+    # They have no public policy.
   end
 
   @doc """

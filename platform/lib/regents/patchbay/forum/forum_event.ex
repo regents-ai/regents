@@ -114,9 +114,13 @@ defmodule Regents.Patchbay.Forum.ForumEvent do
   end
 
   policies do
+    bypass [action([:read, :fan_out, :give_up_fan_out]), AshOban.Checks.AshObanInteraction] do
+      authorize_if(always())
+    end
+
     # There is no public way in. Content actions write events internally, the
     # feed reads them under queries that already confine what it returns, and
-    # the fan-out job is internal bookkeeping; all of them skip authorization.
+    # the fan-out job has its own scoped policy above.
     policy always() do
       forbid_if(always())
     end

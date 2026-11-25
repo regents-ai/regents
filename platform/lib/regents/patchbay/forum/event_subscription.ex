@@ -231,13 +231,22 @@ defmodule Regents.Patchbay.Forum.EventSubscription do
       change(Regents.Patchbay.Forum.Changes.RecordDeliveryError)
 
       change(fn changeset, _context ->
-        attempted_at = changeset.context.ash_oban.job.attempted_at
-        Ash.Changeset.filter(changeset, Ash.Expr.expr(verified_at < ^attempted_at))
+        case changeset.context do
+          %{ash_oban: %{job: %{attempted_at: %DateTime{} = attempted_at}}} ->
+            Ash.Changeset.filter(changeset, Ash.Expr.expr(verified_at < ^attempted_at))
+
+          _ ->
+            Ash.Changeset.add_error(changeset, "Delivery needs a recorded job attempt.")
+        end
       end)
     end
   end
 
   policies do
+    policy action([:read, :deliver, :halt_after_retries, :forget]) do
+      authorize_if(AshOban.Checks.AshObanInteraction)
+    end
+
     policy action([:subscribe, :destroy]) do
       authorize_if(Regents.Patchbay.OAuth.EventAccess)
     end

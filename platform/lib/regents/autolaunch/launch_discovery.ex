@@ -108,7 +108,7 @@ defmodule Regents.Autolaunch.LaunchDiscovery do
   end
 
   policies do
-    bypass AshOban.Checks.AshObanInteraction do
+    bypass [action([:read, :resolve, :discover]), AshOban.Checks.AshObanInteraction] do
       authorize_if always()
     end
 

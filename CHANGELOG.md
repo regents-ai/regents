@@ -8701,3 +8701,5 @@ seasons), on the shared Points library regents.sh was already on.
 - Use the shared SIWA proof and account lookup for Patchbay, and keep the thread reply form tied to the page's browser session.
 - Recover late Keyfleet feed events on reconnect. Use stable section identifiers for product docs and share canonical transaction verification with Autolaunch.
 - Let Patchbay fee jobs resume from their recorded transaction hashes while Base confirms a push.
+- Enforce Ash authorization for background jobs and scope job access to the actions each worker uses. Count paired agents in the database and bound the overview preview.
+- Update the transitive Hono dependency to 4.13.22 to address the five open npm advisories.

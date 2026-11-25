@@ -173,7 +173,7 @@ defmodule Regents.Autolaunch.Stocks.Stock do
   end
 
   policies do
-    bypass AshOban.Checks.AshObanInteraction do
+    bypass [action([:read_weekly_volume, :sync_admissions]), AshOban.Checks.AshObanInteraction] do
       authorize_if always()
     end
 

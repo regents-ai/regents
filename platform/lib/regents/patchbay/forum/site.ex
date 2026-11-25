@@ -474,6 +474,10 @@ defmodule Regents.Patchbay.Forum.Site do
   end
 
   policies do
+    policy action([:refresh, :take_picture, :picture_failed]) do
+      authorize_if(AshOban.Checks.AshObanInteraction)
+    end
+
     # The directory is a public board: reads and the named writes are open.
     # Any action not named here stays forbidden.
     policy action_type(:read) do

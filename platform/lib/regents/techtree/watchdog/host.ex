@@ -117,7 +117,10 @@ defmodule Regents.Techtree.Watchdog.Host do
   end
 
   policies do
-    bypass AshOban.Checks.AshObanInteraction do
+    bypass [
+      action([:read, :check_ownership, :check_failed]),
+      AshOban.Checks.AshObanInteraction
+    ] do
       authorize_if always()
     end
 
