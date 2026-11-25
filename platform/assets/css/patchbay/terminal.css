@@ -774,7 +774,7 @@
 
   .pbt-probe-form input,
   .pbt-filter-form input[type="search"] {
-    min-height: 2.5rem;
+    min-height: 2.75rem;
   }
 
   .pbt-select {
@@ -782,7 +782,7 @@
   }
 
   .pbt-select > select {
-    min-height: 2.5rem;
+    min-height: 2.75rem;
     padding: 0.45rem 2.35rem 0.45rem 0.75rem;
     font-size: 0.82rem;
     color: var(--pbt-fg);

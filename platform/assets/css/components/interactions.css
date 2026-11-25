@@ -83,8 +83,9 @@ a.rg-discussion__author {
 
 :where(.rg-select > select) {
   inline-size: 100%;
+  block-size: 100%;
   min-inline-size: 0;
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   padding: 0.45rem 2.5rem 0.45rem 0.75rem;
   border: 1px solid var(--rg-p-control-border, var(--color-border, currentColor));
   border-radius: var(--radius, 0px);

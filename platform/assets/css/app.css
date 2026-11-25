@@ -149,7 +149,7 @@ h6 {
     --rg-base-chevron-inset: 14px;
     appearance: none;
     -webkit-appearance: none;
-    min-height: 2.5rem;
+    min-height: 2.75rem;
     padding: 0.45rem calc(var(--rg-base-chevron-inset) + 22px) 0.45rem 0.75rem;
     cursor: pointer;
     background-image:
