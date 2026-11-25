@@ -266,7 +266,11 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
 
     ~H"""
     <Regent.Structure.frame id="public-home" class="rl-root">
-      <SiteShell.site_bar product="keyfleet" account_control={@account_control} />
+      <SiteShell.site_bar
+        product="keyfleet"
+        account_control={@account_control}
+        current_path="/keyfleet/app"
+      />
 
       <main>
         <Regent.Structure.row rail={false}>

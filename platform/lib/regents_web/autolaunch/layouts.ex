@@ -43,7 +43,11 @@ defmodule RegentsWeb.Autolaunch.Layouts do
   def app(assigns) do
     ~H"""
     <a class="shell-skip" href="#shell-content">Skip to content</a>
-    <Shell.site_bar product="autolaunch" account_control={@account_control}>
+    <Shell.site_bar
+      product="autolaunch"
+      account_control={@account_control}
+      current_path={@current_path}
+    >
       <:links>
         <a
           :for={link <- links()}
@@ -56,6 +60,7 @@ defmodule RegentsWeb.Autolaunch.Layouts do
     </Shell.site_bar>
     <Regent.Primitives.button
       variant="quiet"
+      :if={!Shell.workspace?(@current_path)}
       id="mobile-menu-button"
       class="mobile-menu-button"
       type="button"
@@ -75,11 +80,12 @@ defmodule RegentsWeb.Autolaunch.Layouts do
         </div>
       </Regent.Structure.row>
     </Regent.Structure.frame>
-    <.drawer links={links()} current_path={@current_path} />
+    <.drawer :if={!Shell.workspace?(@current_path)} links={links()} current_path={@current_path} />
     <Regent.Primitives.button
       variant="quiet"
       type="button"
       class="shell-menu-scrim"
+      :if={!Shell.workspace?(@current_path)}
       data-shell-menu-scrim
       aria-label="Close navigation"
       tabindex="-1"

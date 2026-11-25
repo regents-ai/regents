@@ -54,13 +54,9 @@ again from it and moving that commit.
   the brand is `Regent.Site.brand/1` of it; `data-home` is the home colour,
   `config :regents, :home_colour`, with a `?home=` preview marked in
   `RegentsWeb.Layouts.home_colour/1` until the founder picks one.
-- Every page shows the site's bar, `RegentsWeb.Components.Shell.site_bar/1` around
-  `Regent.Site.bar`: the crown, the product menu, the product's own links (its
-  `links` slot) and the account control. No product draws a header of its own.
-- In the app shell only Regents' and Protocol's pages carry the side menu (the app's
-  pages and the reading, `RouteCatalog`); another product's page there carries none,
-  and no Menu, and runs the frame's full width. The bar's product menu is the one way
-  between products.
+- `RegentsWeb.Components.Shell.site_bar/1` draws the site bar for public pages and the
+  shared Account and Products sidebar for app pages. Product apps keep their own
+  contextual navigation where needed, such as inside a Keyfleet.
 - The root layout is not redrawn by live navigation, so a link from one product's
   pages to another's is a plain `href` load, never `navigate` or `patch`.
 - Anything that names a product lands where the product menu lands, in the same tab.

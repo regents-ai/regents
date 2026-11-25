@@ -36,8 +36,12 @@ defmodule RegentsWeb.Techtree.Layouts do
     <a class="skip-link" href="#main-content">
       Skip to main content
     </a>
-    <Shell.site_bar product="techtree" account_control={@account_control} />
-    <.row current_path={@current_path} />
+    <Shell.site_bar
+      product="techtree"
+      account_control={@account_control}
+      current_path={@current_path}
+    />
+    <.row :if={!Shell.workspace?(@current_path)} current_path={@current_path} />
     <Regent.Structure.frame class="techtree-frame">
       {@inner_content}
     </Regent.Structure.frame>

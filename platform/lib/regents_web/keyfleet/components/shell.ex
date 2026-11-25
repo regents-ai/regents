@@ -40,7 +40,11 @@ defmodule RegentsWeb.Keyfleet.Components.Shell do
       data-shell-instance={@shell_instance}
     >
       <a class="shell-skip" href="#route-content">Skip to content</a>
-      <SiteShell.site_bar product="keyfleet" account_control={@account_control} />
+      <SiteShell.site_bar
+        product="keyfleet"
+        account_control={@account_control}
+        current_path={@route_spec.destination}
+      />
 
       <Regent.Primitives.button
         variant="quiet"

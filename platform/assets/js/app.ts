@@ -28,6 +28,7 @@ import {
   shellDestinationChanged,
   type ShellState,
 } from "./shell_state"
+import {installAppSidebar} from "./app_sidebar"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {DatascapeHero} from "./hooks/datascape_hero"
 import {HeroChevron} from "./hooks/hero_chevron"
@@ -85,6 +86,7 @@ import {mountWebMCPStatus} from "./patchbay/webmcp_status"
 
 // First, so an error anywhere below is reported too.
 installVisitLog()
+installAppSidebar()
 
 type ShellHook = Hook & {
   el: HTMLElement

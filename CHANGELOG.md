@@ -8732,3 +8732,7 @@ seasons), on the shared Points library regents.sh was already on.
 - Serve Keyfleet's public contract endpoints (`/keyfleet/capabilities.json`, `/keyfleet/commands.json`, `/keyfleet/openapi.json`, `/keyfleet/api-contract.openapiv3.yaml`), legacy `/keyfleet/mcp` and `/keyfleet/oauth/*` redirects, `keyfleet_workspace_pulse` WebMCP tool, and `keyfleet` entry in `/.well-known/agent-skills/index.json`.
 - Wire `Regents.Keyfleet.Graph.Notices` under `Regents.SharedChanges`, `Seasons.Coinbase` / `PresenceTimer` / `keyfleet_code` config, Keyfleet avatar/notebook limits, `ErrorIgnorer` suppression for `HubSilentError`, and `AccountSite` Keyfleet check-in blockers on `/account/agents`.
 - Fix guest and logged-in auth-state issues: guard signed-out `[data-onchain-step]` / `button[data-onchain-bundle]` clicks in `OnchainSteps` (`address` param + refusal `note` handling), open Privy sign-in in place from Keyfleet's sidebar, add signed-out `/account#account-<product>` anchors, handle empty linked-wallet copy cleanly, refresh `/keyfleet/app` Key counts and Hall quote boxes on live updates, scrub private assigns and unsubscribe member PubSub topics on `:expired`, and switch cross-`live_session` links to `href`.
+
+## 2026-11-25 — App sidebar
+
+- Put Account and expandable product navigation in one sidebar across the app routes. The desktop rail remembers its width, and phones open the same product groups from the top bar.

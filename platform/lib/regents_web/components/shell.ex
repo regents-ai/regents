@@ -19,6 +19,7 @@ defmodule RegentsWeb.Components.Shell do
 
   alias Regents.Account.AccessContext.AccountControl
   alias RegentsWeb.Components.AgentTools
+  alias RegentsWeb.Components.AppSidebar
 
   alias RegentsWeb.RouteCatalog
 
@@ -48,7 +49,12 @@ defmodule RegentsWeb.Components.Shell do
   def shell(assigns) do
     # A product without a side menu of its own (`RouteCatalog`) has no Menu either,
     # and its page runs the frame's full width.
-    assigns = assign(assigns, :side_menu?, assigns.route_spec.sidebar_model.targets != [])
+    assigns =
+      assign(
+        assigns,
+        :side_menu?,
+        assigns.route_spec.sidebar_model.targets != [] and !workspace?(assigns.route_spec.destination)
+      )
 
     ~H"""
     <div
@@ -64,7 +70,12 @@ defmodule RegentsWeb.Components.Shell do
       data-shell-instance={@shell_instance}
     >
       <a class="shell-skip" href="#route-content">Skip to content</a>
-      <.site_bar product={@route_spec.product} account_control={@account_control} menu>
+      <.site_bar
+        product={@route_spec.product}
+        account_control={@account_control}
+        current_path={@route_spec.destination}
+        menu
+      >
         <:account_menu :if={@account_control.kind == :signed_in}>
           <Regent.Account.menu
             id="account-menu"
@@ -192,6 +203,10 @@ defmodule RegentsWeb.Components.Shell do
     """
   end
 
+  @doc "Whether the route uses workspace navigation."
+  defdelegate workspace?(path), to: AppSidebar
+
+  attr :current_path, :string, default: nil
   attr :product, :string, required: true, doc: "the page's product, one of `Regent.Site`'s"
   attr :account_control, AccountControl, required: true
 
@@ -213,18 +228,28 @@ defmodule RegentsWeb.Components.Shell do
   """
   def site_bar(assigns) do
     ~H"""
-    <Regent.Site.bar id="site-bar" product={@product}>
-      <:links :if={@links != []}>{render_slot(@links)}</:links>
-      <:account>
-        <.theme_toggle :if={!@menu or @account_control.kind != :signed_in} id="theme-control" />
-        <.account_control account_control={@account_control} menu={@menu} />
-        {render_slot(@account_menu)}
-        <.universal_account_menu
-          :if={@menu and @account_control.kind == :signed_in and @account_menu == []}
-          account_control={@account_control}
-        />
-      </:account>
-    </Regent.Site.bar>
+    <%= if workspace?(@current_path) do %>
+      <AppSidebar.bar path={@current_path} product={@product}>
+        <:controls><.site_account {assigns} /></:controls>
+      </AppSidebar.bar>
+    <% else %>
+      <Regent.Site.bar id="site-bar" product={@product}>
+        <:links :if={@links != []}>{render_slot(@links)}</:links>
+        <:account><.site_account {assigns} /></:account>
+      </Regent.Site.bar>
+    <% end %>
+    """
+  end
+
+  defp site_account(assigns) do
+    ~H"""
+    <.theme_toggle :if={!@menu or @account_control.kind != :signed_in} id="theme-control" />
+    <.account_control account_control={@account_control} menu={@menu} />
+    {render_slot(@account_menu)}
+    <.universal_account_menu
+      :if={@menu and @account_control.kind == :signed_in and @account_menu == []}
+      account_control={@account_control}
+    />
     """
   end
 

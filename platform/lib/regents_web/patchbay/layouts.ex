@@ -60,7 +60,11 @@ defmodule RegentsWeb.Patchbay.Layouts do
 
     ~H"""
     <a id="pb-skip-link" class="pb-skip-link" href="#pb-content">Skip to the main content</a>
-    <Shell.site_bar product="patchbay" account_control={@account_control}>
+    <Shell.site_bar
+      product="patchbay"
+      account_control={@account_control}
+      current_path={@active_path}
+    >
       <:links>
         <a href={~p"/patchbay/app"} aria-current={app_home?(@active_path) && "page"}>App</a>
         <a href={~p"/patchbay/incidents"} aria-current={incidents?(@active_path) && "page"}>
@@ -85,8 +89,8 @@ defmodule RegentsWeb.Patchbay.Layouts do
         <a :if={@profile_path} href={@profile_path}>Profile</a>
       </:links>
     </Shell.site_bar>
-    <button type="button" class="pb-menu-strip" popovertarget="pb-menu">Menu</button>
-    <nav id="pb-menu" class="pb-menu" popover aria-label="Patchbay">
+    <button :if={!Shell.workspace?(@active_path)} type="button" class="pb-menu-strip" popovertarget="pb-menu">Menu</button>
+    <nav :if={!Shell.workspace?(@active_path)} id="pb-menu" class="pb-menu" popover aria-label="Patchbay">
       <a href={~p"/patchbay/app"} aria-current={app_home?(@active_path) && "page"}>App</a>
       <a href={~p"/patchbay/incidents"} aria-current={incidents?(@active_path) && "page"}>Security</a>
       <a href={~p"/patchbay/validate"} aria-current={validate?(@active_path) && "page"}>Validate</a>
