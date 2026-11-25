@@ -148,7 +148,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
               <div class="cloak-popover__section">
                 <div class="cloak-popover__label-row">
                   <span class="cloak-num cloak-num--pin cloak-num--left">3</span>
-                  <span class="cloak-popover__label">Modes</span>
+                  <span class="cloak-popover__label">3 modes</span>
                 </div>
                 <div :for={mode <- @menubar_modes} class="cloak-popover__row">
                   <div class="cloak-popover__row-main">
@@ -159,16 +159,6 @@ defmodule RegentsWeb.Cloak.CloakLive do
                     <span class="cloak-popover__row-sub">{mode.meta}</span>
                   </div>
                   <span class="cloak-popover__row-meta">{mode.badge}</span>
-                </div>
-              </div>
-
-              <div class="cloak-popover__section">
-                <div class="cloak-popover__row">
-                  <div class="cloak-popover__row-main">
-                    <span class="cloak-popover__row-title">Darkbloom Serving</span>
-                    <span class="cloak-popover__row-sub">macOS 27+ · Apple silicon</span>
-                  </div>
-                  <span class="cloak-popover__row-meta">Off</span>
                 </div>
               </div>
 
@@ -198,7 +188,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
           <article class="cloak-card">
             <span class="cloak-eyebrow">For you</span>
             <h3 class="cloak-card__title">
-              Chat <span class="cloak-card__muted">· 4 privacy tiers</span>
+              Chat <span class="cloak-card__muted">· Local AI &amp; Private Cloud</span>
             </h3>
             <div class="cloak-mini-chat" aria-label="Example Original to Sent local prompt rewrite">
               <div class="cloak-mini-chat__state">
@@ -374,9 +364,9 @@ defmodule RegentsWeb.Cloak.CloakLive do
             </p>
             <div class="cloak-tree" aria-hidden="true">
               <div class="cloak-tree__top">
-                <span>Local</span>
-                <span>NEAR TEE</span>
-                <span>Tor / zkAPI</span>
+                <span>Local AI</span>
+                <span>Private Cloud</span>
+                <span>Serving</span>
               </div>
               <div class="cloak-tree__lines">
                 <span></span>
@@ -413,12 +403,12 @@ defmodule RegentsWeb.Cloak.CloakLive do
         </div>
       </section>
 
-      <%!-- Section 5: 5 modes for every Mac (llama.app "A great model for every Mac") --%>
+      <%!-- Section 5: 3 modes for every Mac (exact llama.app 3-card grid) --%>
       <section id="modes" class="cloak-section" aria-labelledby="cloak-modes-heading">
         <div class="cloak-section__head">
-          <h2 id="cloak-modes-heading">A mode for every Mac</h2>
+          <h2 id="cloak-modes-heading">3 modes, built for every Mac</h2>
           <p>
-            Start with zero downloads on an 8 GB Mac, or run local MLX and Tor privacy tiers on 16 GB+ Apple silicon.
+            Run Local AI offline on Apple silicon, step up to Private Cloud Inference (NEAR, Venice, Boundless, zkAPI), or serve models with EigenLayer's Darkbloom.
           </p>
         </div>
 
@@ -442,7 +432,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
 
         <div class="cloak-links-row">
           <a class="cloak-text-link" href={Cloak.docs_path()}>
-            Compare all 5 modes &amp; privacy boundaries →
+            Compare all 3 modes &amp; privacy rails →
           </a>
           <a class="cloak-text-link" href="/docs/cloak/wallets">
             Wallet security &amp; 30-day zkAPI limit →

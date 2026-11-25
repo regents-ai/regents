@@ -18,17 +18,19 @@ Cloak coordinates five purpose-built helpers across process and virtualization b
 
 Every bundled binary and downloaded model weight is verified by **SHA-256** against Cloak's embedded manifest before execution.
 
-## The Five Modes
+## The Three Modes
+
+Cloak organizes everything into **three modes**: **1. Local AI**, **2. Private Cloud Inference** (choosing between NEAR AI Cloud, Venice AI, Boundless, or zkAPI per thread), and **3. Inference Serving** with EigenLayer's Darkbloom.
 
 | Mode | Where inference runs | What leaves your Mac | Payment / auth | What can link requests |
 | --- | --- | --- | --- | --- |
-| **1. Local** | On your Mac (`vmlx-swift` MLX or `llama.cpp` GGUF) | Nothing during chat once weights are downloaded | Free · no account | Nothing leaves your Mac during inference |
-| **2. NEAR AI Gateway** | [NEAR AI Cloud](https://cloud.near.ai) (`Qwen3.8-27B`, Intel TDX + NVIDIA GPU) | Prompt as written, E2EE v2 encrypted to the hardware-verified enclave (optional Tor) | Your NEAR AI Cloud API key | Your NEAR API key identifies your NEAR account |
-| **3. Token Inference** | [Venice AI](https://venice.ai) or [Boundless](https://boundless.network) on Tempo | Locally rephrased user text over per-conversation Tor circuits | Tempo `USDC.e` (`MPP`), local Base USDC wallet (`x402`), or Venice API key | A reused wallet address, payment channel, or API key can link chats |
-| **4. zkAPI Anon Inference** | Open Anonymity (`zkAPI`) over Tor | Locally rephrased user text over per-conversation Tor circuits | Fresh one-time zero-knowledge key per turn drawn from a reusable ETH deposit — no provider account or linked API key | No reusable provider credential; prompt text, conversation history, and timing can still correlate requests |
-| **5. Darkbloom Serving** | On your Mac via [Darkbloom](https://darkbloom.dev) ([EigenLayer](https://eigenlayer.xyz)) | Local Only stays on your Mac; Network + Local serves idle compute to Darkbloom | Earn payouts on idle Apple silicon (`0%` platform cut, macOS 27+) | Linked `console.darkbloom.dev` provider account (Network + Local only) |
+| **1. Local AI** | On your Mac (`vmlx-swift` MLX or `llama.cpp` GGUF) | Nothing during chat once weights are downloaded | Free · no account | Nothing leaves your Mac during inference |
+| **2. Private Cloud — NEAR AI Gateway** | [NEAR AI Cloud](https://cloud.near.ai) (`Qwen3.8-27B`, Intel TDX + NVIDIA GPU) | Prompt as written, E2EE v2 encrypted to the hardware-verified enclave (optional Tor) | Your NEAR AI Cloud API key | Your NEAR API key identifies your NEAR account |
+| **2. Private Cloud — Venice & Boundless** | [Venice AI](https://venice.ai) or [Boundless](https://boundless.network) on Tempo | Locally rephrased user text over per-conversation Tor circuits | Tempo `USDC.e` (`MPP`), local Base USDC wallet (`x402`), or Venice API key | A reused wallet address, payment channel, or API key can link chats |
+| **2. Private Cloud — zkAPI** | Open Anonymity (`zkAPI`) over Tor | Locally rephrased user text over per-conversation Tor circuits | Fresh one-time zero-knowledge key per turn drawn from a reusable ETH deposit — no provider account or linked API key | No reusable provider credential; prompt text, conversation history, and timing can still correlate requests |
+| **3. Inference Serving** | On your Mac via [EigenLayer](https://eigenlayer.xyz)'s [Darkbloom](https://darkbloom.dev) | Local Only stays on your Mac; Network + Local serves idle compute to Darkbloom | Earn payouts on idle Apple silicon (`0%` platform cut, macOS 27+) | Linked `console.darkbloom.dev` provider account (Network + Local only) |
 
-### Mode 1: Local (`vmlx-swift` MLX + `llama.cpp`)
+### Mode 1: Local AI (`vmlx-swift` MLX + `llama.cpp`)
 
 Once model weights are downloaded, local inference does not send your conversation to an inference provider—no account, no payment, and no remote model calls during chat. (Model downloads from Hugging Face and optional Sparkle update checks are separate app-level network activity.)
 
@@ -36,7 +38,11 @@ Once model weights are downloaded, local inference does not send your conversati
 - **GGUF + LoRA path:** Built from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (`b12633`) with Metal acceleration, supporting 24 GB+ GGUF tiers (13.63 GB / 17.63 GB) and an optional 44 MB uncensored LoRA.
 - Both workers preserve multi-turn reasoning history inside your encrypted local chat store and coordinate unified memory with the prompt rewriter automatically.
 
-### Mode 2: NEAR AI Gateway
+### Mode 2: Private Cloud Inference (NEAR, Venice, Boundless & zkAPI)
+
+Choose the cloud privacy rail you want per thread—from zero-download hardware TEE enclaves to local prompt rewriting over Tor with crypto payments:
+
+#### NEAR AI Gateway (Hardware TEE)
 
 Runs `Qwen3.8-27B` inside Intel TDX + NVIDIA GPU enclaves on [NEAR AI Cloud](https://cloud.near.ai) ([Dstack TEE](https://github.com/Dstack-TEE/dstack)). Works on 8 GB+ Macs with **0 GB** of model downloads.
 
@@ -51,14 +57,14 @@ Normal NEAR chats send your prompt as written (no local rewriter). Enabling **To
 
 Inside the mode's top tab bar (**Chat | Traces | Insights**), the **Traces** tab exports opt-in **Letta Trajectory v1** `.json` files locally into an owner-only, Time-Machine- and Spotlight-excluded `Traces` folder compatible with [NEAR AI Gateway](https://gateway.near.ai) / [Trace Commons](https://github.com/TraceCommons/trace-commons). Cloak itself never uploads traces; reviewing, redacting, submitting, and earning any NEAR AI credits happen in the standalone NEAR AI Gateway app.
 
-### Mode 3: Token Inference (Venice AI & Boundless + Tempo)
+#### Venice AI & Boundless + Tempo (Token Inference)
 
 Sends locally rephrased prompts over per-conversation Tor circuits with no centralized account or credit card required. Switch between [Venice AI](https://venice.ai) and [Boundless](https://boundless.network) + Tempo via the segmented slider in Settings / Funds or the logo toggle right below the chat composer—when an existing thread already has history with the other provider, Cloak prompts you to either **Start New Thread** or **Send All Thread Context**.
 
 - **[Boundless](https://boundless.network) + Tempo (`USDC.e` via HTTP 402 `MPP`):** Uses a dedicated Tempo wallet (`sh.regents.cloak.wallet`) with session payment channels, cooperative instant **Close**, and a unilateral on-chain **Withdraw** escape hatch (15-minute grace period).
 - **[Venice AI](https://venice.ai) (Base USDC `x402` or API Key):** Generates a dedicated Base USDC wallet (`sh.regents.cloak.venice-wallet`, kept separate from the Boundless/Tempo wallet to avoid cross-chain address reuse), authenticates with Sign-In with Ethereum (`EIP-4361`), and tops up credit via HTTP `x402` (`EIP-3009`). Cloak defaults to Venice's `Private` and `TEE` model tiers and refuses silent mid-conversation downgrades. **Important distinction:** Venice's zero-retention policy and `Private`/`TEE` tier labels are provider-reported by Venice—Cloak does not independently verify a Venice TEE quote, and a reused wallet or API key can still link requests made with it.
 
-### Mode 4: zkAPI Anon Inference
+#### zkAPI Anon Inference (One-Time Zero-Knowledge Keys)
 
 Inspired by [Vitalik Buterin's private AI architecture](https://x.com/VitalikButerin/status/2111046730959433793), zkAPI Anon Inference runs [Open Anonymity's zkAPI](https://zkapi.openanonymity.ai) ([ethereum/zkapi](https://github.com/ethereum/zkapi)) on Ethereum Mainnet.
 
@@ -67,6 +73,10 @@ Inspired by [Vitalik Buterin's private AI architecture](https://x.com/VitalikBut
 - **Deposit & model tiers:** Open Anonymity uses coarse temporary per-turn escrow holds (`$1.00` Tier 1, `$2.00` Tier 3, `$3.00` Tier 5, `$4.50` Tier 25, `$6.00` Tier 100); only actual token cost is spent and unused funds remain in your deposit. A `$5` deposit unlocks models up through Tier 25 (`Claude Fable 5.2`, `Claude Opus 5.5`, `Claude Sonnet 5.5` default), and `$10+` gives headroom for multiple flagship turns. Keep a small ETH buffer in your local wallet outside the deposit to cover Ethereum Mainnet withdrawal gas.
 - **30-day vault expiry safety:** `ExpiryGuard` alerts you at Days 20, 25, and 28 and can optionally auto-withdraw 3 days before expiry.
 - **Honest limit:** Payment unlinkability does not prevent correlation from identifying text inside prompts, multi-turn conversation history, or request timing.
+
+### Mode 3: Inference Serving (EigenLayer's Darkbloom)
+
+Serve local models on Apple silicon for your own Mac apps or earn payouts on idle compute with [EigenLayer](https://eigenlayer.xyz)'s [Darkbloom](https://darkbloom.dev) (`Off` / `Local Only` / `Network + Local`, macOS 27+). See [Inference Serving (Darkbloom)](#inference-serving-darkbloom) below for verification and telemetry details.
 
 ## Local Prompt Rephrasing
 
