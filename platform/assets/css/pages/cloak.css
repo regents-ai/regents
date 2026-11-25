@@ -22,13 +22,13 @@
 }
 
 .cloak {
-  /* Crisp pure-white dark-mode palette matching llama.app (overrides the site's
-     warm paper off-white on /cloak so headings, buttons, and cards stay stark
-     white on dark). Light mode inherits the crisp dark-on-light foreground. */
-  --color-fg: #fafafa;
-  --color-fg-muted: #a1a1aa;
+  /* Crisp bright-white dark-mode palette matching llama.app (overrides the site's
+     warm paper off-white so headings, buttons, cards, and verify sections stay
+     stark white on dark). Light mode uses crisp dark-on-light foreground. */
+  --color-fg: #FFFFFF;
+  --color-fg-muted: #B8B8C0;
   --hairline: rgb(255 255 255 / 0.12);
-  --hairline-strong: rgb(255 255 255 / 0.2);
+  --hairline-strong: rgb(255 255 255 / 0.22);
 
   /* What the design needs and the system lacks: round corners, and the panel's
      blues and the drawn window's greys, dark in both themes. */
@@ -72,6 +72,7 @@
   --cloak-switch: #2c2c2d;
   --cloak-switch-on: #4a4a4c;
 
+  color: var(--color-fg);
   font-family: var(--cloak-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -2139,6 +2140,7 @@
 
 .cloak-verify__head h2 {
   margin: 0;
+  color: var(--color-fg);
   font-family: var(--cloak-sans);
   font-size: clamp(1.375rem, 2.2vw, 1.75rem);
   font-weight: 600;
@@ -2155,7 +2157,7 @@
 }
 
 .cloak-verify__head a {
-  color: inherit;
+  color: var(--color-fg);
   text-underline-offset: 0.18em;
 }
 
@@ -2187,6 +2189,7 @@
 
 .cloak-verify__facts dd {
   margin: 0;
+  color: var(--color-fg);
   font-size: 0.875rem;
   overflow-wrap: anywhere;
 }
@@ -2214,6 +2217,7 @@
   border: 1px solid var(--hairline);
   border-radius: 10px;
   background: var(--color-bg);
+  color: var(--color-fg);
   font-size: 0.8125rem;
   line-height: 1.45;
 }

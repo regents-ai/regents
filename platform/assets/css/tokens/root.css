@@ -49,10 +49,10 @@
 :root {
   --ash-ground: light-dark(#F6F4EA, #0B0B0B);
   --ash-raised: light-dark(#DAD8C7, #2A2A2A);
-  --ash-ink: light-dark(var(--palette-charcoal), var(--palette-platinum));
+  --ash-ink: light-dark(var(--palette-charcoal), #FFFFFF);
   --ash-quiet: light-dark(
     color-mix(in srgb, var(--palette-charcoal) 72%, #F6F4EA),
-    color-mix(in srgb, var(--palette-platinum) 65%, #0B0B0B)
+    #C4C4CC
   );
   --ash-signal: light-dark(
     color-mix(in oklab, var(--palette-tangerine-tango) 58%, var(--palette-charcoal)),

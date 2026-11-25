@@ -20,7 +20,7 @@
 }
 :root[data-marketing][data-home="ink"][data-product="regents"],
 :root[data-marketing][data-home="ink"] [data-id="regents"] {
-  --id-fill-d: #E5E3D2;
+  --id-fill-d: #FFFFFF;
   --id-on-d: #161616;
 }
 :root[data-marketing][data-product="patchbay"],
@@ -61,14 +61,14 @@
 }
 :root[data-marketing][data-product="protocol"],
 :root[data-marketing] [data-id="protocol"] {
-  --id-tile: #E5E3D2;
+  --id-tile: #FFFFFF;
   --id-mark: #161616;
   --id-ink-l: #161616;
-  --id-ink-d: #E5E3D2;
+  --id-ink-d: #FFFFFF;
   --id-line-l: #161616;
-  --id-line-d: #E5E3D2;
+  --id-line-d: #FFFFFF;
   --id-fill-l: #161616;
-  --id-on-l: #E5E3D2;
+  --id-on-l: #FFFFFF;
 }
 :root[data-marketing][data-product="siwa"],
 :root[data-marketing] [data-id="siwa"] {
@@ -118,15 +118,15 @@
 
 :root[data-marketing][data-home="ink"] {
   --home-tile: #161616;
-  --home-tile-mark: #E5E3D2;
+  --home-tile-mark: #FFFFFF;
   --home-ink-l: #161616;
-  --home-ink-d: #E5E3D2;
+  --home-ink-d: #FFFFFF;
   --home-large-l: #161616;
-  --home-large-d: #E5E3D2;
+  --home-large-d: #FFFFFF;
   --home-line-l: #161616;
-  --home-line-d: #E5E3D2;
+  --home-line-d: #FFFFFF;
   --home-pic-l: #161616;
-  --home-pic-d: #E5E3D2;
+  --home-pic-d: #FFFFFF;
   --home-fill: #FF5B19;
   --home-on-fill: #161616;
 }

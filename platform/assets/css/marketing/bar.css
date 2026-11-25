@@ -45,8 +45,8 @@
 
 :root[data-marketing][data-theme="light"] .bar {
   --panel-bg: #161616;
-  --panel-ink: #E5E3D2;
-  --panel-muted: #A9A79A;
+  --panel-ink: #FFFFFF;
+  --panel-muted: #C4C4CC;
   --panel-line: #34342F;
   --panel-tint: #222220;
 }
@@ -54,16 +54,16 @@
 @media (prefers-color-scheme: light) {
   :root[data-marketing]:not([data-theme]) .bar {
     --panel-bg: #161616;
-    --panel-ink: #E5E3D2;
-    --panel-muted: #A9A79A;
+    --panel-ink: #FFFFFF;
+    --panel-muted: #C4C4CC;
     --panel-line: #34342F;
     --panel-tint: #222220;
   }
 }
 
 :root[data-marketing] .bar[data-over="hero"] {
-  --rest-ink: #E5E3D2;
-  --rest-muted: #A9A79A;
+  --rest-ink: #FFFFFF;
+  --rest-muted: #C4C4CC;
   --rest-line: #34342F;
   --rest-ground: #0B0B0B;
   --rest-key: #161616;
