@@ -17,7 +17,7 @@ defmodule RegentsWeb.Components.Shell do
   use Phoenix.Component
 
   alias Regents.Account.AccessContext.AccountControl
-  alias RegentsWeb.Components.{AgentTools, AppSidebar, Marketing}
+  alias RegentsWeb.Components.{AgentTools, AppSidebar, Marketing, ThemeSwitch}
 
   attr(:route_spec, :map, required: true)
   attr(:account_control, AccountControl, required: true)
@@ -154,9 +154,7 @@ defmodule RegentsWeb.Components.Shell do
         </:controls>
       </AppSidebar.bar>
     <% else %>
-      <Marketing.navigation current={@product}>
-        <:actions><.site_account {assigns} /></:actions>
-      </Marketing.navigation>
+      <Marketing.navigation current={@product} />
     <% end %>
     """
   end
@@ -341,146 +339,13 @@ defmodule RegentsWeb.Components.Shell do
     """
   end
 
-  # The theme switch's two pictures, row by row from the top: "#" is a block. Both
-  # have as many blocks, so every block of the moon flies to exactly one of the
-  # sun, and both keep their outer ring clear, where a block would sit under the
-  # glass's bevel and smear. The still face draws them, and the browser reads
-  # them from there.
-  @theme_moon [
-    ".............",
-    "....##.......",
-    "...##.....#..",
-    "..##.........",
-    ".###.........",
-    ".###.....#...",
-    ".###.........",
-    ".#####.......",
-    ".######......",
-    "..#########..",
-    "...#######...",
-    "....#####....",
-    "............."
-  ]
-
-  @theme_sun [
-    ".............",
-    ".#....#....#.",
-    "..#.......#..",
-    ".....###.....",
-    "....#####....",
-    "...#######...",
-    ".#.#######.#.",
-    "...#######...",
-    "....#####....",
-    ".....###.....",
-    "..#.......#..",
-    ".#....#....#.",
-    "............."
-  ]
-
-  block_count = fn rows ->
-    rows |> Enum.join() |> :binary.matches("#") |> length()
-  end
-
-  if block_count.(@theme_moon) != block_count.(@theme_sun) do
-    raise ArgumentError, "the theme switch's moon and sun need as many blocks"
-  end
-
-  for rows <- [@theme_moon, @theme_sun] do
-    if Enum.any?(rows, &(String.length(&1) != length(rows))) do
-      raise ArgumentError, "the theme switch's pictures are square"
-    end
-
-    ring = [hd(rows), List.last(rows) | Enum.map(rows, &(String.first(&1) <> String.last(&1)))]
-
-    if Enum.any?(ring, &String.contains?(&1, "#")) do
-      raise ArgumentError, "the theme switch's pictures keep their outer ring clear"
-    end
-  end
-
   attr(:id, :string, required: true)
   attr(:class, :string, default: nil, doc: "a product header's own place for it")
 
   @doc """
-  The light and dark theme switch: a button with the role of a switch, on for
-  the light theme, with a knob that slides from night on the left to day on the
-  right. A press, Enter or Space turns it, and the knob can be dragged; it
-  settles on the nearer side when let go.
-
-  The server draws a still face: a flat square track and knob with the moon or
-  the sun, each a picture of tiny square blocks, placed for the theme showing. Once
-  the browser has drawn a first frame of the glass knob, with the same blocks
-  behind it and its light, on the canvas inside (`assets/js/hooks/theme_switch.ts`,
-  `assets/js/theme_switch/`), that picture takes over. Without WebGPU, with Less
-  motion on or in forced colours the still face stays, and it is a whole working
-  switch on its own.
-
-  The browser owns the press: it writes the theme cookie the server reads on
-  the next render, so the switch is left out of LiveView's patching, and the
-  attributes the browser writes on it are kept. LiveView mounts its hook on every
-  page, a plain one too, so nothing else mounts it.
+  The light and dark theme switch (delegated to `RegentsWeb.Components.ThemeSwitch`).
   """
-  def theme_toggle(assigns) do
-    assigns = assign(assigns, moon: @theme_moon, sun: @theme_sun)
-
-    ~H"""
-    <div
-      id={@id}
-      class={["theme-switch" | List.wrap(@class)]}
-      phx-hook="ThemeSwitch"
-      phx-update="ignore"
-      phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-theme-switch-ready", "style"])}
-      data-theme-switch
-    >
-      <button
-        id={"#{@id}-button"}
-        class="theme-switch__button"
-        type="button"
-        role="switch"
-        aria-checked="false"
-        aria-label="Light theme"
-      >
-        <span class="theme-switch__still" aria-hidden="true">
-          <span class="theme-switch__track" data-theme-switch-track>
-            <span class="theme-switch__knob" data-theme-switch-knob>
-              <.theme_blocks rows={@moon} class="theme-switch__moon" />
-              <.theme_blocks rows={@sun} class="theme-switch__sun" />
-            </span>
-          </span>
-        </span>
-        <canvas class="theme-switch__canvas" data-theme-switch-canvas aria-hidden="true"></canvas>
-      </button>
-    </div>
-    """
-  end
-
-  attr(:rows, :list, required: true)
-  attr(:class, :string, required: true)
-
-  # One of the switch's pictures, a block for each "#", one unit square apiece
-  # with a hairline between neighbours.
-  defp theme_blocks(assigns) do
-    assigns = assign(assigns, size: length(assigns.rows), blocks: blocks(assigns.rows))
-
-    ~H"""
-    <svg
-      class={@class}
-      viewBox={"0 0 #{@size} #{@size}"}
-      shape-rendering="crispEdges"
-      aria-hidden="true"
-    >
-      <g transform="translate(0.06 0.06)">
-        <rect :for={{x, y} <- @blocks} x={x} y={y} width="0.88" height="0.88" />
-      </g>
-    </svg>
-    """
-  end
-
-  defp blocks(rows) do
-    for {row, y} <- Enum.with_index(rows),
-        {"#", x} <- Enum.with_index(String.graphemes(row)),
-        do: {x, y}
-  end
+  def theme_toggle(assigns), do: ThemeSwitch.theme_toggle(assigns)
 
   attr :account_control, AccountControl, required: true
 

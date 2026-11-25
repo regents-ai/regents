@@ -103,6 +103,7 @@ export const MarketingPage: Hook = {
 
       menu.dataset.active = ""
       trigger.setAttribute("aria-expanded", "true")
+      measure()
       bar.style.setProperty("--open-h", `${bar.offsetHeight + menu.offsetHeight}px`)
       bar.dataset.open = ""
       active = trigger

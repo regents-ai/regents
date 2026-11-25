@@ -8,7 +8,7 @@ defmodule RegentsWeb.Components.Marketing do
 
   use RegentsWeb, :html
 
-  alias RegentsWeb.Components.AgentTools
+  alias RegentsWeb.Components.{AgentTools, ThemeSwitch}
   alias RegentsWeb.Stake.TokenLinks
 
   @doc "Hidden SVG symbol sprite shared by marketing bar, cards, buttons, and footer."
@@ -472,6 +472,7 @@ defmodule RegentsWeb.Components.Marketing do
             </ul>
           </nav>
           <div class="bar__end" data-menu-off>
+            <ThemeSwitch.theme_toggle id="theme-control" />
             {render_slot(@actions)}
             <.cta_button
               label={@cta_label}
