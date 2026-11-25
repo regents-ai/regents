@@ -221,16 +221,16 @@ defmodule RegentsWeb.Cloak do
   # regents-ai/cloak Releases (`SHA256SUMS.txt` and `checksums.json`). Update
   # these values whenever a new release is published by `app/publish.sh`.
   @release_checksums %{
-    tag: "0.2.0-284",
-    dmg_filename: "Regents-Cloak-0.2.0-284.dmg",
-    dmg_sha256: "13e0f23c02e34b2696ce16ff9ce5d135f26a1d9d421d6224408b7a3c56fc7a9b",
+    tag: "0.2.0-290",
+    dmg_filename: "Regents-Cloak-0.2.0-290.dmg",
+    dmg_sha256: "de16b986247fa84084677f04ad456efd57d278cac2335357a75e1e3455551940",
     # Populated on releases published by the updated app/release.sh + app/publish.sh
     # (e.g. {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)", "..."},
     # {"Apple Code Signature CDHash", "..."}).
     extra_hashes: [
       {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)",
-       "5decd598167a96bbbe94d1717bb40854801b82d6a55c87c3319c631cac29cf54"},
-      {"Apple Code Signature CDHash", "552aceb39dea63c1950198197243c3371239c44d"}
+       "daf9f28930d9ecd841dcde8c82d043baebdfe1a0b60171a67085a69af4bd0083"},
+      {"Apple Code Signature CDHash", "c05bacf04b9bd022446a104bce6a3b66584fc0bf"}
     ],
     team_id: "367G3Z7G3J",
     release_url: "https://github.com/regents-ai/cloak/releases/latest",
