@@ -558,7 +558,89 @@
 
 .cloak-stage {
   max-width: var(--cloak-max);
-  margin: 34px auto 0;
+  margin: 28px auto 0;
+}
+
+.cloak-stage__links {
+  margin-block-start: 16px;
+}
+
+/* Compact hero & integrations rhythm on 14"–15" laptop screens so the top of
+   the blue menu-bar showcase card is clearly visible above the fold. */
+@media (max-width: 96rem), (max-height: 58rem) {
+  .cloak-marketing-main .cloak {
+    padding-block-start: 18px;
+  }
+
+  .cloak-hero__icon-wrap {
+    margin-block-end: 14px;
+  }
+
+  .cloak-hero__icon {
+    width: 88px;
+    height: 88px;
+    border-radius: 20px;
+  }
+
+  .cloak-pill {
+    padding: 6px 16px;
+    font-size: 0.9375rem;
+  }
+
+  .cloak-hero h1 {
+    margin-block-start: 14px;
+    font-size: clamp(2.15rem, 4.3vw, 3.65rem);
+  }
+
+  .cloak-hero__second {
+    margin-block-start: 0.16em;
+  }
+
+  .cloak-hero__subtitle {
+    margin-block-start: 12px;
+    font-size: clamp(0.95rem, 1.28vw, 1.125rem);
+    line-height: 1.42;
+  }
+
+  .cloak-hero__actions {
+    margin-block-start: 18px;
+  }
+
+  .cloak-button {
+    min-height: 44px;
+    padding: 0 20px;
+    font-size: 0.9375rem;
+  }
+
+  .cloak-hero__facts {
+    margin-block-start: 12px;
+    font-size: 0.84375rem;
+  }
+
+  .cloak-integrations {
+    margin-block-start: 20px;
+  }
+
+  .cloak-integrations__head {
+    margin-block-end: 10px;
+  }
+
+  .cloak-integrations__card {
+    padding: 9px 8px;
+    gap: 4px;
+  }
+
+  .cloak-integrations__logos {
+    min-height: 22px;
+  }
+
+  .cloak-integrations__card .cloak-ecosystem__wordmark {
+    height: 18px;
+  }
+
+  .cloak-stage {
+    margin-block-start: 20px;
+  }
 }
 
 .cloak-stage__panel {

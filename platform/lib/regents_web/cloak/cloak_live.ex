@@ -89,17 +89,6 @@ defmodule RegentsWeb.Cloak.CloakLive do
           </button>
         </div>
         <p class="cloak-hero__facts">{Cloak.facts()}</p>
-        <nav class="cloak-hero__links" aria-label="Cloak resources">
-          <.link navigate={~p"/cloak/install"}>Install &amp; checksums</.link>
-          <span aria-hidden="true">·</span>
-          <a href={Cloak.docs_path()}>Docs</a>
-          <span aria-hidden="true">·</span>
-          <a id="cloak-forum-link" href={~p"/patchbay/cloak"}>{Cloak.forum_label()}</a>
-          <span aria-hidden="true">·</span>
-          <a href={Cloak.releases_url()} target="_blank" rel="noopener noreferrer">Releases</a>
-          <span aria-hidden="true">·</span>
-          <a href={Cloak.source_url()} target="_blank" rel="noopener noreferrer">GitHub</a>
-        </nav>
       </header>
 
       <%!-- Integrations banner: logos + company names for Cloak's modes --%>
@@ -218,6 +207,17 @@ defmodule RegentsWeb.Cloak.CloakLive do
             </div>
           </div>
         </div>
+        <nav class="cloak-hero__links cloak-stage__links" aria-label="Cloak resources">
+          <.link navigate={~p"/cloak/install"}>Install &amp; checksums</.link>
+          <span aria-hidden="true">·</span>
+          <a href={Cloak.docs_path()}>Docs</a>
+          <span aria-hidden="true">·</span>
+          <a id="cloak-forum-link" href={~p"/patchbay/cloak"}>{Cloak.forum_label()}</a>
+          <span aria-hidden="true">·</span>
+          <a href={Cloak.releases_url()} target="_blank" rel="noopener noreferrer">Releases</a>
+          <span aria-hidden="true">·</span>
+          <a href={Cloak.source_url()} target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
       </section>
 
       <%!-- Section 2: 3 modes for every Mac (exact llama.app 3-card grid) --%>
