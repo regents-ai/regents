@@ -22,6 +22,8 @@ kill_timeout = "60s"
   SIWA_SERVER_URL = "https://siwa.regents.sh"
   SIWA_AUDIENCE = "regents"
   TECHTREE_BOOTSTRAP_CHANNEL = "stable"
+  AUTOLAUNCH_AGENT_SWAPS = "true"
+  AUTOLAUNCH_AGENT_PAYMENTS = "true"
   KEYFLEET_GRAPH_URL = "http://graph.process.keyfleet.internal:4400"
   PATCHBAY_SHOTS_URL = "http://patchbay-shots.flycast"
 

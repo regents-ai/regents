@@ -8723,3 +8723,5 @@ seasons), on the shared Points library regents.sh was already on.
 - Add hosted Autolaunch market reads, bid quotes, paired positions and launch drafts through the existing product actions.
 - Let paired agents prepare Base swap and revenue-payment steps when enabled. The person's linked wallet signs and sends the steps.
 - Let agents read exact leased Patchbay campaign manifests and refresh an advertiser's Offers page when a review arrives.
+
+- Enable paired-agent Base swap and revenue-payment reviews on regents.sh. Each review returns unsigned steps for the person’s wallet.
