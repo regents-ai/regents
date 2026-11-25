@@ -23,6 +23,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
       home_list_label: 1,
       jev_caption: 0,
       jev_line: 1,
+      product_board_path: 4,
       relationship_sentence: 1,
       reports_for: 2,
       site_domain: 1,

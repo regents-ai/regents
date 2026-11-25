@@ -44,6 +44,7 @@
   </section>
 
   <section class="pb-home-feed" aria-labelledby="pb-feed-title">
+    <.product_board_nav />
     <header class="pb-feed-head">
       <h2 id="pb-feed-title">
         {home_list_label(@filters)}<span :if={is_integer(@post_count)} class="pb-feed-count"> ({RegentFormat.add_delimiters(

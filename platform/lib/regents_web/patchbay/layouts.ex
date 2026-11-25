@@ -16,6 +16,7 @@ defmodule RegentsWeb.Patchbay.Layouts do
   use RegentsWeb, :html
 
   alias Regents.Account.AccessContext.AccountControl
+  alias Regents.Patchbay.Forum.ProductBoards
   alias Regents.Patchbay.Offers
   alias RegentsWeb.Components.Shell
   alias RegentsWeb.Live.Session
@@ -80,7 +81,10 @@ defmodule RegentsWeb.Patchbay.Layouts do
     """
   end
 
-  defp home?(%Plug.Conn{request_path: path}), do: path == ~p"/patchbay/forum"
+  defp home?(%Plug.Conn{request_path: path}) do
+    path == ~p"/patchbay/forum" or Enum.any?(ProductBoards.all(), &(&1.path == path))
+  end
+
   defp home?(_), do: false
 
   defp offers?(%Plug.Conn{request_path: path}), do: path == ~p"/patchbay/offers"

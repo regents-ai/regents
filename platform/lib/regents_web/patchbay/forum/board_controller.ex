@@ -11,6 +11,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
   require Logger
 
+  alias Regents.Patchbay.Assist.KnownFixes
   alias Regents.Patchbay.DatabaseBusy
   alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Forum.BoardActivity
@@ -18,6 +19,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   alias Regents.Patchbay.Forum.PostAddress
   alias Regents.Patchbay.Forum.PostSummary
   alias Regents.Patchbay.Forum.Principal
+  alias Regents.Patchbay.Forum.ProductBoards
   alias Regents.Patchbay.Forum.SearchUnavailable
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.SiteDirectory
@@ -54,6 +56,93 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
         nil -> :erlang.raise(:error, reason, __STACKTRACE__)
         kind -> BusyPage.respond(conn, kind)
       end
+  end
+
+  @doc """
+  A first-party Regents product forum (`/patchbay/cloak`, `/patchbay/techtree`,
+  `/patchbay/autolaunch`, `/patchbay/keyfleet`, `/patchbay/siwa`, `/patchbay/regents`).
+  """
+  def product_board(%{private: %{product_board: slug}} = conn, params) do
+    board = ProductBoards.fetch!(slug)
+    topic = ProductBoards.selected_topic(board, params["topic"])
+    filters = Discussions.product_filters(board, params, topic)
+
+    case discussions(filters, [], params["after"]) do
+      {:error, :invalid_cursor} ->
+        conn
+        |> put_flash(:error, "That discussion page does not match these filters.")
+        |> redirect(to: BoardHTML.product_board_path(board, filters, topic))
+
+      {reports, next_page} ->
+        known_fixes =
+          board.known_fix_ids
+          |> Enum.map(&KnownFixes.get/1)
+          |> Enum.reject(&is_nil/1)
+
+        draft_params =
+          Map.merge(
+            %{
+              "site_url" => board.default_site_url,
+              "topic_tags" => ProductBoards.prefilled_tags(board, topic)
+            },
+            Map.take(params, ~w(goal site_url tool topic_tags))
+          )
+
+        ask =
+          product_ask_call(
+            board,
+            topic,
+            presence(params["goal"]),
+            presence(params["error"])
+          )
+
+        conn
+        |> listed(reports)
+        |> merge_assigns(Layouts.frame(conn, []))
+        |> render(:product_board,
+          page_title: board.title,
+          page_description: board.description,
+          canonical: RegentsWeb.Endpoint.url() <> board.path,
+          board: board,
+          boards: ProductBoards.all(),
+          topic: topic,
+          filters: filters,
+          reports: reports,
+          next_page: next_page,
+          current_page: params["after"],
+          post_count: post_count(filters, []),
+          ask_draft: Hero.prefilled(draft_params),
+          ask_open: ask_open?(params),
+          known_fixes: known_fixes,
+          ask: ask
+        )
+    end
+  end
+
+  @doc "A first-party product forum as Markdown, at `/patchbay/<slug>.md`."
+  def product_board_md(conn, params) do
+    conn
+    |> put_format("md")
+    |> put_resp_content_type("text/markdown")
+    |> product_board(params)
+  end
+
+  defp product_ask_call(board, topic, goal, error) do
+    tags =
+      board
+      |> ProductBoards.prefilled_tags(topic)
+      |> String.split(",", trim: true)
+      |> Enum.map(&String.trim/1)
+
+    Jason.OrderedObject.new(
+      site: "regents.sh",
+      page_url: board.default_site_url,
+      title: if(goal, do: String.slice(goal, 0, 100), else: "WHAT YOU WERE TRYING TO DO"),
+      body_markdown:
+        "I am using #{board.name}, trying to #{goal || "WHAT YOU WERE TRYING TO DO"}.\n\n" <>
+          "What happened: #{error || "WHAT HAPPENED"}\n\nWhat I tried: WHAT YOU TRIED",
+      topic_tags: tags
+    )
   end
 
   @doc """

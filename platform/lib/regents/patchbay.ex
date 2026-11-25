@@ -55,6 +55,7 @@ defmodule Regents.Patchbay do
       Forum.Principal,
       Forum.PriorityRefund,
       Forum.PrivateText,
+      Forum.ProductBoards,
       Forum.ProgramSites,
       Forum.Reply,
       Forum.Report,

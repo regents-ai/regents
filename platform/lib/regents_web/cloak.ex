@@ -24,11 +24,47 @@ defmodule RegentsWeb.Cloak do
 
   @watch_label "Watch the intro"
   @watch_time "0:35"
+  @forum_label "Cloak Forum"
+  @forum_path "/patchbay/cloak"
   @film "/images/cloak/intro.mp4"
   @releases_url "https://github.com/regents-ai/cloak-releases/releases"
   @source_url "https://github.com/regents-ai/cloak"
   @docs_path "/docs/cloak/reference"
   @facts "v0.2.0 Beta · Apple silicon · macOS 26 or later · Not yet independently audited · Keep wallet balances small."
+
+  @ecosystem_heading "Built on the open privacy & payment stack"
+  @ecosystem [
+    %{
+      id: "boundless-tempo",
+      note: "Token Inference · MPP USDC.e",
+      partners: [
+        %{id: "boundless", name: "Boundless", href: "https://boundless.network"},
+        %{id: "tempo", name: "Tempo", href: "https://tempo.xyz"}
+      ]
+    },
+    %{
+      id: "venice-base",
+      note: "Token Inference · x402 USDC",
+      partners: [
+        %{id: "venice", name: "Venice", href: "https://venice.ai"},
+        %{id: "base", name: "Base", href: "https://base.org"}
+      ]
+    },
+    %{
+      id: "eigenlayer",
+      note: "Verifiable compute",
+      partners: [
+        %{id: "eigenlayer", name: "EigenLayer", href: "https://eigenlayer.xyz"}
+      ]
+    },
+    %{
+      id: "ethereum",
+      note: "zkAPI ETH settlement",
+      partners: [
+        %{id: "ethereum", name: "Ethereum", href: "https://ethereum.org"}
+      ]
+    }
+  ]
 
   @agent %{
     title: "Local Agent Box & Connected Apps",
@@ -199,12 +235,16 @@ defmodule RegentsWeb.Cloak do
   def pill, do: @pill
   def watch_label, do: @watch_label
   def watch_time, do: @watch_time
+  def forum_label, do: @forum_label
+  def forum_path, do: @forum_path
   def film, do: @film
   def releases_url, do: @releases_url
   def source_url, do: @source_url
   def docs_path, do: @docs_path
   def agent, do: @agent
   def facts, do: @facts
+  def ecosystem_heading, do: @ecosystem_heading
+  def ecosystem, do: @ecosystem
   def modes_title, do: @modes_title
   def modes, do: @modes
   def window, do: @window
@@ -231,6 +271,12 @@ defmodule RegentsWeb.Cloak do
           "| #{name} | #{String.trim_trailing(sentence, ".")}. #{credit.before}[#{credit.link}](#{credit.href})#{credit.after} | #{@mode_access[name]} |"
       end)
 
+    ecosystem =
+      Enum.map_join(@ecosystem, "\n", fn group ->
+        names = Enum.map_join(group.partners, " + ", &"[#{&1.name}](#{&1.href})")
+        "- #{names} — #{group.note}"
+      end)
+
     agent_docs =
       Enum.map_join(@agent_docs, "\n\n", fn doc ->
         "### #{doc.summary}\n\n#{doc.body}"
@@ -247,10 +293,15 @@ defmodule RegentsWeb.Cloak do
 
     - [#{@watch_label} (#{@watch_time})](#{film})
     - [View releases](#{@releases_url})
+    - [Read docs](#{RegentsWeb.PublicDocuments.url(@docs_path)})
+    - [#{@forum_label}](#{RegentsWeb.PublicDocuments.url(@forum_path)})
     - [View source](#{@source_url})
-    - [#{@agent.docs_label}](#{RegentsWeb.PublicDocuments.url(@docs_path)})
 
     #{@facts}
+
+    ## #{@ecosystem_heading}
+
+    #{ecosystem}
 
     ## #{@modes_title}
 

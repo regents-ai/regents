@@ -185,6 +185,102 @@
   line-height: 1.5;
 }
 
+/* ---- Ecosystem stack banner ---- */
+
+.cloak-ecosystem {
+  max-width: 1240px;
+  margin: var(--space-6) auto 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--hairline);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--color-fg) 3%, var(--color-bg));
+}
+
+.cloak-ecosystem__eyebrow {
+  margin: 0 0 var(--space-3);
+  color: var(--color-fg-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.cloak-ecosystem__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cloak-ecosystem__group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--color-surface);
+  text-align: center;
+}
+
+.cloak-ecosystem__logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.cloak-ecosystem__partner {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-fg);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  text-decoration: none;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.cloak-ecosystem__partner:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cloak-ecosystem__partner:hover {
+    opacity: 0.75;
+  }
+}
+
+.cloak-ecosystem__mark {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--color-fg);
+}
+
+.cloak-ecosystem__plus {
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.cloak-ecosystem__note {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
 /* ---- Modes ---- */
 
 .cloak-show {
@@ -820,6 +916,24 @@
 
   .cloak-hero__facts {
     margin-block-start: 20px;
+    font-size: 0.875rem;
+  }
+
+  .cloak-ecosystem {
+    margin-block-start: 32px;
+    padding: var(--space-3);
+    border-radius: 16px;
+  }
+
+  .cloak-ecosystem__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cloak-ecosystem__group {
+    padding: 12px 10px;
+  }
+
+  .cloak-ecosystem__partner {
     font-size: 0.875rem;
   }
 

@@ -1173,6 +1173,15 @@ defmodule RegentsWeb.Router do
     pipe_through [:patchbay_browser, :patchbay]
 
     get "/forum", Forum.BoardController, :home
+
+    for board <- Regents.Patchbay.Forum.ProductBoards.all() do
+      get "/#{board.slug}", Forum.BoardController, :product_board,
+        private: %{product_board: board.slug}
+
+      get "/#{board.slug}.md", Forum.BoardController, :product_board_md,
+        private: %{product_board: board.slug}
+    end
+
     get "/help", PagesController, :help
     get "/about", PagesController, :about
     get "/privacy", PagesController, :privacy

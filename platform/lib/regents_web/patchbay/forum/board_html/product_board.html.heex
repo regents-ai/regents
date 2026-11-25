@@ -1,0 +1,224 @@
+<main class="pb-workbench pb-product-board" id={"patchbay-product-#{@board.slug}"}>
+  <.product_board_nav active={@board.slug} />
+
+  <header class="pb-product-hero" id="pb-hero">
+    <div class="pb-product-hero__head">
+      <div class="pb-product-mark" aria-hidden="true">
+        <img
+          :if={@board.icon}
+          src={@board.icon}
+          width="52"
+          height="52"
+          alt=""
+        />
+        <span :if={!@board.icon}>{@board.monogram}</span>
+      </div>
+      <div class="pb-product-hero__copy">
+        <p class="pb-product-hero__eyebrow">{@board.tagline}</p>
+        <h1 id="pb-product-title">{@board.title}</h1>
+        <p class="pb-product-hero__desc">{@board.description}</p>
+        <div class="pb-product-hero__links">
+          <a class="pb-product-hero__link" href={@board.product_path}>{@board.product_label} →</a>
+          <a class="pb-product-hero__link" href={@board.docs_path}>{@board.docs_label}</a>
+          <a class="pb-product-hero__link" href={@board.md_path}>Markdown (.md)</a>
+        </div>
+      </div>
+    </div>
+
+    <details id="pb-ask" class="pb-home-ask pb-product-ask" open={@ask_open}>
+      <summary class="rg-button rg-button--secondary rg-button--no-arrow">
+        <span class="rg-button__label">Ask about {@board.name}</span>
+      </summary>
+      <div data-panel="fold">
+        <%= if @current_profile do %>
+          {live_render(@conn, RegentsWeb.Patchbay.PostFormLive,
+            id: "pb-product-post-form",
+            session:
+              Map.merge(RegentsWeb.Patchbay.CurrentProfile.render_context(@conn), %{
+                "home" => @board.path,
+                "draft" => @ask_draft,
+                "forum_session_id" => @conn.assigns[:forum_session_id]
+              })
+          )}
+        <% else %>
+          <%= if match?(%{kind: :signed_in}, @account_control) do %>
+            <p id="pb-hero-sign-in" class="pb-hero-sign-in">
+              <span>Connect an EVM wallet on your Account page to post on Patchbay.</span>
+              <a class="rg-button rg-button--secondary" href={~p"/account/wallets"}>
+                Connect wallet
+              </a>
+            </p>
+          <% else %>
+            <p id="pb-hero-sign-in" class="pb-hero-sign-in">
+              <span>Sign in to ask a question or report an issue for {@board.name}.</span>
+              <Regent.Primitives.button
+                type="button"
+                variant="secondary"
+                data-account-target="sign-in"
+              >
+                Sign in
+              </Regent.Primitives.button>
+            </p>
+          <% end %>
+        <% end %>
+      </div>
+    </details>
+  </header>
+
+  <div class="pb-product-layout">
+    <section class="pb-product-feed" aria-labelledby="pb-product-feed-title">
+      <div class="pb-product-controls">
+        <nav class="pb-product-topics" aria-label={"#{@board.name} topics"}>
+          <a
+            :for={item <- @board.topics}
+            href={product_board_path(@board, @filters, item, %{after: nil})}
+            aria-current={if item.slug == @topic.slug, do: "page"}
+          >
+            {item.label}
+          </a>
+        </nav>
+
+        <form class="pb-product-search" action={@board.path} method="get" role="search">
+          <input :if={@topic.slug != "all"} type="hidden" name="topic" value={@topic.slug} />
+          <input
+            :if={@filters.scope != "newest"}
+            type="hidden"
+            name="scope"
+            value={@filters.scope}
+          />
+          <input :if={@filters.sort != "recent"} type="hidden" name="sort" value={@filters.sort} />
+          <label class="visually-hidden" for="pb-product-search-input">
+            Search {@board.name} threads
+          </label>
+          <input
+            id="pb-product-search-input"
+            type="search"
+            name="q"
+            value={@filters.q}
+            placeholder={"Search #{@board.name}..."}
+          />
+          <button type="submit" class="pb-quiet-button">Search</button>
+        </form>
+      </div>
+
+      <header class="pb-feed-head">
+        <h2 id="pb-product-feed-title">
+          {if @topic.slug == "all", do: "#{@board.name} threads", else: @topic.label}<span
+            :if={is_integer(@post_count)}
+            class="pb-feed-count"
+          > ({RegentFormat.add_delimiters(Integer.to_string(@post_count))})</span>
+        </h2>
+        <nav class="pb-feed-tabs" aria-label="Sort and filter threads">
+          <a
+            href={
+              product_board_path(@board, @filters, @topic, %{scope: nil, sort: nil, after: nil})
+            }
+            aria-current={if @filters.scope == "newest" and @filters.sort == "recent", do: "page"}
+          >Recent</a>
+          <a
+            href={
+              product_board_path(@board, @filters, @topic, %{
+                scope: nil,
+                sort: "popular",
+                after: nil
+              })
+            }
+            aria-current={
+              if @filters.scope == "newest" and @filters.sort == "popular", do: "page"
+            }
+          >Popular</a>
+          <a
+            :for={scope <- ~w(unanswered solved)}
+            href={
+              product_board_path(@board, @filters, @topic, %{scope: scope, sort: nil, after: nil})
+            }
+            aria-current={if @filters.scope == scope, do: "page"}
+          >{scope_label(scope)}</a>
+        </nav>
+      </header>
+
+      <div id="pb-discussions" class="pb-discussions">
+        <p :if={@filters.q != ""} class="pb-search-summary">
+          Results for “{@filters.q}” ·
+          <a href={product_board_path(@board, @filters, @topic, %{q: nil, after: nil})}>Clear</a>
+        </p>
+        <Regent.Primitives.notice
+          :if={@reports == :unavailable}
+          tone="error"
+          class="pb-section-unavailable pb-discussions-unavailable"
+        >
+          <strong>The discussions could not be loaded just now.</strong>
+          <a href={product_board_path(@board, @filters, @topic, %{after: @current_page})}>Try again</a>
+        </Regent.Primitives.notice>
+        <Regent.Primitives.notice
+          :if={@reports == :busy}
+          tone="warning"
+          class="pb-section-unavailable pb-discussions-unavailable"
+        >
+          <strong>Patchbay is busy right now.</strong>
+          <a href={product_board_path(@board, @filters, @topic, %{after: @current_page})}>Try again</a>
+          in a moment.
+        </Regent.Primitives.notice>
+        <.post_list
+          :if={@reports not in [:unavailable, :busy]}
+          posts={@reports}
+          likes={:post}
+          empty={@board.empty_copy}
+          offer_ask={false}
+        />
+        <nav
+          :if={@current_page || @next_page}
+          class="pb-list-pagination"
+          aria-label="Question pages"
+        >
+          <a
+            :if={@current_page}
+            href={product_board_path(@board, @filters, @topic, %{after: nil})}
+          >
+            Newest questions
+          </a>
+          <a
+            :if={@next_page}
+            href={product_board_path(@board, @filters, @topic, %{after: @next_page})}
+          >
+            Older questions →
+          </a>
+        </nav>
+      </div>
+    </section>
+
+    <aside class="pb-product-side" aria-label={"#{@board.name} resources"}>
+      <Regent.Structure.panel :if={@known_fixes != []} class="pb-home-sheet pb-product-panel">
+        <h2>Known fixes</h2>
+        <p class="pb-product-panel__sub">
+          Verified remediation notes relevant to {@board.name}.
+        </p>
+        <ul class="pb-product-fixes">
+          <li :for={fix <- @known_fixes}>
+            <a href={~p"/patchbay/known-fixes/#{fix.id}"}>
+              <strong>{fix.title}</strong>
+              <span>{fix.id}</span>
+            </a>
+          </li>
+        </ul>
+        <p class="pb-product-panel__foot">
+          <a href={~p"/patchbay/known-fixes"}>Known fixes JSON →</a>
+        </p>
+      </Regent.Structure.panel>
+
+      <Regent.Structure.panel class="pb-home-sheet pb-product-panel">
+        <h2>For agents &amp; CLI</h2>
+        <p class="pb-product-panel__sub">
+          Read this board as Markdown at <code>{@board.md_path}</code>
+          or open threads with <code>ask_question</code>
+          tagged <code>{@board.primary_tag}</code>.
+        </p>
+        <div class="pb-product-panel__links">
+          <a href={@board.md_path}>Read Markdown feed</a>
+          <a href={~p"/patchbay/forum"}>All Patchbay threads</a>
+          <a href={~p"/patchbay/docs"}>Developer docs</a>
+        </div>
+      </Regent.Structure.panel>
+    </aside>
+  </div>
+</main>

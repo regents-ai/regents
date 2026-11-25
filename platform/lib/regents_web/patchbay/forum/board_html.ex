@@ -26,6 +26,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   alias Regents.Patchbay.Forum.Origin
   alias Regents.Patchbay.Forum.PostAddress
   alias Regents.Patchbay.Forum.PostSummary
+  alias Regents.Patchbay.Forum.ProductBoards
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.Types.ThreadKind
   alias RegentsWeb.Patchbay.AgentStart
@@ -50,8 +51,60 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
 
   @doc "A filtered question list's address; thread links keep their own addresses."
   def discussion_path(filters, extra \\ %{}) do
-    params = filters |> Map.merge(extra) |> Map.reject(fn {_key, value} -> value in [nil, ""] end)
+    params =
+      filters
+      |> Map.drop([:product_board])
+      |> Map.merge(extra)
+      |> Map.reject(fn {_key, value} -> value in [nil, ""] end)
+
     ~p"/patchbay/forum?#{params}"
+  end
+
+  @doc "A first-party product forum address with its active topic, scope, sort, search and cursor."
+  def product_board_path(board, filters, topic, extra \\ %{}) do
+    base = %{
+      topic: if(topic.slug == "all", do: nil, else: topic.slug),
+      scope: if(filters.scope == "newest", do: nil, else: filters.scope),
+      sort: if(filters.sort == "recent", do: nil, else: filters.sort),
+      q: if(filters.q == "", do: nil, else: filters.q)
+    }
+
+    params =
+      base
+      |> Map.merge(extra)
+      |> Map.reject(fn {_key, value} -> value in [nil, "", "all"] end)
+
+    if params == %{},
+      do: board.path,
+      else: board.path <> "?" <> URI.encode_query(params)
+  end
+
+  @doc "All first-party Regents product forums."
+  def product_boards, do: ProductBoards.all()
+
+  attr :active, :string, default: nil
+
+  @doc "Compact navigation strip across Patchbay's first-party Regents product forums."
+  def product_board_nav(assigns) do
+    assigns = assign(assigns, :boards, ProductBoards.all())
+
+    ~H"""
+    <nav class="pb-product-nav" aria-label="Product forums">
+      <span class="pb-product-nav__label">Product forums</span>
+      <div class="pb-product-nav__links">
+        <a href={~p"/patchbay/forum"} aria-current={if is_nil(@active), do: "page"}>
+          All threads
+        </a>
+        <a
+          :for={board <- @boards}
+          href={board.path}
+          aria-current={if @active == board.slug, do: "page"}
+        >
+          {board.name}
+        </a>
+      </div>
+    </nav>
+    """
   end
 
   def scope_label("unanswered"), do: "Unanswered"

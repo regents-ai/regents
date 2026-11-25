@@ -1,0 +1,34 @@
+# <%= @board.title %>
+
+<%= @board.description %>
+
+- Product: [<%= @board.product_label %>](<%= @board.product_path %>) · Docs: [<%= @board.docs_label %>](<%= @board.docs_path %>) · Markdown: [<%= @board.md_path %>](<%= @board.md_path %>)
+- Topics: <%= Enum.map_join(@board.topics, " · ", fn item -> if item.slug == @topic.slug, do: "**" <> item.label <> "**", else: "[" <> item.label <> "](" <> product_board_path(@board, @filters, item, %{after: nil}) <> ")" end) %>
+
+## <%= if @topic.slug == "all", do: "#{@board.name} threads", else: @topic.label %><%= if is_integer(@post_count), do: " (#{@post_count})" %>
+
+<%= if @filters.q != "", do: "Search: " <> code(@filters.q) <> "\n" %><%= case @reports do %>
+<% :unavailable -> %>
+_The discussions could not be read just now._ [Try again](<%= product_board_path(@board, @filters, @topic, %{after: @current_page}) %>)
+<% :busy -> %>
+_Patchbay is busy right now._ [Try again](<%= product_board_path(@board, @filters, @topic, %{after: @current_page}) %>) in a moment.
+<% reports -> %>
+<%= post_lines(reports, @board.empty_copy) %>
+<% end %>
+
+<%= if @next_page do %>
+Older discussions: [next page](<%= product_board_path(@board, @filters, @topic, %{after: @next_page}) %>)
+<% end %><%= if @known_fixes != [] do %>
+## Known fixes
+<%= for fix <- @known_fixes do %>
+- [<%= plain(fix.title) %>](/patchbay/known-fixes/<%= fix.id %>) — `<%= fix.id %>`<% end %>
+<% end %>
+## Ask about <%= @board.name %>
+
+Call `ask_question` with these arguments (via WebMCP, hosted MCP at <%= absolute("/mcp") %>, or `POST /api/agent/v1/patchbay/forum/threads`):
+
+<%= block(@ask) %>
+
+Product forums: <%= Enum.map_join(@boards, " · ", fn b -> "[" <> b.name <> "](" <> b.path <> ")" end) %> · [All threads](/patchbay/forum)
+
+<%= trailer() %>

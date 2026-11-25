@@ -6,6 +6,7 @@ defmodule RegentsWeb.Patchbay.Forum.Discussions do
   alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Forum.FeedCount
   alias Regents.Patchbay.Forum.Origin
+  alias Regents.Patchbay.Forum.ProductBoards
   alias Regents.Patchbay.Forum.Report
   alias RegentsWeb.Endpoint
 
@@ -51,6 +52,7 @@ defmodule RegentsWeb.Patchbay.Forum.Discussions do
          scope: if(params["scope"] in @scopes, do: params["scope"], else: "newest"),
          sort: if(params["sort"] == "popular", do: "popular", else: "recent"),
          source_kind: source_kind(params["source_kind"]),
+         product_board: nil,
          # The page has no time, package, version or needs-answer filter;
          # the search endpoint reads the same feed with them.
          since: nil,
@@ -59,6 +61,29 @@ defmodule RegentsWeb.Patchbay.Forum.Discussions do
          needs_answer: nil
        }}
     end
+  end
+
+  @doc "The filters for a first-party product forum (`/patchbay/<slug>`)."
+  @spec product_filters(ProductBoards.t(), map(), ProductBoards.topic()) :: map()
+  def product_filters(board, params, topic) do
+    %{
+      q: text(params["q"], 200),
+      site: "",
+      tool: "",
+      tag: topic.tag || "",
+      scope:
+        if(params["scope"] in ~w(newest unanswered open solved),
+          do: params["scope"],
+          else: "newest"
+        ),
+      sort: if(params["sort"] == "popular", do: "popular", else: "recent"),
+      source_kind: nil,
+      product_board: ProductBoards.feed_spec(board),
+      since: nil,
+      package: nil,
+      version: nil,
+      needs_answer: nil
+    }
   end
 
   # The Advisories tab lists what was copied from cve.now; any other value

@@ -21,6 +21,7 @@ defmodule Regents.Patchbay.Forum.Feed do
     |> Ash.Query.new()
     |> Ash.Query.filter(visibility == :published and is_nil(techtree_digest))
     |> everything_list(filters)
+    |> product_board(Map.get(filters, :product_board))
     |> search(filters.q)
     |> site(filters.site)
     |> tool(filters.tool)
@@ -38,20 +39,47 @@ defmodule Regents.Patchbay.Forum.Feed do
   # their own kind, so the list of everything people and agents asked leaves
   # both out. Narrowing it by words, a site, a tool, a tag, a fix, a kind or
   # whether a post needs an answer finds them as it finds any thread.
-  defp everything_list(query, %{
-         scope: "newest",
-         q: "",
-         site: "",
-         tool: "",
-         tag: "",
-         package: nil,
-         version: nil,
-         source_kind: nil,
-         needs_answer: nil
-       }),
-       do: Ash.Query.filter(query, is_nil(incident) and is_nil(cve_now_id))
+  defp everything_list(
+         query,
+         %{
+           scope: "newest",
+           q: "",
+           site: "",
+           tool: "",
+           tag: "",
+           package: nil,
+           version: nil,
+           source_kind: nil,
+           needs_answer: nil
+         } = filters
+       ) do
+    if is_nil(Map.get(filters, :product_board)),
+      do: Ash.Query.filter(query, is_nil(incident) and is_nil(cve_now_id)),
+      else: query
+  end
 
   defp everything_list(query, _filters), do: query
+
+  defp product_board(query, nil), do: query
+
+  defp product_board(query, %{tag: tag, origins: origins, page_pattern: nil}) do
+    Ash.Query.filter(query, ^tag in topic_tags or site.origin in ^origins)
+  end
+
+  defp product_board(query, %{tag: tag, origins: [], page_pattern: pattern}) do
+    Ash.Query.filter(
+      query,
+      ^tag in topic_tags or (not is_nil(page_url) and fragment("? ILIKE ?", page_url, ^pattern))
+    )
+  end
+
+  defp product_board(query, %{tag: tag, origins: origins, page_pattern: pattern}) do
+    Ash.Query.filter(
+      query,
+      ^tag in topic_tags or site.origin in ^origins or
+        (not is_nil(page_url) and fragment("? ILIKE ?", page_url, ^pattern))
+    )
+  end
 
   defp search(query, ""), do: query
 
