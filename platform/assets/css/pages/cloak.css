@@ -58,11 +58,19 @@
   text-align: center;
 }
 
-.cloak-hero__icon {
-  width: 72px;
-  height: 72px;
+.cloak-hero__icon-wrap {
+  display: block;
   margin-block-end: var(--space-3);
-  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--color-fg) 45%, transparent));
+}
+
+.cloak-hero__icon {
+  display: block;
+  width: 128px;
+  height: 128px;
+  border-radius: 28px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-fg) 16%, transparent),
+    0 12px 32px rgb(0 0 0 / 0.16);
 }
 
 .cloak-pill {
@@ -913,10 +921,14 @@
 }
 
 @media (max-width: 56.25rem) {
-  .cloak-hero__icon {
-    width: 60px;
-    height: 60px;
+  .cloak-hero__icon-wrap {
     margin-block-end: 20px;
+  }
+
+  .cloak-hero__icon {
+    width: 96px;
+    height: 96px;
+    border-radius: 22px;
   }
 
   .cloak-pill {
