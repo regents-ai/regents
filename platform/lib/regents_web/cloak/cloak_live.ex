@@ -212,8 +212,11 @@ defmodule RegentsWeb.Cloak.CloakLive do
           <p>{Cloak.needs()}</p>
         </div>
         <div>
-          <h2>Caution</h2>
-          <p>{Cloak.caution()}</p>
+          <h2>Caution · Beta</h2>
+          <p>
+            {Cloak.caution()}
+            <a href="/docs/cloak/wallets">Read Wallet Security, Failure Modes &amp; 30-Day zkAPI Limit</a>.
+          </p>
         </div>
         <p class="cloak-notes__last">
           {Cloak.feedback().before}<a
@@ -374,8 +377,11 @@ defmodule RegentsWeb.Cloak.CloakLive do
           <p>{Cloak.updates()}</p>
         </div>
         <div>
-          <h2>Caution</h2>
-          <p>{Cloak.caution()}</p>
+          <h2>Caution · Beta</h2>
+          <p>
+            {Cloak.caution()}
+            <a href="/docs/cloak/wallets">Read Wallet Security, Failure Modes &amp; 30-Day zkAPI Limit</a>.
+          </p>
         </div>
         <p class="cloak-notes__last">
           {Cloak.feedback().before}<a

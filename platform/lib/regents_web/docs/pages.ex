@@ -173,6 +173,14 @@ defmodule RegentsWeb.Docs.Pages do
              description:
                "Install Regents Cloak on Apple silicon macOS 26+, choose Local, NEAR AI Gateway, or Tor modes, and press Start from the menu bar when needed.",
              source: {:doc, "/cloak/install"}
+           },
+           %{
+             key: "cloak/wallets",
+             name: "Wallet security & recovery",
+             title: "Cloak Wallet Security · Docs",
+             description:
+               "Beta wallet safety, device-only storage, failure modes without backups, and the 30-day protocol limit on untouched zkAPI deposits.",
+             source: {:regents_file, "cloak-wallets"}
            }
          ]}
       ]

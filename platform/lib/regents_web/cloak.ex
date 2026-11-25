@@ -28,7 +28,7 @@ defmodule RegentsWeb.Cloak do
   @releases_url "https://github.com/regents-ai/cloak-releases/releases"
   @source_url "https://github.com/regents-ai/cloak"
   @docs_path "/docs/cloak/reference"
-  @facts "Apple silicon · macOS 26 or later · Cloak's privacy protections have not been independently audited."
+  @facts "v0.2.0 Beta · Apple silicon · macOS 26 or later · Not yet independently audited · Keep wallet balances small."
 
   @agent %{
     title: "Local Agent Box & Connected Apps",
@@ -97,7 +97,7 @@ defmodule RegentsWeb.Cloak do
   }
 
   @needs "Requirements depend on the mode. NEAR AI Gateway needs 8 GB+ RAM, 0 GB of model downloads, and a NEAR AI Cloud key. Local Mode (Fast MLX) needs a 16 GB+ Mac and downloads 10.21 GB (optional GGUF tiers: 13.63–17.63 GB on 24 GB+ Macs). Token Inference, zkAPI Anon Inference, Connected Apps, and the sandboxed Pi agent need a 16 GB+ Mac and the 5.69 GB Qwen 3.5 9B local rewriter. Paid modes use Base USDC, Tempo USDC.e, ETH on Ethereum Mainnet, or your own Venice/NEAR API key."
-  @caution "Cloak's privacy protections have not been independently audited. Understand each mode's limits—including what stays intact during prompt rephrasing and what passes through unchanged in Connected Apps—before relying on it for sensitive work."
+  @caution "Cloak v0.2 is beta software and its privacy protections have not been independently audited. Keep wallet balances small, back up or withdraw funds before wiping your Mac (keys never sync to iCloud), and note the 30-day protocol limit on untouched zkAPI deposits."
   @feedback %{
     before: "Questions or bug reports? Post on ",
     link: "regents.sh/patchbay/cloak",
