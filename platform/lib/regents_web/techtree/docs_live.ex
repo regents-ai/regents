@@ -159,66 +159,47 @@ defmodule RegentsWeb.Techtree.DocsLive do
   def render(assigns) do
     ~H"""
     <Layouts.page wide>
-      <div class="docs-layout">
-        <article class="docs-content" data-markdown-root>
-          <header class="docs-hero">
-            <div class="docs-hero__top">
-              <p class="eyebrow">{@guide.group}</p>
-              <.page_copy />
-            </div>
-            <h1>{@text.title}</h1>
-            <p class="lede">{raw(lede_html(@text.lede))}</p>
-          </header>
-          <.guide
-            slug={@guide.slug}
-            text={@text}
-            release={@release}
-            install={@install}
-            instruction={@instruction}
-            minimums={@minimums}
-            setup={@setup}
-            example={@example}
-            plugin_commands={@plugin_commands}
-            introductory_routes={@introductory_routes}
-            frontier={@frontier}
-            frontier_routes={@frontier_routes}
-          />
-          <nav class="docs-pager" aria-label="Next and previous guides" data-markdown-skip>
-            <.link
-              :if={elem(@neighbours, 0)}
-              navigate={~p"/techtree/docs/#{elem(@neighbours, 0).slug}"}
-            >
-              <small>Previous</small> {elem(@neighbours, 0).title}
-            </.link>
-            <.link
-              :if={elem(@neighbours, 1)}
-              navigate={~p"/techtree/docs/#{elem(@neighbours, 1).slug}"}
-              class="docs-pager__next"
-            >
-              <small>Next</small> {elem(@neighbours, 1).title}
-            </.link>
-          </nav>
-        </article>
-
-        <aside class="docs-nav" aria-label="All guides" data-markdown-skip>
-          <p class="docs-nav__version">
-            <.link navigate={~p"/techtree/docs"}>All guides</.link>
-            <span :if={@release}>· Techtree {ReleaseInfo.label(@release)}</span>
-          </p>
-          <nav>
-            <div :for={{group, guides} <- DocsGuides.groups()} class="docs-nav__group">
-              <p>{group}</p>
-              <.link
-                :for={guide <- guides}
-                navigate={~p"/techtree/docs/#{guide.slug}"}
-                aria-current={guide.slug == @guide.slug && "page"}
-              >
-                {guide.title}
-              </.link>
-            </div>
-          </nav>
-        </aside>
-      </div>
+      <article class="docs-content" data-markdown-root>
+        <header class="docs-hero">
+          <div class="docs-hero__top">
+            <p class="eyebrow">
+              {@guide.group}<span :if={@release}> · Techtree {ReleaseInfo.label(@release)}</span>
+            </p>
+            <.page_copy />
+          </div>
+          <h1>{@text.title}</h1>
+          <p class="lede">{raw(lede_html(@text.lede))}</p>
+        </header>
+        <.guide
+          slug={@guide.slug}
+          text={@text}
+          release={@release}
+          install={@install}
+          instruction={@instruction}
+          minimums={@minimums}
+          setup={@setup}
+          example={@example}
+          plugin_commands={@plugin_commands}
+          introductory_routes={@introductory_routes}
+          frontier={@frontier}
+          frontier_routes={@frontier_routes}
+        />
+        <nav class="docs-pager" aria-label="Next and previous guides" data-markdown-skip>
+          <.link
+            :if={elem(@neighbours, 0)}
+            navigate={~p"/techtree/docs/#{elem(@neighbours, 0).slug}"}
+          >
+            <small>Previous</small> {elem(@neighbours, 0).title}
+          </.link>
+          <.link
+            :if={elem(@neighbours, 1)}
+            navigate={~p"/techtree/docs/#{elem(@neighbours, 1).slug}"}
+            class="docs-pager__next"
+          >
+            <small>Next</small> {elem(@neighbours, 1).title}
+          </.link>
+        </nav>
+      </article>
     </Layouts.page>
     """
   end

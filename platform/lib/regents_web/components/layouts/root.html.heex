@@ -102,6 +102,11 @@
   </head>
   <body>
     {if assigns[:harbour_sea], do: RegentsWeb.Keyfleet.HarbourSeaLive.sea(@conn)}
+    <RegentsWeb.Components.Shell.site_bar
+      :if={@conn.request_path in ["/admin/messages", "/admin/pictures"]}
+      product="regents"
+      current_path={@conn.request_path}
+    />
     {@inner_content}
     <Regent.Structure.confirm />
     <.product_links :if={

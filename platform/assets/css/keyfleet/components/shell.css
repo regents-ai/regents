@@ -294,6 +294,14 @@ span.account-chip {
   #shell-sidebar ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
+#app-shell:not(:has(> #shell-sidebar)) {
+  grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
+}
+
+#app-shell:not(:has(> #shell-sidebar)) > #app-shell-scroller {
+  grid-area: 2 / 1;
+}
+
 /* ---- Footer marks ---- */
 
 /* X and GitHub stand evenly apart. Under a mouse each mark keeps its own size with

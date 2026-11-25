@@ -92,7 +92,7 @@ body {
 }
 :is(h1, h2, h3, h4, h5, h6),
 :is(.boundary__title, .callout__title, .entry__title,
-    .docs-nav__group > p, .error-page__name) {
+    .error-page__name) {
   font-family: var(--font-family-title);
   font-weight: 400;
   font-style: normal;
@@ -152,15 +152,7 @@ code { font-size: .9em; }
 .command--prose .command__block { white-space: normal; overflow-wrap: anywhere; overflow-x: visible; }
 .digest { max-width: 100%; font-size: .8125rem; overflow-wrap: anywhere; }
 
-/* Docs keep their own optional rail; all in-document links remain available. */
-.docs-layout { display: grid; grid-template-columns: var(--rg-rail-width) minmax(0, 1fr); gap: var(--rg-track-gap); align-items: start; }
-.docs-nav { grid-column: 1; grid-row: 1; min-width: 0; padding-right: var(--space-2); }
-.docs-nav__group a[aria-current="page"] { color: var(--color-fg); text-decoration: underline; text-underline-offset: .25em; }
-.docs-nav__version { padding-bottom: var(--space-2); border-bottom: 1px solid var(--hairline); font-size: .8125rem; }
-.docs-nav__group { margin-top: var(--space-3); }
-.docs-nav__group > p { font-size: 1rem; }
-.docs-nav__group a { display: flex; align-items: center; min-height: 2.75rem; padding: var(--space-1) 0; font-size: .8125rem; }
-.docs-content { grid-column: 2; width: 100%; padding-left: var(--rg-panel-padding); border-left: 1px solid var(--rg-page-rule); }
+.docs-content { width: 100%; max-width: 64rem; margin-inline: auto; }
 /* The guide list at /docs and the next and previous links under each guide. */
 .docs-index__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: var(--space-2); margin-top: var(--space-2); }
 .docs-index__link { display: grid; gap: var(--space-1); height: 100%; padding: var(--rg-panel-padding); border: 1px solid var(--hairline); background: var(--color-surface); text-decoration: none; }
@@ -287,12 +279,6 @@ section.section:not(.doc-section) { padding-top: var(--space-4); border-top: 1px
 .error-page nav a { min-height: 2.75rem; display: inline-flex; align-items: center; }
 .error-page__name { min-height: 2.75rem; display: inline-flex; align-items: center; justify-self: start; }
 
-@media (max-width: 63.99rem) {
-  .docs-layout { grid-template-columns: minmax(0, 1fr); }
-  .docs-nav { grid-column: 1; grid-row: auto; padding: var(--space-3) 0 0; border-top: 1px solid var(--hairline); }
-  .docs-nav nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
-  .docs-content { grid-column: 1; padding-left: 0; border-left: 0; }
-}
 @media (max-width: 47.99rem) {
   .page { padding-block: var(--space-4); }
   .page--flush { padding-block: 0; }
@@ -301,10 +287,6 @@ section.section:not(.doc-section) { padding-top: var(--space-4); border-top: 1px
   .facts, .climb-contract__facts > div { grid-template-columns: minmax(0, 1fr); }
   .facts__term { padding-bottom: 0; border-bottom: 0; }
   .facts__value { padding-top: var(--space-1); }
-  .docs-nav nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 24rem) {
-  .docs-nav nav { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
@@ -316,15 +298,13 @@ section.section:not(.doc-section) { padding-top: var(--space-4); border-top: 1px
     --hairline-strong: CanvasText; --color-surface: Canvas;
   }
   :where(a, button, summary, input, textarea, select, [tabindex]):focus-visible { outline-color: Highlight; }
-  .rg-frame, .rg-sheet-row, .docs-content { border-color: CanvasText; }
+  .rg-frame, .rg-sheet-row { border-color: CanvasText; }
   .runs-table__withdrawn { border-color: CanvasText; }
 }
 @media print {
-  .rg-bar, .theme-switch, .skip-link, .pagecopy, .command__copy, .docs-nav { display: none; }
+  .rg-bar, .theme-switch, .skip-link, .pagecopy, .command__copy { display: none; }
   .rg-frame { width: 100%; margin: 0; }
   .page { padding: 1rem; }
-  .docs-layout { display: block; }
-  .docs-content { border: 0; padding: 0; }
   .command__block { white-space: pre-wrap; overflow-wrap: anywhere; }
   .runs-index__table-frame, .tasks { overflow: visible; }
   .runs-table__header, .runs-table__row, .tasks__row { min-width: 0; }

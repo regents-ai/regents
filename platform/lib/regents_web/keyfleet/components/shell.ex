@@ -47,6 +47,7 @@ defmodule RegentsWeb.Keyfleet.Components.Shell do
       />
 
       <Regent.Primitives.button
+        :if={@route_spec.fleet_id}
         variant="quiet"
         id="mobile-menu-button"
         class="mobile-menu-button"
@@ -58,6 +59,7 @@ defmodule RegentsWeb.Keyfleet.Components.Shell do
       </Regent.Primitives.button>
 
       <nav
+        :if={@route_spec.fleet_id}
         id="shell-sidebar"
         data-panel="drawer"
         aria-label="Context navigation"
@@ -83,6 +85,7 @@ defmodule RegentsWeb.Keyfleet.Components.Shell do
       </nav>
 
       <Regent.Primitives.button
+        :if={@route_spec.fleet_id}
         variant="quiet"
         type="button"
         class="shell-menu-scrim"

@@ -1,8 +1,8 @@
 /* Product identities and home colour for the five marketing pages.
-   Scoped to :root[data-marketing] so app shells keep their own tokens. */
+   The public header also uses the product marks. */
 
 :root[data-marketing],
-:root[data-marketing] [data-id] {
+:is(:root[data-marketing], [data-public-header]) [data-id] {
   --id-fill-l: var(--id-ink-l);
   --id-on-l: #FFFFFF;
   --id-fill-d: var(--id-tile);
@@ -10,7 +10,7 @@
 }
 
 :root[data-marketing][data-product="regents"],
-:root[data-marketing] [data-id="regents"] {
+:is(:root[data-marketing], [data-public-header]) [data-id="regents"] {
   --id-tile: var(--home-tile);
   --id-mark: var(--home-tile-mark);
   --id-ink-l: var(--home-ink-l);
@@ -24,7 +24,7 @@
   --id-on-d: #161616;
 }
 :root[data-marketing][data-product="patchbay"],
-:root[data-marketing] [data-id="patchbay"] {
+:is(:root[data-marketing], [data-public-header]) [data-id="patchbay"] {
   --id-tile: #9BB4FF;
   --id-mark: #142247;
   --id-ink-l: #294EC3;
@@ -33,7 +33,7 @@
   --id-line-d: #9BB4FF;
 }
 :root[data-marketing][data-product="keyfleet"],
-:root[data-marketing] [data-id="keyfleet"] {
+:is(:root[data-marketing], [data-public-header]) [data-id="keyfleet"] {
   --id-tile: #FF5B19;
   --id-mark: #161616;
   --id-ink-l: #B33902;
@@ -42,7 +42,7 @@
   --id-line-d: #FF5B19;
 }
 :root[data-marketing][data-product="autolaunch"],
-:root[data-marketing] [data-id="autolaunch"] {
+:is(:root[data-marketing], [data-public-header]) [data-id="autolaunch"] {
   --id-tile: #FFB188;
   --id-mark: #161616;
   --id-ink-l: #965129;
@@ -51,7 +51,7 @@
   --id-line-d: #FFB188;
 }
 :root[data-marketing][data-product="techtree"],
-:root[data-marketing] [data-id="techtree"] {
+:is(:root[data-marketing], [data-public-header]) [data-id="techtree"] {
   --id-tile: #2FA866;
   --id-mark: #0F1B14;
   --id-ink-l: #1E6B45;
@@ -60,7 +60,7 @@
   --id-line-d: #2FA866;
 }
 :root[data-marketing][data-product="protocol"],
-:root[data-marketing] [data-id="protocol"] {
+:is(:root[data-marketing], [data-public-header]) [data-id="protocol"] {
   --id-tile: #FFFFFF;
   --id-mark: #161616;
   --id-ink-l: #161616;
@@ -71,7 +71,7 @@
   --id-on-l: #FFFFFF;
 }
 :root[data-marketing][data-product="siwa"],
-:root[data-marketing] [data-id="siwa"] {
+:is(:root[data-marketing], [data-public-header]) [data-id="siwa"] {
   --id-tile: #AECACD;
   --id-mark: #161616;
   --id-ink-l: #4F686B;
@@ -80,7 +80,7 @@
   --id-line-d: #AECACD;
 }
 :root[data-marketing][data-product="cloak"],
-:root[data-marketing] [data-id="cloak"] {
+:is(:root[data-marketing], [data-public-header]) [data-id="cloak"] {
   --id-tile: #A97BF0;
   --id-mark: #161616;
   --id-ink-l: #794ABA;
@@ -91,16 +91,18 @@
 
 /* Light/dark resolution (also default dark when no theme attribute is yet written). */
 :root[data-marketing],
-:root[data-marketing] [data-id],
+:is(:root[data-marketing], [data-public-header]) [data-id],
 :root[data-marketing][data-theme="dark"],
-:root[data-marketing][data-theme="dark"] [data-id] {
+:root[data-marketing][data-theme="dark"] [data-id],
+:root[data-theme="dark"] [data-public-header] [data-id] {
   --id-ink: var(--id-ink-d);
   --id-line: var(--id-line-d);
   --id-fill: var(--id-fill-d);
   --id-on: var(--id-on-d);
 }
 :root[data-marketing][data-theme="light"],
-:root[data-marketing][data-theme="light"] [data-id] {
+:root[data-marketing][data-theme="light"] [data-id],
+:root[data-theme="light"] [data-public-header] [data-id] {
   --id-ink: var(--id-ink-l);
   --id-line: var(--id-line-l);
   --id-fill: var(--id-fill-l);
@@ -108,7 +110,8 @@
 }
 @media (prefers-color-scheme: light) {
   :root[data-marketing]:not([data-theme]),
-  :root[data-marketing]:not([data-theme]) [data-id] {
+  :root[data-marketing]:not([data-theme]) [data-id],
+  :root:not([data-theme]) [data-public-header] [data-id] {
     --id-ink: var(--id-ink-l);
     --id-line: var(--id-line-l);
     --id-fill: var(--id-fill-l);
@@ -170,7 +173,7 @@
   --color-fg-on-chosen: var(--id-on);
 }
 
-:root[data-marketing] .tile {
+:is(:root[data-marketing], [data-public-header]) .tile {
   display: inline-grid;
   place-items: center;
   flex: none;
@@ -179,7 +182,7 @@
   background: var(--id-tile);
   color: var(--id-mark);
 }
-:root[data-marketing] .tile svg {
+:is(:root[data-marketing], [data-public-header]) .tile svg {
   inline-size: 72%;
   block-size: 72%;
   fill: currentColor;

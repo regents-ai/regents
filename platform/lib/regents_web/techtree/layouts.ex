@@ -1,18 +1,5 @@
 defmodule RegentsWeb.Techtree.Layouts do
-  @moduledoc """
-  The frame every Techtree page is read inside, within the site's one root
-  document. The site's bar (`RegentsWeb.Components.Shell.site_bar/1`) carries no
-  Techtree links; Techtree's row sits under it on every page and at every width
-  (`RegentsWeb.Techtree.SiteMenu`): Services, opening the six services, Results,
-  Projects and Docs, with Book Call at its end. Signed in, the bar's account
-  control shows the person's picture and name and opens the universal account menu
-  popover (`RegentsWeb.Components.Shell.site_bar/1`). The footer lists the
-  services, the site's pages and the agent links in columns, with the legal pages.
-
-  `app/1` is the layout of the Techtree scope's pages; `on_mount(:page, ...)`
-  gives each live page the address the row marks and the description the
-  root document carries.
-  """
+  @moduledoc "Techtree's shared navigation, page and footer."
 
   use RegentsWeb, :html
 
@@ -29,13 +16,17 @@ defmodule RegentsWeb.Techtree.Layouts do
   attr :inner_content, :any, required: true
 
   @doc """
-  The frame: the skip link, the site's bar, Techtree's row and the page under them.
+  The skip link, shared navigation and Techtree page.
   """
   def app(assigns) do
     service_links =
       for column <- SiteMenu.services(), page <- column.pages, do: {page.name, page.href}
 
-    assigns = Map.put(assigns, :service_links, service_links)
+    assigns =
+      Map.merge(assigns, %{
+        service_links: service_links,
+        guide_navigation: guide_navigation(assigns.current_path)
+      })
 
     ~H"""
     <a class="skip-link" href="#main-content">
@@ -46,10 +37,10 @@ defmodule RegentsWeb.Techtree.Layouts do
       account_control={@account_control}
       current_path={@current_path}
       sidebar_links={@service_links}
+      sidebar_guides={@guide_navigation}
     >
       <:workspace_actions><BookCall.book_call class="tt-book" /></:workspace_actions>
     </Shell.site_bar>
-    <.row :if={!Shell.workspace?(@current_path)} current_path={@current_path} />
     <Regent.Structure.frame class="techtree-frame">
       {@inner_content}
     </Regent.Structure.frame>
@@ -57,7 +48,7 @@ defmodule RegentsWeb.Techtree.Layouts do
   end
 
   @doc """
-  Each live page's address, for the row's current link, and its
+  Each live page's address, for the selected navigation link, and its
   description, for the root document's head, as the router hands it over.
   """
   def on_mount(:page, _params, _session, socket) do
@@ -87,86 +78,21 @@ defmodule RegentsWeb.Techtree.Layouts do
     """
   end
 
-  attr(:current_path, :string, required: true)
+  defp guide_navigation(path) when is_binary(path) do
+    if path == "/techtree/docs" or String.starts_with?(path, "/techtree/docs/") do
+      groups =
+        for {name, guides} <- DocsGuides.groups() do
+          {name, Enum.map(guides, &{&1.title, ~p"/techtree/docs/#{&1.slug}"})}
+        end
 
-  # Techtree's row under the site's bar. Services is a button and the browser's popover
-  # under the row: the browser opens it on Enter or Space and puts focus on the first
-  # service, closes it on Escape or a press outside, hands focus back to Services, and
-  # closes the site's product menu as it opens; `assets/js/techtree/site_menu.ts` adds
-  # the rest. Services is never the current page. Book Call is Techtree's own main
-  # button, shown only where its booking page is set.
-  defp row(assigns) do
-    assigns = assign(assigns, services: SiteMenu.services(), links: SiteMenu.links())
-
-    ~H"""
-    <nav class="tt-row" aria-label="Techtree">
-      <ul class="tt-row__links">
-        <li class="tt-row__services">
-          <button
-            type="button"
-            id="techtree-services-button"
-            class="tt-row__link"
-            popovertarget="techtree-services"
-            aria-controls="techtree-services"
-            aria-expanded="false"
-            phx-mounted={JS.ignore_attributes(["aria-expanded", "data-instant"])}
-          >
-            Services<Regent.Icons.icon name="chevron-down" class="tt-row__caret" />
-          </button>
-          <div id="techtree-services" class="tt-panel" popover>
-            <.menu_columns columns={@services} current_path={@current_path} />
-          </div>
-        </li>
-        <li :for={link <- @links}>
-          <a
-            class="tt-row__link"
-            href={link.href}
-            aria-current={current?(link.href, @current_path) && "page"}
-          >
-            {link.name}
-          </a>
-        </li>
-      </ul>
-      <BookCall.book_call class="tt-book" />
-    </nav>
-    """
+      %{
+        title: "Techtree Docs",
+        groups: [{"Techtree", [{"All guides", "/techtree/docs"}]} | groups]
+      }
+    end
   end
 
-  attr :columns, :list, required: true
-  attr :current_path, :string, required: true
-
-  # The six services in their two columns; the first takes focus as the panel opens.
-  defp menu_columns(assigns) do
-    assigns = assign(assigns, :first, assigns.columns |> hd() |> Map.fetch!(:pages) |> hd())
-
-    ~H"""
-    <div class="menu-columns">
-      <div
-        :for={column <- @columns}
-        class={["menu-columns__column", "menu-columns__column--#{column.id}"]}
-      >
-        <p class="menu-columns__title" id={"menu-#{column.id}-title"}>{column.title}</p>
-        <ul aria-labelledby={"menu-#{column.id}-title"}>
-          <li :for={page <- column.pages}>
-            <a
-              class="menu-page"
-              href={page.href}
-              autofocus={page == @first}
-              aria-current={current?(page.href, @current_path) && "page"}
-            >
-              <Regent.Icons.icon name={page.icon} class="menu-page__icon" />
-              <span class="menu-page__name">{page.name}</span>
-              <span class="menu-page__line">{page.line}</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </div>
-    """
-  end
-
-  # A link is the page's own when the page is it or sits under it.
-  defp current?(href, path), do: path == href or String.starts_with?(path, href <> "/")
+  defp guide_navigation(_path), do: nil
 
   attr :class, :string, required: true
 

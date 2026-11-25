@@ -194,11 +194,28 @@ defmodule RegentsWeb.Components.Marketing do
   end
 
   attr :current, :string, default: "regents"
+  slot :actions
+
+  @doc "The marketing navigation on a page with its own content layout."
+  def navigation(assigns) do
+    ~H"""
+    <div data-public-header>
+      <.symbols />
+      <.bar current={@current}>
+        <:actions>{render_slot(@actions)}</:actions>
+      </.bar>
+      <.sheet />
+    </div>
+    """
+  end
+
+  attr :current, :string, default: "regents"
   attr :over_hero, :boolean, default: false
   attr :cta_label, :string, default: "Enter App"
   attr :cta_href, :string, default: "/app"
   attr :cta_external, :boolean, default: false
   attr :cta_brand, :boolean, default: false
+  slot :actions
 
   def bar(assigns) do
     assigns =
@@ -215,7 +232,7 @@ defmodule RegentsWeb.Components.Marketing do
           <a
             class="bar__brand"
             href="/"
-            aria-current={if(@current == "regents", do: "page")}
+            aria-current={if(@over_hero and @current == "regents", do: "page")}
             data-menu-off
           >
             <svg aria-hidden="true">
@@ -425,6 +442,11 @@ defmodule RegentsWeb.Components.Marketing do
                 <div class="menu menu--reading" id="menu-reading">
                   <div class="menu__column menu__column--span">
                     <p class="menu__heading">Reading</p>
+                    <a class="menu__link" href="/articles">
+                      <span class="menu__words">
+                        <span class="menu__name">Articles</span>
+                      </span>
+                    </a>
                     <a class="menu__link" href="/paper-pro-daily">
                       <span class="menu__words">
                         <span class="menu__name">Daily Research</span>
@@ -450,6 +472,7 @@ defmodule RegentsWeb.Components.Marketing do
             </ul>
           </nav>
           <div class="bar__end" data-menu-off>
+            {render_slot(@actions)}
             <.cta_button
               label={@cta_label}
               href={@cta_href}
@@ -547,6 +570,7 @@ defmodule RegentsWeb.Components.Marketing do
         </div>
         <div class="sheet__section">
           <p class="sheet__heading label">Reading</p>
+          <a class="sheet__link" href="/articles">Articles</a>
           <a class="sheet__link" href="/paper-pro-daily">Daily Research</a>
           <a class="sheet__link" href="/literature">AI &amp; SCIFI</a>
           <a class="sheet__link" href="/about">About</a>

@@ -15,7 +15,7 @@
  */
 import type {Hook} from "../hook_composition"
 
-type MarketingPageHook = Hook & {
+type MarketingPageHook = {
   el: HTMLElement
   cleanup?: () => void
 }
@@ -169,6 +169,9 @@ export const MarketingPage: Hook = {
       const menu = menuOf(trigger)
       if (menu) {
         listen(menu, "pointerenter", () => window.clearTimeout(graceTimer))
+        listen(menu, "click", event => {
+          if (event.target instanceof Element && event.target.closest("a")) hide()
+        })
         listen(menu, "keydown", event => {
           const kb = event as KeyboardEvent
           const links = linksOf(trigger)
@@ -278,10 +281,29 @@ export const MarketingPage: Hook = {
     place()
 
     // Phone sheet.
-    const behind = () =>
-      [...page.children].filter(
-        element => element !== bar && element !== sheet && element.tagName !== "SCRIPT",
-      ) as HTMLElement[]
+    const behind = () => {
+      if (!page.hasAttribute("data-public-header")) {
+        return [...page.children].filter(
+          element => element instanceof HTMLElement && element !== bar && element !== sheet &&
+            element.tagName !== "SCRIPT",
+        ) as HTMLElement[]
+      }
+
+      const siblings: HTMLElement[] = []
+      for (let node = page; node.parentElement && node !== document.body; node = node.parentElement) {
+        for (const sibling of node.parentElement.children) {
+          if (sibling instanceof HTMLElement && sibling !== node) siblings.push(sibling)
+        }
+      }
+      return siblings
+    }
+
+    const previousInert = new Map<HTMLElement, boolean>()
+
+    const restoreBackground = () => {
+      for (const [element, inert] of previousInert) element.inert = inert
+      previousInert.clear()
+    }
 
     const openSheet = () => {
       if (!sheet || !menuButton) return
@@ -289,7 +311,10 @@ export const MarketingPage: Hook = {
       bar.dataset.sheet = ""
       docRoot.dataset.sheetOpen = ""
       menuButton.setAttribute("aria-expanded", "true")
-      for (const element of behind()) element.inert = true
+      for (const element of behind()) {
+        previousInert.set(element, element.inert)
+        element.inert = true
+      }
       place()
       sheet.querySelector<HTMLAnchorElement>("a")?.focus()
     }
@@ -300,7 +325,7 @@ export const MarketingPage: Hook = {
       delete bar.dataset.sheet
       delete docRoot.dataset.sheetOpen
       menuButton.setAttribute("aria-expanded", "false")
-      for (const element of behind()) element.inert = false
+      restoreBackground()
       place()
       if (returnFocus) menuButton.focus()
     }
@@ -312,6 +337,11 @@ export const MarketingPage: Hook = {
       })
       listen(sheet, "keydown", event => {
         if ((event as KeyboardEvent).key === "Escape") closeSheet()
+      })
+      listen(sheet, "click", event => {
+        if (event.target instanceof Element && event.target.closest("a")) {
+          closeSheet({returnFocus: false})
+        }
       })
       listen(bar, "keydown", event => {
         if ((event as KeyboardEvent).key === "Escape" && sheet.hasAttribute("data-open")) {
@@ -392,8 +422,7 @@ export const MarketingPage: Hook = {
       window.clearTimeout(graceTimer)
       for (const timer of copyTimers) window.clearTimeout(timer)
       for (const dispose of cleanups) dispose()
-      delete docRoot.dataset.sheetOpen
-      for (const element of behind()) element.inert = false
+      if (sheet?.hasAttribute("data-open")) closeSheet({returnFocus: false})
     }
   },
 
@@ -401,4 +430,22 @@ export const MarketingPage: Hook = {
     this.cleanup?.()
     this.cleanup = undefined
   },
+}
+
+// Public reading also uses controller-rendered HTML, so its header cannot depend
+// on a LiveView socket. Mount again only when navigation replaces the element.
+export function installPublicHeader() {
+  let header: MarketingPageHook | undefined
+
+  const mount = () => {
+    const el = document.querySelector<HTMLElement>("[data-public-header]")
+    if (el === (header?.el ?? null)) return
+
+    header?.cleanup?.()
+    header = el ? {el} : undefined
+    if (header) MarketingPage.mounted?.call(header)
+  }
+
+  mount()
+  window.addEventListener("phx:page-loading-stop", mount)
 }

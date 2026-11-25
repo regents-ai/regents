@@ -5,22 +5,25 @@ defmodule RegentsWeb.Components.AppSidebar do
 
   alias RegentsWeb.RouteCatalog
 
-  @regents_paths ~w(/app /account /stake /redeem)
+  @regents_paths ~w(/app /account /stake /redeem /pair /regents /docs /agents /start /admin)
   @autolaunch_paths ~w(/autolaunch/app /autolaunch/auctions /autolaunch/tokens
     /autolaunch/portfolio /autolaunch/create /autolaunch/earn /autolaunch/agent-business
     /autolaunch/stock /autolaunch/convert /autolaunch/stocks /autolaunch/upcoming
-    /autolaunch/regent)
+    /autolaunch/regent /autolaunch/docs /autolaunch/agents /autolaunch/how-it-works)
   @techtree_paths ~w(/techtree/app /techtree/results /techtree/wallet-bench /techtree/train
-    /techtree/climbs /techtree/account/projects /techtree/services /techtree/docs
+    /techtree/climbs /techtree/account/projects /techtree/docs /techtree/agents
     /techtree/formal /techtree/examples /techtree/watchdog)
+  @keyfleet_paths ~w(/keyfleet/app /keyfleet/classic /keyfleet/syndicate /keyfleet/cascade
+    /keyfleet/accelerant /keyfleet/fleets /keyfleet/docs /keyfleet/agents)
+  @patchbay_public ~w(about blog changelog privacy terms)
+
+  def workspace?("/patchbay/" <> rest) do
+    hd(String.split(rest, "/", parts: 2)) not in @patchbay_public
+  end
 
   def workspace?(path) when is_binary(path) do
     Enum.any?(
-      @regents_paths ++
-        @autolaunch_paths ++
-        @techtree_paths ++
-        ~w(/patchbay /keyfleet/app /keyfleet/classic /keyfleet/syndicate /keyfleet/cascade
-          /keyfleet/accelerant /keyfleet/fleets),
+      @regents_paths ++ @autolaunch_paths ++ @techtree_paths ++ @keyfleet_paths,
       &under?(path, &1)
     )
   end
@@ -31,6 +34,7 @@ defmodule RegentsWeb.Components.AppSidebar do
   attr(:product, :string, required: true)
   attr(:section_path, :string, default: nil)
   attr(:extra_links, :list, default: [])
+  attr(:guides, :map, default: nil)
   slot(:controls, required: true)
 
   def bar(assigns) do
@@ -39,7 +43,7 @@ defmodule RegentsWeb.Components.AppSidebar do
 
     {current, other} =
       Enum.split_with(groups(), fn {slug, _, _, _} ->
-        !account? and slug == product
+        !account? and !assigns.guides and slug == product
       end)
 
     assigns =
@@ -108,6 +112,7 @@ defmodule RegentsWeb.Components.AppSidebar do
             </ul>
           </details>
         </div>
+        <.guide_navigation :if={@guides} guides={@guides} path={@path} />
         <.product_group
           :for={{product, label, icon, links} <- @current_groups}
           product={product}
@@ -125,7 +130,7 @@ defmodule RegentsWeb.Components.AppSidebar do
           label={label}
           icon={icon}
           links={links}
-          path={@path}
+          path={if(@guides, do: "", else: @path)}
         />
       </nav>
       <button
@@ -137,6 +142,36 @@ defmodule RegentsWeb.Components.AppSidebar do
       ></button>
       <div class="workspace-bar__controls">{render_slot(@controls)}</div>
     </div>
+    """
+  end
+
+  attr(:guides, :map, required: true)
+  attr(:path, :string, required: true)
+
+  defp guide_navigation(assigns) do
+    ~H"""
+    <details id="workspace-guides" class="workspace-product workspace-product--current" open>
+      <summary aria-label={@guides.title} title={@guides.title}>
+        <Regent.Icons.icon name="book-open" />
+        <span class="workspace-sidebar__label">{@guides.title}</span>
+        <Regent.Icons.icon name="chevron-down" class="workspace-product__chevron" />
+      </summary>
+      <div class="workspace-product__links">
+        <a href="/docs" aria-current={@path == "/docs" && "page"}>All docs</a>
+        <details
+          :for={{label, links} <- @guides.groups}
+          class="workspace-guide-group"
+          open={@path == "/docs" or Enum.any?(links, fn {_, path} -> path == @path end)}
+        >
+          <summary>{label}</summary>
+          <ul>
+            <li :for={{text, href} <- links}>
+              <a href={href} aria-current={href == @path && "page"}>{text}</a>
+            </li>
+          </ul>
+        </details>
+      </div>
+    </details>
     """
   end
 
@@ -182,7 +217,7 @@ defmodule RegentsWeb.Components.AppSidebar do
   defp groups do
     [
       {"regents", "Regents", "layout-dashboard",
-       [{"Overview", "/app"}, {"Stake", "/stake"}, {"Redeem", "/redeem"}]},
+       [{"Overview", "/app"}, {"Stake", "/stake"}, {"Redeem", "/redeem"}, {"Docs", "/docs"}]},
       {"autolaunch", "Autolaunch", "rocket",
        [
          {"Explore", "/autolaunch/app"},
@@ -190,7 +225,8 @@ defmodule RegentsWeb.Components.AppSidebar do
          {"Tokens", "/autolaunch/tokens"},
          {"Stocks", "/autolaunch/stocks"},
          {"Portfolio", "/autolaunch/portfolio"},
-         {"Create", "/autolaunch/create"}
+         {"Create", "/autolaunch/create"},
+         {"Docs", "/docs/autolaunch"}
        ] ++ earn_links()},
       {"keyfleet", "Keyfleet", "key-round",
        [
@@ -198,7 +234,8 @@ defmodule RegentsWeb.Components.AppSidebar do
          {"Classic #1", "/keyfleet/classic/1"},
          {"Workspace", "/keyfleet/classic/1/workspace"},
          {"Proposals", "/keyfleet/classic/1/proposals"},
-         {"Treasury", "/keyfleet/classic/1/treasury"}
+         {"Treasury", "/keyfleet/classic/1/treasury"},
+         {"Docs", "/docs/keyfleet"}
        ]},
       {"patchbay", "Patchbay", "life-buoy",
        [
@@ -207,7 +244,8 @@ defmodule RegentsWeb.Components.AppSidebar do
          {"Validate", "/patchbay/validate"},
          {"Wallet Bench", "/patchbay/wallet-bench"},
          {"Threads", "/patchbay/forum"},
-         {"Sites", "/patchbay/sites"}
+         {"Sites", "/patchbay/sites"},
+         {"Docs", "/docs/patchbay"}
        ] ++ offer_links() ++ [{"Ask", "/patchbay/forum?ask=1#pb-hero"}]},
       {"techtree", "Techtree", "flask-conical",
        [

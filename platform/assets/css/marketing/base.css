@@ -1,7 +1,8 @@
 /* Shared ground rules for marketing pages: measures, Geist Serif weight 400,
-   cut-corner buttons, panels and focus rings. Strictly scoped to :root[data-marketing]. */
+   cut-corner buttons, panels and focus rings. Public headers reuse the same controls. */
 
-:root[data-marketing] {
+:root[data-marketing],
+[data-public-header] {
   --gutter: var(--space-4);
   --measure: min(100% - 2 * var(--gutter), var(--rg-frame-max));
   --bar-h: 4rem;
@@ -20,13 +21,15 @@
 }
 
 @media (max-width: 64rem) {
-  :root[data-marketing] {
+  :root[data-marketing],
+  [data-public-header] {
     --bar-pad: var(--space-2);
   }
 }
 
 @media (max-width: 48rem) {
-  :root[data-marketing] {
+  :root[data-marketing],
+  [data-public-header] {
     --gutter: var(--space-2);
     --bar-h: 3.5rem;
     --bar-pad: 12px;
@@ -52,7 +55,7 @@
   text-size-adjust: 100%;
 }
 
-@scope (:root[data-marketing]) {
+@scope (:root[data-marketing], [data-public-header]) {
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-family-serif);
     font-weight: 400;

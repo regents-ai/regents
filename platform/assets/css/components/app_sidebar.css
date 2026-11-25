@@ -170,6 +170,26 @@ body:has(.workspace-bar[data-collapsed="true"]) {
   font-size: .8125rem;
 }
 
+.workspace-guide-group > summary::before {
+  content: "+";
+  color: var(--color-fg-muted);
+}
+
+.workspace-guide-group[open] > summary::before {
+  content: "−";
+}
+
+.workspace-guide-group ul {
+  margin: 0;
+  padding-inline-start: .6rem;
+  list-style: none;
+}
+
+@media print {
+  body:has(.workspace-bar) { padding-inline-start: 0; }
+  .workspace-bar { display: none; }
+}
+
 .workspace-bar[data-collapsed="true"] .workspace-toggle {
   --workspace-toggle-travel: .2rem;
 }

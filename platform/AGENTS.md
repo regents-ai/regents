@@ -54,10 +54,10 @@ again from it and moving that commit.
   the brand is `Regent.Site.brand/1` of it; `data-home` is the home colour,
   `config :regents, :home_colour`, with a `?home=` preview marked in
   `RegentsWeb.Layouts.home_colour/1` until the founder picks one.
-- `RegentsWeb.Components.Shell.site_bar/1` draws the site bar for public pages and the
-  shared sidebar for app pages. Account sections open from its arrow. The current
-  product's routes sit below Account, above the other Products. Product apps keep their own
-  contextual navigation where needed, such as inside a Keyfleet.
+- `RegentsWeb.Components.Shell.site_bar/1` draws the shared sidebar for apps and docs
+  or the marketing header for marketing and reading pages. Account sections open
+  from its arrow. The current product or guide sits below Account, above Products.
+  Product apps keep contextual navigation where needed, such as inside a Keyfleet.
 - The root layout is not redrawn by live navigation, so a link from one product's
   pages to another's is a plain `href` load, never `navigate` or `patch`.
 - Anything that names a product lands where the product menu lands, in the same tab.

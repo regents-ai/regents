@@ -1,24 +1,5 @@
 defmodule RegentsWeb.Autolaunch.Layouts do
-  @moduledoc """
-  The frame every Autolaunch page under `/autolaunch/...` is read inside, within
-  the site's one root document: autolaunch.sh's page shell under the site's bar.
-
-  The bar (`RegentsWeb.Components.Shell.site_bar/1`) holds Autolaunch's own
-  links from 48rem up. On a phone they are in the drawer behind Menu, on a strip
-  of its own directly under the bar; the browser opens and closes it
-  (`assets/js/autolaunch/shell_menu.ts`), so the server always draws it closed.
-  The page column holds the Learn links on a Learn page, the page, and the
-  footer.
-
-  The parts of autolaunch.sh's header that need what is not here yet are not
-  drawn: the market ticker, the $REGENT menu, search, and the account menu with
-  its agents and Pair New Agent; signed in, the bar shows the person's picture,
-  name and Sign out, as on Techtree. Each comes back as its own part beside the
-  bar.
-
-  `app/1` is the layout of the scope's controller pages and of its live pages;
-  `on_mount(:page, ...)` gives each live page the address the links mark.
-  """
+  @moduledoc "Autolaunch's shared navigation, page and footer."
 
   use RegentsWeb, :html
 
@@ -36,9 +17,7 @@ defmodule RegentsWeb.Autolaunch.Layouts do
   attr :inner_content, :any, required: true
 
   @doc """
-  The frame: the skip link, the bar with Autolaunch's links, Menu, the page
-  column with the page and the footer, and the phone drawer with the dimmed page
-  beside it. While the drawer is open the page and the footer are inert.
+  The skip link, shared navigation, page and footer.
   """
   def app(assigns) do
     ~H"""
@@ -47,49 +26,18 @@ defmodule RegentsWeb.Autolaunch.Layouts do
       product="autolaunch"
       account_control={@account_control}
       current_path={@current_path}
-    >
-      <:links>
-        <a
-          :for={link <- links()}
-          href={link.path}
-          aria-current={@current_path == link.path && "page"}
-        >
-          {link.label}
-        </a>
-      </:links>
-    </Shell.site_bar>
-    <Regent.Primitives.button
-      :if={!Shell.workspace?(@current_path)}
-      variant="quiet"
-      id="mobile-menu-button"
-      class="mobile-menu-button"
-      type="button"
-      aria-controls="shell-drawer"
-      aria-expanded="false"
-    >
-      Menu
-    </Regent.Primitives.button>
+    />
     <Regent.Structure.frame class="shell">
       <Regent.Structure.row class="shell-body" rail={false}>
         <div class="shell-main">
-          <main id="shell-content" class="shell-content" tabindex="-1" data-shell-behind-menu>
+          <main id="shell-content" class="shell-content" tabindex="-1">
             <LearnNavigation.navigation current_path={@current_path} />
             {@inner_content}
           </main>
-          <.product_links id="shell-footer" data-shell-behind-menu />
+          <.product_links id="shell-footer" />
         </div>
       </Regent.Structure.row>
     </Regent.Structure.frame>
-    <.drawer :if={!Shell.workspace?(@current_path)} links={links()} current_path={@current_path} />
-    <Regent.Primitives.button
-      :if={!Shell.workspace?(@current_path)}
-      variant="quiet"
-      type="button"
-      class="shell-menu-scrim"
-      data-shell-menu-scrim
-      aria-label="Close navigation"
-      tabindex="-1"
-    ></Regent.Primitives.button>
     """
   end
 
@@ -151,53 +99,6 @@ defmodule RegentsWeb.Autolaunch.Layouts do
   end
 
   # Autolaunch's own destinations, in autolaunch.sh's order.
-  defp links do
-    [
-      %{label: "Explore", path: ~p"/autolaunch/app"},
-      %{label: "Auctions", path: ~p"/autolaunch/auctions"},
-      %{label: "Tokens", path: ~p"/autolaunch/tokens"},
-      %{label: "Portfolio", path: ~p"/autolaunch/portfolio"},
-      %{label: "Create", path: ~p"/autolaunch/create"}
-    ] ++
-      if(Regents.Autolaunch.Earn.Catalog.enabled?(),
-        do: [%{label: "Earn", path: ~p"/autolaunch/earn"}],
-        else: []
-      )
-  end
-
-  attr :links, :list, required: true
-  attr :current_path, :string, required: true
-
-  # Autolaunch's links as plain rows, from the left edge under the bar and Menu;
-  # its Close navigation bar is its first row.
-  defp drawer(assigns) do
-    ~H"""
-    <div id="shell-drawer" tabindex="-1">
-      <Regent.Primitives.button
-        variant="quiet"
-        type="button"
-        class="shell-menu-close"
-        data-shell-menu-close
-      >
-        Close navigation
-      </Regent.Primitives.button>
-      <nav class="shell-drawer__nav" aria-label="Site">
-        <ul>
-          <li :for={link <- @links}>
-            <a
-              href={link.path}
-              class="shell-drawer__row"
-              aria-current={@current_path == link.path && "page"}
-            >
-              {link.label}
-            </a>
-          </li>
-        </ul>
-      </nav>
-    </div>
-    """
-  end
-
   attr :rest, :global
 
   @doc """

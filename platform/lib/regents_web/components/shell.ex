@@ -10,25 +10,14 @@ defmodule RegentsWeb.Components.Shell do
   page, and everything else about the account is on the Account page. Signed
   out, with no account menu, the bar has the theme switch and Sign in.
 
-  The bar at the top is the site's (`site_bar/1`): the crown, the product's
-  menu of every Regents product, and the account. The footer's button opens the
-  list of tools agents see. On a phone, Menu opens the sidebar.
+  `site_bar/1` chooses the workspace sidebar for apps and guides, and the
+  marketing header for public pages. The footer opens the list of agent tools.
   """
 
   use Phoenix.Component
 
   alias Regents.Account.AccessContext.AccountControl
-  alias RegentsWeb.Components.AgentTools
-  alias RegentsWeb.Components.AppSidebar
-
-  alias RegentsWeb.RouteCatalog
-
-  alias RegentsWeb.RouteCatalog.{
-    PageTarget,
-    RouteTarget,
-    SidebarHeading,
-    ViewerProfileTarget
-  }
+  alias RegentsWeb.Components.{AgentTools, AppSidebar, Marketing}
 
   attr(:route_spec, :map, required: true)
   attr(:account_control, AccountControl, required: true)
@@ -47,16 +36,6 @@ defmodule RegentsWeb.Components.Shell do
   )
 
   def shell(assigns) do
-    # A product without a side menu of its own (`RouteCatalog`) has no Menu either,
-    # and its page runs the frame's full width.
-    assigns =
-      assign(
-        assigns,
-        :side_menu?,
-        assigns.route_spec.sidebar_model.targets != [] and
-          !workspace?(assigns.route_spec.destination)
-      )
-
     ~H"""
     <div
       id="app-shell"
@@ -75,6 +54,7 @@ defmodule RegentsWeb.Components.Shell do
         product={@route_spec.product}
         account_control={@account_control}
         current_path={@route_spec.destination}
+        sidebar_guides={docs_navigation(@route_spec.destination)}
         menu
       >
         <:account_menu :if={@account_control.kind == :signed_in}>
@@ -105,18 +85,6 @@ defmodule RegentsWeb.Components.Shell do
         </:account_menu>
       </.site_bar>
 
-      <Regent.Primitives.button
-        :if={@side_menu?}
-        variant="quiet"
-        id="mobile-menu-button"
-        class="mobile-menu-button"
-        type="button"
-        aria-controls="shell-sidebar"
-        aria-expanded="false"
-      >
-        Menu
-      </Regent.Primitives.button>
-
       <Regent.Structure.dialog
         :if={@pairing_panel != []}
         id="shell-pairing"
@@ -137,62 +105,7 @@ defmodule RegentsWeb.Components.Shell do
         {render_slot(@pairing_panel)}
       </Regent.Structure.dialog>
 
-      <nav
-        :if={@side_menu?}
-        id="shell-sidebar"
-        data-panel="drawer"
-        aria-label="Context navigation"
-        tabindex="-1"
-      >
-        <Regent.Primitives.button
-          variant="quiet"
-          type="button"
-          class="shell-menu-close"
-          data-shell-menu-close
-        >
-          Close navigation
-        </Regent.Primitives.button>
-        <ul>
-          <li
-            :for={target <- @route_spec.sidebar_model.targets}
-            :if={visible_sidebar_target?(target, @account_control)}
-          >
-            <.sidebar_target
-              target={target}
-              route_spec={@route_spec}
-              account_control={@account_control}
-            />
-          </li>
-        </ul>
-      </nav>
-
-      <Regent.Primitives.button
-        :if={@side_menu?}
-        variant="quiet"
-        type="button"
-        class="shell-menu-scrim"
-        data-shell-menu-scrim
-        data-backdrop
-        aria-label="Close navigation"
-        hidden
-      ></Regent.Primitives.button>
-
       <div id="app-shell-scroller" tabindex="-1">
-        <nav
-          :if={@route_spec.tabs != [] and !workspace?(@route_spec.destination)}
-          id="shell-tabs"
-          class="shell-tabs"
-          data-shell-nav
-          aria-label="Account views"
-        >
-          <.link
-            :for={tab <- @route_spec.tabs}
-            patch={tab.path}
-            aria-current={@route_spec.route_id == tab.route_id && "page"}
-          >
-            {tab.label}
-          </.link>
-        </nav>
         <main id="route-content">
           {render_slot(@content)}
         </main>
@@ -204,14 +117,12 @@ defmodule RegentsWeb.Components.Shell do
     """
   end
 
-  @doc "Whether the route uses workspace navigation."
-  defdelegate workspace?(path), to: AppSidebar
-
   attr :current_path, :string, default: nil
   attr :sidebar_section, :string, default: nil
   attr :sidebar_links, :list, default: []
+  attr :sidebar_guides, :map, default: nil
   attr :product, :string, required: true, doc: "the page's product, one of `Regent.Site`'s"
-  attr :account_control, AccountControl, required: true
+  attr :account_control, AccountControl, default: nil
 
   attr :menu, :boolean,
     default: true,
@@ -223,21 +134,20 @@ defmodule RegentsWeb.Components.Shell do
     """
 
   slot :workspace_actions, doc: "actions kept beside the account controls"
-  slot :links, doc: "the product's own links"
   slot :account_menu, doc: "`Regent.Account.menu`, when `menu` is on and someone is signed in"
 
   @doc """
-  The site's bar (`Regent.Site.bar`) on every page: the crown, the product's menu of
-  every Regents product, the product's links, and the account control.
+  The workspace sidebar for apps and guides, or the marketing header for public reading.
   """
   def site_bar(assigns) do
     ~H"""
-    <%= if workspace?(@current_path) do %>
+    <%= if AppSidebar.workspace?(@current_path) do %>
       <AppSidebar.bar
         path={@current_path}
         product={@product}
         section_path={@sidebar_section}
         extra_links={@sidebar_links}
+        guides={@sidebar_guides}
       >
         <:controls>
           {render_slot(@workspace_actions)}
@@ -245,11 +155,36 @@ defmodule RegentsWeb.Components.Shell do
         </:controls>
       </AppSidebar.bar>
     <% else %>
-      <Regent.Site.bar id="site-bar" product={@product}>
-        <:links :if={@links != []}>{render_slot(@links)}</:links>
-        <:account><.site_account {assigns} /></:account>
-      </Regent.Site.bar>
+      <Marketing.navigation current={@product}>
+        <:actions><.site_account {assigns} /></:actions>
+      </Marketing.navigation>
     <% end %>
+    """
+  end
+
+  defp docs_navigation("/docs") do
+    products = RegentsWeb.Docs.Pages.products()
+    %{title: "Docs", groups: [{"Product guides", Enum.map(products, &{&1.name, &1.home_path})}]}
+  end
+
+  defp docs_navigation("/docs/" <> _ = path) do
+    alias RegentsWeb.Docs.Pages
+
+    with %{product: id} <- Pages.page(path),
+         %{name: name, groups: groups} <- Pages.product(id) do
+      %{
+        title: name <> " Docs",
+        groups:
+          Enum.map(groups, &{&1.name, Enum.map(&1.pages, fn page -> {page.name, page.path} end)})
+      }
+    end
+  end
+
+  defp docs_navigation(_path), do: nil
+
+  defp site_account(%{account_control: nil} = assigns) do
+    ~H"""
+    <.theme_toggle id="theme-control" />
     """
   end
 
@@ -548,73 +483,6 @@ defmodule RegentsWeb.Components.Shell do
         {"#", x} <- Enum.with_index(String.graphemes(row)),
         do: {x, y}
   end
-
-  attr(:target, :map, required: true)
-  attr(:route_spec, :map, required: true)
-  attr(:account_control, AccountControl, required: true)
-
-  # A link to another product's page loads it in full, so the page wears that
-  # product's look (`data-product` is written once, when the page loads).
-  defp sidebar_target(%{target: %RouteTarget{} = target} = assigns) do
-    assigns = assign(assigns, target: target, away?: away?(assigns.route_spec, target.route_id))
-
-    ~H"""
-    <.link
-      href={@target.path}
-      patch={if !@away?, do: @target.path}
-      aria-current={if current?(@route_spec, @target.path), do: "page"}
-    >
-      {@target.label}
-    </.link>
-    """
-  end
-
-  defp sidebar_target(%{target: %PageTarget{} = target} = assigns) do
-    assigns = assign(assigns, target: target, away?: away?(assigns.route_spec, target.route_id))
-
-    ~H"""
-    <.link
-      href={@target.path}
-      navigate={if !@away?, do: @target.path}
-      aria-current={if @route_spec.destination == @target.path, do: "page"}
-    >{@target.label}</.link>
-    """
-  end
-
-  defp sidebar_target(%{target: %ViewerProfileTarget{} = target} = assigns) do
-    assigns =
-      assign(assigns, target: target, away?: away?(assigns.route_spec, :regent_profile))
-
-    ~H"""
-    <.link
-      :if={@account_control.profile_path}
-      href={@account_control.profile_path}
-      patch={if !@away?, do: @account_control.profile_path}
-    >
-      {@target.label}
-    </.link>
-    """
-  end
-
-  defp sidebar_target(%{target: %SidebarHeading{} = heading} = assigns) do
-    assigns = assign(assigns, :heading, heading)
-
-    ~H"""
-    <span class="shell-sidebar__heading">{@heading.label}</span>
-    """
-  end
-
-  defp visible_sidebar_target?(%ViewerProfileTarget{}, %{profile_path: path}),
-    do: is_binary(path) and path != ""
-
-  defp visible_sidebar_target?(_target, _account_control), do: true
-
-  defp away?(route_spec, route_id), do: RouteCatalog.product(route_id) != route_spec.product
-
-  # A sidebar entry is current on its own page and on every tab of that page,
-  # so Account stays marked on Agents, Points, Wallets, Connections and Names.
-  defp current?(route_spec, path),
-    do: path in [route_spec.destination | Enum.map(route_spec.tabs, & &1.path)]
 
   attr :account_control, AccountControl, required: true
 

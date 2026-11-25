@@ -1,8 +1,8 @@
 /* The Stripe-style marketing bar: fixed 4rem (3.5rem phone), transparent at rest,
    one solid inverse panel on hover/focus, 3-column menus, second product row, and
-   full-window phone sheet. Scoped to :root[data-marketing]. */
+   full-window phone sheet. Shared with public reading pages. */
 
-:root[data-marketing] .bar {
+:is(:root[data-marketing], [data-public-header]) .bar {
   --fill-time: 140ms;
   --open-time: 200ms;
   --close-time: 140ms;
@@ -11,7 +11,7 @@
   --open-h: var(--bar-h);
   --clip-time: var(--close-time);
 
-  position: fixed;
+  position: var(--marketing-bar-position, fixed);
   inset-block-start: 0;
   inset-inline: 0;
   z-index: var(--rg-layer-header);
@@ -35,7 +35,8 @@
   --focus: var(--ink);
 }
 
-:root[data-marketing][data-theme="dark"] .bar {
+:root[data-marketing][data-theme="dark"] .bar,
+:root[data-theme="dark"] [data-public-header] .bar {
   --panel-bg: #F6F4EA;
   --panel-ink: #161616;
   --panel-muted: #5E5D57;
@@ -43,7 +44,8 @@
   --panel-tint: #ECEADD;
 }
 
-:root[data-marketing][data-theme="light"] .bar {
+:root[data-marketing][data-theme="light"] .bar,
+:root[data-theme="light"] [data-public-header] .bar {
   --panel-bg: #161616;
   --panel-ink: #FFFFFF;
   --panel-muted: #C4C4CC;
@@ -52,7 +54,8 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root[data-marketing]:not([data-theme]) .bar {
+  :root[data-marketing]:not([data-theme]) .bar,
+  :root:not([data-theme]) [data-public-header] .bar {
     --panel-bg: #161616;
     --panel-ink: #FFFFFF;
     --panel-muted: #C4C4CC;
@@ -61,7 +64,7 @@
   }
 }
 
-:root[data-marketing] .bar[data-over="hero"] {
+:is(:root[data-marketing], [data-public-header]) .bar[data-over="hero"] {
   --rest-ink: #FFFFFF;
   --rest-muted: #C4C4CC;
   --rest-line: #34342F;
@@ -75,7 +78,7 @@
 }
 
 @media (width > 64rem) {
-  :root[data-marketing] .bar[data-lit] {
+  :is(:root[data-marketing], [data-public-header]) .bar[data-lit] {
     --ink: var(--panel-ink);
     --muted: var(--panel-muted);
     --line: var(--panel-line);
@@ -83,11 +86,27 @@
   }
 }
 
-:root[data-marketing][data-sheet-open] {
+:root[data-sheet-open]:is([data-marketing], :has([data-public-header])) {
   overflow: hidden;
 }
 
-@scope (:root[data-marketing]) {
+[data-public-header] {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--rg-layer-header);
+  grid-column: 1 / -1;
+  min-inline-size: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font: 400 var(--type-body-size)/1.5 var(--font-family-serif);
+  --accent-ink: var(--color-fg);
+  --btn-fill: var(--color-fg);
+  --btn-on: var(--color-bg);
+  --focus: var(--color-fg);
+  --marketing-bar-position: relative;
+}
+
+@scope (:root[data-marketing], [data-public-header]) {
   .bar__frame {
     position: relative;
     z-index: 1;

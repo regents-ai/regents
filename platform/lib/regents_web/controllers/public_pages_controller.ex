@@ -173,9 +173,7 @@ defmodule RegentsWeb.PublicPagesHTML do
   # The bar holds the theme switch only: these pages read no account.
   def show(assigns) do
     ~H"""
-    <Regent.Site.bar id="site-bar" product="regents">
-      <:account><Shell.theme_toggle id="theme-control" /></:account>
-    </Regent.Site.bar>
+    <Shell.site_bar product="regents" current_path={@conn.request_path} />
     <div class="rl-root legal-root rg-sheet rg-frame public-document">
       <header class="legal-header">
         <nav class="legal-nav" aria-label="Information">

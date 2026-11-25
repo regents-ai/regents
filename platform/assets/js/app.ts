@@ -32,7 +32,7 @@ import {installAppSidebar} from "./app_sidebar"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {DatascapeHero} from "./hooks/datascape_hero"
 import {HeroChevron} from "./hooks/hero_chevron"
-import {MarketingPage} from "./hooks/marketing_page"
+import {installPublicHeader, MarketingPage} from "./hooks/marketing_page"
 import {MotionCount, MotionList, MotionNote, MotionRefusal, MotionTick} from "./hooks/motion/moments"
 import {MotionCascade, MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {MotionPanels} from "./hooks/motion/slides"
@@ -66,14 +66,12 @@ import {AgentVersions} from "./techtree/agent_versions"
 import {EnquiryForm} from "./techtree/enquiry_form"
 import {marketingHooks, mountEntrance} from "./techtree/marketing"
 import {CopyCommandPage, CopyCommandPageView} from "./techtree/page_copy"
-import {installSiteMenu} from "./techtree/site_menu"
 // Keyfleet's pages (`RegentsWeb.Keyfleet`): their frame, with its phone menu and the
 // bar while the next page loads, and the hooks their markup names.
 import {keyfleetHooks, installKeyfleet} from "./keyfleet"
 import {KeyfleetShell} from "./keyfleet/shell_behavior"
 // Autolaunch's pages (`RegentsWeb.Autolaunch`): the phone menu of its frame and its hooks.
 import {autolaunchHooks} from "./autolaunch"
-import {installShellMenu} from "./autolaunch/shell_menu"
 // Patchbay's pages (`RegentsWeb.Patchbay`): Escape closing an open section, the
 // home page's live list, a post's live thread and its counting times, and the
 // WebMCP guide's status line.
@@ -87,6 +85,7 @@ import {mountWebMCPStatus} from "./patchbay/webmcp_status"
 // First, so an error anywhere below is reported too.
 installVisitLog()
 installAppSidebar()
+installPublicHeader()
 
 type ShellHook = Hook & {
   el: HTMLElement
@@ -375,8 +374,6 @@ installAgentMessage()
 installAgentTools()
 installLiteratureChart()
 installShellPanels()
-installShellMenu()
-installSiteMenu()
 installEscape()
 installKeyfleet()
 mountWebMCPStatus()

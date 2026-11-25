@@ -24,8 +24,8 @@ type DocsHook = {el: HTMLElement; controller?: AbortController; observer?: Inter
 
 /**
  * The unified all-products docs pages: cross-product search, the "On this page"
- * list that follows the reader, Ask AI popover, and the phone menu closing once
- * a page is chosen. The shared search index loads on demand. Each docs page
+ * list that follows the reader, and the Ask AI popover. The shared search
+ * index loads on demand. Each docs page
  * mounts afresh, and leaving the page takes every listener with it.
  */
 export const Docs = {
@@ -35,7 +35,6 @@ export const Docs = {
     installSearch(this.el, signal)
     this.observer = installSpy(this.el)
     installAskMenu(this.el, signal)
-    installMenu(this.el, signal)
   },
 
   destroyed(this: DocsHook) {
@@ -315,21 +314,5 @@ function installAskMenu(root: HTMLElement, signal: AbortSignal) {
     if (event.target instanceof Element && event.target.closest("a") && menu.matches(":popover-open")) {
       menu.hidePopover()
     }
-  }, {signal})
-}
-
-// On a phone the sidebar is a panel; choosing a page or heading closes it.
-function installMenu(root: HTMLElement, signal: AbortSignal) {
-  const nav = root.querySelector<HTMLElement>("#docs-nav")
-  const trigger = root.querySelector<HTMLButtonElement>("#docs-menu-trigger")
-  if (!nav) return
-
-  nav.addEventListener("beforetoggle", event => {
-    const open = (event as ToggleEvent).newState === "open"
-    trigger?.setAttribute("aria-expanded", String(open))
-  }, {signal})
-
-  nav.addEventListener("click", event => {
-    if (event.target instanceof Element && event.target.closest("a") && nav.matches(":popover-open")) nav.hidePopover()
   }, {signal})
 }
