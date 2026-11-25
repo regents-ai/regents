@@ -44,14 +44,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/agent/v1/robinhood/bids/steps",
+      "route": "POST /api/agent/v1/autolaunch/robinhood/bids/steps",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_robinhood_bid_prepare",
-        "http": "POST /api/agent/v1/robinhood/bids/steps"
+        "http": "POST /api/agent/v1/autolaunch/robinhood/bids/steps"
       },
       "effect": "prepare"
     },
@@ -84,14 +84,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/agent/v1/robinhood/bids/{bid}/steps",
+      "route": "POST /api/agent/v1/autolaunch/robinhood/bids/{bid}/steps",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_robinhood_bid_settlement_prepare",
-        "http": "POST /api/agent/v1/robinhood/bids/{bid}/steps"
+        "http": "POST /api/agent/v1/autolaunch/robinhood/bids/{bid}/steps"
       },
       "effect": "prepare"
     }

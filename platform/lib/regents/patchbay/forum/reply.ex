@@ -476,6 +476,7 @@ defmodule Regents.Patchbay.Forum.Reply do
       accepted, so nothing a caller sends can post as Regents.Patchbay.
       """)
 
+      public?(false)
       accept([:report_id, :verdict, :note])
 
       validate(present(:verdict))
@@ -574,6 +575,7 @@ defmodule Regents.Patchbay.Forum.Reply do
 
     update :set_reward_eligibility do
       description("Moderation's word on whether this reply can earn its author a reward.")
+      public?(false)
       accept([:reward_eligibility])
 
       emit(Regents.Patchbay.Forum.Signals, :reply_moderated,
@@ -616,9 +618,9 @@ defmodule Regents.Patchbay.Forum.Reply do
       authorize_if(actor_present())
     end
 
-    # `add_operator_reply` and `set_reward_eligibility` are named by no policy,
-    # so nothing that arrives over HTTP can reach them. Patchbay's own worker
-    # and moderation skip authorization to use them.
+    policy action([:add_operator_reply, :set_reward_eligibility]) do
+      authorize_if(Regents.Checks.SystemActor)
+    end
   end
 
   @doc "The most bytes each of a reply's written fields may hold."

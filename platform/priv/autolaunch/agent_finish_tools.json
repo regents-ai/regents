@@ -30,14 +30,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/agent/v1/auctions/{auction_id}/finish/steps",
+      "route": "POST /api/agent/v1/autolaunch/auctions/{auction_id}/finish/steps",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_finish_prepare",
-        "http": "POST /api/agent/v1/auctions/{auction_id}/finish/steps"
+        "http": "POST /api/agent/v1/autolaunch/auctions/{auction_id}/finish/steps"
       },
       "effect": "prepare"
     }

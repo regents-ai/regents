@@ -9,11 +9,13 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
   `KnownFixAnswer` entry points used by Patchbay's signed HTTP endpoints.
   """
 
+  alias Regents.Account.Actors.Agent
   alias Regents.Patchbay.Agents.Actor
   alias Regents.Patchbay.Forum.PostAddress
   alias Regents.Patchbay.Members
   alias Regents.Patchbay.Members.Member
-  alias RegentsWeb.Patchbay.{ApiError, KnownFixAnswer, SiteEdition}
+  alias RegentsWeb.Patchbay.AgentTools.Forum.Refused
+  alias RegentsWeb.Patchbay.{ApiError, CurrentProfile, KnownFixAnswer, SiteEdition}
   alias RegentsWeb.Patchbay.ForumAPI.{LikeController, Participation, ReportController}
   alias RegentsWeb.Patchbay.Plugs.PairedAgent
 
@@ -36,7 +38,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
       case Participation.ask_question(actor.pairing_id, actor, params) do
         {:ok, thread} -> {:ok, thread_answer(thread, false)}
         {:repeated, thread} -> {:ok, thread_answer(thread, true)}
-        {:error, failure} -> {:ok, refusal_body(failure)}
+        {:error, failure} -> refused(refusal_body(failure))
       end
     end)
   end
@@ -54,7 +56,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
       case Participation.post_reply(actor.pairing_id, actor, args.thread_id, params) do
         {:ok, {thread, reply}} -> {:ok, reply_answer(thread, reply, false)}
         {:repeated, {thread, reply}} -> {:ok, reply_answer(thread, reply, true)}
-        {:error, failure} -> {:ok, refusal_body(failure)}
+        {:error, failure} -> refused(refusal_body(failure))
       end
     end)
   end
@@ -80,7 +82,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
            }}
 
         {:error, failure} ->
-          {:ok, refusal_body(failure)}
+          refused(refusal_body(failure))
       end
     end)
   end
@@ -98,7 +100,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
            }}
 
         {:error, failure} ->
-          {:ok, refusal_body(failure)}
+          refused(refusal_body(failure))
       end
     end)
   end
@@ -108,14 +110,14 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
     with_actor(context, fn actor ->
       reply_id = blank_to_nil(args.reply_id)
 
-      {_status, body} =
+      {status, body} =
         if args.like do
           LikeController.like_post(actor, args.thread_id, reply_id)
         else
           LikeController.unlike_post(actor, args.thread_id, reply_id)
         end
 
-      {:ok, body}
+      if status == :ok, do: {:ok, body}, else: refused(body)
     end)
   end
 
@@ -141,7 +143,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
            }}
 
         {:error, failure} ->
-          {:ok, refusal_body(failure)}
+          refused(refusal_body(failure))
       end
     end)
   end
@@ -151,7 +153,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
     with_actor(context, fn actor ->
       case KnownFixAnswer.report(args.decision_id, args.result, actor) do
         {:ok, body} -> {:ok, body}
-        {:error, {_status, body}} -> {:ok, body}
+        {:error, {_status, body}} -> refused(body)
       end
     end)
   end
@@ -159,7 +161,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
   defp with_actor(context, fun) do
     case resolve_actor(Map.get(context, :actor)) do
       {:ok, actor} -> fun.(actor)
-      {:error, reason} -> {:ok, actor_refusal(reason)}
+      {:error, reason} -> refused(actor_refusal(reason))
     end
   end
 
@@ -175,7 +177,8 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
        when is_binary(address) and is_binary(pairing_id) and is_binary(privy_user_id) and
               not is_nil(human_account_id) do
     with true <- Regex.match?(~r/\A0x[0-9a-f]{40}\z/, address),
-         {:ok, %{} = beneficiary} <- local_profile(privy_user_id),
+         {:ok, %{id: ^pairing_id}, account} <- Agent.pairing_account(address),
+         %Member{} = beneficiary <- CurrentProfile.member_for_account(account),
          true <- Member.may_act?(beneficiary),
          {:ok, profile} <-
            Members.upsert_from_wallet(%{wallet_address: address}, upsert_fields: []),
@@ -195,13 +198,6 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
 
   defp resolve_actor(%{role: :agent, pairing: :person_not_here}), do: {:error, :person_not_here}
   defp resolve_actor(_other), do: {:error, :agent_not_paired}
-
-  defp local_profile(did) do
-    case Members.get_profile_by_privy_user_id(did) do
-      {:ok, nil} -> {:error, :person_not_here}
-      answer -> answer
-    end
-  end
 
   defp actor_refusal(reason) when reason in [:agent_not_paired, :person_not_here] do
     {message, hint} = PairedAgent.words(reason, SiteEdition.current())
@@ -235,6 +231,8 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
       repeated: repeated?
     }
   end
+
+  defp refused(body), do: {:error, Refused.exception(body: body)}
 
   defp refusal_body(failure) do
     {_status, body} = ReportController.refusal(failure)

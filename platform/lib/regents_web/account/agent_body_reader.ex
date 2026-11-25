@@ -8,6 +8,9 @@ defmodule RegentsWeb.Account.AgentBodyReader do
 
   # Ordinary signed bodies use the same limit as RegentIdentity.BodyReader.
   @limit 8192
+  # These routes accept a 64 KiB field and additional JSON and signature data.
+  @patchbay_limit 128 * 1024
+  @mcp_limit 512 * 1024
   # A 2 MiB picture expands to this size in base64, plus the draft's text.
   @draft_limit 4 * div(2 * 1024 * 1024 + 2, 3) + @limit
 
@@ -26,8 +29,8 @@ defmodule RegentsWeb.Account.AgentBodyReader do
       autolaunch_draft_patch?(conn) ->
         Siwa.AgentAuthPlug.read_body(conn, opts, @draft_limit)
 
-      signed?(conn) ->
-        Siwa.AgentAuthPlug.read_body(conn, opts, @limit)
+      limit = signed_limit(conn) ->
+        Siwa.AgentAuthPlug.read_body(conn, opts, limit)
 
       true ->
         RegentIdentity.BodyReader.read_body(conn, opts)
@@ -66,10 +69,41 @@ defmodule RegentsWeb.Account.AgentBodyReader do
 
   defp autolaunch_draft_patch?(_conn), do: false
 
-  defp signed?(%{method: "POST", path_info: ["mcp"]}), do: true
+  defp signed_limit(%{method: "POST", path_info: ["mcp"]}), do: @mcp_limit
 
-  defp signed?(%{method: method, path_info: ["api" | _rest]}) when method in ["POST", "PATCH"],
-    do: true
+  defp signed_limit(%{
+         method: "POST",
+         path_info: [
+           "api",
+           "v1",
+           "keyfleet",
+           "agent",
+           "fleets",
+           _,
+           "projects",
+           _,
+           "notebooks",
+           _,
+           "files",
+           operation
+         ]
+       })
+       when operation in ["add", "write"],
+       do: Application.fetch_env!(:regents, :keyfleet_notebooks)[:max_request_bytes]
 
-  defp signed?(_conn), do: false
+  defp signed_limit(%{method: "POST", path_info: ["patchbay", "known-fixes", _]}),
+    do: @patchbay_limit
+
+  defp signed_limit(%{method: method, path_info: ["api", "v1", "patchbay" | _]})
+       when method in ["POST", "PATCH"],
+       do: @patchbay_limit
+
+  defp signed_limit(%{method: method, path_info: ["api", "agent", "v1", "patchbay" | _]})
+       when method in ["POST", "PATCH"],
+       do: @patchbay_limit
+
+  defp signed_limit(%{method: method, path_info: ["api" | _]}) when method in ["POST", "PATCH"],
+    do: @limit
+
+  defp signed_limit(_conn), do: nil
 end

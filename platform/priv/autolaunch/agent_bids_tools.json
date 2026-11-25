@@ -51,14 +51,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/agent/v1/bids/steps",
+      "route": "POST /api/agent/v1/autolaunch/bids/steps",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_bid_prepare",
-        "http": "POST /api/agent/v1/bids/steps"
+        "http": "POST /api/agent/v1/autolaunch/bids/steps"
       },
       "effect": "prepare"
     },
@@ -93,14 +93,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/agent/v1/bids/{bid}/steps",
+      "route": "POST /api/agent/v1/autolaunch/bids/{bid}/steps",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_bid_settlement_prepare",
-        "http": "POST /api/agent/v1/bids/{bid}/steps"
+        "http": "POST /api/agent/v1/autolaunch/bids/{bid}/steps"
       },
       "effect": "prepare"
     }

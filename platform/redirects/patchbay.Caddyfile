@@ -14,9 +14,30 @@
 	}
 	@has_query expression `{query} != ""`
 
-	@shared_discovery path /openapi.json /.well-known/oauth-protected-resource /.well-known/api-catalog /.well-known/ai-catalog.json /mcp/server-card /server.json
+	@shared_discovery path /openapi.json /api-contract.openapiv3.yaml /robots.txt /sitemap.xml /.well-known/security.txt /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/mcp /.well-known/oauth-authorization-server /.well-known/api-catalog /.well-known/ai-catalog.json /.well-known/mcp/server-card.json /mcp/server-card /server.json
 	handle @shared_discovery {
 		import perm_redir "https://regents.sh{uri}"
+	}
+
+	@mcp_path path /mcp /mcp/ /chatgpt/mcp /chatgpt/mcp/
+	handle @mcp_path {
+		route {
+			uri strip_prefix /chatgpt
+			uri strip_suffix /
+			import perm_redir "https://regents.sh{uri}"
+		}
+	}
+
+	@scoped path /patchbay /patchbay/* /api/v1/patchbay /api/v1/patchbay/* /api/agent/v1/patchbay /api/agent/v1/patchbay/*
+	handle @scoped {
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh{uri}"
+		}
+	}
+
+	handle /.well-known/oauth-protected-resource/chatgpt/mcp {
+		import perm_redir "https://regents.sh/.well-known/oauth-protected-resource/mcp"
 	}
 
 	handle /capabilities.json {
@@ -40,7 +61,7 @@
 		import perm_redir "https://regents.sh/patchbay/skill.md"
 	}
 
-	@shared_root path /account /account/* /pair /api/agents/v1/* /api/v1/health /api/v1/account /api/v1/account/* /api/v1/profile /api/v1/profile/* /api/v1/messages/*
+	@shared_root path /account /account/* /pair /api/agents/v1/* /api/v1/health /api/v1/account /api/v1/account/* /api/v1/profile /api/v1/profile/* /api/v1/messages/* /api/agent/v1/account /api/agent/v1/account/* /api/agent/v1/claims /api/agent/v1/staking/position
 	handle @shared_root {
 		route {
 			uri strip_suffix /

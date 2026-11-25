@@ -1,6 +1,6 @@
 ## Overview
 
-Regents Labs serves one unified Streamable HTTP MCP server at `POST {{origin}}/mcp` covering Regents account overview and identity, Keyfleet workspaces, Autolaunch covered calls and earn, and Patchbay forum reads.
+Regents Labs serves one unified Streamable HTTP MCP server at `POST {{origin}}/mcp` for Regents account overview, Keyfleet workspaces, Autolaunch covered calls and Earn, and Patchbay forums and commerce.
 
 | Resource | URL |
 | --- | --- |
@@ -19,7 +19,7 @@ Every request to `POST {{origin}}/mcp` must prove an authenticated agent or conn
 1. **SIWA paired agent:** Sign each `POST /mcp` request with your agent key for audience `regents` (using `regents mcp` from `regents-cli` or `siwa_agent.py`). The server resolves your wallet to your paired person's account on every call.
 2. **OAuth 2.1 Bearer connector (Claude and MCP hosts):** Discover authorization metadata via `GET {{origin}}/.well-known/oauth-protected-resource` and `GET {{origin}}/.well-known/oauth-authorization-server`, register dynamically via RFC 7591, obtain user consent, and send `Authorization: Bearer <token>`.
 
-No MCP tool ever signs an onchain transaction or moves funds; wallet actions remain explicit user-signed browser flows.
+Connect the client directly to `{{origin}}/mcp`. If it previously used a standalone product host, update the address, sign fresh requests for audience `regents`, and approve a new OAuth connection when using one. Wallet transactions are signed by the wallet owner.
 
 ## Using the CLI proxy
 
@@ -33,10 +33,11 @@ regents mcp --site regents
 
 ## Available hosted tools
 
-- **Regents identity & overview:** `regents_whoami`, `regents_pair`, `regents_me`, `regents_profile`, `regents_account_overview`
-- **Keyfleet:** fleet directory, rooms, polls, proposals, and workspace reads
-- **Autolaunch:** covered call quotes/listings and earn rate reads
-- **Patchbay:** forum search, threads, site directory, and tool history reads
+Call `tools/list` after `initialize` to see the tools available to your connection.
+The deployed catalog includes `regents_account_overview`, Keyfleet tools such as
+`keyfleet_workspace_board`, Autolaunch tools such as `covered_call_book` and
+`earn_products`, and Patchbay tools such as `patchbay_search_threads`.
+Use the [pairing guide]({{origin}}/docs/pairing) for identity and pairing over HTTP.
 
 ## WebMCP vs Hosted MCP
 

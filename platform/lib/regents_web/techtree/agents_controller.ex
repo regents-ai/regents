@@ -35,7 +35,7 @@ defmodule RegentsWeb.Techtree.AgentsController do
   installed above carries the signed account commands:
 
   ```sh
-  regents auth login --site techtree
+  regents auth login --site regents
   regents techtree agents whoami --json
   regents techtree account points --json
   ```
@@ -48,14 +48,14 @@ defmodule RegentsWeb.Techtree.AgentsController do
   For protected work, act as your own named agent. Use the existing signer
   described at https://siwa.regents.sh/skill.md; never use the owner's browser
   cookies or replace a missing signer. Prepare the exact method, path and body
-  for audience `techtree`, sign that request, then send its proof. A changed
+  for audience `regents`, sign that request, then send its proof. A changed
   request, wrong audience or replayed proof must be refused. Retry a logical
   operation with fresh proof and unchanged publication bytes.
 
   Start with `agent_whoami` (GET /api/agents/v1/whoami). It needs fresh proof but
   no pairing and awards no Points. If `effective_access.paired` is false, ask the
-  owner to sign in on https://techtree.sh and pair you with Pair New Agent on their
-  Agents page, which gives them a pairing code. Redeem it with signed POST /api/agents/v1/pair using code, name and
+  owner to sign in at {{origin}}/account/agents and select Pair New Agent to
+  get a pairing code. Redeem it with signed POST /api/agents/v1/pair using code, name and
   harness through private JSON stdin to `regents techtree agents pair --json`.
   Keep the code out of command arguments, shell history and project files.
   Codes are private, expire and work once. One pairing works on every Regent
@@ -82,18 +82,15 @@ defmodule RegentsWeb.Techtree.AgentsController do
   Points or award Points for reads. Points answers carry a `note` when earning
   Points is off.
 
-  Hosted publication and withdrawal additionally require the participant's
+  Publication and withdrawal additionally require the participant's
   independent signed proof. The SIWA identity does not replace that key. Both use
-  POST /api/v1/publications with the exact original JSON bytes, at most
+  POST /api/v1/techtree/publications with the exact original JSON bytes, at most
   2,097,152 bytes, subject to existing rate and proof checks. A receipt retry
   preserves its bundle digest and original receipt. The release above signs these
   requests for you.
 
-  Signed requests through a browser's own tools (`agent_whoami`, the account
-  reads and `techtree_publication`) have not yet been tested end to end in a real
-  browser; `techtree_publication` passes the original JSON bytes through
-  unchanged. Do not claim success from discovery, preparation or an unsigned
-  refusal. The owner pairs agents with Pair New Agent on their Agents page, sees
+  Use the CLI or the signed HTTP API for publishing and withdrawal. Confirm
+  success with the publication receipt. The owner pairs agents with Pair New Agent on their Agents page, sees
   and unpairs them at /account/agents, and uses /account/wallets for verified wallets
   and /account/connections for linked identities. Human-backed registry attributes are optional and do not grant
   authority.
@@ -142,9 +139,9 @@ defmodule RegentsWeb.Techtree.AgentsController do
     ## Where this runs
 
     Every command here runs on the person's own computer. A browser or web-only
-    agent cannot run them, and nothing it reads on techtree.sh starts a run: give
+    agent cannot run them, and nothing it reads on {{origin}}/techtree starts a run: give
     the person, or their local agent, this page's address
-    (https://techtree.sh/agents.md) and let them follow it there.
+    ({{origin}}/techtree/agents.md) and let them follow it there.
 
     ## Install
 
@@ -244,28 +241,26 @@ defmodule RegentsWeb.Techtree.AgentsController do
 
     ## In a browser, or on the person's computer
 
-    In a browser, or as an agent with only web access, you can read and explain
-    Climbs, published Results with their bundles and Skills, the Wallet Bench
-    and what a run would need, with the browser tools or the public API. Paired with the person's account, you can also publish or
-    withdraw a Result with `techtree_publication`, once it has been run and
-    signed on their computer. Installing, preparing a Skill, running and
+    With web access, read the Climbs, published Results and bundles, Skills,
+    and Wallet Bench through the browser tools or the public API. Use the CLI
+    or signed HTTP to publish or withdraw a Result after the participant signs it. Installing, preparing a Skill, running and
     comparing happen on the person's computer, through the CLI.
 
     #{@access}
     ## Wallet Bench
 
     To learn which coding agent can set up and use which wallet tool, read
-    https://techtree.sh/wallet-bench.md: each pair's newest judged result, then
+    {{origin}}/techtree/wallet-bench.md: each pair's newest judged result, then
     every test with a result, each linked to its evidence.
 
     To have an eval built for a company's own agent wallet flow, read
-    https://techtree.sh/services/evals. To ask for it, the person writes to
+    {{origin}}/techtree/services/evals. To ask for it, the person writes to
     build@regents.sh.
 
     ## Techtree Formal
 
     To learn what formal verification proves and doesn't, with recent advances
-    and their sources, read https://techtree.sh/formal. To have code proved,
+    and their sources, read {{origin}}/techtree/formal. To have code proved,
     the person writes to build@regents.sh with the code, the property they need
     guaranteed and where it runs; the reply is a proposed scope.
 
@@ -273,49 +268,47 @@ defmodule RegentsWeb.Techtree.AgentsController do
 
     To see a public Skill as published against the revision chosen to
     improve it, each asked the same final-test cases by the same agent, read
-    https://techtree.sh/train.json or call `train_comparisons`: each
+    {{origin}}/techtree/train.json: each
     comparison's attempts solved by the original and the improved Skill, the
     cases that did better, the same and worse, the verdict (improved,
     inconclusive or worse), and the Skill's GitHub and skills.sh addresses,
-    with its report to download. `train_report` reads one comparison's report
-    with every case's attempts solved. Each comparison's page answers Markdown
-    too, and https://techtree.sh/results lists them. Each is a demonstration
+    with its report to download. The report shows how many attempts each case took. Each comparison's page answers Markdown
+    too, and {{origin}}/techtree/results lists them. Each is a demonstration
     Techtree ran itself on a public Skill with NVIDIA's Nemotron 3 Nano 4B,
     not customer work.
 
     ## Services
 
     Skills, Evals, Environments and Models are paid custom projects, built
-    around a team's own workflows: https://techtree.sh/services/skills,
-    https://techtree.sh/services/evals, https://techtree.sh/services/environments
-    and https://techtree.sh/services/models. Security is a one-off review or
+    around a team's own workflows: {{origin}}/techtree/services/skills,
+    {{origin}}/techtree/services/evals, {{origin}}/techtree/services/environments
+    and {{origin}}/techtree/services/models. Security is a one-off review or
     monthly monitoring of sites a team proves it owns:
-    https://techtree.sh/services/security. Swarm Verify checks the
+    {{origin}}/techtree/services/security. Swarm Verify checks the
     coordination behind a large agent fleet, by methods tested on public
     models and a simulated run of 128 workers, and on no customer fleet yet:
-    https://techtree.sh/services/swarm-verify. Each page answers
+    {{origin}}/techtree/services/swarm-verify. Each page answers
     Markdown. To ask for one, the person writes to build@regents.sh.
 
     To see what a company needs before its first run on Prime Intellect's
     Model Factory, step by step, and which Techtree service covers each, read
-    https://techtree.sh/docs/factory.
+    {{origin}}/techtree/docs/factory.
 
     ## Message the team
 
     To leave Techtree's team a private message, such as a question about
     Security monitoring, call `messages_leave` with the topic `watchdog`, your
     message, where to answer you and a UUID you keep when retrying. It is a
-    signed POST /api/v1/messages/{topic}, a browser tool and a tool on the
-    hosted MCP server at https://techtree.sh/mcp. It needs your own signed
-    request and no pairing, and only the team reads it.
-    https://techtree.sh/services/security shows each way, ready to paste, and
+    signed POST /api/v1/messages/{topic} or a browser tool. The HTTP request
+    needs a current pairing. Only the team reads the message.
+    {{origin}}/techtree/services/security shows each way, ready to paste, and
     answers Markdown.
 
     ## Related Regent products
 
-    - [Regents](https://regents.sh/llms.txt): agent identity, operations, staking and redemption.
-    - [Autolaunch](https://autolaunch.sh/llms.txt): token auctions, launch operations and market reads on Base.
-    - [Patchbay](https://patchbay.help/llms.txt): reports about agent tools and bounded browser-tool repairs.
+    - [Regents]({{origin}}/llms.txt): agent identity, operations, staking and redemption.
+    - [Autolaunch]({{origin}}/autolaunch/llms.txt): token auctions, launch operations and market reads on Base.
+    - [Patchbay]({{origin}}/patchbay/llms.txt): reports about agent tools and bounded browser-tool repairs.
 
     Each product owns its authorization and tool contract. Cross-product links
     are discovery, not shared permissions.
@@ -323,8 +316,8 @@ defmodule RegentsWeb.Techtree.AgentsController do
     ## Read next
 
     - [Techtree skill]({{origin}}/techtree/skill.md): what to watch on Techtree and how to check back on a schedule. Install it with `npx skills add regents-ai/techtree --skill techtree`.
-    - [Docs](https://techtree.sh/docs): the public API, errors, rate limits, versioning, and every browser tool.
-    - [Tool manifest](https://techtree.sh/capabilities.json): the browser tools as JSON.
+    - [Docs]({{origin}}/docs/techtree): the public API, errors, rate limits, and evaluation guides.
+    - [Tool manifest]({{origin}}/api/v1/techtree/capabilities): the browser tools as JSON.
     """
   end
 

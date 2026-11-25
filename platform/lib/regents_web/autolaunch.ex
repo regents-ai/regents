@@ -34,6 +34,7 @@ defmodule RegentsWeb.Autolaunch do
       MyPositionsController,
       OldLinkController,
       PortfolioLive,
+      Prelaunch,
       PublicDocuments,
       PublicPagesController,
       RegentLive,

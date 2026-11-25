@@ -26,7 +26,7 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/v1/covered-calls/{symbol}",
+      "route": "GET /api/v1/autolaunch/covered-calls/{symbol}",
       "scope": "site",
       "request": {
         "path": "/api/v1/covered-calls/{symbol}"
@@ -82,7 +82,7 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/v1/covered-calls/{symbol}/quote",
+      "route": "POST /api/v1/autolaunch/covered-calls/{symbol}/quote",
       "scope": "site",
       "request": {
         "path": "/api/v1/covered-calls/{symbol}/quote",
@@ -118,14 +118,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/agent/v1/covered-calls/{symbol}/positions",
+      "route": "GET /api/agent/v1/autolaunch/covered-calls/{symbol}/positions",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_my_covered_calls",
-        "http": "GET /api/agent/v1/covered-calls/{symbol}/positions"
+        "http": "GET /api/agent/v1/autolaunch/covered-calls/{symbol}/positions"
       },
       "effect": "read"
     },
@@ -210,14 +210,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/agent/v1/covered-calls/{symbol}/steps",
+      "route": "POST /api/agent/v1/autolaunch/covered-calls/{symbol}/steps",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_covered_call_prepare",
-        "http": "POST /api/agent/v1/covered-calls/{symbol}/steps"
+        "http": "POST /api/agent/v1/autolaunch/covered-calls/{symbol}/steps"
       },
       "effect": "prepare"
     }

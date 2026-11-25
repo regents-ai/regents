@@ -1,0 +1,96 @@
+{
+	auto_https off
+	admin off
+}
+
+(perm_redir) {
+	redir @non_get {args[0]} 308
+	redir {args[0]} 301
+}
+
+:8080 {
+	@non_get {
+		not method GET HEAD
+	}
+	@has_query expression `{query} != ""`
+
+	@shared_discovery path /openapi.json /api-contract.openapiv3.yaml /robots.txt /sitemap.xml /.well-known/security.txt /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/mcp /.well-known/oauth-authorization-server /.well-known/api-catalog /.well-known/ai-catalog.json /.well-known/mcp/server-card.json /mcp/server-card /server.json
+	handle @shared_discovery {
+		import perm_redir "https://regents.sh{uri}"
+	}
+
+	@mcp_path path /mcp /mcp/
+	handle @mcp_path {
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh{uri}"
+		}
+	}
+
+	@scoped path /keyfleet /keyfleet/* /api/v1/keyfleet /api/v1/keyfleet/* /api/agent/v1/keyfleet /api/agent/v1/keyfleet/*
+	handle @scoped {
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh{uri}"
+		}
+	}
+
+	# Existing notebook verifiers fetch this exact issuer URL.
+	@hub_jwks {
+		method GET HEAD
+		path /.well-known/hub-jwks.json
+	}
+	handle @hub_jwks {
+		reverse_proxy https://regents.sh {
+			rewrite /keyfleet/.well-known/hub-jwks.json
+			header_up Host regents.sh
+			header_up X-Forwarded-Proto https
+			header_up -Cookie
+			header_up -Authorization
+		}
+	}
+
+	handle /capabilities.json {
+		import perm_redir "https://regents.sh/api/v1/keyfleet/capabilities"
+	}
+
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	handle / {
+		handle @has_query {
+			import perm_redir "https://regents.sh/keyfleet?{query}"
+		}
+		handle {
+			import perm_redir "https://regents.sh/keyfleet"
+		}
+	}
+
+	@shared_root path /account /account/* /pair /api/agents/v1/* /api/v1/health /api/v1/account /api/v1/account/* /api/v1/profile /api/v1/profile/* /api/v1/messages/* /api/agent/v1/account /api/agent/v1/account/* /api/agent/v1/claims /api/agent/v1/staking/position
+	handle @shared_root {
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh{uri}"
+		}
+	}
+
+	@points path /points /points/*
+	handle @points {
+		import perm_redir "https://regents.sh/account/points"
+	}
+
+	handle_path /api/v1/* {
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh/api/v1/keyfleet{uri}"
+		}
+	}
+
+	handle {
+		route {
+			uri strip_suffix /
+			import perm_redir "https://regents.sh/keyfleet{uri}"
+		}
+	}
+}

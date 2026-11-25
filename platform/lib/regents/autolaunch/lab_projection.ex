@@ -14,7 +14,7 @@ defmodule Regents.Autolaunch.LabProjection do
   }
 
   @actor %System{}
-  @domain Autolaunch
+  @domain Regents.Autolaunch
   @regent_decimals 18
 
   @doc """

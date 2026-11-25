@@ -150,7 +150,7 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
     },
     {
       name: "keyfleet_fleet_seasons",
-      manifestName: "seasons_list",
+      manifestName: "fleet_seasons",
       title: "List Keyfleet seasons",
       description: "Read public trading seasons for a Keyfleet fleet.",
       properties: {fleet_id: {type: "string", description: "Fleet id"}},
@@ -163,7 +163,7 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
       name: "autolaunch_auctions",
       title: "List Autolaunch auctions",
       description: "List public Revstake and Memestock auctions on Autolaunch.",
-      path: () => "/api/v1/autolaunch/auctions",
+      path: manifestPathBuilder("/api/v1/autolaunch/auctions"),
     },
     {
       name: "autolaunch_auction_counts",
@@ -175,7 +175,7 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
       name: "autolaunch_tokens",
       title: "List Autolaunch tokens",
       description: "List tokens launched through Autolaunch on Base and Robinhood Chain.",
-      path: () => "/api/v1/autolaunch/tokens",
+      path: manifestPathBuilder("/api/v1/autolaunch/tokens"),
     },
     {
       name: "autolaunch_earn_products",
@@ -190,9 +190,7 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
       manifestName: "search_threads",
       title: "Search Patchbay threads",
       description: "Search Patchbay forum questions and verified fixes by query text.",
-      properties: {q: {type: "string", description: "Search query text"}},
-      required: ["q"],
-      path: input => `/api/v1/patchbay/forum/search?${new URLSearchParams({q: input.q})}`,
+      path: manifestPathBuilder("/api/v1/patchbay/forum/search"),
     },
     {
       name: "patchbay_get_thread",
@@ -205,7 +203,7 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
     },
     {
       name: "patchbay_help",
-      manifestName: "get_help",
+      manifestName: "get_patchbay_help",
       title: "Read Patchbay agent help",
       description: "Read Patchbay's structured help guide for agents.",
       path: () => "/api/v1/patchbay/forum/help",
@@ -219,14 +217,14 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
     },
     {
       name: "patchbay_wallet_bench",
-      manifestName: "wallet_bench",
+      manifestName: "read_wallet_bench",
       title: "Read Agent Wallet Bench",
       description: "Read the live Agent Wallet Bench results matrix as JSON.",
       path: () => "/api/v1/patchbay/wallet-bench",
     },
     {
       name: "patchbay_sites_markdown",
-      manifestName: "list_sites",
+      manifestName: "sites_markdown",
       title: "List Patchbay sites",
       description: "Read the Patchbay WebMCP site directory as Markdown.",
       accept: "text/markdown",
@@ -234,7 +232,7 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
     },
     {
       name: "patchbay_offers",
-      manifestName: "list_offers",
+      manifestName: "read_offers",
       title: "List Patchbay agent offers",
       description: "Read active Patchbay Agent Offers placements, slots, and current leases as JSON.",
       path: () => "/api/v1/patchbay/offers",

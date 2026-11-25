@@ -358,11 +358,13 @@ defmodule RegentsWeb.Cloak do
     - **Latest published release:** `#{@release_checksums.tag}` ([GitHub Releases](#{@release_checksums.release_url}) · [SHA256SUMS.txt](#{@release_checksums.sums_url}))
     - **DMG (`#{@release_checksums.dmg_filename}` / `Regents-Cloak.dmg`) SHA-256:** `#{@release_checksums.dmg_sha256}`
     - **Apple Developer ID Team:** `#{@release_checksums.team_id}`
-    - Full macOS verification commands (`shasum`, `codesign`, `spctl`) are listed on [/cloak/install#verify](#{RegentsWeb.PublicDocuments.url(@install_path <> "#verify")}) and live inside Cloak's **Settings → Status** pane.
+    - Full macOS verification commands (`shasum`, `codesign`, `spctl`) are listed on [Install & requirements](#{RegentsWeb.PublicDocuments.url(@install_path <> "#verify-your-download")}) and live inside Cloak's **Settings → Status** pane.
 
     ## Needs
 
     #{@hardware}
+
+    Darkbloom Serving requires macOS 27+. See [Wallet security & recovery](#{RegentsWeb.PublicDocuments.url("/docs/cloak/wallets")}) before funding a wallet.
 
     ## Caution
 

@@ -22,7 +22,7 @@ defmodule Regents.Autolaunch.LabPositions do
   alias Regents.Autolaunch.LabAbi
 
   @actor %System{}
-  @domain Autolaunch
+  @domain Regents.Autolaunch
   @q96 79_228_162_514_264_337_593_543_950_336
 
   @type reading :: %{bid_id: String.t(), status: Bid.status(), position: Bid.t()}

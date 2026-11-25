@@ -62,8 +62,7 @@ defmodule RegentsWeb.ContentSecurityPolicy do
     "img-src" => [
       "blob:",
       "https://explorer-api.walletconnect.com",
-      "https://media.regents.sh",
-      "https://keyfleet-pictures.fly.storage.tigris.dev"
+      "https://media.regents.sh"
     ],
     "frame-src" => [
       "https://auth.privy.io",
@@ -89,7 +88,33 @@ defmodule RegentsWeb.ContentSecurityPolicy do
   def reading, do: render(@baseline)
 
   @doc "The baseline plus Privy wallet sign-in, for pages that can sign someone in."
-  def sign_in, do: @baseline |> add(@sign_in) |> render()
+  def sign_in, do: sign_in_directives() |> render()
+
+  @doc "The Autolaunch account's X profile images, alongside wallet sign-in."
+  def autolaunch do
+    sign_in_directives()
+    |> add(%{"img-src" => ["https://pbs.twimg.com"]})
+    |> render()
+  end
+
+  defp sign_in_directives do
+    @baseline
+    |> add(@sign_in)
+    |> add(%{"img-src" => avatar_origin()})
+  end
+
+  defp avatar_origin do
+    config = Application.get_env(:regents, :keyfleet_avatar_bucket, [])
+    url = config[:public_url] || "https://keyfleet-pictures.fly.storage.tigris.dev"
+
+    case URI.new(url) do
+      {:ok, %URI{scheme: "https", host: host, port: port}} when is_binary(host) ->
+        [URI.to_string(%URI{scheme: "https", host: host, port: port})]
+
+      _ ->
+        []
+    end
+  end
 
   @doc """
   The baseline plus the one style element and one script element the saved-errors
@@ -119,8 +144,7 @@ defmodule RegentsWeb.ContentSecurityPolicy do
 
   @doc "Sign-in plus framing its own pages, for the local showcase's preview."
   def showcase do
-    @baseline
-    |> add(@sign_in)
+    sign_in_directives()
     |> add(%{"frame-src" => ["'self'"]})
     |> List.keyreplace("frame-ancestors", 0, {"frame-ancestors", ["'self'"]})
     |> render()

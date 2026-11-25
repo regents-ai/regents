@@ -475,8 +475,8 @@
     "/api/v1/site-tools": {
       "get": {
         "operationId": "getEverySiteTools",
-        "summary": "Read every Regent site's browser tools at once",
-        "description": "Every browser tool regents.sh, patchbay.help, autolaunch.sh, techtree.sh and keyfleet.ai offers agents, as each site published them within the last day, and the steps to connect an agent through siwa-server. A site that could not be read right now is named under unreachable. The tool text is each site's own words. Anyone may read them; no sign-in.",
+        "summary": "Read the tool catalogs across Regents",
+        "description": "Read the tool names, titles and descriptions from the Regents, Patchbay, Autolaunch, Techtree and Keyfleet manifests bundled with this regents.sh build. The response also gives the SIWA connection steps. If a manifest is unavailable, its product is named under unreachable. Public read.",
         "responses": {
           "200": {
             "description": "Every site's tools and how to connect an agent",
@@ -505,8 +505,8 @@
     "/api/v1/site-tools/{site}": {
       "get": {
         "operationId": "getSiteTools",
-        "summary": "Read a Regent site's browser tools, or how to connect an agent",
-        "description": "Every browser tool regents.sh, patchbay.help, autolaunch.sh, techtree.sh or keyfleet.ai offers agents, as the site published them within the last day; the tool text is the site's own words. For siwa, the steps to connect an agent through siwa-server. Anyone may read them; no sign-in.",
+        "summary": "Read a Regents product tool catalog or SIWA setup",
+        "description": "Read the selected product manifest bundled with this regents.sh build. Use siwa for the SIWA connection steps. Public read.",
         "parameters": [
           {
             "name": "site",
@@ -4668,7 +4668,7 @@
             "properties": {
               "site": {
                 "type": "string",
-                "description": "The site's address, such as patchbay.help."
+                "description": "The product's address on regents.sh, such as regents.sh/patchbay."
               },
               "tools": {
                 "type": "array",
@@ -4794,7 +4794,7 @@
         "properties": {
           "sites": {
             "type": "array",
-            "description": "Each site that could be read, in the order regents.sh, patchbay.help, autolaunch.sh, techtree.sh, keyfleet.ai.",
+            "description": "Product catalogs, in the order Regents, Patchbay, Autolaunch, Techtree and Keyfleet.",
             "items": {
               "type": "object",
               "additionalProperties": false,
@@ -4805,7 +4805,7 @@
               "properties": {
                 "site": {
                   "type": "string",
-                  "description": "The site's address, such as patchbay.help."
+                  "description": "The product's address on regents.sh, such as regents.sh/patchbay."
                 },
                 "tools": {
                   "type": "array",
@@ -4835,7 +4835,7 @@
           },
           "unreachable": {
             "type": "array",
-            "description": "The sites whose tools could not be read right now, such as patchbay.help.",
+            "description": "Addresses of products whose bundled manifest could not be read, such as regents.sh/patchbay.",
             "items": {
               "type": "string"
             }

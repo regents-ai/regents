@@ -1434,6 +1434,7 @@ defmodule Regents.Patchbay.Forum.Report do
       be claimed, so one payment is credited once however often it is read.
       """)
 
+      public?(false)
       accept([])
 
       # A validation, not a filter: this atomic update checks it inside the
@@ -1450,6 +1451,7 @@ defmodule Regents.Patchbay.Forum.Report do
       report was handed to Base. The chain has not confirmed it yet.
       """)
 
+      public?(false)
       accept([:escrow_status, :escrow_credit_tx_hash])
       validate(one_of(:escrow_status, [:credit_submitted, :credit_failed]))
 
@@ -1464,6 +1466,7 @@ defmodule Regents.Patchbay.Forum.Report do
       report, at the time the contract itself recorded it.
       """)
 
+      public?(false)
       accept([:escrow_funded_at])
       validate(present(:escrow_funded_at))
       validate(attribute_equals(:escrow_status, :credit_submitted))
@@ -1674,8 +1677,14 @@ defmodule Regents.Patchbay.Forum.Report do
     end
 
     # These transitions record confirmed or submitted operator transactions.
-    policy action([:record_escrow_release, :record_escrow_refund]) do
-      authorize_if(actor_attribute_equals(:role, :system))
+    policy action([
+             :claim_escrow_credit,
+             :record_escrow_credit,
+             :confirm_escrow_credit,
+             :record_escrow_release,
+             :record_escrow_refund
+           ]) do
+      authorize_if(Regents.Checks.SystemActor)
     end
 
     policy action([:touch, :record_escrow_revenue_pushed]) do
@@ -1686,10 +1695,6 @@ defmodule Regents.Patchbay.Forum.Report do
       forbid_unless(AshOban.Checks.AshObanInteraction)
       authorize_if(actor_attribute_equals(:role, :system))
     end
-
-    # `claim_escrow_credit`, `record_escrow_credit`, `confirm_escrow_credit`,
-    # These bookkeeping updates are called internally after escrow operations.
-    # They have no public policy.
   end
 
   @doc """

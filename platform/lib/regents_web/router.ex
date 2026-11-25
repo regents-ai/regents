@@ -7,7 +7,6 @@ defmodule RegentsWeb.Router do
   # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
   # sobelow_skip ["Config.CSP"]
   pipeline :browser do
-    plug :accepts, ["html"]
     plug :fetch_session
     plug :enforce_session_authority
     plug :fetch_live_flash
@@ -17,6 +16,7 @@ defmodule RegentsWeb.Router do
     plug :put_product, "regents"
     plug :put_current_path
     plug RegentsWeb.Plugs.LaunchGate
+    plug :accepts, ["html"]
     plug :protect_from_forgery
 
     # These pages can start wallet sign-in.
@@ -81,6 +81,8 @@ defmodule RegentsWeb.Router do
   end
 
   pipeline :patchbay_siwa_test do
+    plug :put_format, "json"
+    plug RegentsWeb.Plugs.LaunchGate
     plug RegentsWeb.Plugs.ReadOnly
     plug RegentsWeb.Patchbay.Plugs.SignedBudget
     plug RegentsWeb.Patchbay.Plugs.SiwaTestProof
@@ -88,6 +90,7 @@ defmodule RegentsWeb.Router do
 
   pipeline :patchbay_x402_test do
     plug :accepts, ["json"]
+    plug RegentsWeb.Plugs.LaunchGate
     plug RegentsWeb.Plugs.ReadOnly
     plug RegentsWeb.Patchbay.Plugs.X402Test
   end
@@ -95,6 +98,7 @@ defmodule RegentsWeb.Router do
   # sobelow_skip ["Config.CSP"]
   pipeline :patchbay_forum_tools do
     plug :accepts, ["json"]
+    plug RegentsWeb.Plugs.LaunchGate
     plug RegentsWeb.Plugs.ReadOnly
     plug :put_site_edition, :main
     plug :fetch_session
@@ -112,6 +116,7 @@ defmodule RegentsWeb.Router do
   end
 
   pipeline :patchbay_public do
+    plug RegentsWeb.Plugs.LaunchGate
     plug :put_site_edition, :main
   end
 
@@ -262,6 +267,8 @@ defmodule RegentsWeb.Router do
   # by McpAgent (SIWA paired agent or Regents.OAuth Bearer token). No cookies or
   # sessions are read.
   pipeline :mcp do
+    plug :put_format, "json"
+    plug RegentsWeb.Plugs.LaunchGate
     plug RegentsWeb.Plugs.ReadOnly
     plug RegentsWeb.Plugs.McpAgent
   end
@@ -284,6 +291,7 @@ defmodule RegentsWeb.Router do
   # sobelow_skip ["Config.CSP"]
   pipeline :keyfleet_directory do
     plug :put_format, "md"
+    plug RegentsWeb.Plugs.LaunchGate
 
     plug :put_secure_browser_headers, %{
       "content-security-policy" => ContentSecurityPolicy.reading()
@@ -299,11 +307,24 @@ defmodule RegentsWeb.Router do
   # stream, which a JSON-only door would refuse. Its refusals are JSON.
   pipeline :keyfleet_agent_feed do
     plug :put_format, "json"
+    plug RegentsWeb.Plugs.LaunchGate
   end
 
   # Autolaunch's pages under /autolaunch/...: the page is Autolaunch's (its
   # stylesheets), read inside Autolaunch's own frame (RegentsWeb.Autolaunch).
+  pipeline :autolaunch_prelaunch do
+    plug RegentsWeb.Autolaunch.Prelaunch
+  end
+
+  # ContentSecurityPolicy builds this policy, as it does for the browser pipeline.
+  # sobelow_skip ["Config.CSP"]
   pipeline :autolaunch do
+    plug RegentsWeb.Autolaunch.Prelaunch
+
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" => ContentSecurityPolicy.autolaunch()
+    }
+
     plug :put_product, "autolaunch"
     plug :put_layout, html: {RegentsWeb.Autolaunch.Layouts, :app}
   end
@@ -792,7 +813,11 @@ defmodule RegentsWeb.Router do
     live_session :techtree,
       session: {RegentsWeb.Live.Session, :render_context, []},
       layout: {RegentsWeb.Techtree.Layouts, :app},
-      on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Techtree.Layouts, :page}] do
+      on_mount: [
+        RegentsWeb.Live.LaunchGateHook,
+        {RegentsWeb.Live.Session, :load_human},
+        {RegentsWeb.Techtree.Layouts, :page}
+      ] do
       live "/app", HomeLive
       live "/changelog", ChangelogLive
       live "/services/skills", ServiceLive, :skills
@@ -814,6 +839,16 @@ defmodule RegentsWeb.Router do
       live "/account/projects", ProjectsLive, :index
       live "/account/projects/:id", ProjectsLive, :show
       live "/watchdog", WatchdogLive, :index
+    end
+  end
+
+  # Compatibility for legacy edge redirects still mounted on the former hosts.
+  scope "/", RegentsWeb do
+    for product <- ~w(autolaunch keyfleet patchbay techtree) do
+      get "/#{product}/mcp", CutoverRedirectController, :mcp_read
+      post "/#{product}/mcp", CutoverRedirectController, :mcp_write
+      get "/#{product}/robots.txt", CutoverRedirectController, :robots
+      get "/#{product}/sitemap.xml", CutoverRedirectController, :sitemap
     end
   end
 
@@ -849,7 +884,7 @@ defmodule RegentsWeb.Router do
     live_session :keyfleet_home,
       session: {RegentsWeb.Live.Session, :render_context, []},
       layout: {RegentsWeb.Keyfleet.Layouts, :app},
-      on_mount: [{RegentsWeb.Live.Session, :load_human}] do
+      on_mount: [RegentsWeb.Live.LaunchGateHook, {RegentsWeb.Live.Session, :load_human}] do
       live "/app", HomeLive, :home
     end
 
@@ -863,7 +898,7 @@ defmodule RegentsWeb.Router do
     live_session :keyfleet,
       session: {RegentsWeb.Keyfleet.ShellLive, :render_context, []},
       layout: {RegentsWeb.Keyfleet.Layouts, :app},
-      on_mount: [{RegentsWeb.Live.Session, :load_human}] do
+      on_mount: [RegentsWeb.Live.LaunchGateHook, {RegentsWeb.Live.Session, :load_human}] do
       live "/about", ShellLive, :about
       live "/opportunities", ShellLive, :opportunities
       live "/docs", ShellLive, :docs
@@ -898,6 +933,11 @@ defmodule RegentsWeb.Router do
     get "/fleets/:fleet_id/proposals", PublicProposalsController, :index
     get "/fleets/:fleet_id/seasons", PublicSeasonsController, :index
     get "/fleets/:fleet_id/seasons/:number", PublicSeasonsController, :show
+  end
+
+  scope "/api/v1/keyfleet", RegentsWeb.Keyfleet do
+    pipe_through [:api, :read_only]
+
     put "/avatar/upload/:ticket", AgentAvatarController, :upload
   end
 
@@ -1094,7 +1134,7 @@ defmodule RegentsWeb.Router do
   end
 
   scope "/api/v1/autolaunch", RegentsWeb.Autolaunch do
-    pipe_through :api
+    pipe_through [:api, :autolaunch_prelaunch]
 
     get "/auctions", AuctionController, :index
     get "/auction-counts", AuctionController, :counts
@@ -1120,7 +1160,7 @@ defmodule RegentsWeb.Router do
   end
 
   scope "/api/agent/v1/autolaunch", RegentsWeb.Autolaunch do
-    pipe_through [:api, :paired_agent]
+    pipe_through [:api, :autolaunch_prelaunch, :paired_agent]
 
     get "/drafts/:kind", AgentAccountController, :draft
     patch "/drafts/:kind", AgentAccountController, :save_draft
@@ -1166,14 +1206,24 @@ defmodule RegentsWeb.Router do
     live_session :autolaunch_home,
       session: {RegentsWeb.Live.Session, :render_context, []},
       layout: {RegentsWeb.Autolaunch.Layouts, :app},
-      on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Autolaunch.Layouts, :page}] do
+      on_mount: [
+        RegentsWeb.Live.LaunchGateHook,
+        RegentsWeb.Autolaunch.Prelaunch,
+        {RegentsWeb.Live.Session, :load_human},
+        {RegentsWeb.Autolaunch.Layouts, :page}
+      ] do
       live "/app", HomeLive, :show
     end
 
     live_session :autolaunch,
       session: {RegentsWeb.Live.Session, :render_context, []},
       layout: {RegentsWeb.Autolaunch.Layouts, :app},
-      on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Autolaunch.Layouts, :page}] do
+      on_mount: [
+        RegentsWeb.Live.LaunchGateHook,
+        RegentsWeb.Autolaunch.Prelaunch,
+        {RegentsWeb.Live.Session, :load_human},
+        {RegentsWeb.Autolaunch.Layouts, :page}
+      ] do
       live "/create", StocksCreateLive, :create
       live "/agent-business", CreateLive, :create
       live "/how-it-works", HowItWorksLive, :show
@@ -1278,6 +1328,7 @@ defmodule RegentsWeb.Router do
     live_session :patchbay_app,
       layout: {RegentsWeb.Patchbay.Layouts, :app},
       on_mount: [
+        RegentsWeb.Live.LaunchGateHook,
         {RegentsWeb.Live.Session, :load_human},
         {RegentsWeb.Patchbay.CurrentProfile, :default},
         {RegentsWeb.Patchbay.Layouts, :page}
@@ -1290,6 +1341,7 @@ defmodule RegentsWeb.Router do
     live_session :patchbay_fixes,
       layout: {RegentsWeb.Patchbay.Layouts, :app},
       on_mount: [
+        RegentsWeb.Live.LaunchGateHook,
         {RegentsWeb.Live.Session, :load_human},
         {RegentsWeb.Patchbay.CurrentProfile, :default},
         {RegentsWeb.Patchbay.Layouts, :page}
@@ -1305,6 +1357,7 @@ defmodule RegentsWeb.Router do
     live_session :patchbay_offers,
       layout: {RegentsWeb.Patchbay.Layouts, :app},
       on_mount: [
+        RegentsWeb.Live.LaunchGateHook,
         {RegentsWeb.Live.Session, :load_human},
         {RegentsWeb.Patchbay.CurrentProfile, :default},
         {RegentsWeb.Patchbay.Layouts, :page}
@@ -1320,6 +1373,7 @@ defmodule RegentsWeb.Router do
     live_session :patchbay_moderation,
       layout: {RegentsWeb.Patchbay.Layouts, :app},
       on_mount: [
+        RegentsWeb.Live.LaunchGateHook,
         {RegentsWeb.Live.Session, :load_human},
         {RegentsWeb.Patchbay.CurrentProfile, :default},
         {RegentsWeb.Patchbay.Layouts, :page},
@@ -1338,6 +1392,7 @@ defmodule RegentsWeb.Router do
     live_session :patchbay_offers_admin,
       layout: {RegentsWeb.Patchbay.Layouts, :app},
       on_mount: [
+        RegentsWeb.Live.LaunchGateHook,
         RegentsWeb.Patchbay.OffersGate,
         {RegentsWeb.Live.Session, :load_human},
         {RegentsWeb.Patchbay.CurrentProfile, :default},

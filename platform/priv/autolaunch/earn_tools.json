@@ -19,7 +19,7 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/v1/earn/products",
+      "route": "GET /api/v1/autolaunch/earn/products",
       "scope": "site",
       "request": {
         "path": "/api/v1/earn/products"
@@ -72,14 +72,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/agent/v1/earn/quote",
+      "route": "POST /api/agent/v1/autolaunch/earn/quote",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_earn_quote",
-        "http": "POST /api/agent/v1/earn/quote"
+        "http": "POST /api/agent/v1/autolaunch/earn/quote"
       },
       "effect": "read"
     },
@@ -100,14 +100,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/agent/v1/earn/positions",
+      "route": "GET /api/agent/v1/autolaunch/earn/positions",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_earn_positions",
-        "http": "GET /api/agent/v1/earn/positions"
+        "http": "GET /api/agent/v1/autolaunch/earn/positions"
       },
       "effect": "read"
     },
@@ -158,14 +158,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/agent/v1/earn/steps",
+      "route": "POST /api/agent/v1/autolaunch/earn/steps",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_earn_prepare",
-        "http": "POST /api/agent/v1/earn/steps"
+        "http": "POST /api/agent/v1/autolaunch/earn/steps"
       },
       "effect": "prepare"
     }

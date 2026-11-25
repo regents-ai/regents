@@ -314,7 +314,8 @@ config :regent_payments, RegentPayments.Facilitator,
   auth: facilitator_auth
 
 if config_env() != :test do
-  config :regent_payments, base_rpc_url: System.get_env("BASE_RPC_URL")
+  config :regent_payments,
+    base_rpc_url: System.get_env("BASE_RPC_URL") || System.get_env("BASE_READ_RPC_URL")
 end
 
 # Patchbay optional runtime configuration (OpenRouter, OpenAI, Offers, IndexNow, Moderators, Escrow).
@@ -358,7 +359,10 @@ end
 config :regents, :escrow,
   contract_address: System.get_env("ESCROW_CONTRACT_ADDRESS"),
   operator_private_key: System.get_env("OPERATOR_PRIVATE_KEY"),
-  rpc_url: if(config_env() != :test, do: System.get_env("BASE_RPC_URL"))
+  rpc_url:
+    if(config_env() != :test,
+      do: System.get_env("BASE_RPC_URL") || System.get_env("BASE_READ_RPC_URL")
+    )
 
 config :regents, :assist, staking_contract_address: System.get_env("STAKING_CONTRACT_ADDRESS")
 

@@ -14,7 +14,7 @@ defmodule Regents.Patchbay.Probes.PaymentEndpoint do
     x402 and MPP challenges on the same `402` response.
   """
 
-  import Bitwise
+  alias RegentHttp.Public
 
   @allowed_methods ~w(GET POST HEAD)
   @max_url_bytes 512
@@ -33,8 +33,7 @@ defmodule Regents.Patchbay.Probes.PaymentEndpoint do
     trimmed_url = String.trim(url)
 
     with :ok <- validate_method(normalized_method),
-         {:ok, uri} <- validate_public_https_uri(trimmed_url),
-         :ok <- validate_resolved_ips(uri.host),
+         :ok <- validate_public_https_uri(trimmed_url),
          {:ok, response} <- perform_request(trimmed_url, normalized_method) do
       {:ok, analyze_response(trimmed_url, normalized_method, response)}
     end
@@ -49,16 +48,11 @@ defmodule Regents.Patchbay.Probes.PaymentEndpoint do
     do: {:error, "URL exceeds #{@max_url_bytes} bytes."}
 
   defp validate_public_https_uri(url) do
-    case URI.parse(url) do
-      %URI{scheme: "https", host: host, port: port}
-      when is_binary(host) and host != "" and port in [nil, 443] ->
-        down = String.downcase(host)
-
-        if blocked_host?(down) do
-          {:error, "Private, local, or internal hostnames cannot be probed."}
-        else
-          {:ok, %URI{scheme: "https", host: down, port: 443}}
-        end
+    case Public.uri(url) do
+      {:ok, %URI{host: host, port: 443}} ->
+        if blocked_host?(String.downcase(host)),
+          do: {:error, "Private, local, or internal hostnames cannot be probed."},
+          else: :ok
 
       _other ->
         {:error, "Only public https:// endpoints on port 443 can be validated."}
@@ -66,58 +60,9 @@ defmodule Regents.Patchbay.Probes.PaymentEndpoint do
   end
 
   defp blocked_host?(host) do
-    host in ["localhost", "127.0.0.1", "::1", "0.0.0.0"] or
-      String.ends_with?(host, [".local", ".internal", ".localhost", ".flycast", ".arpa"]) or
-      not String.contains?(host, ".")
+    not String.contains?(host, ".") or
+      String.ends_with?(host, [".local", ".internal", ".localhost", ".flycast", ".arpa"])
   end
-
-  defp validate_resolved_ips(host) do
-    charlist = String.to_charlist(host)
-
-    with {:ok, ips} <- resolve_addrs(charlist),
-         true <- Enum.all?(ips, &public_ip?/1) do
-      :ok
-    else
-      _blocked -> {:error, "Target hostname did not resolve to a public IP address."}
-    end
-  end
-
-  defp resolve_addrs(host) do
-    v4 =
-      case :inet.getaddrs(host, :inet) do
-        {:ok, list} -> list
-        _ -> []
-      end
-
-    v6 =
-      case :inet.getaddrs(host, :inet6) do
-        {:ok, list} -> list
-        _ -> []
-      end
-
-    case v4 ++ v6 do
-      [] -> {:error, :nxdomain}
-      ips -> {:ok, ips}
-    end
-  end
-
-  defp public_ip?({10, _, _, _}), do: false
-  defp public_ip?({127, _, _, _}), do: false
-  defp public_ip?({0, _, _, _}), do: false
-  defp public_ip?({169, 254, _, _}), do: false
-  defp public_ip?({172, b, _, _}) when b >= 16 and b <= 31, do: false
-  defp public_ip?({192, 168, _, _}), do: false
-  defp public_ip?({100, b, _, _}) when b >= 64 and b <= 127, do: false
-  defp public_ip?({a, _, _, _}) when a >= 224, do: false
-  defp public_ip?({_, _, _, _}), do: true
-  defp public_ip?({0, 0, 0, 0, 0, 0, 0, 0}), do: false
-  defp public_ip?({0, 0, 0, 0, 0, 0, 0, 1}), do: false
-  defp public_ip?({0, 0, 0, 0, 0, 0xFFFF, _, _}), do: false
-  defp public_ip?({a, _, _, _, _, _, _, _}) when (a &&& 0xFE00) == 0xFC00, do: false
-  defp public_ip?({a, _, _, _, _, _, _, _}) when (a &&& 0xFFC0) == 0xFE80, do: false
-  defp public_ip?({a, _, _, _, _, _, _, _}) when (a &&& 0xFF00) == 0xFF00, do: false
-  defp public_ip?({_, _, _, _, _, _, _, _}), do: true
-  defp public_ip?(_other), do: false
 
   defp perform_request(url, method) do
     req_method =
@@ -128,13 +73,9 @@ defmodule Regents.Patchbay.Probes.PaymentEndpoint do
       end
 
     opts = [
-      method: req_method,
-      url: url,
-      redirect: false,
-      retry: false,
-      decode_body: false,
-      receive_timeout: @timeout_ms,
-      connect_options: [timeout: 4_000],
+      max_bytes: @max_body_bytes,
+      timeout: @timeout_ms,
+      body_statuses: [402],
       headers: [
         {"accept", "application/json, text/plain, */*"},
         {"user-agent", "Patchbay-Validator/1.0 (+https://regents.sh/patchbay/validate)"}
@@ -152,20 +93,25 @@ defmodule Regents.Patchbay.Probes.PaymentEndpoint do
 
     started = System.monotonic_time(:millisecond)
 
-    case Req.request(opts) do
-      {:ok, %Req.Response{} = response} ->
+    case Public.request(req_method, url, opts) do
+      {:ok, response} ->
         elapsed = System.monotonic_time(:millisecond) - started
         {:ok, %{response: response, latency_ms: elapsed}}
 
-      {:error, exception} ->
-        {:error, "Endpoint could not be reached (#{inspect(exception.__struct__)})."}
+      {:error, reason} when reason in [:dns_error, :non_public_address] ->
+        {:error, "Target hostname did not resolve to a public IP address."}
+
+      {:error, :too_large} ->
+        {:error, "Endpoint response exceeds #{@max_body_bytes} bytes."}
+
+      {:error, reason} ->
+        {:error, "Endpoint could not be reached (#{reason})."}
     end
   end
 
   defp analyze_response(url, method, %{response: response, latency_ms: latency_ms}) do
     headers = normalize_headers(response.headers)
-    body = response.body |> to_string() |> binary_part_safe(@max_body_bytes)
-    parsed_body = parse_json(body)
+    parsed_body = parse_json(response.body || "")
 
     x402 = inspect_x402(headers, parsed_body)
     mpp = inspect_mpp(headers)
@@ -512,7 +458,4 @@ defmodule Regents.Patchbay.Probes.PaymentEndpoint do
       _ -> nil
     end
   end
-
-  defp binary_part_safe(bin, max) when byte_size(bin) > max, do: binary_part(bin, 0, max)
-  defp binary_part_safe(bin, _max), do: bin
 end

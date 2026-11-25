@@ -17,25 +17,29 @@ defmodule Regents.Patchbay.Escrow.Watch do
   bounty's money can move without this server ever being asked. Every five
   minutes this takes the bounties the board still believes are held, asks
   the contract what it holds for each, and writes down confirmed refunds
-  and payouts. A report whose bounty has gone back is an ordinary
-  report again and is listed with them from then on.
+  and payouts. It lets a retained payout job retry once when the bounty is
+  still funded and its previous transaction is confirmed reverted. A report
+  whose bounty has gone back is an ordinary report again and is listed with
+  them from then on.
 
   These are the `:read_escrow_credit` and `:read_escrow_refund` actions of
   `Regents.Patchbay.Forum.Report`, each run by its trigger's job, one report at a time.
   The question to Base is asked outside any transaction, and only what it
-  answered is written. It never moves money and never sends anything again,
-  so a read that cannot reach Base changes nothing and the next sweep asks
-  again. It does nothing at all while no escrow is configured.
+  answered is written. The watcher never broadcasts transactions. A read that
+  cannot reach Base changes nothing and the next sweep asks again. It does
+  nothing at all while no escrow is configured.
   """
 
   use Ash.Resource.ManualUpdate
 
   require Logger
 
+  alias Regents.Account.Actors.System, as: SystemActor
   alias Regents.Patchbay.Escrow
   alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Forum.{PriorityRefund, ReleaseAcceptedBounty}
   alias Regents.Patchbay.Payments.SpecialPost
+  alias Regents.Repo
 
   @impl true
   def update(changeset, opts, _context) do
@@ -92,9 +96,16 @@ defmodule Regents.Patchbay.Escrow.Watch do
   end
 
   defp confirm(report, funded_at) do
-    # Recording what the chain said is nobody's request: no actor is on this
-    # path, and no policy names the write, so it is made without one.
-    case Forum.confirm_escrow_credit(report, %{escrow_funded_at: funded_at}, authorize?: false) do
+    result =
+      Repo.transact(fn ->
+        with {:ok, credited} <-
+               Forum.confirm_escrow_credit(report, %{escrow_funded_at: funded_at},
+                 actor: %SystemActor{}
+               ),
+             do: ReleaseAcceptedBounty.resume_after_credit(credited)
+      end)
+
+    case result do
       {:ok, credited} ->
         Logger.info("escrow watch: bounty on report #{report.id} confirmed on Base")
         credited
@@ -134,16 +145,34 @@ defmodule Regents.Patchbay.Escrow.Watch do
         record_refund(report)
 
       {:ok, %{status: :released}} when is_binary(report.accepted_reply_id) ->
-        case ReleaseAcceptedBounty.record_confirmation(report) do
-          {:ok, current} ->
-            current || report
+        record_payout(report)
 
-          {:error, reason} ->
-            Logger.warning("escrow watch could not record a payout: #{inspect(reason)}")
-            report
-        end
+      {:ok, %{status: :funded}} when report.escrow_status == :release_failed ->
+        retry_payout(report)
 
       _held_or_unreachable ->
+        report
+    end
+  end
+
+  defp record_payout(report) do
+    case ReleaseAcceptedBounty.record_confirmation(report) do
+      {:ok, current} ->
+        current || report
+
+      {:error, reason} ->
+        Logger.warning("escrow watch could not record a payout: #{inspect(reason)}")
+        report
+    end
+  end
+
+  defp retry_payout(report) do
+    case ReleaseAcceptedBounty.retry_reverted(report) do
+      {:ok, current} ->
+        current
+
+      {:error, _reason} ->
+        Logger.warning("escrow watch could not retry payout for report #{report.id}")
         report
     end
   end

@@ -46,6 +46,8 @@ defmodule RegentsWeb.Keyfleet.AgentChainController do
   def convert(conn, %{"fleet_id" => fleet_id, "inputs" => inputs}),
     do: answer(conn, fleet_id, :convert, %{inputs: inputs})
 
+  def convert(conn, _params), do: Refusal.json(conn, 422, "invalid_request")
+
   def propose(conn, %{"fleet_id" => fleet_id}) do
     inputs = conn.body_params
 
@@ -57,16 +59,21 @@ defmodule RegentsWeb.Keyfleet.AgentChainController do
   end
 
   def vote(conn, %{"fleet_id" => fleet_id, "number" => number, "choice" => choice}),
-    do: answer(conn, fleet_id, :ballot, %{proposal: number}, &only(&1, choice))
+    do:
+      with_id(conn, number, fn id ->
+        answer(conn, fleet_id, :ballot, %{proposal: id}, &only(&1, choice))
+      end)
+
+  def vote(conn, _params), do: Refusal.json(conn, 422, "invalid_request")
 
   def cancel(conn, %{"fleet_id" => fleet_id, "number" => number}),
-    do: answer(conn, fleet_id, :cancel, %{proposal: number})
+    do: with_id(conn, number, &answer(conn, fleet_id, :cancel, %{proposal: &1}))
 
   def carry_out(conn, %{"fleet_id" => fleet_id, "number" => number}),
-    do: answer(conn, fleet_id, :carry_out, %{proposal: number})
+    do: with_id(conn, number, &answer(conn, fleet_id, :carry_out, %{proposal: &1}))
 
   def claim(conn, %{"fleet_id" => fleet_id, "token_id" => token_id}),
-    do: answer(conn, fleet_id, :claim, %{token_id: String.to_integer(token_id)})
+    do: with_id(conn, token_id, &answer(conn, fleet_id, :claim, %{token_id: &1}))
 
   def claim_all(conn, %{"fleet_id" => fleet_id}), do: answer(conn, fleet_id, :claim_all, %{})
 
@@ -84,54 +91,54 @@ defmodule RegentsWeb.Keyfleet.AgentChainController do
 
   # Ending each of the Key's active shards now, and renewing it.
   def end_shard(conn, %{"fleet_id" => fleet_id, "token_id" => token_id}),
-    do: answer(conn, fleet_id, :end_shard, %{token_id: String.to_integer(token_id)})
+    do: with_id(conn, token_id, &answer(conn, fleet_id, :end_shard, %{token_id: &1}))
 
   # Whether the shards of the Keys named may vote and propose with them: the
   # one step that turns it on or off.
   def agent_voting(conn, %{"fleet_id" => fleet_id, "keys" => keys, "voting" => voting}),
     do: answer(conn, fleet_id, :agent_voting, %{inputs: %{"keys" => keys}}, &only(&1, voting))
 
+  def agent_voting(conn, _params), do: Refusal.json(conn, 422, "invalid_request")
+
   # Taking Regents Club Key N, with what it earned while it waited, for the
   # holder of Regents Club Pass N.
   def club_claim(conn, %{"fleet_id" => fleet_id, "token_id" => token_id}),
-    do: answer(conn, fleet_id, :club_claim, %{token_id: String.to_integer(token_id)})
+    do: with_id(conn, token_id, &answer(conn, fleet_id, :club_claim, %{token_id: &1}))
 
   # Asking again for a Key's random draw, which anyone may do while its
   # request was refused.
   def reveal(conn, %{"fleet_id" => fleet_id, "token_id" => token_id}),
     do:
-      answer(
-        conn,
-        fleet_id,
-        :reveal,
-        %{token_id: String.to_integer(token_id)},
-        &only(&1, "reveal")
-      )
+      with_id(conn, token_id, fn id ->
+        answer(conn, fleet_id, :reveal, %{token_id: id}, &only(&1, "reveal"))
+      end)
 
   # Ending the wait for a Key's draw that hasn't come 24 hours after its
   # request was accepted, which anyone may do. The Key then never gets traits.
   def expire_reveal(conn, %{"fleet_id" => fleet_id, "token_id" => token_id}),
     do:
-      answer(
-        conn,
-        fleet_id,
-        :reveal,
-        %{token_id: String.to_integer(token_id)},
-        &only(&1, "expire_reveal")
-      )
+      with_id(conn, token_id, fn id ->
+        answer(conn, fleet_id, :reveal, %{token_id: id}, &only(&1, "expire_reveal"))
+      end)
 
   # Part or all of one advance, back to the treasury from the signing wallet,
   # as the treasury page's Return field types it.
   def return_advance(conn, %{"fleet_id" => fleet_id, "advance_id" => id, "amount" => amount}),
     do:
-      answer(conn, fleet_id, :return_advance, %{
-        advance_id: String.to_integer(id),
-        inputs: %{"amount" => amount}
-      })
+      with_id(conn, id, fn advance_id ->
+        answer(conn, fleet_id, :return_advance, %{
+          advance_id: advance_id,
+          inputs: %{"amount" => amount}
+        })
+      end)
+
+  def return_advance(conn, _params), do: Refusal.json(conn, 422, "invalid_request")
 
   # One of the token launch's four upkeep buttons: the one asked for.
   def launch_upkeep(conn, %{"fleet_id" => fleet_id, "step" => step}),
     do: answer(conn, fleet_id, :launch_upkeep, %{}, &only(&1, step))
+
+  def launch_upkeep(conn, _params), do: Refusal.json(conn, 422, "invalid_request")
 
   defp answer(conn, fleet_id, flow, params, shape \\ &Function.identity/1) do
     agent = conn.assigns.actor
@@ -153,9 +160,20 @@ defmodule RegentsWeb.Keyfleet.AgentChainController do
     end
   end
 
+  defp with_id(conn, text, fun) when is_binary(text) do
+    case Integer.parse(text) do
+      {id, ""} when id >= 0 and id <= 9_223_372_036_854_775_807 -> fun.(id)
+      _ -> Refusal.json(conn, 422, "invalid_request")
+    end
+  end
+
   # The one step of a group of buttons that was asked for.
-  defp only(built, name),
-    do: update_in(built.review.steps, fn steps -> Enum.filter(steps, &(&1.step == name)) end)
+  defp only(built, name) do
+    case Enum.filter(built.review.steps, &(&1.step == name)) do
+      [] -> {:refuse, 422, "invalid_request"}
+      steps -> put_in(built.review.steps, steps)
+    end
+  end
 
   defp shaped(conn, _flow, _fleet, {:refuse, status, code}), do: Refusal.json(conn, status, code)
   defp shaped(conn, flow, fleet, built), do: json(conn, AgentChainJSON.answer(flow, fleet, built))

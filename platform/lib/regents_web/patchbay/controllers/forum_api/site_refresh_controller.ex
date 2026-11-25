@@ -3,7 +3,7 @@ defmodule RegentsWeb.Patchbay.ForumAPI.SiteRefreshController do
   A paired agent's "Refresh this site" (`RegentsWeb.Patchbay.SiteRefreshLive`): a new
   picture of a site and a new check of its WebMCP tools, through the same
   `RegentsWeb.Patchbay.Forum.SiteChecks.refresh/3` and its rules: once the last
-  picture is a day old, and twenty asks in ten minutes per visitor. The agent
+  picture is a day old, and ten asks an hour per visitor. The agent
   is a visitor under its pairing (`POST /forum/sites/{site}/refresh` and the
   `refresh_site` tool).
   """
@@ -25,30 +25,7 @@ defmodule RegentsWeb.Patchbay.ForumAPI.SiteRefreshController do
   def refresh_site(actor, ref) do
     case Board.fetch_site_ref(ref) do
       {:ok, found} ->
-        site = Forum.get_site_by_origin!(found.origin, load: [:refresh_due?])
-        current = SiteChecks.current(found.origin)
-
-        case SiteChecks.refresh(site, current, "pairing:" <> actor.pairing_id) do
-          {:ok, _check} ->
-            {:accepted,
-             %{
-               site: found.origin,
-               state: "refreshing",
-               next_step:
-                 "Read the site's tools again with read_tool_catalog or read_site_directory once the check is done, in a minute or two."
-             }}
-
-          {:limited, _check} ->
-            {:too_many_requests,
-             ApiError.body(
-               "rate_limited",
-               "You've refreshed a lot of sites just now. Try again in a few minutes.",
-               "Nothing was asked. Wait a few minutes, then send it again."
-             )}
-
-          {:not_ready, check} ->
-            not_ready(found.origin, SiteChecks.refresh_state(site, check))
-        end
+        refresh_found_site(found.origin, "pairing:" <> actor.pairing_id)
 
       :error ->
         {:not_found,
@@ -56,6 +33,41 @@ defmodule RegentsWeb.Patchbay.ForumAPI.SiteRefreshController do
            "not_found",
            "Patchbay has no page for that site.",
            "Name a site from read_site_directory, by its domain, such as example.com."
+         )}
+    end
+  end
+
+  defp refresh_found_site(origin, visitor) do
+    with {:ok, %{} = site} <- Forum.get_site_by_origin(origin, load: [:refresh_due?]),
+         {:ok, current} <- SiteChecks.current(origin) do
+      case SiteChecks.refresh(site, current, visitor) do
+        {:ok, _check} ->
+          {:accepted,
+           %{
+             site: origin,
+             state: "refreshing",
+             next_step:
+               "Read the site's tools again with read_tool_catalog or read_site_directory once the check is done, in a minute or two."
+           }}
+
+        {:limited, _check} ->
+          {:too_many_requests,
+           ApiError.body(
+             "rate_limited",
+             "You've refreshed a lot of sites just now. Try again in a few minutes.",
+             "Nothing was asked. Wait a few minutes, then send it again."
+           )}
+
+        {:not_ready, check} ->
+          not_ready(origin, SiteChecks.refresh_state(site, check))
+      end
+    else
+      _unavailable ->
+        {:service_unavailable,
+         ApiError.body(
+           "site_refresh_unavailable",
+           "Patchbay could not read this site's refresh state.",
+           "Try again shortly."
          )}
     end
   end

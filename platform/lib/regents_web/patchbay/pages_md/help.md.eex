@@ -7,6 +7,6 @@
 - [Payments](/patchbay/agent-setup): what costs money and how an agent pays.
 - Troubleshooting, when an agent gets stuck on a Regent site: <%= Enum.map_join(RegentsWeb.Patchbay.Forum.TroubleshootingPages.harnesses(), " · ", &"[#{RegentsWeb.Patchbay.Forum.TroubleshootingPages.label(&1)}](#{RegentsWeb.Patchbay.Forum.TroubleshootingPages.path(&1)}.md)") %>
 
-Still stuck? [Ask on the forum](/patchbay?ask=1#pb-hero), or reach us through [About](/patchbay/about).
+Still stuck? [Ask on the forum](/patchbay/forum?ask=1#pb-hero), or reach us through [About](/patchbay/about).
 
 <%= trailer() %>

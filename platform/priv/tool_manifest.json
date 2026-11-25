@@ -8,7 +8,7 @@
     {
       "name": "regents_about",
       "title": "Read a Regents page",
-      "description": "Read a regents.sh page as Markdown, exactly as the site serves it. page chooses which one: about says what Regents Labs does and how it differs, who uses it, the team, key facts and common questions, and how to reach us for help, privacy, legal and security questions; docs is the docs overview and its list of pages, and each of these is one docs page: docs-limits (request limits), docs-errors (refusal shape and codes), docs-products, docs-reading (papers, Articles, books), docs-profiles, docs-pairing (pairing an agent and checking in), docs-agent-reads (a paired agent reading its person's account), docs-webmcp (these browser tools), docs-claims, docs-staking, docs-contracts (OpenAPI) and docs-changes; start is how a person pairs their agent; privacy and terms are the Privacy Policy and Terms of Use.",
+      "description": "Read a regents.sh page as Markdown, exactly as the site serves it. page chooses which one: about says what Regents Labs does and how it differs, who uses it, the team, key facts and common questions, and how to reach us for help, privacy, legal and security questions; docs is the docs overview and its list of pages, and each of these is one docs page: docs-limits (request limits), docs-errors (refusal shape and codes), docs-products, docs-siwa, docs-mcp, docs-cli, docs-reading (papers, Articles, books), docs-profiles, docs-pairing (pairing an agent and checking in), docs-agent-reads (a paired agent reading its person's account), docs-webmcp (these browser tools), docs-claims, docs-staking, docs-contracts (OpenAPI) and docs-changes; docs-cloak, docs-cloak-reference, docs-cloak-install and docs-cloak-wallets cover Cloak; start is how a person pairs their agent; privacy and terms are the Privacy Policy and Terms of Use.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -17,6 +17,13 @@
             "enum": [
               "about",
               "docs",
+              "docs-cloak",
+              "docs-cloak-reference",
+              "docs-cloak-install",
+              "docs-cloak-wallets",
+              "docs-siwa",
+              "docs-mcp",
+              "docs-cli",
               "docs-limits",
               "docs-errors",
               "docs-products",
@@ -33,7 +40,7 @@
               "privacy",
               "terms"
             ],
-            "description": "about for /about, docs for /docs, docs-limits for /docs/limits and the same for each docs page (docs-errors, docs-products, docs-reading, docs-profiles, docs-pairing, docs-agent-reads, docs-webmcp, docs-claims, docs-staking, docs-contracts, docs-changes), start for /start, privacy for /privacy, terms for /terms."
+            "description": "about for /about, docs for /docs, docs-limits for /docs/limits and the same for each docs page (docs-errors, docs-products, docs-siwa, docs-mcp, docs-cli, docs-reading, docs-profiles, docs-pairing, docs-agent-reads, docs-webmcp, docs-claims, docs-staking, docs-contracts, docs-changes, docs-cloak, docs-cloak-reference, docs-cloak-install, docs-cloak-wallets), start for /start, privacy for /privacy, terms for /terms."
           }
         },
         "required": [
@@ -49,7 +56,7 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /about, GET /docs, GET /docs/cloak, GET /docs/cloak/reference, GET /docs/cloak/install, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /privacy, GET /terms",
+      "route": "GET /about, GET /docs, GET /docs/cloak, GET /docs/cloak/reference, GET /docs/cloak/install, GET /docs/cloak/wallets, GET /docs/siwa, GET /docs/mcp, GET /docs/cli, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /privacy, GET /terms",
       "scope": "site",
       "authentication": "public",
       "availability": "available",
@@ -57,7 +64,7 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "regents_about",
-        "http": "GET /about, GET /docs, GET /docs/cloak, GET /docs/cloak/reference, GET /docs/cloak/install, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /privacy, GET /terms"
+        "http": "GET /about, GET /docs, GET /docs/cloak, GET /docs/cloak/reference, GET /docs/cloak/install, GET /docs/cloak/wallets, GET /docs/siwa, GET /docs/mcp, GET /docs/cli, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /privacy, GET /terms"
       }
     },
     {
@@ -376,8 +383,8 @@
     },
     {
       "name": "list_regents_webmcp_tools",
-      "title": "List regents.sh WebMCP tools",
-      "description": "List every browser tool regents.sh offers agents: each tool's name, title and what it does, as regents.sh published them within the last day. The tool text is regents.sh's own words. No sign-in; changes nothing.",
+      "title": "Read Regents tool catalog",
+      "description": "Read the names, titles and descriptions in the Regents tool manifest bundled with regents.sh. Public read.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -405,8 +412,8 @@
     },
     {
       "name": "list_patchbay_webmcp_tools",
-      "title": "List patchbay.help WebMCP tools",
-      "description": "List every browser tool patchbay.help offers agents, its Agent Offers included: each tool's name, title and what it does, as patchbay.help published them within the last day. The tool text is patchbay.help's own words. No sign-in; changes nothing.",
+      "title": "Read Patchbay tool catalog",
+      "description": "Read the names, titles and descriptions in the Patchbay tool manifest bundled with regents.sh. Public read.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -434,8 +441,8 @@
     },
     {
       "name": "list_autolaunch_webmcp_tools",
-      "title": "List autolaunch.sh WebMCP tools",
-      "description": "List every browser tool autolaunch.sh offers agents: each tool's name, title and what it does, as autolaunch.sh published them within the last day. The tool text is autolaunch.sh's own words. No sign-in; changes nothing.",
+      "title": "Read Autolaunch tool catalog",
+      "description": "Read the names, titles and descriptions in the Autolaunch tool manifest bundled with regents.sh. Public read.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -463,8 +470,8 @@
     },
     {
       "name": "list_techtree_webmcp_tools",
-      "title": "List techtree.sh WebMCP tools",
-      "description": "List every browser tool techtree.sh offers agents: each tool's name, title and what it does, as techtree.sh published them within the last day. The tool text is techtree.sh's own words. No sign-in; changes nothing.",
+      "title": "Read Techtree tool catalog",
+      "description": "Read the names, titles and descriptions in the Techtree tool manifest bundled with regents.sh. Public read.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -492,8 +499,8 @@
     },
     {
       "name": "list_keyfleet_webmcp_tools",
-      "title": "List keyfleet.ai WebMCP tools",
-      "description": "List every browser tool keyfleet.ai offers agents: each tool's name, title and what it does, as keyfleet.ai published them within the last day. The tool text is keyfleet.ai's own words. No sign-in; changes nothing.",
+      "title": "Read Keyfleet tool catalog",
+      "description": "Read the names, titles and descriptions in the Keyfleet tool manifest bundled with regents.sh. Public read.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -521,8 +528,8 @@
     },
     {
       "name": "list_all_webmcp_tools",
-      "title": "List every Regent site's WebMCP tools",
-      "description": "The complete list: every browser tool regents.sh, patchbay.help, autolaunch.sh, techtree.sh and keyfleet.ai offer agents, each tool's name, title and what it does, as each site published them within the last day, and how an agent connects to siwa-server, the sign-in they share. A site that could not be read right now is named under unreachable. The tool text is each site's own words. No sign-in; changes nothing.",
+      "title": "Read Regents tool catalogs",
+      "description": "Read the tool manifests for Regents, Patchbay, Autolaunch, Techtree and Keyfleet that are bundled with regents.sh, plus SIWA setup. A product whose manifest cannot be read is listed under unreachable. Public read.",
       "input_schema": {
         "type": "object",
         "properties": {},

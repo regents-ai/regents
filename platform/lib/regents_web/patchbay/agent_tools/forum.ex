@@ -6,6 +6,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
     domain: RegentsWeb.Patchbay.AgentTools,
     authorizers: [Ash.Policy.Authorizer]
 
+  alias Regents.Limits
   alias Regents.Patchbay.Assist.KnownFixes
   alias Regents.Patchbay.Commerce.Catalog
   alias Regents.Patchbay.Forum
@@ -54,10 +55,15 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
       argument :url, :string, allow_nil?: false, constraints: [min_length: 8, max_length: 512]
       argument :method, :string, allow_nil?: true, default: "GET"
 
-      run fn %{arguments: %{url: url, method: method}}, _context ->
-        case PaymentEndpoint.probe(url, method) do
-          {:ok, result} -> {:ok, result}
-          {:error, reason} -> {:ok, %{error: reason}}
+      run fn %{arguments: %{url: url, method: method}}, context ->
+        with :ok <- spend(context, :patchbay_endpoint_probes) do
+          case PaymentEndpoint.probe(url, method) do
+            {:ok, result} ->
+              {:ok, result}
+
+            {:error, reason} ->
+              refused("probe_refused", reason, "Check the public URL and retry.")
+          end
         end
       end
     end
@@ -118,10 +124,12 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
         allow_nil?: false,
         constraints: [min_length: 1, max_length: 65_536]
 
-      run fn %{arguments: %{manifest: manifest}}, _context ->
-        case StackCheck.check(manifest) do
-          {:ok, result} -> {:ok, result}
-          {:error, reason} -> {:ok, %{error: reason}}
+      run fn %{arguments: %{manifest: manifest}}, context ->
+        with :ok <- spend(context, :patchbay_stack_checks) do
+          case StackCheck.check(manifest) do
+            {:ok, result} -> {:ok, result}
+            {:error, reason} -> refused("invalid_stack", reason, "Check the manifest and retry.")
+          end
         end
       end
     end
@@ -356,6 +364,25 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
       authorize_if actor_attribute_equals(:role, :agent)
     end
   end
+
+  defp spend(context, policy) do
+    key = context.source_context[:patchbay_limit_key] || context.actor.wallet_address
+
+    case Limits.spend(policy, key) do
+      :ok ->
+        :ok
+
+      :limited ->
+        refused(
+          "rate_limited",
+          "Patchbay's request limit was reached.",
+          "Wait 60 seconds and retry."
+        )
+    end
+  end
+
+  defp refused(code, message, hint),
+    do: {:error, Refused.exception(body: ApiError.body(code, message, hint))}
 
   defp refused(reason)
        when reason in [:not_found, :invalid_cursor, :response_too_large] do

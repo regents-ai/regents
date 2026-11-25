@@ -41,7 +41,7 @@ defmodule RegentHttp.Public do
         }
 
   @doc """
-  Sends `method` (`:get` or `:post`) to `url`.
+  Sends `method` (`:get`, `:head`, or `:post`) to `url`.
 
   - `:max_bytes` (required) bounds the answer's headers and body; a longer body
     is `{:error, :too_large}`.
@@ -50,11 +50,13 @@ defmodule RegentHttp.Public do
   - `answer: :headers` returns as soon as a 2xx status's headers arrive, with
     `body: nil`, for a receiver that acknowledges on receipt.
 
-  A status of 300 or more is returned at once, with an empty body that is not
-  read; a redirect is never followed.
+  A status of 300 or more is returned at once with an empty body. Supply
+  `:body_statuses` to read the bounded body for specific 4xx or 5xx statuses.
+  Redirects are never followed.
   """
-  @spec request(:get | :post, String.t(), keyword()) :: {:ok, response()} | {:error, atom()}
-  def request(method, url, opts) when method in [:get, :post] do
+  @spec request(:get | :head | :post, String.t(), keyword()) ::
+          {:ok, response()} | {:error, atom()}
+  def request(method, url, opts) when method in [:get, :head, :post] do
     Keyword.fetch!(opts, :max_bytes)
 
     case Application.get_env(:regent_http, :public_client) do
@@ -215,7 +217,14 @@ defmodule RegentHttp.Public do
 
     case Mint.HTTP.request(conn, verb, path, headers, body) do
       {:ok, conn, ref} ->
-        response = %{status: nil, headers: nil, body: "", answer: answer}
+        response = %{
+          status: nil,
+          headers: nil,
+          body: "",
+          answer: answer,
+          body_statuses: Keyword.get(opts, :body_statuses, [])
+        }
+
         receive_response(conn, ref, max_bytes, deadline, response)
 
       {:error, _conn, error} ->
@@ -261,9 +270,15 @@ defmodule RegentHttp.Public do
     response = %{response | headers: headers}
 
     cond do
-      response.status >= 300 -> {:ok, finish(%{response | body: ""})}
-      response.answer == :headers -> {:ok, finish(%{response | body: nil})}
-      true -> consume(rest, conn, ref, max_bytes, deadline, response)
+      response.status >= 300 and
+          (response.status < 400 or response.status not in response.body_statuses) ->
+        {:ok, finish(%{response | body: ""})}
+
+      response.answer == :headers and response.status < 300 ->
+        {:ok, finish(%{response | body: nil})}
+
+      true ->
+        consume(rest, conn, ref, max_bytes, deadline, response)
     end
   end
 
@@ -290,7 +305,7 @@ defmodule RegentHttp.Public do
   defp network_reason(%Mint.TransportError{reason: {:tls_alert, _}}), do: :tls_error
   defp network_reason(_), do: :connection_error
 
-  defp finish(response), do: Map.delete(response, :answer)
+  defp finish(response), do: Map.take(response, [:status, :headers, :body])
 
   defp result_status({:ok, %{status: status}}), do: status
   defp result_status(_), do: :error

@@ -1621,7 +1621,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   def can_accept_reply?(report, reply, profile) do
     not is_nil(profile) and
       report.author_profile_id == profile.id and
-      report.escrow_status == :credited and
+      report.escrow_status in [:credited, :refund_failed] and
       is_nil(report.accepted_reply_id) and
       not is_nil(reply.author_profile_id) and
       reply.author_profile_id != profile.id

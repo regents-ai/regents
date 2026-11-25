@@ -69,7 +69,10 @@ defmodule RegentsWeb.Plugs.McpAgent do
 
   @impl true
   def call(conn, _opts) do
-    conn = register_before_send(conn, &put_resp_header(&1, "cache-control", "private, no-store"))
+    conn =
+      conn
+      |> Ash.PlugHelpers.set_context(%{patchbay_limit_key: ClientAddress.tag(conn)})
+      |> register_before_send(&put_resp_header(&1, "cache-control", "private, no-store"))
 
     cond do
       conn.query_string != "" ->

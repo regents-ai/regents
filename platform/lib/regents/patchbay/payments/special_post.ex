@@ -29,6 +29,7 @@ defmodule Regents.Patchbay.Payments.SpecialPost do
   alias Ash.Error.Changes.InvalidChanges
   alias RegentPayments.Offer
   alias RegentPayments.USDC
+  alias Regents.Account.Actors.System, as: SystemActor
   alias Regents.Patchbay.Escrow
   alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Forum.OtherSiteReport
@@ -146,8 +147,8 @@ defmodule Regents.Patchbay.Payments.SpecialPost do
   def credit(intent, receipt) do
     # Patchbay's own step on the report its payment published.
     with {:ok, %Report{escrow_status: nil} = report} <-
-           Forum.get_report(intent.target_id, authorize?: false),
-         {:ok, claimed} <- Forum.claim_escrow_credit(report, authorize?: false) do
+           Forum.get_report(intent.target_id, actor: %SystemActor{}),
+         {:ok, claimed} <- Forum.claim_escrow_credit(report, actor: %SystemActor{}) do
       _ = send_credit(claimed, intent, receipt)
     end
 
@@ -279,12 +280,10 @@ defmodule Regents.Patchbay.Payments.SpecialPost do
           {:credit_failed, nil}
       end
 
-    # Nothing over HTTP may write what the escrow said; this is the one place
-    # that hears it, so the write is made deliberately without an actor.
     Forum.record_escrow_credit(
       report,
       %{escrow_status: status, escrow_credit_tx_hash: tx_hash},
-      authorize?: false
+      actor: %SystemActor{}
     )
   end
 end

@@ -8707,3 +8707,12 @@ seasons), on the shared Points library regents.sh was already on.
 - Recover Keyfleet feed cursors after overflow, keep excerpt identifiers out of public Markdown, and clarify when a wallet must send individual steps.
 - Fix Patchbay fee job updates, show exhausted bounty payouts on the board, and reconcile confirmed payouts during escrow checks.
 - Correct Autolaunch agent setup and reference links, and keep nested public docs accessible while product pages are closed.
+
+## 2026-11-25 — Cutover follow-up
+
+- Route former product hosts and their discovery URLs to the shared Regents endpoints. Correct product docs, CLI guidance, and published tool metadata.
+- Keep public pages readable while the launch gate is closed. Apply the gate to product sockets and authenticated tools, and restore Autolaunch's prelaunch write restrictions.
+- Fix Autolaunch auction graduation, preserve filters in browser tools, and return usable links for market terms and share images.
+- Restrict Patchbay's internal escrow and moderation actions, preserve signed payout and fee transactions across retries, and bound outbound endpoint checks.
+- Fix Patchbay's site refresh and search links, share admission limits with hosted tools, and preserve larger signed request bodies on the routes that accept them.
+- Return clean refusals for invalid Keyfleet chain inputs and respect read-only mode on avatar uploads.

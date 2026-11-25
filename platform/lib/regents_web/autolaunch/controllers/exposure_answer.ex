@@ -162,7 +162,8 @@ defmodule RegentsWeb.Autolaunch.ExposureAnswer do
       feed_phase: series.phase,
       terms_hash: series.terms_hash,
       terms_url:
-        RegentsWeb.Endpoint.url() <> "/stock/isolated-afters/terms/" <> series.terms_hash,
+        RegentsWeb.Endpoint.url() <>
+          "/autolaunch/stock/isolated-afters/terms/" <> series.terms_hash,
       status: series.status,
       end_reason: series.end_reason,
       price: series.price,

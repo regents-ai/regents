@@ -111,15 +111,15 @@ defmodule Regents.Patchbay.Escrow do
   defp read_outcome({:error, reason}), do: {:error, reason}
 
   @doc """
-  Pays the money held against the report out to `winner_address`, and returns
-  the hash of the transaction that does it.
+  Prepares a signed payout to `winner_address` for the worker to save before broadcast.
   """
-  @spec release(Ash.UUID.t(), String.t()) :: {:ok, String.t()} | {:error, term()}
-  def release(report_id, winner_address) do
+  @spec prepare_release(Ash.UUID.t(), String.t()) ::
+          {:ok, %{raw: String.t(), hash: String.t()}} | {:error, term()}
+  def prepare_release(report_id, winner_address) do
     report_id
     |> post_id()
     |> Contract.release(winner_address)
-    |> submit()
+    |> prepare_transaction(:release_refused, :prepare_release_failed)
   end
 
   @doc """
@@ -207,8 +207,10 @@ defmodule Regents.Patchbay.Escrow do
   """
   @spec prepare_revenue_push() :: {:ok, %{raw: String.t(), hash: String.t()}} | {:error, term()}
   def prepare_revenue_push do
-    tx_data = Contract.push_revenue()
+    prepare_transaction(Contract.push_revenue(), :push_refused, :prepare_push_failed)
+  end
 
+  defp prepare_transaction(tx_data, refused, failed) do
     with {:ok, operator} <- operator(),
          :ok <- would_go_through(tx_data, operator),
          {:ok, nonce} <-
@@ -229,26 +231,27 @@ defmodule Regents.Patchbay.Escrow do
       hash = raw |> Ethers.Utils.hex_decode!() |> Ethers.keccak_module().hash_256()
       {:ok, %{raw: raw, hash: Ethers.Utils.hex_encode(hash)}}
     else
-      {:error, reason} when reason in [:not_configured, :push_refused] -> {:error, reason}
-      {:error, _reason} -> {:error, :prepare_push_failed}
+      {:error, :not_configured} -> {:error, :not_configured}
+      {:error, :simulation_refused} -> {:error, refused}
+      {:error, _reason} -> {:error, failed}
     end
   rescue
-    _exception -> {:error, :prepare_push_failed}
+    _exception -> {:error, failed}
   end
 
   @doc "Broadcasts previously recorded bytes. Repeating this call sends the same transaction."
-  def broadcast_revenue_push("0x" <> _hex = raw) do
+  def broadcast_signed("0x" <> _hex = raw) do
     with {:ok, operator} <- operator(),
          {:ok, _hash} <- Ethers.send_transaction(raw, rpc_opts: [url: operator.rpc_url]) do
       :ok
     else
-      {:error, _reason} -> {:error, :push_broadcast_unconfirmed}
+      {:error, _reason} -> {:error, :broadcast_unconfirmed}
     end
   rescue
-    _exception -> {:error, :push_broadcast_unconfirmed}
+    _exception -> {:error, :broadcast_unconfirmed}
   end
 
-  def broadcast_revenue_push(_raw), do: {:error, :push_transaction_missing}
+  def broadcast_signed(_raw), do: {:error, :transaction_missing}
 
   defp would_go_through(tx_data, operator) do
     case Ethers.call(tx_data,
@@ -257,10 +260,10 @@ defmodule Regents.Patchbay.Escrow do
            rpc_opts: [url: operator.rpc_url]
          ) do
       {:ok, _pushed} -> :ok
-      {:error, _reason} -> {:error, :push_refused}
+      {:error, _reason} -> {:error, :simulation_refused}
     end
   rescue
-    _exception -> {:error, :push_refused}
+    _exception -> {:error, :simulation_refused}
   end
 
   @doc """

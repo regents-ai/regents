@@ -16,7 +16,7 @@ defmodule Regents.Autolaunch.Stocks.LaunchOperations do
   alias Regents.Autolaunch.Stocks.LaunchOperation
 
   @actor %System{}
-  @domain Autolaunch
+  @domain Regents.Autolaunch
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
   @type lease :: %{lineage: String.t(), account_id: integer()}

@@ -220,7 +220,9 @@ defmodule Regents.MixProject do
         # plus 8 resource->check/notifier/action compile edges).
         # Unified /mcp and OAuth add 4 (Agents->Connection, Connection->Caller,
         # Patchbay.AgentTools->Forum, and McpAgent->ClientAddress).
-        "xref graph --label compile-connected --fail-above 316",
+        # Patchbay's internal writes check the system actor on Report and Reply.
+        # The Endpoint passes the launch-gated Markdown lookup to RegentAgentAccess.
+        "xref graph --label compile-connected --fail-above 318",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

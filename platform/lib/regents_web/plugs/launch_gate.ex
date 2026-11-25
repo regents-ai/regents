@@ -21,61 +21,55 @@ defmodule RegentsWeb.Plugs.LaunchGate do
 
   def init(opts), do: opts
 
-  def call(%Plug.Conn{method: "GET", path_info: []} = conn, _opts), do: conn
+  @doc "Whether a public document can be rendered before the router."
+  def document(path) do
+    if app_surfaces_enabled?() or public_read?(String.split(path, "/", trim: true)) do
+      RegentsWeb.PublicDocuments.document(path)
+    end
+  end
 
-  def call(%Plug.Conn{method: "GET", path_info: ["privacy"]} = conn, _opts), do: conn
+  def call(%Plug.Conn{method: method, path_info: path} = conn, _opts)
+      when method in ["GET", "HEAD"] do
+    if public_read?(path), do: conn, else: gate(app_surfaces_enabled?(), conn)
+  end
 
-  def call(%Plug.Conn{method: "GET", path_info: ["terms"]} = conn, _opts), do: conn
-
-  def call(%Plug.Conn{method: "GET", path_info: ["articles"]} = conn, _opts), do: conn
-  def call(%Plug.Conn{method: "GET", path_info: ["articles", _slug]} = conn, _opts), do: conn
-  def call(%Plug.Conn{method: "GET", path_info: ["blog"]} = conn, _opts), do: conn
-  def call(%Plug.Conn{method: "GET", path_info: ["blog", _slug]} = conn, _opts), do: conn
-  def call(%Plug.Conn{method: "GET", path_info: ["literature"]} = conn, _opts), do: conn
-  def call(%Plug.Conn{method: "GET", path_info: ["about"]} = conn, _opts), do: conn
-  def call(%Plug.Conn{method: "GET", path_info: ["docs" | _rest]} = conn, _opts), do: conn
-  def call(%Plug.Conn{method: "GET", path_info: ["start"]} = conn, _opts), do: conn
-
-  def call(%Plug.Conn{method: "GET", path_info: ["paper-pro-daily"]} = conn, _opts), do: conn
-
-  def call(%Plug.Conn{method: "GET", path_info: ["paper-pro-daily", _paper]} = conn, _opts),
-    do: conn
-
-  # The JSON health check answers like /healthz, which sits outside the gate.
-  def call(%Plug.Conn{method: "GET", path_info: ["api", "v1", "health"]} = conn, _opts),
-    do: conn
-
-  # The developer documentation in JSON, the same words as the open /docs page.
-  def call(%Plug.Conn{method: "GET", path_info: ["api", "v1", "docs"]} = conn, _opts),
-    do: conn
-
-  # These JSON reads expose the same published Reading records as the open pages.
-  # No write or other API prefix bypasses the product gate.
-  def call(
-        %Plug.Conn{method: "GET", path_info: ["api", "v1", "reading", collection]} = conn,
-        _opts
-      )
-      when collection in ["papers", "articles", "literature"],
-      do: conn
-
-  def call(
-        %Plug.Conn{method: "GET", path_info: ["api", "v1", "reading", collection, _id]} = conn,
-        _opts
-      )
-      when collection in ["papers", "articles"],
-      do: conn
+  def call(%Plug.Conn{method: "POST", path_info: ["visit-log"]} = conn, _opts), do: conn
 
   def call(%Plug.Conn{method: "DELETE", path_info: ["auth", "privy", "session"]} = conn, _opts),
     do: conn
 
   def call(conn, _opts), do: gate(app_surfaces_enabled?(), conn)
 
+  defp public_read?([]), do: true
+
+  defp public_read?([page])
+       when page in ~w(privacy terms articles blog literature about agents changelog start paper-pro-daily cloak siwa autolaunch keyfleet patchbay techtree),
+       do: true
+
+  defp public_read?([collection, _entry])
+       when collection in ~w(articles blog paper-pro-daily agents),
+       do: true
+
+  defp public_read?(["docs" | _]), do: true
+  defp public_read?(["cloak", "install"]), do: true
+  defp public_read?(["auth", "csrf"]), do: true
+  defp public_read?(["api", "v1", resource]) when resource in ~w(health docs site-tools), do: true
+  defp public_read?(["api", "v1", "site-tools", _site]), do: true
+
+  defp public_read?(["api", "v1", "reading", collection]),
+    do: collection in ~w(papers articles literature)
+
+  defp public_read?(["api", "v1", "reading", collection, _id]),
+    do: collection in ~w(papers articles)
+
+  defp public_read?(_path), do: false
+
   defp gate(true, conn), do: conn
   defp gate(false, conn), do: conn |> closed(response_format(conn)) |> halt()
 
   # The session endpoints ride the browser pipeline but answer JSON callers.
   defp response_format(%Plug.Conn{path_info: ["auth" | _]}), do: "json"
-  defp response_format(conn), do: get_format(conn)
+  defp response_format(conn), do: get_format(conn) || "html"
 
   defp closed(conn, "json") do
     conn

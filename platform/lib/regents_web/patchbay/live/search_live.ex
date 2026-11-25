@@ -265,7 +265,7 @@ defmodule RegentsWeb.Patchbay.SearchLive do
         </section>
       </div>
       <div :if={@search.query != ""} class="shell-search__browse">
-        <.link href={~p"/?#{[q: @search.query]}"}>
+        <.link href={~p"/patchbay/forum?#{[q: @search.query]}"}>
           See all questions for “{@search.query}” →
         </.link>
       </div>

@@ -661,7 +661,7 @@ defmodule RegentsWeb.Techtree.RunsLive.Show do
   # Patchbay keys one discussion to each Result's bundle digest and creates it
   # on the first post, so the link needs nothing from Patchbay to be shown.
   defp discussion_url(bundle_digest),
-    do: "https://patchbay.help/discuss/techtree/" <> bundle_digest
+    do: ~p"/patchbay/discuss/techtree/#{bundle_digest}"
 
   defp rerun(climb, trial, bundle_digest) do
     case {ReleaseInfo.current(), climb} do

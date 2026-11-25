@@ -23,3 +23,15 @@ The answer is `429` with the code `too_many_requests` and a `Retry-After` header
 ## Base readings
 
 A stake read ([Staking]({{origin}}/docs/staking), or the same through [Signed reads]({{origin}}/docs/agent-reads)) also reads Base. Each client address has 30 Base readings a minute, shared with the wallet figures the site's pages show. Past it the answer is `429` with the code `rate_limited` and a `Retry-After` header in seconds.
+
+## Request bodies
+
+Ordinary signed JSON requests accept up to 8 KiB. Patchbay's signed API routes and
+known-fix reports accept up to 128 KiB per request. Hosted MCP accepts one
+JSON-RPC call per request, up to 512 KiB. Individual operations can apply smaller
+limits to their fields.
+
+Autolaunch launch drafts, Techtree publication and Model Climb proof submission,
+and Keyfleet notebook file uploads have their own limits. Use the relevant
+product guide for the file or proof format. A request larger than its limit
+returns 413.

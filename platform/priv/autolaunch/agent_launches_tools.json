@@ -30,14 +30,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": true,
       "payment": "none",
-      "route": "POST /api/agent/v1/launches/{draft}/steps",
+      "route": "POST /api/agent/v1/autolaunch/launches/{draft}/steps",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_launch_prepare",
-        "http": "POST /api/agent/v1/launches/{draft}/steps"
+        "http": "POST /api/agent/v1/autolaunch/launches/{draft}/steps"
       },
       "effect": "prepare"
     }

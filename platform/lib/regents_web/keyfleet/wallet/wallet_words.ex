@@ -20,10 +20,16 @@ defmodule RegentsWeb.Keyfleet.WalletWords do
   """
   def line(_flow, nil, _inputs), do: nil
 
-  def line(:issue_shard, %{problem: :shard_wallet_unreadable}, %{"wallet" => typed}) do
-    if String.trim(typed) == "",
-      do: "Paste the agent’s wallet.",
-      else: "That wallet isn’t a full address. #{@address_words}"
+  def line(:issue_shard, %{problem: :shard_wallet_unreadable}, inputs) do
+    case Map.get(inputs, "wallet") do
+      typed when is_binary(typed) ->
+        if String.trim(typed) == "",
+          do: "Paste the agent’s wallet.",
+          else: "That wallet isn’t a full address. #{@address_words}"
+
+      _ ->
+        "Paste the agent’s wallet."
+    end
   end
 
   # A sold-out fleet says so beside its Buy button, so nothing is said above.

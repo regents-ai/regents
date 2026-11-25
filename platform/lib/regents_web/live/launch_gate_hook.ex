@@ -26,7 +26,10 @@ defmodule RegentsWeb.Live.LaunchGateHook do
     :about,
     :docs,
     :docs_page,
-    :docs_subpage
+    :docs_subpage,
+    :cloak,
+    :cloak_install,
+    :siwa
   ]
 
   def on_mount(:default, _params, _session, socket) do
@@ -51,5 +54,7 @@ defmodule RegentsWeb.Live.LaunchGateHook do
   end
 
   defp open?(socket),
-    do: socket.assigns.live_action in @public_pages or LaunchGate.app_surfaces_enabled?()
+    do:
+      LaunchGate.app_surfaces_enabled?() or
+        (socket.view == RegentsWeb.ShellLive and socket.assigns.live_action in @public_pages)
 end

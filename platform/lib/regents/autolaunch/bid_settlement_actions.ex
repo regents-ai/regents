@@ -28,7 +28,7 @@ defmodule Regents.Autolaunch.BidSettlementActions do
   alias Regents.Autolaunch.Chain.{CcaSettlement, Client, Rpc}
   alias Regents.Autolaunch.Stocks.LaunchOperations
 
-  @domain Autolaunch
+  @domain Regents.Autolaunch
   @new_decimals 18
 
   @transient [

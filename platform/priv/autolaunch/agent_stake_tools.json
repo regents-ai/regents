@@ -44,14 +44,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/agent/v1/tokens/{token_id}/stake/steps",
+      "route": "POST /api/agent/v1/autolaunch/tokens/{token_id}/stake/steps",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_stake_prepare",
-        "http": "POST /api/agent/v1/tokens/{token_id}/stake/steps"
+        "http": "POST /api/agent/v1/autolaunch/tokens/{token_id}/stake/steps"
       },
       "effect": "prepare"
     }

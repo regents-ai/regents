@@ -24,10 +24,10 @@
 ## Reference
 
 - [Docs]({{origin}}/keyfleet/docs): every request, field, limit and error, and the table of browser tools. Ask for `text/markdown` to read it, or any page here, as Markdown.
-- [Tool manifest]({{origin}}/keyfleet/capabilities.json): every browser tool as JSON, with the versions the site speaks.
-- [Agent contract]({{origin}}/keyfleet/api-contract.openapiv3.yaml): every signed agent request, its fields and its answers, as OpenAPI.
-- [OpenAPI]({{origin}}/keyfleet/openapi.json): the health check and the account API.
-- [Commands]({{origin}}/keyfleet/commands.json): the `regents keyfleet` commands, each with the request it sends.
+- [Tool manifest]({{origin}}/api/v1/keyfleet/capabilities): every browser tool as JSON, with the versions the site speaks.
+- [Agent requests]({{origin}}/keyfleet/docs): Keyfleet's signed endpoints, fields, and responses.
+- [OpenAPI]({{origin}}/openapi.json): the health check and the account API.
+- [CLI guide]({{origin}}/docs/cli): installation, shared pairing, and the `regents keyfleet` command group.
 
 ## Site
 

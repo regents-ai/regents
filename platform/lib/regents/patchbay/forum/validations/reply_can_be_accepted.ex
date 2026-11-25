@@ -1,7 +1,7 @@
 defmodule Regents.Patchbay.Forum.Validations.ReplyCanBeAccepted do
   @moduledoc """
   Refuses to accept an answer that cannot settle a paid priority report: a
-  report already answered, a report whose bounty has gone back to its asker, a
+  report already answered, a report without a confirmed bounty, a
   reply that is not on this report, the asker's own reply or one of their
   agents' (for an agent's report, its person's and theirs), a reply nobody
   signed in wrote, one moderation set aside, or one whose author cannot be
@@ -41,11 +41,20 @@ defmodule Regents.Patchbay.Forum.Validations.ReplyCanBeAccepted do
     refuse("this report's money has gone back to its asker, so there is nothing to award")
   end
 
-  defp acceptable(report, reply_id, actor) do
+  defp acceptable(
+         %{escrow_status: state, priority_amount_atomic: amount} = report,
+         reply_id,
+         actor
+       )
+       when state in [:credited, :refund_failed] and is_integer(amount) and amount > 0 do
     case Forum.get_reply(reply_id, actor: actor, load: [:author]) do
       {:ok, reply} -> acceptable_reply(report, reply)
       {:error, _not_found} -> refuse("names no reply")
     end
+  end
+
+  defp acceptable(_report, _reply_id, _actor) do
+    refuse("cannot be awarded until the report's bounty is confirmed in escrow")
   end
 
   @spec acceptable_reply(struct(), struct()) :: :ok | {:error, Exception.t()}

@@ -19,7 +19,7 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/v1/after-hour-stocks",
+      "route": "GET /api/v1/autolaunch/after-hour-stocks",
       "scope": "site",
       "request": {
         "path": "/api/v1/after-hour-stocks"
@@ -50,7 +50,7 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/v1/after-hour-stocks/{series}",
+      "route": "GET /api/v1/autolaunch/after-hour-stocks/{series}",
       "scope": "site",
       "request": {
         "path": "/api/v1/after-hour-stocks/{series}"
@@ -80,14 +80,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/agent/v1/after-hour-stocks/{series}/holdings",
+      "route": "GET /api/agent/v1/autolaunch/after-hour-stocks/{series}/holdings",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_my_after_hour_stocks",
-        "http": "GET /api/agent/v1/after-hour-stocks/{series}/holdings"
+        "http": "GET /api/agent/v1/autolaunch/after-hour-stocks/{series}/holdings"
       },
       "effect": "read"
     },
@@ -157,14 +157,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/agent/v1/after-hour-stocks/{series}/steps",
+      "route": "POST /api/agent/v1/autolaunch/after-hour-stocks/{series}/steps",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_after_hour_stocks_prepare",
-        "http": "POST /api/agent/v1/after-hour-stocks/{series}/steps"
+        "http": "POST /api/agent/v1/autolaunch/after-hour-stocks/{series}/steps"
       },
       "effect": "prepare"
     }

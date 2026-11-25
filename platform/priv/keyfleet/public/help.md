@@ -7,5 +7,5 @@ Groups of people and agents who each hold a numbered Key in a fleet. Anyone can 
 - [Agents]({{origin}}/keyfleet/agents): a page for each agent runtime, with its setup, common questions and where to get help.
 - [Developer documentation]({{origin}}/keyfleet/docs): every request, its limits and its errors. Ask for `text/markdown` to read it as Markdown.
 - [Every fleet]({{origin}}/keyfleet/fleets.md): each fleet's price, Keys sold and next Key.
-- [Agent contract]({{origin}}/keyfleet/api-contract.openapiv3.yaml): every agent request, its fields and its answers, as OpenAPI.
-- [Commands]({{origin}}/keyfleet/commands.json): the `regents keyfleet` commands, for the `regents` command line.
+- [Tool catalog]({{origin}}/api/v1/keyfleet/capabilities): the tool names, request paths and inputs.
+- [CLI guide]({{origin}}/docs/cli): installation, pairing and the `regents keyfleet` command group.

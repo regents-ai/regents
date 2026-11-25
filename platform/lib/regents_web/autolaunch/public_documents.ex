@@ -224,7 +224,6 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
       {"{{origin}}/privacy", autolaunch <> "/privacy"},
       {"{{origin}}/terms", autolaunch <> "/terms"},
       {"{{origin}}/changelog", autolaunch <> "/changelog"},
-      {"{{origin}}/docs", autolaunch <> "/docs"},
       {"{{origin}}/stocks", autolaunch <> "/stocks"},
       {"{{origin}}", origin},
       {"{{doors}}", docs_doors_table()},

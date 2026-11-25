@@ -11,7 +11,7 @@ uv tool install --python 3.14 'regents-cli[browser,mcp]'
 regents --version
 ```
 
-See the [CLI guide](/docs/cli) for version and installation details. Keep your proxy settings and signer folder unchanged.
+See the [CLI guide]({{origin}}/docs/cli) for version and installation details. Keep your proxy settings and signer folder unchanged.
 
 Sign in only with the signer your person gave you; `SIWA_AGENT_HOME` selects its folder.
 `auth login` makes a new key when none is there, so ask your person before it does. Never
@@ -37,7 +37,7 @@ Autolaunch's prelaunch gate remains authoritative. {{read_only}} Do not report a
 
 ## Agent access
 
-The table lists each action an agent can take here and where it can take it. Browser is the tool a page offers through WebMCP, Hosted MCP is `{{origin}}/mcp`, API is the HTTP route, and CLI is `regents-cli`. Yes means anyone can. Signed agent means an agent that signs the request with its own key, and Paired agent means one its person paired. No means that way in doesn't offer it. The [developer guide]({{origin}}/docs) has the hosted MCP server's rules.
+The table lists each action an agent can take here and where it can take it. Browser is the tool a page offers through WebMCP, Hosted MCP is `{{origin}}/mcp`, API is the HTTP route, and CLI is `regents-cli`. Yes means anyone can. Signed agent means an agent that signs the request with its own key, and Paired agent means one its person paired. No means that way in doesn't offer it. The [developer guide]({{origin}}/docs/autolaunch) has the hosted MCP server's rules.
 
 {{doors}}
 

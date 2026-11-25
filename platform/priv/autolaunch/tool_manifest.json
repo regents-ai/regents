@@ -408,14 +408,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/agent/v1/drafts/revstake",
+      "route": "GET /api/agent/v1/autolaunch/drafts/revstake",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_revstake_draft",
-        "http": "GET /api/agent/v1/drafts/revstake"
+        "http": "GET /api/agent/v1/autolaunch/drafts/revstake"
       },
       "effect": "read"
     },
@@ -500,14 +500,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": true,
       "payment": "none",
-      "route": "PATCH /api/agent/v1/drafts/revstake",
+      "route": "PATCH /api/agent/v1/autolaunch/drafts/revstake",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_revstake_draft_save",
-        "http": "PATCH /api/agent/v1/drafts/revstake"
+        "http": "PATCH /api/agent/v1/autolaunch/drafts/revstake"
       },
       "effect": "write"
     },
@@ -528,14 +528,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/agent/v1/drafts/memestock",
+      "route": "GET /api/agent/v1/autolaunch/drafts/memestock",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_memestock_draft",
-        "http": "GET /api/agent/v1/drafts/memestock"
+        "http": "GET /api/agent/v1/autolaunch/drafts/memestock"
       },
       "effect": "read"
     },
@@ -618,14 +618,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": true,
       "payment": "none",
-      "route": "PATCH /api/agent/v1/drafts/memestock",
+      "route": "PATCH /api/agent/v1/autolaunch/drafts/memestock",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_memestock_draft_save",
-        "http": "PATCH /api/agent/v1/drafts/memestock"
+        "http": "PATCH /api/agent/v1/autolaunch/drafts/memestock"
       },
       "effect": "write"
     },
@@ -646,14 +646,14 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/agent/v1/positions",
+      "route": "GET /api/agent/v1/autolaunch/positions",
       "scope": "site",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_my_positions",
-        "http": "GET /api/agent/v1/positions"
+        "http": "GET /api/agent/v1/autolaunch/positions"
       },
       "effect": "read"
     },

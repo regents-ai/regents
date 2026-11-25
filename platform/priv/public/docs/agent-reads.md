@@ -9,7 +9,7 @@ Private reads live under `/api/agent/v1` and `/api/v1/account`. Every call needs
 | Request | Returns |
 | --- | --- |
 | `GET /api/agent/v1/account/overview` | Unified cross-product overview (Keyfleet keys, Autolaunch portfolio/auctions, Patchbay posts/offers, Techtree projects, Points, paired agents, and `next_steps`). |
-| `GET /api/agent/v1/account` | The person's account. |
+| `GET /api/agent/v1/account` | The person's account ID, display name and ENS name, plus the pairing ID and signing agent wallet. |
 | `POST /api/agent/v1/claims` | Their historical name claims. |
 | `GET /api/agent/v1/staking/position` | Their stake, as [Staking]({{origin}}/docs/staking) describes. |
 | `GET /api/v1/account/points` | Their Points, as decimal text. |

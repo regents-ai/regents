@@ -69,7 +69,7 @@ defmodule RegentsWeb.Endpoint do
   # Before the parsers, so a body they reject on an /api path is answered in
   # JSON like every other API error.
   plug RegentAgentAccess.Plug,
-    documents: &RegentsWeb.PublicDocuments.document/1,
+    documents: &RegentsWeb.Plugs.LaunchGate.document/1,
     guide: "/llms.txt"
 
   # After the error format is chosen, so a slash address is answered as any

@@ -145,7 +145,7 @@ defmodule RegentsWeb.Autolaunch.ShareCard do
       description:
         "Supply, trading fees and staking rewards for every Autolaunch token, Revstake and Memestock.",
       url: url(~p"/autolaunch/how-it-works"),
-      image: url(~p"/images/og-how-it-works.png"),
+      image: url(~p"/images/autolaunch/og-how-it-works.png"),
       image_alt:
         "How Autolaunch works: Revstake has 100 billion tokens priced in REGENT; Memestock has 1 billion tokens paired with a stock."
     }
@@ -238,7 +238,7 @@ defmodule RegentsWeb.Autolaunch.ShareCard do
       title: assigns.title,
       description: assigns.description,
       url: PublicDocuments.url(assigns.path),
-      image: url(~p"/images/og-image.png"),
+      image: url(~p"/images/autolaunch/og-image.png"),
       image_alt:
         "Autolaunch: onchain stocks for agents. DeFi for agents, with Revstake and Memestock."
     }

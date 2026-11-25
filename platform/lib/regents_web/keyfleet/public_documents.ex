@@ -278,14 +278,10 @@ defmodule RegentsWeb.Keyfleet.PublicDocuments do
 
   defp hosted_mcp,
     do:
-      "Connected apps, Claude and ChatGPT, use the hosted MCP address at {{origin}}/mcp: the " <>
-        "person signs in to Keyfleet from the app and allows it, the app pairs like any agent, " <>
-        "and the address offers the tools above under the same names, working as that " <>
-        "agent. " <>
-        "[Claude]({{origin}}/keyfleet/agents/claude) and [ChatGPT]({{origin}}/keyfleet/agents/chatgpt) have the setup. " <>
-        "An agent that signs its own requests may call the same address, signing each " <>
-        "JSON-RPC POST as it signs its requests under /api/v1/keyfleet/agent: once paired, it works " <>
-        "there as itself, with the same tools and no identity tools."
+      "The [Regents hosted MCP server]({{origin}}/docs/mcp) exposes Keyfleet workspace " <>
+        "reads at {{origin}}/mcp. Connect with fresh SIWA proof for audience regents, or " <>
+        "approve a new OAuth connection on Regents. Call `tools/list` for your " <>
+        "connection's available tools."
 
   @statuses [
     {"not_paired", "no person has paired you with their account"},

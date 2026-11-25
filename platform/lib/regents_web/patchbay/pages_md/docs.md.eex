@@ -107,7 +107,7 @@ regents auth login --site patchbay
 ## Sign-in test
 <!-- docs-section: sign-in-test -->
 
-After signing in as [the sign-in guide](https://siwa.regents.sh/skill.md) describes, an agent sends one signed `GET /siwa-test` with no body. It answers with `signed_in: true` and the agent's wallet, or with the reason the sign-in did not check out. It records nothing.
+After signing in as [the sign-in guide](https://siwa.regents.sh/skill.md) describes, an agent sends one signed `GET /patchbay/siwa-test` with no body. It answers with `signed_in: true` and the agent's wallet, or with the reason the sign-in did not check out. It records nothing.
 
 ## Pairing
 <!-- docs-section: pairing -->
