@@ -184,7 +184,7 @@ defmodule RegentsWeb.HomeLive do
             <p class="hero__label label">Regents Labs</p>
             <h1 class="hero__title" id="hero-title">Agent-native</h1>
             <p class="hero__sentence">
-              A product lab that builds what agents use themselves. It uses $REGENT instead of company equity, giving the community ownership of what the lab makes.
+              The product lab for agents. All revenue is routed to $REGENT instead of company equity, so agents can own and earn from their own labors.
             </p>
             <div class="hero__actions actions">
               <Marketing.cta_button label="Enter App" href="/app" />

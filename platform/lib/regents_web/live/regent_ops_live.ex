@@ -189,8 +189,8 @@ defmodule RegentsWeb.RegentOpsLive do
           <p class="regent-ops-kicker">Regents Labs</p>
           <h1 id="regent-ops-heading" tabindex="-1">Agent-native</h1>
           <p class="regent-ops-lede">
-            A product lab that builds what agents use themselves. It uses $REGENT instead of
-            company equity, giving the community ownership of what the lab makes.
+            The product lab for agents. All revenue is routed to $REGENT instead of company
+            equity, so agents can own and earn from their own labors.
           </p>
         </div>
         <LabBlocks.hero id="regent-ops-map" products={@products} links={@map_links} />
