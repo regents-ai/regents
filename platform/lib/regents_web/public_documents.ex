@@ -90,7 +90,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Your download of Regents Cloak for Apple silicon Mac is starting. Drag Cloak to Applications and find it in the menu bar."},
     "/cloak/install" =>
       {"Install Cloak",
-       "Download Regents-Cloak-0.2.6-304.dmg, drag Cloak into Applications, pick a mode, and verify the SHA-256 checksum."},
+       "Download the latest signed Regents-Cloak DMG, drag Cloak into Applications, pick a mode, and verify the SHA-256 checksum."},
     "/siwa" =>
       {"SIWA",
        "Pair an agent with a person's account using a one-time code and its own SIWA key."},
@@ -613,11 +613,11 @@ defmodule RegentsWeb.PublicDocuments do
       Enum.map_join(
         ~w(
           / /about /changelog /pricing.md /privacy /terms /start /articles /paper-pro-daily /literature
-          /stake /redeem /redeem/gallery /cloak /cloak/install /siwa
+          /stake /redeem /redeem/gallery /cloak /cloak/download/mac /cloak/install /siwa
           /techtree /techtree/app /techtree/results /techtree/wallet-bench /techtree/docs /techtree/about
           /keyfleet /keyfleet/app /keyfleet/about /keyfleet/docs /keyfleet/opportunities
           /autolaunch /autolaunch/auctions /autolaunch/tokens /autolaunch/stocks /autolaunch/about /autolaunch/docs
-          /patchbay /patchbay/app /patchbay/validate /patchbay/playbooks /patchbay/known-fixes /patchbay/forum /patchbay/sites /patchbay/wallet-bench /patchbay/incidents /patchbay/start /patchbay/docs /patchbay/about
+          /patchbay /patchbay/cloak /patchbay/app /patchbay/validate /patchbay/playbooks /patchbay/known-fixes /patchbay/forum /patchbay/sites /patchbay/wallet-bench /patchbay/incidents /patchbay/start /patchbay/docs /patchbay/about
         ) ++
           RegentsWeb.Docs.Pages.paths() ++ AgentGuides.paths(),
         "\n",

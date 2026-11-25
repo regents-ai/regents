@@ -30,10 +30,8 @@ defmodule RegentsWeb.Cloak do
   @film "/images/cloak/intro.mp4"
   @releases_url "https://github.com/regents-ai/cloak/releases"
   @download_page_path "/cloak/download/mac"
-  @download_url "https://github.com/regents-ai/cloak/releases/download/0.2.6-304/Regents-Cloak-0.2.6-304.dmg"
   @source_url "https://github.com/regents-ai/cloak"
   @docs_path "/docs/cloak/reference"
-  @facts "v0.2.6 Beta · Apple silicon · macOS 26+ · Open-source (MIT)"
 
   @menubar_callouts [
     %{
@@ -357,8 +355,8 @@ defmodule RegentsWeb.Cloak do
   @install_heading "Install Cloak"
   @install_steps [
     {"Download",
-     "Get the signed Regents-Cloak-0.2.6-304.dmg from /cloak/download/mac or GitHub Releases."},
-    {"Drag", "Open Regents-Cloak-0.2.6-304.dmg and drag Cloak into Applications."},
+     "Get the signed %{dmg_filename} from /cloak/download/mac or GitHub Releases."},
+    {"Drag", "Open %{dmg_filename} and drag Cloak into Applications."},
     {"Open", "Launch Cloak from Applications. Builds are signed and notarized by Apple."},
     {"Choose",
      "Pick Local (10.21 GB MLX on 16 GB+ Macs) or NEAR AI Gateway (0 GB download on 8 GB+ Macs). Tor modes download the 5.69 GB Qwen 3.5 9B rewriter."},
@@ -367,16 +365,15 @@ defmodule RegentsWeb.Cloak do
   ]
   @updates "Signed Sparkle updates are available on demand or automatically when enabled in Settings."
 
-  # Official release checksums published alongside every signed build in
-  # regents-ai/cloak Releases (`SHA256SUMS.txt` and `checksums.json`). Update
-  # these values whenever a new release is published by `app/publish.sh`.
+  # Fallback release metadata when GitHub Releases has not yet been fetched or
+  # is unreachable. Live metadata is refreshed every 5 minutes from
+  # `https://github.com/regents-ai/cloak/releases/latest/download/checksums.json`
+  # so every future `app/publish.sh` updates the website automatically.
   @release_checksums %{
+    release: "0.2.6",
     tag: "0.2.6-304",
     dmg_filename: "Regents-Cloak-0.2.6-304.dmg",
     dmg_sha256: "e9652c2dfa276c759bf181067ec2a015f38d0ef55f24d415e9a90ebc3d3de215",
-    # Populated on releases published by the updated app/release.sh + app/publish.sh
-    # (e.g. {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)", "..."},
-    # {"Apple Code Signature CDHash", "..."}).
     extra_hashes: [
       {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)",
        "619a7bf4120e0129febb2c3c576b1291a234c194a44baf3b03d0bbbbed3f7b73"},
@@ -395,6 +392,12 @@ defmodule RegentsWeb.Cloak do
        "spctl --assess --type execute -vv \"/Applications/Cloak.app\""}
     ]
   }
+
+  @latest_checksums_url "https://github.com/regents-ai/cloak/releases/latest/download/checksums.json"
+  @latest_release_ttl_ms :timer.minutes(5)
+  @latest_release_throttle_ms :timer.seconds(30)
+  @latest_release_cache_key {__MODULE__, :latest_release}
+  @latest_release_refresh_key {__MODULE__, :latest_release_refresh_at}
 
   @github_api_url "https://api.github.com/repos/regents-ai/cloak"
   @github_stars_ttl_ms :timer.minutes(10)
@@ -494,6 +497,149 @@ defmodule RegentsWeb.Cloak do
     _ -> :error
   end
 
+  def latest_release do
+    now = System.monotonic_time(:millisecond)
+
+    case :persistent_term.get(@latest_release_cache_key, nil) do
+      {release, fetched_at} when is_map(release) and now - fetched_at < @latest_release_ttl_ms ->
+        release
+
+      {release, _fetched_at} when is_map(release) ->
+        refresh_latest_release_async()
+        release
+
+      _ ->
+        refresh_latest_release_async()
+        @release_checksums
+    end
+  end
+
+  def latest_release_fresh? do
+    now = System.monotonic_time(:millisecond)
+
+    case :persistent_term.get(@latest_release_cache_key, nil) do
+      {release, fetched_at} when is_map(release) and now - fetched_at < @latest_release_ttl_ms ->
+        true
+
+      _ ->
+        false
+    end
+  end
+
+  def refresh_latest_release do
+    now = System.monotonic_time(:millisecond)
+    :persistent_term.put(@latest_release_refresh_key, now)
+
+    case fetch_latest_release() do
+      {:ok, release} ->
+        :persistent_term.put(
+          @latest_release_cache_key,
+          {release, System.monotonic_time(:millisecond)}
+        )
+
+        {:ok, release}
+
+      :error ->
+        :error
+    end
+  end
+
+  defp refresh_latest_release_async do
+    now = System.monotonic_time(:millisecond)
+    last_attempt = :persistent_term.get(@latest_release_refresh_key, nil)
+
+    if is_nil(last_attempt) or now - last_attempt >= @latest_release_throttle_ms do
+      :persistent_term.put(@latest_release_refresh_key, now)
+
+      Task.start(fn ->
+        refresh_latest_release()
+      end)
+    end
+
+    :ok
+  end
+
+  defp fetch_latest_release do
+    case Req.get(@latest_checksums_url,
+           headers: [
+             {"user-agent", "regents-sh"},
+             {"accept", "application/json"}
+           ],
+           max_redirects: 5,
+           connect_options: [timeout: 2_000],
+           receive_timeout: 3_000,
+           retry: false
+         ) do
+      {:ok, %{status: 200, body: body}} ->
+        parse_release_checksums(body)
+
+      _ ->
+        :error
+    end
+  rescue
+    _ -> :error
+  end
+
+  defp parse_release_checksums(body) when is_binary(body) do
+    case Jason.decode(body) do
+      {:ok, map} when is_map(map) -> parse_release_checksums(map)
+      _ -> :error
+    end
+  end
+
+  defp parse_release_checksums(%{
+         "tag" => tag,
+         "release" => release,
+         "dmg_filename" => dmg_filename,
+         "dmg_sha256" => dmg_sha256
+       } = map)
+       when is_binary(tag) and tag != "" and
+              is_binary(release) and release != "" and
+              is_binary(dmg_filename) and dmg_filename != "" and
+              is_binary(dmg_sha256) and dmg_sha256 != "" do
+    team_id =
+      case Map.get(map, "team_id") do
+        id when is_binary(id) and id != "" -> id
+        _ -> @release_checksums.team_id
+      end
+
+    extra_hashes =
+      []
+      |> maybe_add_hash(
+        "Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)",
+        Map.get(map, "app_binary_sha256")
+      )
+      |> maybe_add_hash("Apple Code Signature CDHash", Map.get(map, "cdhash"))
+
+    {:ok,
+     %{
+       release: release,
+       tag: tag,
+       dmg_filename: dmg_filename,
+       dmg_sha256: dmg_sha256,
+       extra_hashes: extra_hashes,
+       team_id: team_id,
+       release_url: "https://github.com/regents-ai/cloak/releases/latest",
+       sums_url: "https://github.com/regents-ai/cloak/releases/latest/download/SHA256SUMS.txt",
+       commands: [
+         {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/#{dmg_filename}"},
+         {"Verify app binary SHA-256",
+          "shasum -a 256 \"/Applications/Cloak.app/Contents/MacOS/RegentsCloak\""},
+         {"Verify Apple signature (Team #{team_id})",
+          "codesign -dvv --strict \"/Applications/Cloak.app\""},
+         {"Verify Apple notarization",
+          "spctl --assess --type execute -vv \"/Applications/Cloak.app\""}
+       ]
+     }}
+  end
+
+  defp parse_release_checksums(_), do: :error
+
+  defp maybe_add_hash(list, label, value) when is_binary(value) and value != "",
+    do: list ++ [{label, value}]
+
+  defp maybe_add_hash(list, _label, _value), do: list
+
   def heading, do: @heading
   def subtitle, do: @subtitle
   def hero_compact, do: @hero_compact
@@ -505,7 +651,12 @@ defmodule RegentsWeb.Cloak do
   def film, do: @film
   def releases_url, do: @releases_url
   def download_page_path, do: @download_page_path
-  def download_url, do: @download_url
+
+  def download_url do
+    rel = latest_release()
+    "https://github.com/regents-ai/cloak/releases/download/#{rel.tag}/#{rel.dmg_filename}"
+  end
+
   def source_url, do: @source_url
   def docs_path, do: @docs_path
   def menubar_callouts, do: @menubar_callouts
@@ -515,7 +666,12 @@ defmodule RegentsWeb.Cloak do
   def api_bullets, do: @api_bullets
   def curl_example, do: @curl_example
   def agent, do: @agent
-  def facts, do: @facts
+
+  def facts do
+    rel = latest_release()
+    "v#{rel.release} Beta · Apple silicon · macOS 26+ · Open-source (MIT)"
+  end
+
   def ecosystem_heading, do: @ecosystem_heading
   def ecosystem, do: @ecosystem
   def modes_title, do: @modes_title
@@ -529,9 +685,17 @@ defmodule RegentsWeb.Cloak do
   def agent_docs, do: @agent_docs
   def install_path, do: @install_path
   def install_heading, do: @install_heading
-  def install_steps, do: @install_steps
+
+  def install_steps do
+    dmg = latest_release().dmg_filename
+
+    Enum.map(@install_steps, fn {title, sentence} ->
+      {title, String.replace(sentence, "%{dmg_filename}", dmg)}
+    end)
+  end
+
   def updates, do: @updates
-  def release_checksums, do: @release_checksums
+  def release_checksums, do: latest_release()
 
   @doc "The page as Markdown, what `/cloak` answers when Markdown is asked for."
   def markdown do
@@ -562,6 +726,8 @@ defmodule RegentsWeb.Cloak do
       end)
 
     film = RegentsWeb.Endpoint.static_url() <> RegentsWeb.Endpoint.static_path(@film)
+    checksums = release_checksums()
+    dl_url = download_url()
 
     """
     #{@pill}
@@ -573,7 +739,7 @@ defmodule RegentsWeb.Cloak do
     - Local, offline models just had an upgrade. Your MacBook can run Inkling 2 Mini and it [is better](https://benchlm.ai/compare/gpt-5-vs-inkling-2-mini) than GPT-5.
     - Private cloud LLMs are the safer way to use AI. Cloak aggregates 4 of them. Using it is a hedge against a more-dangerous future: your personal and business info is being tracked and logged, and the future usage of your most important personal information is unknown and historically dangerous for some groups of people.
 
-    - [Download for Mac (Regents-Cloak-0.2.6-304.dmg)](#{@download_url})
+    - [Download for Mac (#{checksums.dmg_filename})](#{dl_url})
     - [#{@watch_label} (#{@watch_time})](#{film})
     - [Install & checksums](#{RegentsWeb.PublicDocuments.url(@install_path)})
     - [View releases](#{@releases_url})
@@ -581,7 +747,7 @@ defmodule RegentsWeb.Cloak do
     - [#{@forum_label}](#{RegentsWeb.PublicDocuments.url(@forum_path)})
     - [View source](#{@source_url})
 
-    #{@facts}
+    #{facts()}
 
     ## #{@ecosystem_heading}
 
@@ -617,9 +783,9 @@ defmodule RegentsWeb.Cloak do
 
     ## Verify your download
 
-    - **Latest published release:** `#{@release_checksums.tag}` ([GitHub Releases](#{@release_checksums.release_url}) · [SHA256SUMS.txt](#{@release_checksums.sums_url}))
-    - **DMG (`#{@release_checksums.dmg_filename}` / `Regents-Cloak.dmg`) SHA-256:** `#{@release_checksums.dmg_sha256}`
-    - **Apple Developer ID Team:** `#{@release_checksums.team_id}`
+    - **Latest published release:** `#{checksums.tag}` ([GitHub Releases](#{checksums.release_url}) · [SHA256SUMS.txt](#{checksums.sums_url}))
+    - **DMG (`#{checksums.dmg_filename}` / `Regents-Cloak.dmg`) SHA-256:** `#{checksums.dmg_sha256}`
+    - **Apple Developer ID Team:** `#{checksums.team_id}`
     - Full macOS verification commands (`shasum`, `codesign`, `spctl`) are listed on [Install & requirements](#{RegentsWeb.PublicDocuments.url(@install_path <> "#verify-your-download")}) and live inside Cloak's **Settings → Status** pane.
 
     ## Needs
@@ -639,7 +805,7 @@ defmodule RegentsWeb.Cloak do
   @doc "The install page as Markdown, what `/cloak/install` answers when Markdown is asked for."
   def install_markdown do
     steps =
-      @install_steps
+      install_steps()
       |> Enum.with_index(1)
       |> Enum.map_join("\n", fn {{title, sentence}, n} -> "#{n}. **#{title}.** #{sentence}" end)
 
@@ -665,7 +831,7 @@ defmodule RegentsWeb.Cloak do
     """
     # #{@install_heading}
 
-    #{@facts}
+    #{facts()}
 
     - [View releases](#{@releases_url})
     - [View source](#{@source_url})
@@ -674,7 +840,7 @@ defmodule RegentsWeb.Cloak do
 
     ## Verify your download
 
-    Compare checksums across three independent places — this page, [GitHub Releases](#{@release_checksums.release_url}), and Cloak's **Settings → Status** pane — using macOS's built-in Terminal tools:
+    Compare checksums across three independent places — this page, [GitHub Releases](#{checksums.release_url}), and Cloak's **Settings → Status** pane — using macOS's built-in Terminal tools:
 
     #{verify_lines}
 

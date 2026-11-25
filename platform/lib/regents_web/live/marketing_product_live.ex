@@ -35,13 +35,21 @@ defmodule RegentsWeb.MarketingProductLive do
         subscribe_status: :idle,
         subscribe_error: nil,
         subscribe_email: "",
-        cloak_github_stars: if(cloak_route?, do: Cloak.github_stars(), else: 0)
+        cloak_github_stars: if(cloak_route?, do: Cloak.github_stars(), else: 0),
+        cloak_release_tag: if(cloak_route?, do: Cloak.latest_release().tag, else: nil)
       )
       |> assign(PublicDocuments.page(path))
 
     socket =
       if cloak_route? and connected?(socket) and not Cloak.github_stars_fresh?() do
         start_async(socket, :cloak_github_stars, fn -> Cloak.refresh_github_stars() end)
+      else
+        socket
+      end
+
+    socket =
+      if cloak_route? and connected?(socket) and not Cloak.latest_release_fresh?() do
+        start_async(socket, :cloak_latest_release, fn -> Cloak.refresh_latest_release() end)
       else
         socket
       end
@@ -54,7 +62,11 @@ defmodule RegentsWeb.MarketingProductLive do
     {:noreply, assign(socket, :cloak_github_stars, count)}
   end
 
-  def handle_async(:cloak_github_stars, _result, socket) do
+  def handle_async(:cloak_latest_release, {:ok, {:ok, release}}, socket) do
+    {:noreply, assign(socket, :cloak_release_tag, release.tag)}
+  end
+
+  def handle_async(_name, _result, socket) do
     {:noreply, socket}
   end
 
@@ -1896,7 +1908,7 @@ defmodule RegentsWeb.MarketingProductLive do
       />
 
       <main id="main" class="product-main cloak-marketing-main">
-        <CloakLive.page />
+        <CloakLive.page release_tag={@cloak_release_tag} />
         <div class="frame cloak-marketing-footer">
           <Marketing.footer current="cloak" huge="Cloak" />
         </div>
@@ -1933,6 +1945,7 @@ defmodule RegentsWeb.MarketingProductLive do
           subscribe_status={@subscribe_status}
           subscribe_error={@subscribe_error}
           subscribe_email={@subscribe_email}
+          release_tag={@cloak_release_tag}
         />
         <div class="frame cloak-marketing-footer">
           <Marketing.footer current="cloak" huge="Cloak" />
@@ -1966,7 +1979,7 @@ defmodule RegentsWeb.MarketingProductLive do
       />
 
       <main id="main" class="product-main cloak-marketing-main">
-        <CloakLive.install />
+        <CloakLive.install release_tag={@cloak_release_tag} />
         <div class="frame cloak-marketing-footer">
           <Marketing.footer current="cloak" huge="Cloak" />
         </div>

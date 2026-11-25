@@ -828,6 +828,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
   attr :subscribe_status, :atom, default: :idle
   attr :subscribe_error, :string, default: nil
   attr :subscribe_email, :string, default: ""
+  attr :release_tag, :string, default: nil
 
   def download(assigns) do
     assigns = assign(assigns, checksums: Cloak.release_checksums())
