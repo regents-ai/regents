@@ -4,7 +4,7 @@ Regents Cloak is a native macOS app (Swift 6.2, Apple silicon, macOS 26 or later
 
 Cloak does not support normal account-based cloud AI. You can run models locally on Apple silicon with zero accounts and zero payment, or step up explicitly to hardware-verified enclaves, local prompt rephrasing, per-conversation Tor routing, and crypto payments.
 
-> **Beta & audit status (`v0.2.3 Beta`):** Cloak is beta software and its privacy protections have not been independently audited yet. Keep wallet balances small, back up or withdraw funds before wiping your Mac, and read [Wallet Security, Failure Modes & 30-Day zkAPI Limit](/docs/cloak/wallets) before transferring or depositing crypto.
+> **Beta & audit status (`v0.2.4 Beta`):** Cloak is beta software and its privacy protections have not been independently audited yet. Keep wallet balances small, back up or withdraw funds before wiping your Mac, and read [Wallet Security, Failure Modes & 30-Day zkAPI Limit](/docs/cloak/wallets) before transferring or depositing crypto.
 
 ## Architecture & Isolation
 
@@ -140,6 +140,10 @@ client.chat.completions.create(
 | **Built-in Pi Agent** in Token Inference | `vsock:8030` → `vsock:8742` | **Boundless / Tempo (`USDC.e`)** | Sealed NIC-less Linux microVM |
 | **Interactive Chat** (Token Inference) | `vsock:8020` | **[Venice AI](https://venice.ai)** or **[Boundless](https://boundless.network) / Tempo** | NIC-less Linux microVM (`cloak-sender`) |
 | **Interactive Chat** (NEAR AI Gateway / Local) | `cloak-near` / local worker | NEAR API key / Free | Native Rust verifier / sandboxed local worker |
+
+**API scope & caveats (`v0.2`):** `CloakDoor` serves `GET /v1/models` and `POST /v1/chat/completions` (OpenAI Chat Completions clients such as Cursor, Cline, Continue, Aider, OpenCode, and T3) with support for `tools`, `tool_choice`, `tool_calls`, `max_completion_tokens`, `reasoning_effort`, inline `data:` images, and buffered `stream: true` SSE (full completion arrives once the turn finishes). Keep two current limits in mind:
+- **zkAPI-only for external Mac apps:** External apps calling `http://127.0.0.1:8742/v1` bill exclusively via **zkAPI Anon Inference** (a funded Boundless or Venice balance does not pay Connected Apps yet).
+- **No `/v1/messages` or `/v1/responses` yet:** Clients speaking Anthropic `POST /v1/messages` (such as Claude Code) or defaulting to OpenAI `POST /v1/responses` will receive `404` unless configured for Chat Completions. Anthropic `/v1/messages` and Token Inference billing for Connected Apps are planned for `v0.3`.
 
 **What `CloakDoor` rewrites:** Only `role == "user"` text parts are locally rephrased. System/developer instructions, tool definitions, tool results (including source code), assistant turns, and accepted image/audio/file parts pass through unchanged. An in-memory Activity log lets you inspect Original vs. Sent user text for the latest 20 requests without writing request contents to disk.
 

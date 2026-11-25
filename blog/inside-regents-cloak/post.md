@@ -1,6 +1,6 @@
 ---
 title: "Inside Regents Cloak v0.2: Choose What Leaves Your Mac"
-description: "A 10-part technical breakdown of Regents Cloak v0.2.3 — Apple Silicon MLX and llama.cpp inference, hardware-attested NEAR TEEs, Tor-routed Boundless and Venice crypto rails, unlinkable zkAPI payments, local prompt rewriting, NIC-less microVM isolation, Pi Agent, CloakDoor, and Darkbloom."
+description: "A 10-part technical breakdown of Regents Cloak v0.2.4 — Apple Silicon MLX and llama.cpp inference, hardware-attested NEAR TEEs, Tor-routed Boundless and Venice crypto rails, unlinkable zkAPI payments, local prompt rewriting, NIC-less microVM isolation, Pi Agent, CloakDoor, and Darkbloom."
 date: "11-25-2026"
 author: "Regents Labs"
 author_x: "https://x.com/regents_sh"
@@ -14,9 +14,9 @@ Most AI apps treat privacy as a policy sentence buried in a footer. Even when a 
 
 Instead, Cloak is an open-source (MIT), native macOS menu bar app (Swift 6.2, Apple Silicon, macOS 26+) built around a simple premise: **choose where an AI conversation runs, see what leaves your Mac, and understand what can link one request to another.** You can start locally on Apple Silicon with zero accounts and zero crypto—and when you need frontier cloud models, autonomous agents, or coding-tool integrations, you step up explicitly to hardware-attested enclaves, local prompt rephrasing, Tor routing, and accountless crypto payments.
 
-*(Status: `v0.2.3 Beta`. Signed, notarized `.dmg` builds are published on [GitHub Releases](https://github.com/regents-ai/cloak/releases). Cloak's privacy protections have not yet been independently audited—keep wallet balances small, back up or withdraw funds before wiping or switching Macs, and read the [Wallet Security & Recovery](https://regents.sh/docs/cloak/wallets) guide.)*
+*(Status: `v0.2.4 Beta`. Signed, notarized `.dmg` builds are published on [GitHub Releases](https://github.com/regents-ai/cloak/releases). Cloak's privacy protections have not yet been independently audited—keep wallet balances small, back up or withdraw funds before wiping or switching Macs, and read the [Wallet Security & Recovery](https://regents.sh/docs/cloak/wallets) guide.)*
 
-Here is the complete 10-part technical breakdown of how **Cloak v0.2.3** actually works under the hood—every engine, sandbox boundary, protocol, and open-source project it stands on.
+Here is the complete 10-part technical breakdown of how **Cloak v0.2.4** actually works under the hood—every engine, sandbox boundary, protocol, and open-source project it stands on.
 
 ---
 
@@ -168,7 +168,7 @@ Everything wraps into a single notarized macOS app built with zero third-party U
 
 ---
 
-## Try Cloak v0.2.3 & Give Feedback
+## Try Cloak v0.2.4 & Give Feedback
 
 **Choose what leaves your Mac.**
 
