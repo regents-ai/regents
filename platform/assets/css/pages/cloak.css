@@ -2529,6 +2529,431 @@
   }
 }
 
+/* ---- Llama-style /cloak/download/mac page ---- */
+
+.cloak-dl {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 56px 0 96px;
+}
+
+.cloak-dl__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  margin-block-end: 44px;
+}
+
+.cloak-dl__head h1 {
+  margin: 0;
+  font-family: var(--cloak-sans);
+  font-size: clamp(2.125rem, 4.5vw, 2.875rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  color: var(--color-fg);
+}
+
+.cloak-dl__sub {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-dl__direct {
+  color: var(--color-fg);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: color-mix(in srgb, var(--color-fg) 45%, transparent);
+}
+
+.cloak-dl__direct:hover {
+  text-decoration-color: var(--color-fg);
+}
+
+.cloak-dl__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cloak-dl__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cloak-dl__card {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 24px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 18px;
+  background: var(--cloak-card-bg);
+}
+
+.cloak-dl__visual {
+  height: 196px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--cloak-card-border);
+}
+
+.cloak-dl__finder {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0a0a0c;
+}
+
+.cloak-dl__finder-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-block-end: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.cloak-dl__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.cloak-dl__dot--red {
+  background: #ff5f57;
+}
+
+.cloak-dl__dot--yellow {
+  background: #febc2e;
+}
+
+.cloak-dl__dot--green {
+  background: #28c840;
+}
+
+.cloak-dl__finder-title {
+  flex: 1;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: rgb(255 255 255 / 0.58);
+}
+
+.cloak-dl__finder-spacer {
+  width: 42px;
+}
+
+.cloak-dl__finder-body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: auto auto auto;
+  place-content: center;
+  place-items: center;
+  column-gap: 26px;
+  row-gap: 8px;
+  padding: 12px 24px;
+}
+
+.cloak-dl__app-icon {
+  display: block;
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.45);
+}
+
+.cloak-dl__arrow {
+  width: 22px;
+  height: 22px;
+  color: #38bdf8;
+}
+
+.cloak-dl__folder {
+  width: 60px;
+  height: 60px;
+  color: #60c5ff;
+  stroke: #38bdf8;
+}
+
+.cloak-dl__finder-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.cloak-dl__desktop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  background:
+    radial-gradient(120% 90% at 80% 0%, rgb(56 139 253 / 0.28), transparent 60%),
+    linear-gradient(160deg, #1b2d4d 0%, #111d33 58%, #0c1424 100%);
+}
+
+.cloak-dl__menubar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 11px;
+  width: 100%;
+  padding: 7px 14px;
+  background: rgb(8 12 20 / 0.52);
+  border-block-end: 1px solid rgb(255 255 255 / 0.08);
+  color: rgb(255 255 255 / 0.88);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.cloak-dl__menubar svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cloak-dl__menu-app {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 18px;
+  border-radius: 5px;
+  background: rgb(255 255 255 / 0.16);
+}
+
+.cloak-dl__menu-app img {
+  display: block;
+  border-radius: 3px;
+}
+
+.cloak-dl__menu-clock {
+  font-variant-numeric: tabular-nums;
+}
+
+.cloak-dl__toast {
+  margin-block-start: 28px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  background: rgb(28 33 43 / 0.86);
+  box-shadow: 0 16px 36px rgb(0 0 0 / 0.42);
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.cloak-dl__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cloak-dl__copy h2 {
+  margin: 0;
+  font-family: var(--cloak-sans);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--color-fg);
+}
+
+.cloak-dl__copy p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--color-fg-muted);
+  text-wrap: pretty;
+}
+
+.cloak-dl__copy code {
+  font-family: var(--cloak-mono);
+  font-size: 0.88em;
+  color: var(--color-fg);
+}
+
+.cloak-dl__loop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px;
+  border: 1px solid color-mix(in srgb, #38bdf8 22%, var(--cloak-card-border));
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #14283e 55%, var(--cloak-card-bg)),
+    var(--cloak-card-bg)
+  );
+}
+
+.cloak-dl__loop-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex: 1 1 300px;
+}
+
+.cloak-dl__mail-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgb(56 189 248 / 0.14);
+  color: #38bdf8;
+}
+
+.cloak-dl__mail-badge svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cloak-dl__loop-info h2 {
+  margin: 0 0 4px;
+  font-family: var(--cloak-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+
+.cloak-dl__loop-info p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-fg-muted);
+}
+
+.cloak-dl__form {
+  display: flex;
+  flex: 1 1 320px;
+  gap: 10px;
+  max-width: 400px;
+}
+
+.cloak-dl__input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.35);
+  color: var(--color-fg);
+  font-family: var(--cloak-sans);
+  font-size: 0.875rem;
+}
+
+.cloak-dl__input::placeholder {
+  color: var(--color-fg-muted);
+}
+
+.cloak-dl__submit {
+  flex: none;
+  height: 42px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-fg);
+  color: var(--color-bg);
+  font-family: var(--cloak-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.cloak-dl__submit:hover {
+  opacity: 0.88;
+}
+
+.cloak-dl__subscribed {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #4ade80;
+}
+
+.cloak-dl__error {
+  width: 100%;
+  margin: -6px 0 0;
+  font-size: 0.8125rem;
+  color: #f87171;
+}
+
+.cloak-dl__verify {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 22px;
+  border: 1px solid var(--cloak-card-border);
+  border-radius: 14px;
+  background: var(--cloak-card-bg);
+}
+
+.cloak-dl__verify-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.cloak-dl__verify-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+
+.cloak-dl__verify-hash {
+  font-family: var(--cloak-mono);
+  font-size: 0.78rem;
+  color: var(--color-fg-muted);
+  word-break: break-all;
+}
+
+.cloak-dl__verify-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cloak-dl__install-link {
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--color-fg);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: color-mix(in srgb, var(--color-fg) 40%, transparent);
+}
+
+.cloak-dl__install-link:hover {
+  text-decoration-color: var(--color-fg);
+}
+
+@media (max-width: 760px) {
+  .cloak-dl {
+    padding: 36px 0 64px;
+  }
+
+  .cloak-dl__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cloak-dl__form {
+    max-width: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cloak-button:active {
     transform: none;

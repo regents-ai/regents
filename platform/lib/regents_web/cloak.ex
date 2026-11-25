@@ -23,7 +23,8 @@ defmodule RegentsWeb.Cloak do
   @forum_path "/patchbay/cloak"
   @film "/images/cloak/intro.mp4"
   @releases_url "https://github.com/regents-ai/cloak/releases"
-  @download_url "https://github.com/regents-ai/cloak/releases/latest/download/Regents-Cloak.dmg"
+  @download_page_path "/cloak/download/mac"
+  @download_url "https://github.com/regents-ai/cloak/releases/download/0.2.0-290/Regents-Cloak-0.2.0-290.dmg"
   @source_url "https://github.com/regents-ai/cloak"
   @docs_path "/docs/cloak/reference"
   @facts "v0.2.0 Beta · Apple silicon · macOS 26+ · Unaudited beta — keep wallet balances small."
@@ -330,8 +331,9 @@ defmodule RegentsWeb.Cloak do
   @install_path "/cloak/install"
   @install_heading "Install Cloak"
   @install_steps [
-    {"Download", "Get the signed Regents-Cloak.dmg from GitHub Releases."},
-    {"Drag", "Open Regents-Cloak.dmg and drag Cloak into Applications."},
+    {"Download",
+     "Get the signed Regents-Cloak-0.2.0-290.dmg from /cloak/download/mac or GitHub Releases."},
+    {"Drag", "Open Regents-Cloak-0.2.0-290.dmg and drag Cloak into Applications."},
     {"Open", "Launch Cloak from Applications. Builds are signed and notarized by Apple."},
     {"Choose",
      "Pick Local (10.21 GB MLX on 16 GB+ Macs) or NEAR AI Gateway (0 GB download on 8 GB+ Macs). Tor modes download the 5.69 GB Qwen 3.5 9B rewriter."},
@@ -359,7 +361,7 @@ defmodule RegentsWeb.Cloak do
     release_url: "https://github.com/regents-ai/cloak/releases/latest",
     sums_url: "https://github.com/regents-ai/cloak/releases/latest/download/SHA256SUMS.txt",
     commands: [
-      {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/Regents-Cloak.dmg"},
+      {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/Regents-Cloak-0.2.0-290.dmg"},
       {"Verify app binary SHA-256",
        "shasum -a 256 \"/Applications/Cloak.app/Contents/MacOS/RegentsCloak\""},
       {"Verify Apple signature (Team 367G3Z7G3J)",
@@ -378,6 +380,7 @@ defmodule RegentsWeb.Cloak do
   def forum_path, do: @forum_path
   def film, do: @film
   def releases_url, do: @releases_url
+  def download_page_path, do: @download_page_path
   def download_url, do: @download_url
   def source_url, do: @source_url
   def docs_path, do: @docs_path

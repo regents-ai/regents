@@ -49,18 +49,16 @@ defmodule RegentsWeb.Cloak.CloakLive do
         </h1>
         <p class="cloak-hero__subtitle">{Cloak.subtitle()}</p>
         <div class="cloak-hero__actions">
-          <a
+          <.link
             id="cloak-download"
             class="cloak-button cloak-button--main"
-            href={Cloak.download_url()}
-            target="_blank"
-            rel="noopener noreferrer"
+            navigate={~p"/cloak/download/mac"}
           >
             <svg viewBox="0 0 170 170" fill="currentColor" aria-hidden="true" focusable="false">
               <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.13-1.9-14.34-6.08-3.69-3.03-7.61-7.82-11.77-14.37-5.03-7.89-9.16-17.02-12.4-27.39-3.24-10.36-4.86-20.38-4.86-30.05 0-11.29 2.84-20.99 8.51-29.09 4.46-6.37 10.32-11.41 17.59-15.13 7.26-3.71 14.95-5.64 23.06-5.78 4.58 0 10.61 1.42 18.11 4.24 7.49 2.83 12.31 4.27 14.44 4.32 1.67 0 6.97-1.69 15.9-5.05 8.43-3.06 15.55-4.32 21.37-3.82 15.79 1.28 27.67 7.51 35.61 18.73-14.12 8.58-21.08 20.57-20.89 35.97.17 12.01 4.53 22 13.06 29.93 5.95 5.66 13.07 9.57 21.37 11.75-1.71 5.14-3.71 10.02-6.01 14.66zM119.22 31.01c0 9.39-3.43 18.16-10.27 26.28-8.26 9.65-18.23 15.22-29.04 14.33-.15-1.15-.23-2.36-.23-3.65 0-9.02 3.92-18.67 10.97-26.64 3.51-4.03 7.97-7.38 13.39-10.05 5.41-2.66 10.52-4.13 15.32-4.39.18 1.43.26 2.82.26 4.12z" />
             </svg>
             <span>Download for Mac</span>
-          </a>
+          </.link>
           <button
             id="cloak-watch"
             class="cloak-button"
@@ -655,29 +653,25 @@ defmodule RegentsWeb.Cloak.CloakLive do
           Open source, signed and notarized, and zero telemetry.
         </p>
         <div class="cloak-closing__actions">
-          <a
-            class="cloak-cta"
-            href={Cloak.download_url()}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <.link class="cloak-cta" navigate={~p"/cloak/download/mac"}>
             <svg viewBox="0 0 170 170" fill="currentColor" aria-hidden="true">
               <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.13-1.9-14.34-6.08-3.69-3.03-7.61-7.82-11.77-14.37-5.03-7.89-9.16-17.02-12.4-27.39-3.24-10.36-4.86-20.38-4.86-30.05 0-11.29 2.84-20.99 8.51-29.09 4.46-6.37 10.32-11.41 17.59-15.13 7.26-3.71 14.95-5.64 23.06-5.78 4.58 0 10.61 1.42 18.11 4.24 7.49 2.83 12.31 4.27 14.44 4.32 1.67 0 6.97-1.69 15.9-5.05 8.43-3.06 15.55-4.32 21.37-3.82 15.79 1.28 27.67 7.51 35.61 18.73-14.12 8.58-21.08 20.57-20.89 35.97.17 12.01 4.53 22 13.06 29.93 5.95 5.66 13.07 9.57 21.37 11.75-1.71 5.14-3.71 10.02-6.01 14.66zM119.22 31.01c0 9.39-3.43 18.16-10.27 26.28-8.26 9.65-18.23 15.22-29.04 14.33-.15-1.15-.23-2.36-.23-3.65 0-9.02 3.92-18.67 10.97-26.64 3.51-4.03 7.97-7.38 13.39-10.05 5.41-2.66 10.52-4.13 15.32-4.39.18 1.43.26 2.82.26 4.12z" />
             </svg>
             <span>Download for Mac</span>
-          </a>
+          </.link>
         </div>
 
         <div class="cloak-closing__pill-row">
           <span class="cloak-closing__or">verify</span>
           <span class="cloak-cmd-pill">
-            <code><span class="cloak-tok-cmd">shasum</span> -a 256 ~/Downloads/Regents-Cloak.dmg</code>
+            <code><span class="cloak-tok-cmd">shasum</span>
+            -a 256 ~/Downloads/{@checksums.dmg_filename}</code>
             <button
               id="cloak-copy-shasum"
               type="button"
               class="cloak-copy-icon"
               phx-hook=".CopyCommand"
-              data-copy="shasum -a 256 ~/Downloads/Regents-Cloak.dmg"
+              data-copy={"shasum -a 256 ~/Downloads/#{@checksums.dmg_filename}"}
               aria-label="Copy shasum command"
             >
               Copy
@@ -737,6 +731,259 @@ defmodule RegentsWeb.Cloak.CloakLive do
         }
       </script>
       <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyCommand">
+        export default {
+          mounted() {
+            this.idle = this.el.textContent
+            this.onClick = () => {
+              const text = this.el.dataset.copy || ""
+              if (!text || !navigator.clipboard) return
+              navigator.clipboard.writeText(text).then(() => {
+                this.el.textContent = "Copied"
+                clearTimeout(this.timer)
+                this.timer = setTimeout(() => {
+                  this.el.textContent = this.idle
+                }, 1600)
+              }).catch(() => {})
+            }
+            this.el.addEventListener("click", this.onClick)
+          },
+          destroyed() {
+            clearTimeout(this.timer)
+            this.el.removeEventListener("click", this.onClick)
+          }
+        }
+      </script>
+    </section>
+    """
+  end
+
+  attr :subscribe_status, :atom, default: :idle
+  attr :subscribe_error, :string, default: nil
+  attr :subscribe_email, :string, default: ""
+
+  def download(assigns) do
+    assigns = assign(assigns, checksums: Cloak.release_checksums())
+
+    ~H"""
+    <section
+      id="cloak-download-mac"
+      class="cloak cloak-dl"
+      aria-labelledby="cloak-dl-heading"
+      phx-hook=".AutoDownload"
+      data-download-url={Cloak.download_url()}
+    >
+      <header class="cloak-dl__head">
+        <h1 id="cloak-dl-heading" tabindex="-1">Your download is starting</h1>
+        <p class="cloak-dl__sub">
+          Didn’t start?
+          <a
+            id="cloak-download-direct"
+            class="cloak-dl__direct"
+            href={Cloak.download_url()}
+          >Download it directly</a>
+        </p>
+      </header>
+
+      <div class="cloak-dl__stack">
+        <section class="cloak-dl__grid" aria-label="Install steps">
+          <article class="cloak-dl__card">
+            <div class="cloak-dl__visual" aria-hidden="true">
+              <div class="cloak-dl__finder">
+                <div class="cloak-dl__finder-bar">
+                  <span class="cloak-dl__dot cloak-dl__dot--red"></span>
+                  <span class="cloak-dl__dot cloak-dl__dot--yellow"></span>
+                  <span class="cloak-dl__dot cloak-dl__dot--green"></span>
+                  <span class="cloak-dl__finder-title">Cloak</span>
+                  <span class="cloak-dl__finder-spacer"></span>
+                </div>
+                <div class="cloak-dl__finder-body">
+                  <img
+                    src={~p"/images/cloak/icon.png"}
+                    width="64"
+                    height="64"
+                    alt=""
+                    class="cloak-dl__app-icon"
+                  />
+                  <svg
+                    class="cloak-dl__arrow"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                  <svg
+                    class="cloak-dl__folder"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    stroke="currentColor"
+                    stroke-width="1"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+                  </svg>
+                  <span class="cloak-dl__finder-label">Cloak</span>
+                  <span></span>
+                  <span class="cloak-dl__finder-label">Applications</span>
+                </div>
+              </div>
+            </div>
+            <div class="cloak-dl__copy">
+              <h2>1. Drag Cloak to Applications</h2>
+              <p>
+                Open <code>{@checksums.dmg_filename}</code>
+                from your Downloads folder, then drag Cloak onto the Applications folder.
+              </p>
+            </div>
+          </article>
+
+          <article class="cloak-dl__card">
+            <div class="cloak-dl__visual" aria-hidden="true">
+              <div class="cloak-dl__desktop">
+                <div class="cloak-dl__menubar">
+                  <span class="cloak-dl__menu-app">
+                    <img src={~p"/images/cloak/icon.png"} width="14" height="14" alt="" />
+                  </span>
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path
+                      d="M2.5 6.2a8 8 0 0 1 11 0M4.8 8.8a4.8 4.8 0 0 1 6.4 0M7.2 11.4a1.3 1.3 0 0 1 1.6 0"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                  <svg viewBox="0 0 20 14" fill="none" stroke="currentColor" stroke-width="1.4">
+                    <rect x="1" y="2.5" width="15" height="9" rx="2" />
+                    <rect
+                      x="3"
+                      y="4.5"
+                      width="10"
+                      height="5"
+                      rx="0.8"
+                      fill="currentColor"
+                      stroke="none"
+                    />
+                    <path d="M18 5.2v3.6" stroke-linecap="round" />
+                  </svg>
+                  <span class="cloak-dl__menu-clock">10:24</span>
+                </div>
+                <div class="cloak-dl__toast">Hello, I’m Cloak</div>
+              </div>
+            </div>
+            <div class="cloak-dl__copy">
+              <h2>2. Find it in the menu bar</h2>
+              <p>
+                Open Cloak from Applications. Click its crown icon in the menu bar to open Chat, start Tor, or switch modes.
+              </p>
+            </div>
+          </article>
+        </section>
+
+        <section class="cloak-dl__loop" aria-labelledby="cloak-dl-loop-heading">
+          <div class="cloak-dl__loop-info">
+            <span class="cloak-dl__mail-badge" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect width="20" height="16" x="2" y="4" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
+            </span>
+            <div>
+              <h2 id="cloak-dl-loop-heading">Stay in the loop</h2>
+              <p>
+                Occasional updates on new releases, models and features. No spam, unsubscribe anytime.
+              </p>
+            </div>
+          </div>
+
+          <%= if @subscribe_status == :subscribed do %>
+            <p class="cloak-dl__subscribed" role="status">
+              You’re on the list — we’ll share major Cloak releases.
+            </p>
+          <% else %>
+            <form class="cloak-dl__form" phx-submit="subscribe_cloak_updates">
+              <label for="cloak-updates-email" class="visually-hidden">Your email address</label>
+              <input
+                id="cloak-updates-email"
+                class="cloak-dl__input"
+                type="email"
+                name="email"
+                value={@subscribe_email}
+                placeholder="Your email address"
+                autocomplete="email"
+                required
+              />
+              <button class="cloak-dl__submit" type="submit">Subscribe</button>
+            </form>
+            <p :if={@subscribe_error} class="cloak-dl__error" role="alert">
+              {@subscribe_error}
+            </p>
+          <% end %>
+        </section>
+
+        <section class="cloak-dl__verify" aria-label="Verify your download">
+          <div class="cloak-dl__verify-row">
+            <span class="cloak-dl__verify-label">Verify SHA-256 ({@checksums.tag})</span>
+            <code class="cloak-dl__verify-hash">{@checksums.dmg_sha256}</code>
+          </div>
+          <div class="cloak-dl__verify-actions">
+            <span class="cloak-cmd-pill">
+              <code><span class="cloak-tok-cmd">shasum</span>
+              -a 256 ~/Downloads/{@checksums.dmg_filename}</code>
+              <button
+                id="cloak-dl-copy-shasum"
+                type="button"
+                class="cloak-copy-icon"
+                phx-hook=".CopyDownloadCommand"
+                data-copy={"shasum -a 256 ~/Downloads/#{@checksums.dmg_filename}"}
+                aria-label="Copy shasum command"
+              >
+                Copy
+              </button>
+            </span>
+            <.link navigate={~p"/cloak/install#verify"} class="cloak-dl__install-link">
+              Full install &amp; verification guide →
+            </.link>
+          </div>
+        </section>
+      </div>
+
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".AutoDownload">
+        export default {
+          mounted() {
+            const url = this.el.dataset.downloadUrl
+            if (!url) return
+            const key = `cloak-auto-dl:${url}`
+            if (window.__cloakAutoDlKey === key) return
+            window.__cloakAutoDlKey = key
+            this.timer = setTimeout(() => {
+              const link = document.createElement("a")
+              link.href = url
+              link.rel = "noopener noreferrer"
+              link.style.display = "none"
+              document.body.appendChild(link)
+              link.click()
+              link.remove()
+            }, 350)
+          },
+          destroyed() {
+            clearTimeout(this.timer)
+            if (window.location.pathname !== "/cloak/download/mac") {
+              delete window.__cloakAutoDlKey
+            }
+          }
+        }
+      </script>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyDownloadCommand">
         export default {
           mounted() {
             this.idle = this.el.textContent

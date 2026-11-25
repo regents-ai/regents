@@ -749,6 +749,7 @@ defmodule RegentsWeb.Router do
 
     live_session :marketing_cloak, session: {RegentsWeb.Live.Session, :render_context, []} do
       live "/cloak", MarketingProductLive, :cloak
+      live "/cloak/download/mac", MarketingProductLive, :cloak_download
       live "/cloak/install", MarketingProductLive, :cloak_install
     end
   end

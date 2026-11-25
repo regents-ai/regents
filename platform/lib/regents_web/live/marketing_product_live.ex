@@ -14,19 +14,61 @@ defmodule RegentsWeb.MarketingProductLive do
   alias RegentsWeb.PublicDocuments
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     product = socket.assigns.live_action
 
     path =
       case product do
+        :cloak_download -> "/cloak/download/mac"
         :cloak_install -> "/cloak/install"
         other -> "/#{other}"
       end
 
     {:ok,
      socket
-     |> assign(product: product, book_call_url: book_call_url())
+     |> assign(
+       product: product,
+       book_call_url: book_call_url(),
+       client_tag: Map.get(session, "client_tag", "anon"),
+       subscribe_status: :idle,
+       subscribe_error: nil,
+       subscribe_email: ""
+     )
      |> assign(PublicDocuments.page(path))}
+  end
+
+  @impl true
+  def handle_event("subscribe_cloak_updates", %{"email" => raw_email}, socket) do
+    email = String.trim(raw_email)
+
+    case Regents.Updates.subscribe_to_updates(
+           %{address: email, source: :cloak},
+           context: %{client_key: socket.assigns.client_tag}
+         ) do
+      {:ok, _subscriber} ->
+        {:noreply,
+         assign(socket,
+           subscribe_status: :subscribed,
+           subscribe_error: nil,
+           subscribe_email: ""
+         )}
+
+      {:error, %Ash.Error.Invalid{errors: [%{message: message} | _]}} when is_binary(message) ->
+        {:noreply,
+         assign(socket,
+           subscribe_status: :idle,
+           subscribe_error: message,
+           subscribe_email: email
+         )}
+
+      {:error, _other} ->
+        {:noreply,
+         assign(socket,
+           subscribe_status: :idle,
+           subscribe_error: "Enter a valid email address and try again.",
+           subscribe_email: email
+         )}
+    end
   end
 
   defp book_call_url do
@@ -1819,19 +1861,50 @@ defmodule RegentsWeb.MarketingProductLive do
       <Marketing.bar
         current="cloak"
         cta_label="Download for Mac"
-        cta_href={Cloak.download_url()}
-        cta_external
+        cta_href={Cloak.download_page_path()}
         cta_brand
       />
       <Marketing.sheet
         cta_label="Download for Mac"
-        cta_href={Cloak.download_url()}
-        cta_external
+        cta_href={Cloak.download_page_path()}
         cta_brand
       />
 
       <main id="main" class="product-main cloak-marketing-main">
         <CloakLive.page />
+        <div class="frame cloak-marketing-footer">
+          <Marketing.footer current="cloak" huge="Cloak" />
+        </div>
+      </main>
+      <div class="visually-hidden" id="announce" role="status"></div>
+    </div>
+    """
+  end
+
+  def render(%{product: :cloak_download} = assigns) do
+    ~H"""
+    <div id="marketing-cloak-download" data-marketing-page phx-hook="MarketingPage">
+      <Marketing.symbols />
+      <a class="skip" href="#main">Skip to content</a>
+
+      <Marketing.bar
+        current="cloak"
+        cta_label="Install & Verify"
+        cta_href={Cloak.install_path()}
+        cta_brand
+      />
+      <Marketing.sheet
+        cta_label="Install & Verify"
+        cta_href={Cloak.install_path()}
+        cta_brand
+      />
+
+      <main id="main" class="product-main cloak-marketing-main">
+        <CloakLive.download
+          subscribe_status={@subscribe_status}
+          subscribe_error={@subscribe_error}
+          subscribe_email={@subscribe_email}
+        />
         <div class="frame cloak-marketing-footer">
           <Marketing.footer current="cloak" huge="Cloak" />
         </div>
@@ -1850,14 +1923,12 @@ defmodule RegentsWeb.MarketingProductLive do
       <Marketing.bar
         current="cloak"
         cta_label="Download for Mac"
-        cta_href={Cloak.download_url()}
-        cta_external
+        cta_href={Cloak.download_page_path()}
         cta_brand
       />
       <Marketing.sheet
         cta_label="Download for Mac"
-        cta_href={Cloak.download_url()}
-        cta_external
+        cta_href={Cloak.download_page_path()}
         cta_brand
       />
 
