@@ -239,7 +239,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
               </div>
               <div class="cloak-app-row">
                 <span class="cloak-app-row__left">
-                  <span class="cloak-app-row__icon" aria-hidden="true">{}</span>
+                  <span class="cloak-app-row__icon" aria-hidden="true">&#123;&#125;</span>
                   <span>Your own code</span>
                 </span>
                 <span class="cloak-app-row__right">Any OpenAI SDK</span>
@@ -418,14 +418,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
             <h3>{card.name}</h3>
             <p>{card.body}</p>
             <p :if={card.credit} class="cloak-mode-card__credit">
-              <%= for part <- card.credit do %>
-                <%= case part do %>
-                  <% {:text, text} -> %>
-                    {text}
-                  <% {:link, label, href} -> %>
-                    <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
-                <% end %>
-              <% end %>
+              <%= for part <- card.credit do %><%= case part do %><% {:text, text} -> %>{text}<% {:link, label, href} -> %><a href={href} target="_blank" rel="noopener noreferrer">{label}</a><% end %><% end %>
             </p>
           </article>
         </div>
@@ -490,7 +483,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
       -H <span class="cloak-tok-str">"Content-Type: application/json"</span> \
       -d <span class="cloak-tok-str">'&#123;</span>
     <span class="cloak-tok-str">    "model": "auto",</span>
-    <span class="cloak-tok-str">    "messages": [&#123;"role": "user", "content": "Review PR #418 for edge cases."&#125;]</span>
+    <span class="cloak-tok-str">    "messages": [&#123;"role": "user", "content": "Review PR #418."&#125;]</span>
     <span class="cloak-tok-str">  &#125;'</span></code></pre>
           </div>
         </div>
@@ -570,9 +563,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
             <h2 id="cloak-verify-heading">Verify your download</h2>
             <p>
               Compare checksums across this page,
-              <a href={@checksums.release_url} target="_blank" rel="noopener noreferrer">
-                GitHub Releases
-              </a>
+              <a href={@checksums.release_url} target="_blank" rel="noopener noreferrer">GitHub Releases</a>
               (<a href={@checksums.sums_url} target="_blank" rel="noopener noreferrer">SHA256SUMS.txt</a>),
               and <strong>Settings → Status</strong>.
             </p>

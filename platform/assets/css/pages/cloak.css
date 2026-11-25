@@ -234,6 +234,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.cloak-button--main .cloak-button__time {
+  color: color-mix(in srgb, var(--color-bg) 68%, transparent);
+}
+
 @media (hover: hover) and (pointer: fine) {
   .cloak-button:hover {
     background: color-mix(in srgb, var(--color-fg) 12%, var(--color-bg));
