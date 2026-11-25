@@ -140,6 +140,82 @@
   margin-block-start: 0;
 }
 
+/* ---- Cloak top-bar GitHub link + live star count (llama.app style) ---- */
+
+.cloak-bar-gh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-block-size: 2rem;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--ink, var(--color-fg)) 20%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ink, var(--color-fg)) 5%, transparent);
+  color: var(--ink, var(--color-fg));
+  font-family: var(--cloak-sans, "Geist", system-ui, sans-serif);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease;
+}
+
+.cloak-bar-gh:hover {
+  border-color: color-mix(in srgb, var(--ink, var(--color-fg)) 36%, transparent);
+  background: color-mix(in srgb, var(--ink, var(--color-fg)) 10%, transparent);
+}
+
+.cloak-bar-gh:focus-visible {
+  outline: 2px solid var(--focus, var(--ink, var(--color-fg)));
+  outline-offset: 2px;
+}
+
+.cloak-bar-gh__octo {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+.cloak-bar-gh__sep {
+  flex: none;
+  width: 1px;
+  height: 13px;
+  background: color-mix(in srgb, var(--ink, var(--color-fg)) 22%, transparent);
+}
+
+.cloak-bar-gh__stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cloak-bar-gh__star {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  opacity: 0.82;
+}
+
+.cloak-bar-gh__count {
+  font-weight: 600;
+}
+
+@media (max-width: 48rem) {
+  .cloak-bar-gh {
+    min-block-size: 2.75rem;
+    padding: 0 10px;
+  }
+
+  .cloak-bar-gh__label,
+  .cloak-bar-gh__sep {
+    display: none;
+  }
+}
+
 /* ---- First screen ---- */
 
 .cloak-hero {

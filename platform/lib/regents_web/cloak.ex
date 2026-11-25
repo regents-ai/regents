@@ -34,7 +34,7 @@ defmodule RegentsWeb.Cloak do
   @download_url "https://github.com/regents-ai/cloak/releases/download/0.2.1-295/Regents-Cloak-0.2.1-295.dmg"
   @source_url "https://github.com/regents-ai/cloak"
   @docs_path "/docs/cloak/reference"
-  @facts "v0.2.1 Beta · Apple silicon · macOS 26+ · Unaudited beta — keep wallet balances small."
+  @facts "v0.2.1 Beta · Apple silicon · macOS 26+ · Open-source (MIT)"
 
   @menubar_callouts [
     %{
@@ -392,6 +392,104 @@ defmodule RegentsWeb.Cloak do
        "spctl --assess --type execute -vv \"/Applications/Cloak.app\""}
     ]
   }
+
+  @github_api_url "https://api.github.com/repos/regents-ai/cloak"
+  @github_stars_ttl_ms :timer.minutes(10)
+  @github_stars_throttle_ms :timer.seconds(30)
+  @github_stars_cache_key {__MODULE__, :github_stars}
+  @github_stars_refresh_key {__MODULE__, :github_stars_refresh_at}
+
+  def github_stars do
+    now = System.monotonic_time(:millisecond)
+
+    case :persistent_term.get(@github_stars_cache_key, nil) do
+      {count, fetched_at} when is_integer(count) and now - fetched_at < @github_stars_ttl_ms ->
+        count
+
+      {count, _fetched_at} when is_integer(count) ->
+        refresh_github_stars_async()
+        count
+
+      _ ->
+        refresh_github_stars_async()
+        0
+    end
+  end
+
+  def github_stars_fresh? do
+    now = System.monotonic_time(:millisecond)
+
+    case :persistent_term.get(@github_stars_cache_key, nil) do
+      {count, fetched_at} when is_integer(count) and now - fetched_at < @github_stars_ttl_ms ->
+        true
+
+      _ ->
+        false
+    end
+  end
+
+  def refresh_github_stars do
+    now = System.monotonic_time(:millisecond)
+    :persistent_term.put(@github_stars_refresh_key, now)
+
+    case fetch_github_stars() do
+      {:ok, count} ->
+        :persistent_term.put(
+          @github_stars_cache_key,
+          {count, System.monotonic_time(:millisecond)}
+        )
+
+        {:ok, count}
+
+      :error ->
+        :error
+    end
+  end
+
+  def format_star_count(count) when is_integer(count) and count >= 1_000 do
+    (count / 1_000)
+    |> :erlang.float_to_binary(decimals: 1)
+    |> String.trim_trailing(".0")
+    |> Kernel.<>("k")
+  end
+
+  def format_star_count(count) when is_integer(count) and count >= 0, do: Integer.to_string(count)
+  def format_star_count(_), do: "0"
+
+  defp refresh_github_stars_async do
+    now = System.monotonic_time(:millisecond)
+    last_attempt = :persistent_term.get(@github_stars_refresh_key, nil)
+
+    if is_nil(last_attempt) or now - last_attempt >= @github_stars_throttle_ms do
+      :persistent_term.put(@github_stars_refresh_key, now)
+
+      Task.start(fn ->
+        refresh_github_stars()
+      end)
+    end
+
+    :ok
+  end
+
+  defp fetch_github_stars do
+    case Req.get(@github_api_url,
+           headers: [
+             {"user-agent", "regents-sh"},
+             {"accept", "application/vnd.github+json"}
+           ],
+           connect_options: [timeout: 2_000],
+           receive_timeout: 3_000,
+           retry: false
+         ) do
+      {:ok, %{status: 200, body: %{"stargazers_count" => count}}} when is_integer(count) ->
+        {:ok, count}
+
+      _ ->
+        :error
+    end
+  rescue
+    _ -> :error
+  end
 
   def heading, do: @heading
   def subtitle, do: @subtitle

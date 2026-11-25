@@ -24,17 +24,38 @@ defmodule RegentsWeb.MarketingProductLive do
         other -> "/#{other}"
       end
 
-    {:ok,
-     socket
-     |> assign(
-       product: product,
-       book_call_url: book_call_url(),
-       client_tag: Map.get(session, "client_tag", "anon"),
-       subscribe_status: :idle,
-       subscribe_error: nil,
-       subscribe_email: ""
-     )
-     |> assign(PublicDocuments.page(path))}
+    cloak_route? = product in [:cloak, :cloak_download, :cloak_install]
+
+    socket =
+      socket
+      |> assign(
+        product: product,
+        book_call_url: book_call_url(),
+        client_tag: Map.get(session, "client_tag", "anon"),
+        subscribe_status: :idle,
+        subscribe_error: nil,
+        subscribe_email: "",
+        cloak_github_stars: if(cloak_route?, do: Cloak.github_stars(), else: 0)
+      )
+      |> assign(PublicDocuments.page(path))
+
+    socket =
+      if cloak_route? and connected?(socket) and not Cloak.github_stars_fresh?() do
+        start_async(socket, :cloak_github_stars, fn -> Cloak.refresh_github_stars() end)
+      else
+        socket
+      end
+
+    {:ok, socket}
+  end
+
+  @impl true
+  def handle_async(:cloak_github_stars, {:ok, {:ok, count}}, socket) do
+    {:noreply, assign(socket, :cloak_github_stars, count)}
+  end
+
+  def handle_async(:cloak_github_stars, _result, socket) do
+    {:noreply, socket}
   end
 
   @impl true
@@ -1863,7 +1884,11 @@ defmodule RegentsWeb.MarketingProductLive do
         cta_label="Download for Mac"
         cta_href={Cloak.download_page_path()}
         cta_brand
-      />
+      >
+        <:actions>
+          <CloakLive.github_stars_link stars={@cloak_github_stars} />
+        </:actions>
+      </Marketing.bar>
       <Marketing.sheet
         cta_label="Download for Mac"
         cta_href={Cloak.download_page_path()}
@@ -1892,7 +1917,11 @@ defmodule RegentsWeb.MarketingProductLive do
         cta_label="Install & Verify"
         cta_href={Cloak.install_path()}
         cta_brand
-      />
+      >
+        <:actions>
+          <CloakLive.github_stars_link stars={@cloak_github_stars} />
+        </:actions>
+      </Marketing.bar>
       <Marketing.sheet
         cta_label="Install & Verify"
         cta_href={Cloak.install_path()}
@@ -1925,7 +1954,11 @@ defmodule RegentsWeb.MarketingProductLive do
         cta_label="Download for Mac"
         cta_href={Cloak.download_page_path()}
         cta_brand
-      />
+      >
+        <:actions>
+          <CloakLive.github_stars_link stars={@cloak_github_stars} />
+        </:actions>
+      </Marketing.bar>
       <Marketing.sheet
         cta_label="Download for Mac"
         cta_href={Cloak.download_page_path()}
