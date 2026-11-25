@@ -1,8 +1,8 @@
 defmodule Regents.Patchbay.Forum.EscrowRevenuePush do
   @moduledoc """
-  Pushes the escrow's accumulated fees to REGENT staking after a bounty settles.
-  The AshOban job stores its transaction hash and releases the fee queue while
-  Base confirms it. Other fee jobs wait for a recorded push before sending.
+  Pushes escrow fees to REGENT staking after a bounty settles. The job
+  records its signed transaction before broadcast and retries those same
+  bytes while the receipt is pending.
   """
 
   use Ash.Resource.ManualUpdate
@@ -10,11 +10,14 @@ defmodule Regents.Patchbay.Forum.EscrowRevenuePush do
   import Ecto.Query, only: [from: 2]
 
   alias AshOban.Errors.SnoozeJob
-  alias Regents.Account.Actors.System
+  alias Regents.Account.Actors.System, as: SystemActor
   alias Regents.Patchbay.{Escrow, Forum}
   alias Regents.Repo
 
   @hash_key "escrow_revenue_tx_hash"
+  @raw_key "escrow_revenue_raw_transaction"
+  @deadline_key "escrow_revenue_receipt_deadline"
+  @receipt_window_seconds 300
   @active_states ~w(available scheduled executing retryable)
 
   @impl true
@@ -27,7 +30,7 @@ defmodule Regents.Patchbay.Forum.EscrowRevenuePush do
   defp payout_landed(%{escrow_status: status} = report) do
     case Escrow.post(report.id) do
       {:ok, %{status: ^status}} -> :ok
-      {:ok, _post} -> snooze()
+      {:ok, _post} -> {:error, :payout_unconfirmed}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -35,65 +38,95 @@ defmodule Regents.Patchbay.Forum.EscrowRevenuePush do
   defp advance(report, job, hash) when is_binary(hash) do
     case Escrow.outcome(hash) do
       {:ok, :succeeded} ->
-        with {:ok, _job} <- remember(job, nil), do: mark_pushed(report)
+        with {:ok, _job} <- forget(job), do: mark_pushed(report)
 
       {:ok, :reverted} ->
-        with {:ok, _job} <- remember(job, nil), do: {:error, :push_reverted}
+        with {:ok, _job} <- forget(job), do: {:error, :push_reverted}
 
-      {:error, _unconfirmed} ->
-        snooze()
-    end
-  end
-
-  defp advance(report, job, nil) do
-    # Queue limits are per runner. The database lock also serializes the
-    # brief send across nodes, until the job has recorded its hash.
-    case Repo.transaction(fn -> push_if_unlocked(report, job) end) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp push_if_unlocked(report, job) do
-    %{rows: [[locked?]]} =
-      Repo.query!("SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))", [
-        "patchbay-escrow-revenue"
-      ])
-
-    if locked? and not another_push?(job), do: push_if_needed(report, job), else: snooze()
-  end
-
-  defp push_if_needed(report, job) do
-    case Escrow.revenue_owed() do
-      {:ok, 0} ->
-        mark_pushed(report)
-
-      {:ok, _kept} ->
-        with {:ok, hash} <- Escrow.push_revenue(),
-             {:ok, _job} <- remember(job, hash),
-             do: snooze()
+      {:error, :not_landed} ->
+        wait_for_push(job)
 
       {:error, reason} ->
         {:error, reason}
     end
   end
 
+  defp advance(report, job, nil) do
+    case Escrow.revenue_owed() do
+      {:ok, 0} -> mark_pushed(report)
+      {:ok, _kept} -> prepare(job)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp prepare(job) do
+    with false <- another_push?(job),
+         {:ok, transaction} <- Escrow.prepare_revenue_push(),
+         {:ok, saved} <- reserve(job, transaction) do
+      broadcast(saved)
+    else
+      true -> snooze()
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp wait_for_push(job) do
+    if job.meta[@deadline_key] && job.meta[@deadline_key] > System.os_time(:second),
+      do: broadcast(job),
+      else: {:error, :push_confirmation_timed_out}
+  end
+
+  # Only the database reservation is locked. Signing, sending and receipt
+  # reads all run outside this transaction.
+  defp reserve(job, transaction) do
+    with {:ok, result} <- Repo.transaction(fn -> reserve_if_unlocked(job, transaction) end),
+         do: result
+  end
+
+  defp reserve_if_unlocked(job, transaction) do
+    %{rows: [[locked?]]} =
+      Repo.query!("SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))", [
+        "patchbay-escrow-revenue"
+      ])
+
+    if locked? and not another_push?(job) do
+      meta =
+        Map.merge(job.meta, %{
+          @hash_key => transaction.hash,
+          @raw_key => transaction.raw,
+          @deadline_key => System.os_time(:second) + @receipt_window_seconds
+        })
+
+      Oban.update_job(job, meta: meta)
+    else
+      snooze()
+    end
+  end
+
   defp another_push?(%Oban.Job{id: job_id, worker: worker}) do
     %{repo: repo, prefix: prefix} = Oban.config()
+    now = System.os_time(:second)
 
     waiting =
       from job in Oban.Job,
         where:
           job.worker == ^worker and job.id != ^job_id and job.state in ^@active_states and
-            fragment("? ->> ? IS NOT NULL", job.meta, ^@hash_key)
+            fragment("(? ->> ?)::bigint > ?", job.meta, ^@deadline_key, ^now)
 
     repo.exists?(waiting, prefix: prefix)
   end
 
-  defp remember(job, nil), do: Oban.update_job(job, meta: Map.delete(job.meta, @hash_key))
-  defp remember(job, hash), do: Oban.update_job(job, meta: Map.put(job.meta, @hash_key, hash))
+  defp broadcast(job) do
+    case Escrow.broadcast_revenue_push(job.meta[@raw_key]) do
+      :ok -> snooze()
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
-  defp mark_pushed(report), do: Forum.record_escrow_revenue_pushed(report, actor: %System{})
+  defp forget(job),
+    do: Oban.update_job(job, meta: Map.drop(job.meta, [@hash_key, @raw_key, @deadline_key]))
+
+  defp mark_pushed(report), do: Forum.record_escrow_revenue_pushed(report, actor: %SystemActor{})
 
   defp snooze, do: {:error, SnoozeJob.exception(snooze_for: 15)}
 end

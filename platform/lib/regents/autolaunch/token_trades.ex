@@ -103,7 +103,7 @@ defmodule Regents.Autolaunch.TokenTrades do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"token_id" => id}}) do
-    perform_token(id)
+    if Regents.ProductActivity.active?(:autolaunch), do: perform_token(id), else: :ok
   end
 
   defp perform_token(id) do

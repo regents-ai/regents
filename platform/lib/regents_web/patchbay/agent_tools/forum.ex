@@ -8,9 +8,17 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
     authorizers: [Ash.Policy.Authorizer]
 
   alias Regents.Patchbay.Forum
+  alias RegentsWeb.Patchbay.ApiError
   alias RegentsWeb.Patchbay.Forum.Readiness
-  alias RegentsWeb.Patchbay.ForumAPI.Reads
+  alias RegentsWeb.Patchbay.ForumAPI.{Reads, ReportController}
   alias RegentsWeb.Patchbay.Help
+
+  defmodule Refused do
+    @moduledoc false
+    use Splode.Error, fields: [:body], class: :invalid
+
+    def message(%{body: %{error: %{message: message}}}), do: message
+  end
 
   actions do
     action :search_threads, :map do
@@ -30,8 +38,13 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
       run fn %{arguments: args}, _context ->
         params = %{"q" => args.query, "offset" => args[:offset] && to_string(args.offset)}
 
-        with {:ok, page} <- Reads.search(params, :free) do
-          {:ok, Map.put(page, :threads, Enum.take(page.results, args.limit || 10))}
+        case Reads.search(params, :free, args.limit || 10) do
+          {:ok, page} ->
+            {threads, page} = Map.pop!(page, :results)
+            {:ok, Map.put(page, :threads, threads)}
+
+          {:error, refusal} ->
+            refused(refusal)
         end
       end
     end
@@ -44,8 +57,9 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
       argument :after, :string
 
       run fn %{arguments: args}, _context ->
-        with {:ok, page} <- Reads.thread(args.id, %{"after" => args[:after]}, :free) do
-          {:ok, Map.merge(Map.take(page.report, [:id, :title, :body, :kind, :url]), page)}
+        case Reads.thread(args.id, %{"after" => args[:after]}, :free, :hosted) do
+          {:ok, page} -> {:ok, page}
+          {:error, refusal} -> refused(refusal)
         end
       end
     end
@@ -74,7 +88,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
              }}
 
           {:error, error} ->
-            {:error, error}
+            refused(error)
         end
       end
     end
@@ -94,4 +108,24 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
       authorize_if actor_attribute_equals(:role, :agent)
     end
   end
+
+  defp refused(reason)
+       when reason in [:not_found, :invalid_cursor, :response_too_large] do
+    {_status, body} = ReportController.refusal(reason)
+    {:error, Refused.exception(body: body)}
+  end
+
+  defp refused({kind, _detail} = refusal) when kind in [:busy, :invalid, :unavailable] do
+    {_status, body} = ReportController.refusal(refusal)
+    {:error, Refused.exception(body: body)}
+  end
+
+  defp refused(_unexpected) do
+    body = ApiError.body("unavailable", "Patchbay could not read this.", "Try again in a moment.")
+    {:error, Refused.exception(body: body)}
+  end
+end
+
+defimpl AshAi.ToToolError, for: RegentsWeb.Patchbay.AgentTools.Forum.Refused do
+  def to_tool_error(%{body: body}), do: Jason.encode!(body)
 end

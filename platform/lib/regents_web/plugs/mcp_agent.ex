@@ -96,7 +96,10 @@ defmodule RegentsWeb.Plugs.McpAgent do
   end
 
   @doc false
-  def address_key(conn), do: ClientAddress.key(conn)
+  def address_key(conn) do
+    {key, _source} = ClientAddress.key(conn)
+    key
+  end
 
   @doc false
   def account(conn), do: conn |> Ash.PlugHelpers.get_actor() |> person()

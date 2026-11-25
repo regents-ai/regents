@@ -182,7 +182,7 @@ defmodule RegentsWeb.Docs do
   end
 
   defp resolve_source({:doc_sections, doc_path, section_ids, opts}) do
-    markdown = resolve_source({:doc, doc_path}) |> strip_trailer()
+    markdown = PublicDocuments.excerpt_source(doc_path) |> strip_trailer()
     {intro, sections} = split_h2_sections(markdown)
     wanted = Enum.map(section_ids, &Map.fetch!(sections, &1))
 

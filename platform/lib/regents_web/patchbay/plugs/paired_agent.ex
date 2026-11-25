@@ -62,7 +62,8 @@ defmodule RegentsWeb.Patchbay.Plugs.PairedAgent do
   def accept(conn, data, context) do
     with {:ok, conn} <- RegentAgents.HTTP.Hooks.accept(conn, data, context),
          %RegentAgents.Agent{wallet: address} <- conn.assigns.regent_agent,
-         true <- data["walletAddress"] == address do
+         "0x" <> _hex = claimed <- data["walletAddress"],
+         true <- String.downcase(claimed) == address do
       attach_verified_wallet(conn, address)
     else
       _ -> refused(:unsupported_principal)

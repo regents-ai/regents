@@ -179,6 +179,15 @@ defmodule RegentsWeb.PublicDocuments do
     end
   end
 
+  @doc false
+  def excerpt_source("/keyfleet/docs"), do: KeyfleetDocuments.docs_source()
+  def excerpt_source("/autolaunch/docs"), do: AutolaunchDocuments.docs_source()
+  def excerpt_source("/patchbay/docs"), do: PatchbayDocuments.docs_source()
+
+  @doc false
+  def strip_excerpt_markers(markdown),
+    do: Regex.replace(~r/^<!-- docs-section: [a-z0-9-]+ -->\n/m, markdown, "")
+
   defp docs_document(page) do
     {title, _description} = RegentsWeb.Docs.heading(page)
     %{title: title, markdown: RegentsWeb.Docs.markdown(page)}

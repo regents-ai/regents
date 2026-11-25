@@ -229,8 +229,7 @@ async function pressCalls(review: Review | undefined, push: Push, leaving: Abort
     })
   } catch (error) {
     if (review && sending && refusedAtomic(error)) {
-      await push("onchain_atomic", {review_id: review.id, atomic: false})
-      await push("step_failed", {step: "calls", reason: "step_unknown"})
+      await push("onchain_atomic", {review_id: review.id, atomic: false, refused: true})
     } else {
       await push("step_failed", {step: "calls", reason: failure(sending, error)})
     }

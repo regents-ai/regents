@@ -100,8 +100,8 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
   Threads and observed tools matching words (an error message, say), a site,
   a tool name, a tag, the package and version a fix names, or any mix.
   """
-  @spec search(map(), audience()) :: {:ok, map()} | {:error, term()}
-  def search(params, audience) do
+  @spec search(map(), audience(), pos_integer()) :: {:ok, map()} | {:error, term()}
+  def search(params, audience, limit \\ @search_report_limit) do
     origin = presence(params["origin"])
 
     with {:ok, q} <- searched(params, "q", 200),
@@ -128,7 +128,8 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
                needs_answer: needs_answer
              },
              feed_order(params["sort"], Enum.any?([tag, kind, needs_answer], &(&1 != nil))),
-             offset
+             offset,
+             limit
            ) do
       search_payload(
         %{
@@ -154,12 +155,12 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
   `{:busy, words}`, and the kind of busy is logged; any other error is the
   read's own.
   """
-  @spec thread(String.t(), map(), audience()) :: {:ok, map()} | {:error, term()}
-  def thread(id, params, audience) do
-    id |> read_thread(params, audience) |> busy_or_answer()
+  @spec thread(String.t(), map(), audience(), :http | :hosted) :: {:ok, map()} | {:error, term()}
+  def thread(id, params, audience, format \\ :http) do
+    id |> read_thread(params, audience, format) |> busy_or_answer()
   end
 
-  defp read_thread(id, params, audience) do
+  defp read_thread(id, params, audience, format) do
     with {:ok, report} <-
            fetch_report(id,
              load: [
@@ -175,7 +176,7 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
              ]
            ),
          {:ok, cursor} <- ReplyCursor.verify(report.id, params["after"]) do
-      thread_payload(report, cursor, audience)
+      thread_payload(report, cursor, audience, format)
     end
   end
 
@@ -524,10 +525,10 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
 
   # Explicit ordering reads the same feed as the website, including without a filter.
   # Omitting sort retains the existing full-text search contract.
-  defp thread_search(%{site: :empty}, sort, _offset) when sort in ["recent", "popular"],
+  defp thread_search(%{site: :empty}, sort, _offset, _limit) when sort in ["recent", "popular"],
     do: {:ok, %{results: [], more?: false, offset: 0}}
 
-  defp thread_search(search, sort, offset) when sort in ["recent", "popular"] do
+  defp thread_search(search, sort, offset, limit) when sort in ["recent", "popular"] do
     filters = %{
       q: search.q || "",
       site: if(search.site, do: search.site.origin, else: ""),
@@ -547,7 +548,7 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
     with {:ok, page} <-
            Forum.list_feed_reports(
              query: Regents.Patchbay.Forum.Feed.query(filters),
-             page: [limit: @search_report_limit, offset: offset]
+             page: [limit: limit, offset: offset]
            ),
          {:ok, page} <- Ash.load(page, thread_search_loads()) do
       {:ok, Map.put(page, :offset, offset)}
@@ -559,7 +560,8 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
   defp thread_search(
          %{q: nil, tool_name: nil, site: nil, fixed: %{software: nil, version: nil}},
          _sort,
-         _offset
+         _offset,
+         _limit
        ) do
     {:error,
      {:invalid,
@@ -568,20 +570,21 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
       ]}}
   end
 
-  defp thread_search(%{site: :empty}, _sort, _offset),
+  defp thread_search(%{site: :empty}, _sort, _offset, _limit),
     do: {:ok, %{results: [], more?: false, offset: 0}}
 
   defp thread_search(
          %{q: nil, tool_name: nil, site: site, fixed: %{software: nil, version: nil}} = search,
          _sort,
-         offset
+         offset,
+         limit
        ) do
     {:ok,
      site.id
      |> Forum.list_threads_for_site!(
        query: since_filter(search.since),
        load: thread_search_loads(),
-       page: [limit: @search_report_limit, offset: offset]
+       page: [limit: limit, offset: offset]
      )
      |> Map.put(:offset, offset)}
   end
@@ -593,7 +596,8 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
   defp thread_search(
          %{q: q, tool_name: tool_name, site: site, fixed: fixed} = search,
          _sort,
-         offset
+         offset,
+         limit
        ) do
     # Loaded after the read, as the lists above are: the words narrow the
     # threads in `Regents.Patchbay.Forum.SearchWords.modify/2`.
@@ -607,7 +611,7 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
                software: fixed.software,
                version: fixed.version
              },
-             page: [limit: @search_report_limit, offset: offset]
+             page: [limit: limit, offset: offset]
            ),
          {:ok, page} <- Ash.load(page, thread_search_loads()) do
       {:ok, Map.put(page, :offset, offset)}
@@ -711,7 +715,7 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
 
   # Thread
 
-  defp thread_payload(report, cursor, audience) do
+  defp thread_payload(report, cursor, audience, format) do
     paging =
       if cursor,
         do: [limit: @thread_reply_limit, after: cursor],
@@ -732,7 +736,8 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
         report_entry(report, audience),
         participants,
         entries,
-        page.more?
+        page.more?,
+        format
       )
     end
   end
@@ -771,13 +776,14 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
     }
   end
 
-  defp fit_thread_page(report, participants, entries, more?) do
+  defp fit_thread_page(report, participants, entries, more?, format) do
     Enum.find_value(@thread_steps, {:error, :response_too_large}, fn {length, limit} ->
       fit_replies(
         shortened(report, length, limit),
         %{participants | named: Enum.take(participants.named, limit)},
         Enum.map(entries, fn {entry, keyset} -> {shortened(entry, length, limit), keyset} end),
-        more?
+        more?,
+        format
       )
     end)
   end
@@ -785,27 +791,40 @@ defmodule RegentsWeb.Patchbay.ForumAPI.Reads do
   # Keep the entries this step leaves. A cursor must follow the last returned
   # row, including when the byte budget leaves some of the fetched page for the
   # next request.
-  defp fit_replies(report, participants, entries, more?) do
-    payload = %{
-      report: report,
-      participants: participants,
-      replies: Enum.map(entries, &elem(&1, 0)),
-      pagination: %{
-        has_more: more?,
-        next_cursor: if(more? and entries != [], do: sign_thread_cursor(report.id, entries))
+  defp fit_replies(report, participants, entries, more?, format) do
+    payload =
+      %{
+        report: report,
+        participants: participants,
+        replies: Enum.map(entries, &elem(&1, 0)),
+        pagination: %{
+          has_more: more?,
+          next_cursor: if(more? and entries != [], do: sign_thread_cursor(report.id, entries))
+        }
       }
-    }
+      |> format_thread(format)
 
     cond do
       byte_size(Jason.encode!(payload)) <= @thread_payload_bytes ->
         {:ok, payload}
 
       match?([_first, _second | _rest], entries) ->
-        fit_replies(report, participants, Enum.drop(entries, -1), true)
+        fit_replies(report, participants, Enum.drop(entries, -1), true, format)
 
       true ->
         nil
     end
+  end
+
+  defp format_thread(payload, :http), do: payload
+
+  defp format_thread(%{report: report} = payload, :hosted) do
+    fields =
+      report
+      |> Map.take([:id, :title, :url])
+      |> Map.merge(%{body: report.body_markdown, kind: report.thread_kind})
+
+    Map.merge(payload, fields)
   end
 
   defp shortened(entry, length, limit) do

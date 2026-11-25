@@ -607,6 +607,27 @@ defmodule RegentsWeb.Docs.Pages do
   @by_path Map.new(@pages, &{&1.path, &1})
   @paths Enum.map(@pages, & &1.path)
 
+  excerpt_sources = %{
+    "/keyfleet/docs" => Application.app_dir(:regents, "priv/keyfleet/public/docs.md"),
+    "/autolaunch/docs" => Application.app_dir(:regents, "priv/autolaunch/public/docs.md"),
+    "/patchbay/docs" => Path.expand("../patchbay/pages_md/docs.md.eex", __DIR__)
+  }
+
+  for {doc_path, file} <- excerpt_sources do
+    @external_resource file
+    markers =
+      Regex.scan(~r/^<!-- docs-section: ([a-z0-9-]+) -->$/m, File.read!(file),
+        capture: :all_but_first
+      )
+
+    ids = List.flatten(markers)
+    if Enum.uniq(ids) != ids, do: raise("Duplicate docs section identifier in #{file}")
+
+    for %{source: {:doc_sections, ^doc_path, wanted, _opts}} <- @pages, id <- wanted do
+      unless id in ids, do: raise("Missing docs section #{id} in #{file}")
+    end
+  end
+
   @product_summaries Enum.map(@products, fn product ->
                        pages = Enum.filter(@pages, &(&1.product == product.id))
 

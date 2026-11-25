@@ -35,7 +35,7 @@ defmodule Regents.Patchbay.Forum.ReleaseAcceptedBounty do
   end
 
   defp ready(%Report{escrow_status: state}) when state in @held, do: :ok
-  defp ready(%Report{escrow_status: :credit_submitted}), do: {:snooze, 30}
+  defp ready(%Report{escrow_status: :credit_submitted}), do: {:error, :credit_unconfirmed}
   defp ready(_report), do: {:cancel, :bounty_not_held}
 
   defp advance(report, %{status: :released}, _wallet),
@@ -53,7 +53,7 @@ defmodule Regents.Patchbay.Forum.ReleaseAcceptedBounty do
     case Escrow.outcome(hash) do
       {:ok, :succeeded} -> record(report, :released, hash)
       {:ok, :reverted} -> record(report, :release_failed, nil)
-      {:error, :not_landed} -> {:snooze, 10}
+      {:error, :not_landed} -> {:error, :release_unconfirmed}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -65,7 +65,7 @@ defmodule Regents.Patchbay.Forum.ReleaseAcceptedBounty do
     end
   end
 
-  defp advance(_report, _post, _wallet), do: {:snooze, 30}
+  defp advance(_report, _post, _wallet), do: {:error, :escrow_unconfirmed}
 
   defp record(report, status, hash) do
     case Ash.transact([Report], fn -> record_current(report, status, hash) end) do

@@ -37,6 +37,16 @@ defmodule RegentsWeb.Autolaunch.OnchainCalls do
   The wallet's answer for the review on the page: `atomic` is whether it can
   send the review's calls together. An answer for another review is dropped.
   """
+  def atomic(
+        %{assigns: %{review: %{id: id}}} = socket,
+        %{"review_id" => id, "atomic" => false, "refused" => true}
+      ) do
+    assign(socket,
+      atomic: nil,
+      press_note: "Your wallet can send these steps one at a time. Continue with the next step."
+    )
+  end
+
   def atomic(%{assigns: %{review: %{id: id}}} = socket, %{"review_id" => id, "atomic" => atomic})
       when is_boolean(atomic),
       do: assign(socket, atomic: if(atomic, do: id))

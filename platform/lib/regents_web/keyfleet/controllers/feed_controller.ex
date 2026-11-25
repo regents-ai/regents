@@ -9,8 +9,8 @@ defmodule RegentsWeb.Keyfleet.FeedController do
     `Last-Event-ID` replays from thirty seconds before that id, up to 100;
     past that, or for an id that is not one of these, `{"kind": "resync"}`
     says to catch up through the ordinary routes. That resync's `id:` is the
-    database's time as the reconnect was read, so the next reconnect replays
-    only what came after it; one sent because a read failed carries none.
+    database's time with a `resume-` prefix. It lets a client that resynced
+    continue without replaying the overflowing window.
   - A comment line, `: keep-alive`, every `keep_alive_ms`, so a proxy never
     closes a quiet feed.
   - One feed per agent: opening another, on any machine, closes this one with
@@ -123,14 +123,17 @@ defmodule RegentsWeb.Keyfleet.FeedController do
 
   defp catch_up(conn, state, nil), do: {:ok, conn, state}
 
-  defp catch_up(conn, state, id) do
-    case Feed.missed(state.feed, id, :now) do
+  defp catch_up(conn, state, "resume-" <> id), do: replay(conn, state, id, :resume)
+  defp catch_up(conn, state, id), do: replay(conn, state, id, :now)
+
+  defp replay(conn, state, id, mode) do
+    case Feed.missed(state.feed, id, mode) do
       {:ok, events, _cursor} ->
         with {:ok, conn} <- send_events(conn, events),
              do: {:ok, conn, %{state | seen: MapSet.new(events, & &1.id)}}
 
       {:resync, now} ->
-        resync(conn, state, ["id: ", now, "\n"])
+        resync(conn, state, ["id: resume-", now, "\n"])
 
       {:error, error} ->
         UnexpectedFailure.log(conn, error)

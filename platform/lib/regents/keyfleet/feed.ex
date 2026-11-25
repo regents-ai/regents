@@ -173,7 +173,8 @@ defmodule Regents.Keyfleet.Feed do
   @doc """
   Reads events up to a moment from the database clock, oldest first.
   A reconnect (`:now`) looks back thirty seconds before `id` to recover
-  late commits. Polling (`:settled`) reads strictly after `id` through the
+  late commits. After a full sync (`:resume`) it reads strictly after the
+  supplied id. Polling (`:settled`) reads strictly after `id` through the
   settled moment, thirty seconds before now. The response includes the id
   of the cutoff. A polling cursor later than the cutoff returns no events.
 
@@ -181,7 +182,7 @@ defmodule Regents.Keyfleet.Feed do
   reconnect gets, or for an id that is no event's: anything but 1 to 20
   digits naming a moment no later than now.
   """
-  @spec missed(t(), String.t(), :now | :settled) ::
+  @spec missed(t(), String.t(), :now | :resume | :settled) ::
           {:ok, [event()], String.t()} | {:resync, String.t()} | {:error, term()}
   def missed(feed, id, upto) do
     with {:ok, now} <- now() do
@@ -212,10 +213,11 @@ defmodule Regents.Keyfleet.Feed do
   end
 
   defp until(now, :now), do: now
+  defp until(now, :resume), do: now
   defp until(now, :settled), do: DateTime.add(now, -@settling_seconds, :second)
 
   defp replay_start(since, :now), do: DateTime.add(since, -@settling_seconds, :second)
-  defp replay_start(since, :settled), do: since
+  defp replay_start(since, _mode), do: since
 
   defp since(id, now) do
     with true <- String.match?(id, ~r/\A[0-9]{1,20}\z/),

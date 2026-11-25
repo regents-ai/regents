@@ -119,11 +119,17 @@ defmodule RegentsWeb.Keyfleet.PublicDocuments do
   def opening, do: @opening
 
   @doc "The page at `path` as `%{markdown: text}`, or nil for every other address."
+  def document("/keyfleet/docs"),
+    do: %{markdown: RegentsWeb.PublicDocuments.strip_excerpt_markers(docs_source())}
+
   def document("/keyfleet/" <> name = path) when path in @reading, do: %{markdown: source(name)}
 
   def document("/keyfleet/agents" = path), do: AgentGuides.document(path)
   def document("/keyfleet/agents/" <> _slug = path), do: AgentGuides.document(path)
   def document(_path), do: nil
+
+  @doc false
+  def docs_source, do: source("docs")
 
   @doc "Every address `document/1` answers."
   def paths, do: @reading ++ AgentGuides.paths()

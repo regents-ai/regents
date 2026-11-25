@@ -8703,3 +8703,5 @@ seasons), on the shared Points library regents.sh was already on.
 - Let Patchbay fee jobs resume from their recorded transaction hashes while Base confirms a push.
 - Enforce Ash authorization for background jobs and scope job access to the actions each worker uses. Count paired agents in the database and bound the overview preview.
 - Update the transitive Hono dependency to 4.13.22 to address the five open npm advisories.
+- Correct hosted Patchbay pagination and error responses, and record fee transactions before broadcasting with a bounded confirmation window.
+- Recover Keyfleet feed cursors after overflow, keep excerpt identifiers out of public Markdown, and clarify when a wallet must send individual steps.

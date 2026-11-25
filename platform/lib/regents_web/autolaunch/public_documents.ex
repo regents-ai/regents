@@ -181,6 +181,9 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
 
   defp same_name?(name, ticker), do: String.downcase(name) == String.downcase(ticker || "")
 
+  @doc false
+  def docs_source, do: interpolate_agent_doc(@sources["docs"])
+
   # About names this site's addresses (`{{origin}}`) and how long a new launch's
   # auction runs and how a new Memestock creator's tokens are released, in
   # words, from the launches' fixed schedules, as the pages say it.
@@ -202,7 +205,7 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
     )
   end
 
-  defp markdown("docs"), do: interpolate_agent_doc(@sources["docs"])
+  defp markdown("docs"), do: RegentsWeb.PublicDocuments.strip_excerpt_markers(docs_source())
   defp markdown("agents"), do: interpolate_agent_doc(@sources["agents"])
 
   defp markdown(name) do

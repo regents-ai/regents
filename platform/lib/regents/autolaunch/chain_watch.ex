@@ -23,9 +23,11 @@ defmodule Regents.Autolaunch.ChainWatch do
   @impl Oban.Worker
   def perform(%Oban.Job{} = job) do
     market =
-      if ProductActivity.cron_allowed?(:autolaunch, job), do: AuctionMarket.jobs(), else: []
+      if ProductActivity.cron_allowed?(:autolaunch, job),
+        do: AuctionMarket.jobs() ++ TokenTrades.jobs(),
+        else: []
 
-    (market ++ Discovery.jobs() ++ AuctionActivity.jobs() ++ TokenTrades.jobs() ++ Sales.jobs())
+    (market ++ Discovery.jobs() ++ AuctionActivity.jobs() ++ Sales.jobs())
     |> Enum.each(&Oban.insert!/1)
 
     :ok
