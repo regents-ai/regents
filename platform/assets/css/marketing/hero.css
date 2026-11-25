@@ -63,14 +63,14 @@
 
 @scope (:root[data-marketing]) {
   .hero {
-    --color-fg: #E5E3D2;
-    --color-fg-muted: #A9A79A;
+    --color-fg: #FFFFFF;
+    --color-fg-muted: #C4C4CC;
     --color-bg: #0B0B0B;
     --color-surface: #141414;
     --rule-strong: #57564F;
-    --btn-fill: #E5E3D2;
-    --btn-on: #161616;
-    --focus: #E5E3D2;
+    --btn-fill: #FFFFFF;
+    --btn-on: #0B0B0B;
+    --focus: #FFFFFF;
 
     position: relative;
     isolation: isolate;
