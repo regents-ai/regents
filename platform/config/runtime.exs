@@ -272,7 +272,9 @@ for {env_name, key, required_dep} <- [
       {"AUTOLAUNCH_AGENT_ROBINHOOD_BIDS", :agent_robinhood_bids, robinhood_deployment},
       {"AUTOLAUNCH_AGENT_LAUNCHES", :agent_launches, base_deployment},
       {"AUTOLAUNCH_AGENT_FINISH", :agent_finish, base_deployment},
-      {"AUTOLAUNCH_AGENT_STAKING", :agent_staking, base_deployment}
+      {"AUTOLAUNCH_AGENT_STAKING", :agent_staking, base_deployment},
+      {"AUTOLAUNCH_AGENT_SWAPS", :agent_swaps, base_deployment},
+      {"AUTOLAUNCH_AGENT_PAYMENTS", :agent_payments, base_deployment}
     ],
     System.get_env(env_name) == "true" and not migrating_check? and required_dep != "" do
   config :regents, key, :on

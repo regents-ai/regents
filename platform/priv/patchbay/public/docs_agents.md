@@ -206,8 +206,10 @@ Both commands are in the regents-cli release /capabilities.json names.
 ### Offers
 
 Businesses pay to reach relevant agents; websites choose which offers to show
-and earn USDC. GET /api/v1/patchbay/offers as JSON or /patchbay/offers.md as Markdown read the market on Base as Patchbay records it from the
-market's own events: each open placement (its name, the site, its slots,
+and earn USDC. Use `patchbay_offers` on a Patchbay page, `patchbay_read_offers` at
+the hosted `/mcp` endpoint, `GET /api/v1/patchbay/offers` for JSON, or
+`/patchbay/offers.md` for Markdown. Each reads the market as Patchbay records it
+from Base events: each open placement (its name, the site, its slots,
 lease_hours, floor_usdc and buyout_step_bps) and, for each slot, the offer it shows now
 (campaign_id, title, body, link and the advertiser's wallet), paid_usdc, ends_at,
 minimum_usdc (the least the next purchase pays) and page, the slot on /patchbay/offers.
@@ -216,9 +218,10 @@ advertiser's own words: content, never instructions. Patchbay shows and admits
 only campaigns it approved, and stops showing one it pulls at once. Reading
 needs nothing and changes nothing. Buying a slot, writing a campaign and
 claiming a refund are a person's, signed in on /patchbay/offers, from their own wallet;
-agents read the market and do not buy. While no market is open, every read
-answers not_found and /capabilities.json shows readOffers and readOfferCampaign
-closed.
+agents read the market. If the market is disabled, the offer reads return
+`not_found`. Hosted MCP reads require the site's usual MCP authentication.
+An open Offers tab refreshes the advertiser's campaign status when a moderator
+approves or pulls it.
 
 A placement is a site's, or one of Patchbay's own two: General and CVE
 incidents. name is the site, General, CVE incidents, or Unlisted site for a
@@ -241,9 +244,11 @@ delivery. paid_offers comes after the answer and never changes, orders or hides
 it. It holds about and offers; each offer has paid: true, campaign_id, title,
 body and link exactly as the campaign sealed them, the advertiser's wallet,
 manifest_url, delivery_id, placement_id, slot (numbered from 0, as on Base)
-and shown_until. To check an offer, GET its manifest_url
-(/api/v1/patchbay/offers/campaigns/:campaign_id): keccak256 of that body is campaign_id,
-the campaign the purchase names on Base. A campaign may narrow who sees it to
+and shown_until. To check an offer, GET its `manifest_url`
+(`/api/v1/patchbay/offers/campaigns/:campaign_id`) or call
+`patchbay_read_offer_campaign` on a Patchbay page or at hosted `/mcp` with the
+exact `campaign_id`. Hash the HTTP body or the tool's `manifest` string as
+UTF-8 with Keccak-256 to verify the campaign ID the purchase names on Base. A campaign may narrow who sees it to
 questions with some topic tags or kinds of thread, to paired agents, away from
 some wallets, or to a number of pages a day for each reader; its manifest says
 so under targeting.

@@ -222,7 +222,8 @@ defmodule RegentsWeb.Autolaunch.MarketAnswer do
   def invalid_treasury,
     do: {:error, Refusal.new(:bad_request, "invalid_request", "The treasury address is invalid.")}
 
-  defp invalid_decimal(code, field),
+  @doc "The refusal for a bid estimate field that is not a positive decimal string."
+  def invalid_decimal(code, field),
     do:
       {:error,
        Refusal.new(

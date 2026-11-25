@@ -37,7 +37,9 @@ defmodule RegentsWeb.Autolaunch.ToolErrors do
   refuse it: nothing is cast.
   """
 
+  alias Regents.Autolaunch.{AgentPayment, AgentSwap}
   alias RegentsWeb.Autolaunch.{AccountAnswer, Refusal}
+  alias RegentsWeb.Autolaunch.AgentTools.{Account, Market}
   alias RegentsWeb.Autolaunch.{ApiError, ExposureAnswer, MarketAnswer}
 
   @doc """
@@ -51,7 +53,7 @@ defmodule RegentsWeb.Autolaunch.ToolErrors do
         _context
       ) do
     with {:ok, input} <- input(arguments),
-         true <- Enum.all?(input, &typed?(&1, taken)),
+         true <- valid_fields?(input, taken, resource, action),
          %{valid?: true} <- Ash.ActionInput.for_action(resource, action, input) do
       {:ok, arguments}
     else
@@ -63,11 +65,25 @@ defmodule RegentsWeb.Autolaunch.ToolErrors do
   defp input(%{} = arguments) when not is_map_key(arguments, "input"), do: {:ok, %{}}
   defp input(_not_an_object), do: :error
 
+  defp valid_fields?(input, arguments, resource, action) do
+    strict? =
+      resource in [
+        Account,
+        AgentSwap,
+        AgentPayment,
+        Market,
+        RegentsWeb.Techtree.AgentTools.Public
+      ] or
+        action == :read_offer_campaign
+
+    Enum.all?(input, &typed?(&1, arguments, strict?))
+  end
+
   # Each value given has the JSON type its argument takes; a name the action does
   # not take is refused by the action itself.
-  defp typed?({name, value}, taken) do
+  defp typed?({name, value}, taken, strict?) do
     case Enum.find(taken, &(Atom.to_string(&1.name) == name)) do
-      nil -> true
+      nil -> not strict?
       %{type: type} -> json_type?(type, value)
     end
   end
@@ -75,14 +91,19 @@ defmodule RegentsWeb.Autolaunch.ToolErrors do
   defp json_type?(Ash.Type.Integer, value), do: is_integer(value)
   defp json_type?(Ash.Type.String, value), do: is_binary(value)
   defp json_type?(Ash.Type.Atom, value), do: is_binary(value)
+  defp json_type?(Ash.Type.UUID, value), do: is_binary(value)
   defp json_type?(Ash.Type.Boolean, value), do: is_boolean(value)
   # Any other type is the action's own cast to refuse.
   defp json_type?(_type, _value), do: true
 
-  # A bid estimate's input is answered as its route answers the same JSON body,
-  # by the route's own code (`MarketAnswer.bid_quote/1`).
-  defp refused(Regents.Autolaunch.Auction, :bid_quote_answer, %{"input" => %{} = input}),
-    do: text(MarketAnswer.bid_quote(input))
+  # Use the same refusal as the quote route without loading an auction.
+  defp refused(Market, :bid_quote_answer, %{"input" => %{"amount" => amount}})
+       when not is_binary(amount),
+       do: text(MarketAnswer.invalid_decimal("invalid_amount", "amount"))
+
+  defp refused(Market, :bid_quote_answer, %{"input" => %{"max_price" => price}})
+       when not is_binary(price),
+       do: text(MarketAnswer.invalid_decimal("invalid_max_price", "max_price"))
 
   defp refused(resource, action, _arguments), do: refused(resource, action)
 
@@ -109,6 +130,12 @@ defmodule RegentsWeb.Autolaunch.ToolErrors do
   defp refused(Regents.Autolaunch.AgentStake, _stake),
     do: Jason.encode!(RegentsWeb.Autolaunch.AgentStakeAnswer.body(:invalid_request))
 
+  defp refused(AgentSwap, :prepare),
+    do: Jason.encode!(RegentsWeb.Autolaunch.AgentSwapAnswer.body(:invalid_request))
+
+  defp refused(AgentPayment, :prepare),
+    do: Jason.encode!(RegentsWeb.Autolaunch.AgentPaymentAnswer.body(:invalid_request))
+
   defp refused(_resource, covered_call)
        when covered_call in [:book_answer, :quote, :positions_answer, :prepare_answer],
        do: Jason.encode!(RegentsWeb.Autolaunch.CoveredCallsAnswer.body(:invalid_request))
@@ -116,10 +143,10 @@ defmodule RegentsWeb.Autolaunch.ToolErrors do
   defp refused(Regents.Autolaunch.Exposure.Series, _exposure),
     do: text(ExposureAnswer.refusal(:invalid_request))
 
-  defp refused(Regents.Autolaunch.TreasurySecurityReport, :treasury_answer),
+  defp refused(Market, :treasury_answer),
     do: text(MarketAnswer.invalid_treasury())
 
-  defp refused(Regents.Autolaunch.AgentAccount, save)
+  defp refused(Account, save)
        when save in [:revstake_draft_save, :memestock_draft_save],
        do: text(AccountAnswer.invalid_draft())
 
@@ -137,6 +164,26 @@ defmodule RegentsWeb.Autolaunch.ToolErrors do
               :points
             ],
        do: text(MarketAnswer.invalid_query())
+
+  defp refused(RegentsWeb.Techtree.AgentTools.Public, action) do
+    Jason.encode!(
+      ApiError.body(
+        "invalid_request",
+        "The Techtree tool received invalid input.",
+        "Use the inputs in the hosted tool schema for #{action}."
+      )
+    )
+  end
+
+  defp refused(_resource, :read_offer_campaign) do
+    Jason.encode!(
+      ApiError.body(
+        "invalid_request",
+        "A campaign ID is required.",
+        "Use the 0x-prefixed lowercase campaign ID from a paid offer."
+      )
+    )
+  end
 
   defp refused(_resource, :pair_identity),
     do: Jason.encode!(%{error: RegentMCPAgents.pairing_input_refusal()})
@@ -199,6 +246,16 @@ end
 defimpl AshAi.ToToolError, for: Regents.Autolaunch.AgentStake.Refused do
   def to_tool_error(%{reason: reason}),
     do: Jason.encode!(RegentsWeb.Autolaunch.AgentStakeAnswer.body(reason))
+end
+
+defimpl AshAi.ToToolError, for: Regents.Autolaunch.AgentSwap.Refused do
+  def to_tool_error(%{reason: reason}),
+    do: Jason.encode!(RegentsWeb.Autolaunch.AgentSwapAnswer.body(reason))
+end
+
+defimpl AshAi.ToToolError, for: Regents.Autolaunch.AgentPayment.Refused do
+  def to_tool_error(%{reason: reason}),
+    do: Jason.encode!(RegentsWeb.Autolaunch.AgentPaymentAnswer.body(reason))
 end
 
 defimpl AshAi.ToToolError, for: Ash.Error.Unknown.UnknownError do

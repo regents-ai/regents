@@ -195,6 +195,12 @@ are up to date.
 > the founder's own named go for each change. `/app/bin/pending-migrations` from the same image lists what it
 > would apply under `shared-pending:`, without applying anything.
 
+Autolaunch's paired-agent swap and revenue-payment preparation are off by default.
+The site operator can expose them independently with `AUTOLAUNCH_AGENT_SWAPS=true`
+and `AUTOLAUNCH_AGENT_PAYMENTS=true` on an open Base deployment. They return unsigned
+wallet steps through signed HTTP and hosted MCP. A person's linked wallet signs and
+sends each step. The server prepares the review without executing the transaction.
+
 The image is built from `Dockerfile` and the Fly configuration lives in `fly.toml`.
 `make deploy` runs `make release` first (the full check, then the image's database commands
 practised on a throwaway database), then `scripts/deploy.sh` deploys only a commit that is on origin/main, and

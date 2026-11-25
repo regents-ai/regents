@@ -108,6 +108,8 @@ WebMCP exposes public reads and signed, paired private operations through the [t
 {{agent_launches}}
 {{agent_finish}}
 {{agent_staking}}
+{{agent_swaps}}
+{{agent_payments}}
 ## Hosted MCP
 <!-- docs-section: hosted-mcp -->
 

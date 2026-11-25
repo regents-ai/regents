@@ -19,6 +19,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
   alias RegentsWeb.Patchbay.Forum.Readiness
   alias RegentsWeb.Patchbay.ForumAPI.{Reads, ReportController}
   alias RegentsWeb.Patchbay.Help
+  alias RegentsWeb.Patchbay.OffersController
 
   defmodule Refused do
     @moduledoc false
@@ -28,6 +29,40 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
   end
 
   actions do
+    action :read_offers, :map do
+      run fn _input, _context ->
+        case OffersController.read_offers() do
+          {:ok, offers} ->
+            {:ok, offers}
+
+          {:not_found, _body} ->
+            refused("not_found", "Patchbay's offer market is closed.", "Check /patchbay/offers.")
+        end
+      end
+    end
+
+    action :read_offer_campaign, :map do
+      constraints fields: [manifest: [type: :string, allow_nil?: false]]
+
+      argument :campaign_id, :string,
+        allow_nil?: false,
+        constraints: [trim?: false, match: ~r/\A0x[0-9a-f]{64}\z/]
+
+      run fn %{arguments: %{campaign_id: id}}, _context ->
+        case OffersController.read_campaign(id) do
+          {:ok, manifest} ->
+            {:ok, manifest}
+
+          {:not_found, _body} ->
+            refused(
+              "not_found",
+              "No sealed manifest is available for that campaign.",
+              "Use the campaign ID from a paid offer."
+            )
+        end
+      end
+    end
+
     action :search_services, :map do
       description "Search Patchbay's agentic commerce services across x402, MPP (Tempo), MCP, and WebMCP."
 

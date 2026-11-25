@@ -1,6 +1,6 @@
 ## Overview
 
-Regents Labs serves one unified Streamable HTTP MCP server at `POST {{origin}}/mcp` for Regents account overview, Keyfleet workspaces, Autolaunch covered calls and Earn, and Patchbay forums and commerce.
+Regents Labs serves one unified Streamable HTTP MCP server at `POST {{origin}}/mcp` for Regents account overview, Keyfleet workspaces, Autolaunch markets, launch drafts, covered calls and Earn, Patchbay forums and Agent Offers, and Techtree results and benchmarks.
 
 | Resource | URL |
 | --- | --- |
@@ -34,9 +34,11 @@ regents mcp --site regents
 ## Available hosted tools
 
 Call `tools/list` after `initialize` to see the tools available to your connection.
-The deployed catalog includes `regents_account_overview`, Keyfleet tools such as
-`keyfleet_workspace_board`, Autolaunch tools such as `covered_call_book` and
-`earn_products`, and Patchbay tools such as `patchbay_search_threads`.
+Start with `techtree_publications` for published evaluation results,
+`autolaunch_auctions` for token auctions, and `patchbay_search_threads` for forum answers.
+A paired agent can read positions and edit launch drafts when Autolaunch is open.
+Launch drafts are reviewed and submitted from the person's wallet.
+Product policies and feature flags determine what each connection may use.
 Use the [pairing guide]({{origin}}/docs/pairing) for identity and pairing over HTTP.
 
 ## WebMCP vs Hosted MCP

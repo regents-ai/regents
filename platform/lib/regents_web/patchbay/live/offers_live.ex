@@ -38,13 +38,24 @@ defmodule RegentsWeb.Patchbay.OffersLive do
     if Offers.enabled?() do
       if connected?(socket) do
         :ok = Phoenix.PubSub.subscribe(Regents.PubSub, Offers.topic())
+
         :timer.send_interval(@tick_ms, :tick)
+      end
+
+      if connected?(socket) and socket.assigns.current_profile do
+        :ok = Phoenix.PubSub.subscribe(Regents.PubSub, Offers.review_topic())
       end
 
       {:ok,
        socket
        |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/offers"))
-       |> assign(enabled?: true, open?: Publisher.open?(), chosen: nil, now: DateTime.utc_now())
+       |> assign(
+         enabled?: true,
+         open?: Publisher.open?(),
+         chosen: nil,
+         written: nil,
+         now: DateTime.utc_now()
+       )
        |> read_board()
        |> read_campaigns()
        |> new_campaign()}
@@ -95,6 +106,14 @@ defmodule RegentsWeb.Patchbay.OffersLive do
   @impl true
   def handle_info(:offers_changed, socket), do: {:noreply, read_board(socket)}
   def handle_info(:tick, socket), do: {:noreply, read_board(socket)}
+
+  def handle_info({:offer_review_changed, campaign_id}, socket) do
+    if Enum.any?(socket.assigns.campaigns, &(&1.campaign_id == campaign_id)) do
+      {:noreply, read_campaigns(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
 
   # A step a panel sent has landed: the market's reader reads Base again soon,
   # and each panel reads its figures again now.
@@ -153,7 +172,7 @@ defmodule RegentsWeb.Patchbay.OffersLive do
     do: choose(socket, %{"placement" => "#{placement_id}", "slot" => "#{slot}"})
 
   defp read_campaigns(%{assigns: %{current_profile: nil}} = socket),
-    do: assign(socket, campaigns: [], written: nil)
+    do: assign(socket, campaigns: [])
 
   # Each campaign with where Patchbay's review stands and how often each of
   # its leases was shown, counted only for the campaign's own account.
@@ -164,10 +183,10 @@ defmodule RegentsWeb.Patchbay.OffersLive do
              load: [:review, leases: [:delivery_count]]
            ) do
         {:ok, list} -> list
-        _error -> []
+        _error -> Map.get(socket.assigns, :campaigns, [])
       end
 
-    assign(socket, campaigns: campaigns, written: nil)
+    assign(socket, campaigns: campaigns)
   end
 
   defp new_campaign(%{assigns: %{current_profile: nil}} = socket),

@@ -148,9 +148,10 @@ config :regents,
     Regents.Keyfleet.Projects,
     Regents.Keyfleet.Usage,
     Regents.Keyfleet.Atlas,
+    RegentsWeb.Autolaunch.AgentTools,
+    RegentsWeb.Techtree.AgentTools,
     RegentsWeb.Keyfleet.AgentTools,
-    RegentsWeb.Patchbay.AgentTools,
-    RegentsWeb.Techtree.AgentTools
+    RegentsWeb.Patchbay.AgentTools
   ],
   generators: [timestamp_type: :utc_datetime]
 

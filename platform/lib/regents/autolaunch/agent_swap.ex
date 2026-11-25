@@ -1,0 +1,217 @@
+defmodule Regents.Autolaunch.AgentSwap do
+  @moduledoc """
+  A paired agent's wallet steps for its person's buy or sell of a launched
+  token, offered only while the site switches them on
+  (`AUTOLAUNCH_AGENT_SWAPS=true`, `enabled?/0`):
+
+    * `:prepare` — one exact-input trade on a token the site lists, reviewed
+      as the token page's swap panel reviews it
+      (`Regents.Autolaunch.SwapActions.review/2`, which the panel's
+      `SwapActions.prepare/3` runs too), on the pool the token trades in, on
+      Base: `buy` spends `amount` of the pool's currency
+      for the token, `sell` spends `amount` of the token for the currency,
+      each with the token approval to Permit2 and the Permit2 allowance to
+      the router first when the wallet lacks them, then the swap
+
+  Both surfaces run the same action: the signed HTTP route (`RegentsWeb.Autolaunch.AgentSwapController`),
+  and the hosted MCP tool. The person must have a verified wallet now, as
+  `autolaunch_my_positions` asks, and the wallet is one of the person's own,
+  `signer` when named, otherwise the wallet they signed in with
+  (`Regents.Autolaunch.CoveredCalls.Signer.verified/1` and `wallet/2`, from one read of
+  the account).
+
+  The token is one the site lists and shows, as its page reads it, known
+  before any chain is read, on a network that is no local test fork, as
+  `Regents.Autolaunch.AgentPayment` asks; the steps are only given for the network
+  the launch ran on. `protection` is the price protection in percent,
+  from 1 to 10, the panel's own starting setting when left out
+  (`SwapActions.default_protection/0`).
+
+  A refusal is an `Regents.Autolaunch.AgentSwap.Refused` holding one of the codes the
+  agent swaps contract documents: the code `code/1` gives for a reason the
+  review, the listing, the wallet or the account names, or `invalid_request`
+  for input the action does not take, which the route and the hosted MCP
+  server refuse before it runs (`RegentsWeb.Autolaunch.AgentSwapAnswer`,
+  `RegentsWeb.Autolaunch.ToolErrors`). Anything else the review returns or raises is
+  logged by kind alone and answered `swap_unavailable`.
+
+  The site only prepares: the wallet's own key signs and sends each step, and
+  nothing is stored.
+  """
+
+  use Ash.Resource,
+    otp_app: :regents,
+    domain: Regents.Autolaunch,
+    authorizers: [Ash.Policy.Authorizer]
+
+  alias Regents.Autolaunch.AgentSwap.Refused
+  alias Regents.Autolaunch.CoveredCalls.Signer
+  alias Regents.Autolaunch.{Lab, SwapActions, Token}
+  alias Regents.Autolaunch.ReadFailure
+
+  # Every reason the review, the token's listing, the wallet and the person's
+  # account name, as the code an agent is answered with. An id naming no token
+  # the site lists and shows names no token here, and one on a local test fork
+  # is swapped for no agent here. An amount the review cannot read, zero,
+  # finer than the side it spends or more than the pool takes at once is not
+  # one to trade. A token whose launch has not graduated has no pool to trade
+  # in yet. A pool that cannot fill the amount now, and a wallet holding less
+  # than it, are the review's own refusals, as on the page. A chain the review
+  # could not read, or whose answer it could not decode, is
+  # `chain_unavailable`; a pool or router the site cannot find or read for a
+  # token it lists, or a deployment on another network than the launch's
+  # (`review_network_mismatch`), is the site's own fault, which the agent
+  # cannot mend: `swap_unavailable`, logged by kind alone.
+  @codes %{
+    authentication_required: :authentication_required,
+    wallet_required: :wallet_required,
+    wrong_signer: :wrong_signer,
+    token_not_listed: :token_not_found,
+    unsupported_chain: :swap_not_offered,
+    amount_required: :invalid_amount,
+    invalid_decimal: :invalid_amount,
+    amount_not_representable: :invalid_amount,
+    amount_too_large: :invalid_amount,
+    protection_out_of_range: :protection_out_of_range,
+    swap_not_open: :swap_not_open,
+    amount_above_balance: :amount_above_balance,
+    quote_unavailable: :quote_unavailable,
+    chain_unavailable: :chain_unavailable,
+    invalid_chain_response: :chain_unavailable
+  }
+
+  # The hosted tool exposes these arguments through its schema.
+  @token_id "The token's id exactly as autolaunch_tokens lists it."
+  @direction "buy to spend the pool's currency on the token, or sell to spend the token for the pool's currency."
+  @amount "How much this wallet spends, as a decimal: of the pool's currency for buy, of the token for sell."
+  @protection "Price protection in percent, a number from 1 to 10: how far below today's quote the trade may settle. Omit it for 6."
+  @signer "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
+
+  # Typed figures reach the review exactly as sent, so its own refusals name
+  # what is wrong with them, as on the page.
+  @typed [allow_empty?: true, trim?: false, max_length: 128]
+
+  @doc "Whether the site offers agent swaps (`AUTOLAUNCH_AGENT_SWAPS=true`, config/runtime.exs)."
+  def enabled?, do: Application.get_env(:regents, :agent_swaps, :off) == :on
+
+  @doc """
+  The code an agent is answered with for `reason`, a reason the review, the
+  token's listing, the wallet or the person's account names. Any other reason,
+  and anything that is not a reason, is `:swap_unavailable`: a read that
+  failed, or one nobody expected.
+  """
+  def code(reason) when is_map_key(@codes, reason), do: Map.fetch!(@codes, reason)
+  def code(_unexpected), do: :swap_unavailable
+
+  actions do
+    action :prepare, :map do
+      description "One buy or sell of a token the site lists, for a wallet of the paired agent's person."
+
+      argument :token_id, :uuid, allow_nil?: false, description: @token_id
+
+      argument :direction, :atom,
+        allow_nil?: false,
+        constraints: [one_of: [:buy, :sell]],
+        description: @direction
+
+      argument :amount, :string, allow_nil?: false, constraints: @typed, description: @amount
+      argument :protection, :string, constraints: @typed, description: @protection
+      argument :signer, :string, constraints: [max_length: 128], description: @signer
+
+      run fn input, %{actor: actor} -> swap_steps(input.arguments, actor) end
+    end
+  end
+
+  defp swap_steps(%{token_id: id, direction: direction, amount: amount} = arguments, actor) do
+    with {:ok, account} <- Signer.verified(actor),
+         {:ok, signer} <- Signer.wallet(account, arguments[:signer]),
+         {:ok, token} <- Token.listed(id),
+         :ok <- offered_here(token.auction),
+         {:ok, reviewed} <-
+           SwapActions.review(
+             %{
+               launch: %{chain: :base, auction: token.auction},
+               direction: direction,
+               amount: amount,
+               protection: arguments[:protection] || SwapActions.default_protection()
+             },
+             signer
+           ),
+         :ok <- launch_network(reviewed.chain, token.auction) do
+      {:ok,
+       %{
+         direction: Atom.to_string(direction),
+         signer: signer,
+         token: %{id: token.id, address: reviewed.context.token},
+         chain: reviewed.chain,
+         block: reviewed.block,
+         expires_at: DateTime.from_unix!(reviewed.expires_at),
+         steps: reviewed.steps,
+         facts: facts(reviewed.facts)
+       }}
+    end
+    |> refused()
+  rescue
+    failure -> refused({:error, failure})
+  end
+
+  defp offered_here(%{chain_id: 8453}) do
+    if Lab.chain_id() == 8453, do: :ok, else: {:error, :unsupported_chain}
+  end
+
+  defp offered_here(_auction), do: {:error, :unsupported_chain}
+
+  # The steps are sent on the deployment's network, so they are given only when
+  # that is the launch's own, as a payment's are
+  # (`Regents.Autolaunch.SubjectWalletActions`).
+  defp launch_network(%{chain_id: chain_id}, %{chain_id: chain_id}), do: :ok
+  defp launch_network(_chain, _auction), do: {:error, :review_network_mismatch}
+
+  # The figures the panel shows beside the steps: what the wallet pays, what
+  # today's quote says it receives, the least the trade accepts, the price
+  # protection applied and the fees already inside the quote.
+  defp facts(facts) do
+    %{
+      pay: %{amount: facts.pay, symbol: facts.sell_symbol},
+      receive: %{amount: facts.receive, symbol: facts.buy_symbol},
+      minimum: %{amount: facts.minimum, symbol: facts.buy_symbol},
+      protection: facts.protection,
+      fees: facts.fees
+    }
+  end
+
+  # A refusal holds the code of the reason it names (`code/1`), which Ash would
+  # otherwise turn into text (`RegentsWeb.Autolaunch.AgentSwapAnswer`). The review
+  # names its reasons inside Ash's own unavailable error; the listing's failed
+  # read is Ash's own error. One nobody named, or a raise, which the function's
+  # rescue catches (Ash raises a raise in an action's `run` again rather than
+  # returning it, so the route would crash), is logged by kind alone
+  # (`Regents.Autolaunch.ReadFailure`) and answered `swap_unavailable`.
+  defp refused({:ok, _answer} = answered), do: answered
+
+  defp refused({:error, %Ash.Error.Invalid.Unavailable{reason: reason}}),
+    do: refused({:error, reason})
+
+  defp refused({:error, reason}) do
+    code = code(reason)
+    if code == :swap_unavailable, do: ReadFailure.log("agent swap", reason)
+    {:error, Refused.exception(reason: code)}
+  end
+
+  policies do
+    # Only a paired agent, for the person it acts for, and only while the site
+    # offers agent swaps: off, the hosted MCP server neither lists nor runs the
+    # tool and the HTTP route is unavailable.
+    policy always() do
+      forbid_unless {Regents.Autolaunch.Checks.Offered, feature: __MODULE__}
+      forbid_unless actor_attribute_equals(:role, :agent)
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
+    end
+
+    # Wallet steps wait for the site to leave prelaunch read-only mode, as the
+    # HTTP route does (`RegentsWeb.Autolaunch.Prelaunch`).
+    policy always() do
+      authorize_if Regents.Autolaunch.CoveredCalls.Checks.LaunchesOpen
+    end
+  end
+end

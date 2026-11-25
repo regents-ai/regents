@@ -339,6 +339,22 @@ defmodule RegentsWeb.Router do
     plug RegentsWeb.Autolaunch.Prelaunch
   end
 
+  pipeline :autolaunch_agent_swaps do
+    plug :admit_autolaunch_feature, Regents.Autolaunch.AgentSwap
+  end
+
+  pipeline :autolaunch_agent_payments do
+    plug :admit_autolaunch_feature, Regents.Autolaunch.AgentPayment
+  end
+
+  defp admit_autolaunch_feature(conn, feature) do
+    if feature.enabled?() do
+      conn
+    else
+      raise Phoenix.Router.NoRouteError, conn: conn, router: __MODULE__
+    end
+  end
+
   # ContentSecurityPolicy builds this policy, as it does for the browser pipeline.
   # sobelow_skip ["Config.CSP"]
   pipeline :autolaunch do
@@ -704,8 +720,8 @@ defmodule RegentsWeb.Router do
   end
 
   # Unified hosted MCP server at `/mcp`, spanning Regents identity tools,
-  # Techtree public catalog/results/bench/train tools, Keyfleet workspace tools,
-  # Autolaunch covered calls & Earn tools, and Patchbay forum tools.
+  # Keyfleet workspaces, Autolaunch markets and wallet reviews, Patchbay forums
+  # and Agent Offers, and Techtree results and benchmarks.
   scope "/" do
     pipe_through :mcp
 
@@ -1243,6 +1259,16 @@ defmodule RegentsWeb.Router do
     post "/launches/:draft/steps", AgentLaunchController, :prepare
     post "/auctions/:auction_id/finish/steps", AgentFinishController, :prepare
     post "/tokens/:token_id/stake/steps", AgentStakeController, :prepare
+  end
+
+  scope "/api/agent/v1/autolaunch", RegentsWeb.Autolaunch do
+    pipe_through [:autolaunch_agent_swaps, :api, :autolaunch_prelaunch, :paired_agent]
+    post "/tokens/:token_id/swap/steps", AgentSwapController, :prepare
+  end
+
+  scope "/api/agent/v1/autolaunch", RegentsWeb.Autolaunch do
+    pipe_through [:autolaunch_agent_payments, :api, :autolaunch_prelaunch, :paired_agent]
+    post "/tokens/:token_id/payment/steps", AgentPaymentController, :prepare
   end
 
   scope "/autolaunch", RegentsWeb do

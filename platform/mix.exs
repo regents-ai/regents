@@ -222,7 +222,9 @@ defmodule Regents.MixProject do
         # Patchbay.AgentTools->Forum, and McpAgent->ClientAddress).
         # Patchbay's internal writes check the system actor on Report and Reply.
         # The Endpoint passes the launch-gated Markdown lookup to RegentAgentAccess.
-        "xref graph --label compile-connected --fail-above 318",
+        # Hosted product tools add seven intentional links: three tool domain-to-resource
+        # links, two Autolaunch domain-to-preparer links and each preparer's launch check.
+        "xref graph --label compile-connected --fail-above 325",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

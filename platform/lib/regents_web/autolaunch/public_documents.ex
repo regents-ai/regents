@@ -266,7 +266,40 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
       {"{{agent_robinhood_bids}}", ""},
       {"{{agent_launches}}", ""},
       {"{{agent_finish}}", ""},
-      {"{{agent_staking}}", ""}
+      {"{{agent_staking}}", ""},
+      {"{{agent_swaps}}",
+       docs_optional_section(
+         not read_only? and Regents.Autolaunch.AgentSwap.enabled?(),
+         """
+         ### Prepare a Base swap
+
+         A paired agent can use `prepare_swap` over hosted MCP or
+         `POST /api/agent/v1/autolaunch/tokens/{token_id}/swap/steps` with signed headers.
+         Use the listed token's UUID and send `direction` (`buy` or `sell`) and `amount` as text.
+         In MCP, put all fields under `input`, including `token_id`.
+         The optional `protection` text gives the maximum percentage below the quote, from 1 to 10, with 6 as the default.
+         `signer` can select one of the person's verified account's linked wallets.
+         With no signer, the tool uses the account's signed-in wallet.
+         Review the chain, amounts, minimum output, fees and expiry before signing each returned step in that wallet.
+         """
+       )},
+      {"{{agent_payments}}",
+       docs_optional_section(
+         not read_only? and Regents.Autolaunch.AgentPayment.enabled?(),
+         """
+         ### Prepare a Base revenue payment
+
+         A paired agent can use `prepare_payment` over hosted MCP or
+         `POST /api/agent/v1/autolaunch/tokens/{token_id}/payment/steps` with signed headers.
+         Use a listed Revstake token's UUID. Send `kind` as `pay` or `sweep` and
+         `asset` as `usdc`, `regent` or `token`. Send the decimal `amount` as text for `pay`.
+         A sweep takes no amount and routes the balance already at the payment address.
+         In MCP, put all fields under `input`, including `token_id`.
+         `signer` can select one of the person's verified account's linked wallets.
+         With no signer, the tool uses the account's signed-in wallet.
+         The review names the receiver and split. The wallet signs and sends each step.
+         """
+       )}
     ]
 
     Enum.reduce(replacements, source, fn {mark, words}, text ->

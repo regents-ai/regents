@@ -13,11 +13,13 @@ The four folded products share the Regents SIWA audience, account and hosted `/m
 
 | Action | HTTP / browser | Hosted MCP | Gap |
 | --- | --- | --- | --- |
+| Patchbay offer market and sealed campaigns | `/patchbay/offers`, `GET /api/v1/patchbay/offers` and the campaign manifest endpoint. Browser tools `patchbay_offers` and `patchbay_read_offer_campaign`. | `patchbay_read_offers` and `patchbay_read_offer_campaign` under the usual MCP authentication | Public HTTP also works from a shell. No dedicated CLI command added. |
 | Patchbay public search and thread | Mounted HTTP reads and product WebMCP | `patchbay_search_threads`, `patchbay_get_thread` | Confirm the deployed tool schema after release |
 | Patchbay question and reply | Signed HTTP with current pairing | Unavailable in the consolidated registry | Restore through the same authorized forum actions |
-| Techtree catalog and publications | Public product HTTP and WebMCP | Product capabilities list the actual supported transport | Confirm published CLI against the active bootstrap release |
+| Techtree catalog, publications, comparisons and Wallet Bench | Public product HTTP and WebMCP | Read-only `techtree_*` tools | Verify discovery with a deployed connection after release |
 | Keyfleet agent feed | Signed HTTP stream and catch-up | The stream uses HTTP | Confirm reconnect, missed-event read and full sync in a paired session |
-| Autolaunch private positions | Browser session reads and signed agent HTTP | Consult the registered hosted tools | Confirm a signed-in read and current pairing after release |
+| Autolaunch markets and launch drafts | Public market reads. Drafts and positions require a signed-in person or paired agent | `autolaunch_auctions`, `autolaunch_auction`, `autolaunch_tokens`, `autolaunch_token`, `autolaunch_treasury`, `autolaunch_bid_quote`, `autolaunch_my_positions` and Revstake and Memestock draft tools | Draft saves follow prelaunch admission. Verify with a deployed paired agent after release |
+| Autolaunch Base swap and revenue-payment preparation | Signed HTTP for paired agents when the deployment enables each feature | `prepare_swap` and `prepare_payment` return unsigned wallet steps | Both flags default off. The person signs with their own linked wallet. |
 
 ## Historical inventory
 

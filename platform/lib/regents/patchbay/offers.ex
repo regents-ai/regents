@@ -175,4 +175,8 @@ defmodule Regents.Patchbay.Offers do
   @doc "The PubSub topic a page hears on when the market's record changes."
   @spec topic() :: String.t()
   def topic, do: "offers"
+
+  @doc "The PubSub topic for campaign review changes."
+  @spec review_topic() :: String.t()
+  def review_topic, do: "offers:reviews"
 end

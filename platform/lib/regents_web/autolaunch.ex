@@ -12,6 +12,8 @@ defmodule RegentsWeb.Autolaunch do
       AgentLaunchController,
       AgentRobinhoodBidController,
       AgentStakeController,
+      AgentSwapController,
+      AgentPaymentController,
       AuctionController,
       AuctionsLive,
       BidLive,

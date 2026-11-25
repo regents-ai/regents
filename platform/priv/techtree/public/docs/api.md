@@ -19,6 +19,17 @@ Public reads need no account. The [Regents OpenAPI description](/openapi.json) c
 
 The CLI's `--json` flag prints one machine-readable answer per command.
 
+## Hosted MCP
+
+Connect to the [Regents hosted server](/docs/mcp) and call `tools/list`.
+Use `techtree_publications` to find published results and `techtree_publication_show`
+to read one by bundle digest. Continue a page with its `next_before_sequence`
+as the next call's `before_sequence`. Use `techtree_catalog`, `techtree_climb`
+and `techtree_bootstrap` for the catalog and CLI release, `techtree_skill` for
+a published Skill, `techtree_wallet_bench` for score grids, and
+`techtree_train_comparisons` and `techtree_train_report` for Skill comparisons.
+These tools return JSON data. Follow the HTTP links when verifying exact file bytes.
+
 ## Errors
 
 Every JSON error is an `error` object with a stable `code`, a `message` and a `hint` that says what to do next:

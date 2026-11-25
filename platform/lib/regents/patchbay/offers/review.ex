@@ -36,6 +36,10 @@ defmodule Regents.Patchbay.Offers.Review do
     module(Phoenix.PubSub)
     name(Regents.PubSub)
     publish_all(:create, ["offers"], transform: fn _notification -> :offers_changed end)
+
+    publish_all(:create, ["offers:reviews"],
+      transform: fn %{data: review} -> {:offer_review_changed, review.campaign_id} end
+    )
   end
 
   attributes do

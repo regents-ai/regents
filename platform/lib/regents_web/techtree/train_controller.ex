@@ -39,8 +39,8 @@ defmodule RegentsWeb.Techtree.TrainController do
     end
   end
 
-  # The comparison without its case list, which the report holds.
-  defp entry(comparison) do
+  @doc "The public comparison summary, with links to the page and full report."
+  def entry(comparison) do
     comparison
     |> Map.drop([:cases])
     |> Map.merge(%{

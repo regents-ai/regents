@@ -20,10 +20,14 @@ defmodule Regents.Autolaunch do
       AgentFinish.Refused,
       AgentLaunch,
       AgentLaunch.Refused,
+      AgentPayment,
+      AgentPayment.Refused,
       AgentRobinhoodBid,
       AgentRobinhoodBid.Refused,
       AgentStake,
       AgentStake.Refused,
+      AgentSwap,
+      AgentSwap.Refused,
       Auction,
       AuctionActivity,
       AuctionBook,
@@ -178,7 +182,25 @@ defmodule Regents.Autolaunch do
       XOAuth
     ]
 
-  use Ash.Domain, otp_app: :regents
+  use Ash.Domain, otp_app: :regents, extensions: [AshAi]
+
+  tools do
+    tool :prepare_swap, Regents.Autolaunch.AgentSwap, :prepare do
+      title("Prepare a Base swap")
+
+      description "Review one exact-input buy or sell of a listed token on Base mainnet and return unsigned wallet steps. Only the person's verified linked wallet signs and sends each step."
+
+      annotations(read_only_hint: true, destructive_hint: false, open_world_hint: true)
+    end
+
+    tool :prepare_payment, Regents.Autolaunch.AgentPayment, :prepare do
+      title("Prepare a Base revenue payment")
+
+      description "Review one payment or sweep into a listed Revstake token's revenue split on Base mainnet and return unsigned wallet steps. Only the person's verified linked wallet signs and sends each step."
+
+      annotations(read_only_hint: true, destructive_hint: false, open_world_hint: true)
+    end
+  end
 
   alias Regents.Autolaunch.{Lab, Robinhood, Stocks}
 
@@ -593,6 +615,14 @@ defmodule Regents.Autolaunch do
 
     resource Regents.Autolaunch.AgentFinish do
       define :prepare_finish, action: :prepare
+    end
+
+    resource Regents.Autolaunch.AgentSwap do
+      define :prepare_swap, action: :prepare
+    end
+
+    resource Regents.Autolaunch.AgentPayment do
+      define :prepare_payment, action: :prepare
     end
 
     resource Regents.Autolaunch.AgentStake do

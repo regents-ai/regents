@@ -8,20 +8,19 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
     domain: RegentsWeb.Techtree.AgentTools,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias Regents.Techtree.Catalog.{Bundle, Digest}
+  alias Regents.Techtree.Catalog.Digest
   alias Regents.Techtree.Catalog.Query, as: CatalogQuery
   alias Regents.Techtree.Network.{Projection, Query}
   alias Regents.Techtree.Train.Comparisons
   alias Regents.Techtree.WalletBench.Reading
-  alias RegentsWeb.Techtree.{Outage, WalletBenchScores}
+  alias RegentsWeb.Techtree.{ClimbController, Outage, TrainController, WalletBenchScores}
 
-  @linked_objects [
-    {"climb", "climb_digest"},
-    {"campaign", "campaign_spec_digest"},
-    {"execution_plan", "execution_plan_digest"},
-    {"data_policy", "data_policy_digest"},
-    {"taskset_validation", "validation_receipt_digest"}
-  ]
+  defmodule Refused do
+    @moduledoc false
+    use Splode.Error, fields: [:body], class: :invalid
+
+    def message(%{body: %{error: %{message: message}}}), do: message
+  end
 
   actions do
     action :catalog, :map do
@@ -33,11 +32,10 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
             {:ok, Jason.decode!(bytes)}
 
           {:ok, {:error, error}} ->
-            {:ok, refusal(error.code, error.message, "Retry or check /api/v1/health.")}
+            refused(error.code, error.message, "Retry or check /api/v1/health.")
 
           :database_down ->
-            {:ok,
-             refusal("unavailable", "Techtree catalog is unavailable.", "Try again in a moment.")}
+            refused("unavailable", "Techtree catalog is unavailable.", "Try again in a moment.")
         end
       end
     end
@@ -51,15 +49,14 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
             {:ok, Jason.decode!(payload)}
 
           {:ok, {:error, error}} ->
-            {:ok, refusal(error.code, error.message, "Retry or check /api/v1/health.")}
+            refused(error.code, error.message, "Retry or check /api/v1/health.")
 
           :database_down ->
-            {:ok,
-             refusal(
-               "unavailable",
-               "Techtree bootstrap is unavailable.",
-               "Try again in a moment."
-             )}
+            refused(
+              "unavailable",
+              "Techtree bootstrap is unavailable.",
+              "Try again in a moment."
+            )
         end
       end
     end
@@ -72,19 +69,17 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
       run fn %{arguments: %{slug: slug}}, _context ->
         case Outage.read(fn -> CatalogQuery.get_climb_by_slug(slug) end) do
           {:ok, {:ok, entry}} ->
-            {:ok, climb_projection(entry)}
+            {:ok, ClimbController.projection(entry)}
 
           {:ok, {:error, error}} ->
-            {:ok,
-             refusal(
-               error.code,
-               error.message,
-               "Call techtree_catalog to list available Climb slugs."
-             )}
+            refused(
+              error.code,
+              error.message,
+              "Call techtree_catalog to list available Climb slugs."
+            )
 
           :database_down ->
-            {:ok,
-             refusal("unavailable", "Techtree catalog is unavailable.", "Try again in a moment.")}
+            refused("unavailable", "Techtree catalog is unavailable.", "Try again in a moment.")
         end
       end
     end
@@ -92,7 +87,7 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
     action :publications, :map do
       description "List published Techtree evaluation Results, newest first."
 
-      argument :limit, :integer, allow_nil?: true, default: 25, constraints: [min: 1, max: 100]
+      argument :limit, :integer, default: 25, allow_nil?: false, constraints: [min: 1, max: 100]
       argument :before_sequence, :integer, allow_nil?: true, constraints: [min: 1]
 
       run fn %{arguments: args}, _context ->
@@ -106,16 +101,14 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
           {:ok, Jason.decode!(bytes)}
         else
           {:error, message} ->
-            {:ok,
-             refusal(
-               "publication_query_invalid",
-               message,
-               "Pass integer limit (1..100) and optional before_sequence."
-             )}
+            refused(
+              "publication_query_invalid",
+              message,
+              "Pass integer limit (1..100) and optional before_sequence."
+            )
 
           :database_down ->
-            {:ok,
-             refusal("unavailable", "Techtree results are unavailable.", "Try again in a moment.")}
+            refused("unavailable", "Techtree results are unavailable.", "Try again in a moment.")
         end
       end
     end
@@ -131,12 +124,11 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
         if Digest.valid?(digest) do
           read_publication(digest)
         else
-          {:ok,
-           refusal(
-             "publication_digest_invalid",
-             "The bundle_digest is not a valid sha256 digest.",
-             "Call techtree_publications to list valid bundle digests."
-           )}
+          refused(
+            "publication_digest_invalid",
+            "The bundle_digest is not a valid sha256 digest.",
+            "Call techtree_publications to list valid bundle digests."
+          )
         end
       end
     end
@@ -152,12 +144,11 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
         if Digest.valid?(digest) do
           read_skill(digest)
         else
-          {:ok,
-           refusal(
-             "skill_digest_invalid",
-             "The root_digest is not a valid sha256 digest.",
-             "Use a skill root digest listed on a published Result from techtree_publications."
-           )}
+          refused(
+            "skill_digest_invalid",
+            "The root_digest is not a valid sha256 digest.",
+            "Use a skill root digest listed on a published Result from techtree_publications."
+          )
         end
       end
     end
@@ -171,12 +162,11 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
             {:ok, WalletBenchScores.feed(reading)}
 
           :database_down ->
-            {:ok,
-             refusal(
-               "scores_unavailable",
-               "Wallet Bench is unavailable.",
-               "Try again in a moment."
-             )}
+            refused(
+              "scores_unavailable",
+              "Wallet Bench is unavailable.",
+              "Try again in a moment."
+            )
         end
       end
     end
@@ -185,18 +175,7 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
       description "List published public Skill comparison demonstrations."
 
       run fn _input, _context ->
-        origin = RegentsWeb.Endpoint.url()
-
-        comparisons =
-          Enum.map(Comparisons.list(), fn comparison ->
-            comparison
-            |> Map.drop([:cases])
-            |> Map.merge(%{
-              url: origin <> "/techtree/train/" <> comparison.slug,
-              report_url: origin <> "/techtree/train/" <> comparison.slug <> "/report.json"
-            })
-          end)
-
+        comparisons = Enum.map(Comparisons.list(), &TrainController.entry/1)
         {:ok, %{comparisons: comparisons}}
       end
     end
@@ -212,12 +191,11 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
             {:ok, Jason.decode!(bytes)}
 
           :error ->
-            {:ok,
-             refusal(
-               "comparison_not_found",
-               "No Train comparison has that slug.",
-               "Call techtree_train_comparisons to list available comparison slugs."
-             )}
+            refused(
+              "comparison_not_found",
+              "No Train comparison has that slug.",
+              "Call techtree_train_comparisons to list available comparison slugs."
+            )
         end
       end
     end
@@ -236,16 +214,14 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
         {:ok, Jason.decode!(bytes)}
 
       {:ok, :error} ->
-        {:ok,
-         refusal(
-           "publication_missing",
-           "No published Result has that bundle digest.",
-           "Call techtree_publications to list available bundle digests."
-         )}
+        refused(
+          "publication_missing",
+          "No published Result has that bundle digest.",
+          "Call techtree_publications to list available bundle digests."
+        )
 
       :database_down ->
-        {:ok,
-         refusal("unavailable", "Techtree results are unavailable.", "Try again in a moment.")}
+        refused("unavailable", "Techtree results are unavailable.", "Try again in a moment.")
     end
   end
 
@@ -262,48 +238,28 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
         {:ok, Jason.decode!(bytes)}
 
       {:ok, :error} ->
-        {:ok,
-         refusal(
-           "skill_not_found",
-           "No standing published Result carries that Skill digest.",
-           "Call techtree_publications to find published Skills."
-         )}
+        refused(
+          "skill_not_found",
+          "No standing published Result carries that Skill digest.",
+          "Call techtree_publications to find published Skills."
+        )
 
       :database_down ->
-        {:ok,
-         refusal("unavailable", "Techtree skills are unavailable.", "Try again in a moment.")}
+        refused("unavailable", "Techtree skills are unavailable.", "Try again in a moment.")
     end
   end
 
-  defp refusal(code, message, hint),
-    do: %{error: %{code: to_string(code), message: message, hint: hint}}
+  defp refused(code, message, hint) do
+    body = %{error: %{code: to_string(code), message: message, hint: hint}}
+    {:error, Refused.exception(body: body)}
+  end
 
   defp maybe_put_before(params, nil), do: params
 
   defp maybe_put_before(params, seq) when is_integer(seq),
     do: Map.put(params, "before_sequence", Integer.to_string(seq))
+end
 
-  defp climb_projection(entry) do
-    objects =
-      @linked_objects
-      |> Map.new(fn {name, key} -> {name, linked_object(Map.fetch!(entry.projection, key))} end)
-      |> maybe_put_held_out(entry.projection["held_out_campaign_spec_digest"])
-
-    entry.projection
-    |> Map.put("kind", "climb_summary_projection")
-    |> Map.put("objects", objects)
-  end
-
-  defp maybe_put_held_out(objects, nil), do: objects
-
-  defp maybe_put_held_out(objects, digest),
-    do: Map.put(objects, "held_out_campaign", linked_object(digest))
-
-  defp linked_object(digest) do
-    %{
-      "digest" => digest,
-      "media_type" => Bundle.json_media_type(),
-      "url" => "/api/v1/techtree/objects/" <> digest
-    }
-  end
+defimpl AshAi.ToToolError, for: RegentsWeb.Techtree.AgentTools.Public.Refused do
+  def to_tool_error(%{body: body}), do: Jason.encode!(body)
 end

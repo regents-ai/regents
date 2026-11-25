@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-25 — Agent Offers
+
+- Patchbay's browser and hosted tools give agents the exact sealed text of leased campaigns. The market list is available through both tools.
+- Advertisers see campaign approvals and removals on an open Offers page.
+
 ## 2026-11-19 — Connect
 
 <!-- open -->

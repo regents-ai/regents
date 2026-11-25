@@ -70,23 +70,36 @@ defmodule Regents.Autolaunch.SubjectWalletActions do
           {:ok, map()} | {:error, term()}
   def prepare(auction_id, address, kind, params, opts) when kind in @kinds do
     with {:ok, _actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, opts),
+         {:ok, signer} <- current_wallet(address, opts) do
+      review(auction_id, signer, kind, params)
+    end
+  end
+
+  def prepare(_auction_id, _address, _kind, _params, _opts), do: unavailable(:unknown_action)
+
+  @doc """
+  Builds a review for a wallet already authorised by the caller.
+  """
+  @spec review(String.t(), String.t(), atom(), map()) :: {:ok, map()} | {:error, term()}
+  def review(auction_id, signer, kind, params) when kind in @kinds do
+    with {:ok, asset} <- selected_asset(params),
+         {:ok, amount} <- typed_amount(kind, params, asset),
          {:ok, config} <- lab(),
          {:ok, subject} <- actionable(auction_id),
-         {:ok, asset} <- selected_asset(params),
          {:ok, snapshot} <- snapshot(subject, signer, kind, asset),
-         {:ok, plan} <- planned(kind, asset, params, snapshot) do
+         {:ok, plan} <- planned(kind, asset, amount, snapshot) do
       {:ok,
        %{
          signer: signer,
          chain: Client.chain(config),
+         subject: asset_address(snapshot, :subject),
          steps: steps(plan, snapshot, asset),
          facts: facts(subject, kind, asset, plan, snapshot)
        }}
     end
   end
 
-  def prepare(_auction_id, _address, _kind, _params, _opts), do: unavailable(:unknown_action)
+  def review(_auction_id, _signer, _kind, _params), do: unavailable(:unknown_action)
 
   @doc "The exact decimal rendering of an atomic amount of one bound asset."
   @spec units(non_neg_integer() | String.t(), atom()) :: String.t()
@@ -113,9 +126,8 @@ defmodule Regents.Autolaunch.SubjectWalletActions do
   end
 
   # Every rule the plan fixes for one action, answered from the one snapshot.
-  defp planned(:pay, asset, params, snapshot) do
-    with {:ok, amount} <- positive_amount(params, asset),
-         true <- amount <= snapshot.balances[asset] do
+  defp planned(:pay, asset, amount, snapshot) do
+    if amount <= snapshot.balances[asset] do
       reference = payment_reference()
 
       {:ok,
@@ -126,14 +138,13 @@ defmodule Regents.Autolaunch.SubjectWalletActions do
          data: SubjectAbi.encode_pay(asset_address(snapshot, asset), amount, reference)
        }}
     else
-      false -> unavailable(:amount_above_balance)
-      error -> error
+      unavailable(:amount_above_balance)
     end
   end
 
   # The receiver's own current balance is what a sweep routes, so it is reviewed
   # rather than chosen, and the event supplies the amount that actually moved.
-  defp planned(:sweep, asset, _params, snapshot) do
+  defp planned(:sweep, asset, _amount, snapshot) do
     held = snapshot.receiver.balances[asset]
 
     if held > 0 do
@@ -369,7 +380,9 @@ defmodule Regents.Autolaunch.SubjectWalletActions do
 
   # Typed amounts are read the one way bids read them: exact digits, at most
   # the asset's decimals, built as an integer with no rounding.
-  defp positive_amount(params, asset) do
+  defp typed_amount(:sweep, _params, _asset), do: {:ok, nil}
+
+  defp typed_amount(:pay, params, asset) do
     with {:error, reason} <-
            BidActions.atomic_amount(Map.get(params, "amount"), SubjectAbi.decimals(asset)),
          do: unavailable(reason)

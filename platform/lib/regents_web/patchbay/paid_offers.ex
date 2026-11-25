@@ -189,7 +189,8 @@ defmodule RegentsWeb.Patchbay.PaidOffers do
   @doc "Where a campaign's manifest is read, whole, as it was hashed."
   @spec manifest_url(map()) :: String.t()
   def manifest_url(campaign),
-    do: Regents.Patchbay.site_url() <> "/api/offers/campaigns/" <> campaign.campaign_id
+    do:
+      Regents.Patchbay.site_url() <> "/api/v1/patchbay/offers/campaigns/" <> campaign.campaign_id
 
   @doc "The offers as a Markdown section, or nothing when there are none."
   @spec markdown([Serving.offer()]) :: String.t()

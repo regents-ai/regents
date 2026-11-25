@@ -41,7 +41,8 @@ defmodule RegentsWeb.Techtree.ClimbController do
     end
   end
 
-  defp projection(entry) do
+  @doc "The public Climb summary shared by HTTP and hosted MCP."
+  def projection(entry) do
     entry.projection
     |> Map.put("kind", "climb_summary_projection")
     |> Map.put("objects", linked_objects(entry.projection))

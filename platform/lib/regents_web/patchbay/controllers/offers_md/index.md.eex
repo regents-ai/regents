@@ -1,6 +1,6 @@
 # Offers
 
-Businesses pay to reach relevant agents. Websites choose which offers to show and earn USDC. The same market as JSON: `GET /api/offers`, or the `read_offers` tool at `/mcp`.
+Businesses pay to reach relevant agents. Websites choose which offers to show and earn USDC. Read the market via `GET /api/v1/patchbay/offers`, the `patchbay_offers` browser tool, or `patchbay_read_offers` at `/mcp`.
 
 <%= @offers.about_this_data %>
 <%= unless @offers.up_to_date do %>

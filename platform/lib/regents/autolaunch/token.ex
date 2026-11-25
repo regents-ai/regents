@@ -421,6 +421,15 @@ defmodule Regents.Autolaunch.Token do
     identity :unique_auction, [:auction_id]
   end
 
+  @doc false
+  def listed(id) do
+    case Regents.Autolaunch.get_listed_token(id, actor: nil) do
+      {:ok, %__MODULE__{} = token} -> {:ok, token}
+      {:ok, nil} -> {:error, :token_not_listed}
+      {:error, error} -> {:error, error}
+    end
+  end
+
   @doc "Returns the one public presentation shared by a graduated token and its auction."
   def presentation(token) do
     auction = loaded_auction(token)

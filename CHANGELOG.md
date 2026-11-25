@@ -8716,3 +8716,10 @@ seasons), on the shared Points library regents.sh was already on.
 - Restrict Patchbay's internal escrow and moderation actions, preserve signed payout and fee transactions across retries, and bound outbound endpoint checks.
 - Fix Patchbay's site refresh and search links, share admission limits with hosted tools, and preserve larger signed request bodies on the routes that accept them.
 - Return clean refusals for invalid Keyfleet chain inputs and respect read-only mode on avatar uploads.
+
+## 2026-11-25 — Product agent tools
+
+- Add hosted Techtree tools for published results, catalog entries, Skill comparisons and Wallet Bench scores.
+- Add hosted Autolaunch market reads, bid quotes, paired positions and launch drafts through the existing product actions.
+- Let paired agents prepare Base swap and revenue-payment steps when enabled. The person's linked wallet signs and sends the steps.
+- Let agents read exact leased Patchbay campaign manifests and refresh an advertiser's Offers page when a review arrives.

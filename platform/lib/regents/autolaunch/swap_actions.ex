@@ -39,6 +39,7 @@ defmodule Regents.Autolaunch.SwapActions do
   # Price protection: how far below today's quote the trade may settle, in
   # hundredths of a percent. The trader chooses between 1% and 10%.
   @protection_range 100..1_000
+  @default_protection "6"
   # The router refuses the swap once this many seconds have passed since the review.
   @deadline_seconds 900
   # A Permit2 allowance is granted for thirty minutes, so one granted by a
@@ -130,13 +131,42 @@ defmodule Regents.Autolaunch.SwapActions do
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(
-        %{launch: launch, direction: direction, amount: amount, protection: protection},
+        %{launch: _, amount: _, direction: direction, protection: protection} = request,
         address,
         opts
       )
       when direction in [:buy, :sell] do
     with {:ok, protection} <- protection(protection),
-         {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
+         {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts) do
+      review(request, signer, protection)
+    end
+  end
+
+  def prepare(_request, _address, _opts), do: unavailable(:invalid_direction)
+
+  @doc """
+  The review `prepare/3` makes once it has proved `signer` is one of the
+  acting account's own wallets, with the latest block the pool was read at
+  (`block`) and when its steps stop being good (`expires_at`, Unix seconds):
+  the swap's deadline, which the Permit2 allowance it spends outlives. It
+  checks nothing about `signer` itself, so its caller must have proved it
+  is one of the acting person's own wallets. A price protection out of range,
+  or an amount that is not a decimal above zero, is refused before any chain
+  is read; only the pool names how many places and how much its side takes.
+  """
+  @spec review(map(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(
+        %{launch: _, amount: _, direction: direction, protection: protection} = request,
+        signer
+      )
+      when direction in [:buy, :sell] do
+    with {:ok, protection} <- protection(protection), do: review(request, signer, protection)
+  end
+
+  def review(_request, _signer), do: unavailable(:invalid_direction)
+
+  defp review(%{launch: launch, direction: direction, amount: amount}, signer, protection) do
+    with :ok <- typed(amount),
          {:ok, pool} <- pool(launch),
          {:ok, venue} <- venue(pool),
          trade <- trade(pool, direction),
@@ -149,7 +179,9 @@ defmodule Regents.Autolaunch.SwapActions do
     end
   end
 
-  def prepare(_request, _address, _opts), do: unavailable(:invalid_direction)
+  @doc "The price protection a trade takes when the trader names none, in percent."
+  @spec default_protection() :: String.t()
+  def default_protection, do: @default_protection
 
   @doc """
   Today's quote for an amount, for anyone looking at the form: what the pool
@@ -235,6 +267,7 @@ defmodule Regents.Autolaunch.SwapActions do
 
   defp pooled({:ok, pool}), do: {:ok, pool}
   defp pooled({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
+  defp pooled({:error, :not_graduated}), do: unavailable(:swap_not_open)
   defp pooled({:error, _reason}), do: unavailable(:swap_unavailable)
 
   # Where the trade runs: the deployment's RPC door, the chain its wallet
@@ -327,6 +360,18 @@ defmodule Regents.Autolaunch.SwapActions do
       |> Decimal.div(100)
       |> Decimal.normalize()
       |> Decimal.to_string(:normal)
+
+  # A typed amount's own form, before any chain is read: a decimal above zero,
+  # read as `amount_in/2` reads it.
+  defp typed(value) when is_binary(value) do
+    case Amounts.decimal_ratio(value) do
+      {:ok, 0, _scale} -> unavailable(:amount_required)
+      {:ok, _numerator, _scale} -> :ok
+      {:error, reason} -> unavailable(reason)
+    end
+  end
+
+  defp typed(_value), do: unavailable(:amount_required)
 
   defp amount_in(value, decimals) when is_binary(value) do
     case Amounts.parse_units(value, decimals) do
@@ -426,9 +471,12 @@ defmodule Regents.Autolaunch.SwapActions do
 
     %{
       chain: venue.network,
+      block: pool.block.number,
+      expires_at: deadline,
       steps: reviewed_steps(trade, amount_in, min_out, deadline, snapshot, venue),
-      facts: review(trade, limits, snapshot, pool),
+      facts: review_facts(trade, limits, snapshot, pool),
       context: %{
+        token: pool.token.address,
         direction: trade.direction,
         buy: trade.buy.address,
         buy_symbol: trade.buy.symbol,
@@ -441,7 +489,7 @@ defmodule Regents.Autolaunch.SwapActions do
   end
 
   # The few figures the form shows beside the wallet steps.
-  defp review(
+  defp review_facts(
          trade,
          %{amount_in: amount_in, min_out: min_out, protection: protection},
          snapshot,
