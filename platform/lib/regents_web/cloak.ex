@@ -176,6 +176,7 @@ defmodule RegentsWeb.Cloak do
       id: "thinking-machines",
       mode: "Local AI",
       note: "Inkling 2 Mini",
+      note_href: "https://thinkingmachines.ai",
       partners: [
         %{
           id: "thinking-machines",
@@ -189,6 +190,7 @@ defmodule RegentsWeb.Cloak do
       id: "near",
       mode: "Private Cloud",
       note: "Hardware TEE",
+      note_href: "https://cloud.near.ai",
       partners: [
         %{id: "near", name: "NEAR AI", href: "https://cloud.near.ai"}
       ]
@@ -215,6 +217,7 @@ defmodule RegentsWeb.Cloak do
       id: "ethereum",
       mode: "Private Cloud",
       note: "zkAPI · ETH",
+      note_href: "https://zkapi.openanonymity.ai",
       partners: [
         %{id: "ethereum", name: "Ethereum", href: "https://ethereum.org"}
       ]
@@ -223,6 +226,7 @@ defmodule RegentsWeb.Cloak do
       id: "eigenlayer",
       mode: "Serving",
       note: "Darkbloom",
+      note_href: "https://darkbloom.dev",
       partners: [
         %{id: "eigenlayer", name: "EigenLayer", href: "https://eigenlayer.xyz"}
       ]

@@ -460,6 +460,14 @@
   border-radius: 14px;
   background: var(--cloak-card-bg);
   text-align: center;
+  transition:
+    border-color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease;
+}
+
+.cloak-integrations__card:has(a:hover) {
+  border-color: var(--hairline-strong);
+  background: color-mix(in srgb, var(--color-fg) 5%, var(--color-bg));
 }
 
 .cloak-integrations__mode {
@@ -502,8 +510,21 @@
 
 @media (hover: hover) and (pointer: fine) {
   .cloak-integrations__partner:hover {
-    opacity: 0.72;
+    opacity: 0.88;
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
+
+  .cloak-integrations__note-link:hover {
+    color: var(--color-fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.cloak-integrations__note-link {
+  text-decoration: none;
+  transition: color var(--duration-fast) ease;
 }
 
 .cloak-integrations__card .cloak-ecosystem__mark {

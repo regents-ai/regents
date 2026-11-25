@@ -107,6 +107,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
                   href={partner.href}
                   target="_blank"
                   rel="noopener noreferrer"
+                  title={"Open #{partner.name} in a new tab"}
                 >
                   <.partner_mark id={partner.id} />
                   <span class={if Map.get(partner, :wordmark), do: "cloak-sr-only"}>
@@ -115,7 +116,18 @@ defmodule RegentsWeb.Cloak.CloakLive do
                 </a>
               <% end %>
             </div>
-            <span class="cloak-integrations__note">{group.note}</span>
+            <%= if note_href = Map.get(group, :note_href) do %>
+              <a
+                class="cloak-integrations__note cloak-integrations__note-link"
+                href={note_href}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {group.note}
+              </a>
+            <% else %>
+              <span class="cloak-integrations__note">{group.note}</span>
+            <% end %>
           </li>
         </ul>
       </section>
