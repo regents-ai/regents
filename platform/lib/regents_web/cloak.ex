@@ -30,10 +30,10 @@ defmodule RegentsWeb.Cloak do
   @film "/images/cloak/intro.mp4"
   @releases_url "https://github.com/regents-ai/cloak/releases"
   @download_page_path "/cloak/download/mac"
-  @download_url "https://github.com/regents-ai/cloak/releases/download/0.2.5-303/Regents-Cloak-0.2.5-303.dmg"
+  @download_url "https://github.com/regents-ai/cloak/releases/download/0.2.6-304/Regents-Cloak-0.2.6-304.dmg"
   @source_url "https://github.com/regents-ai/cloak"
   @docs_path "/docs/cloak/reference"
-  @facts "v0.2.5 Beta · Apple silicon · macOS 26+ · Open-source (MIT)"
+  @facts "v0.2.6 Beta · Apple silicon · macOS 26+ · Open-source (MIT)"
 
   @menubar_callouts [
     %{
@@ -357,8 +357,8 @@ defmodule RegentsWeb.Cloak do
   @install_heading "Install Cloak"
   @install_steps [
     {"Download",
-     "Get the signed Regents-Cloak-0.2.5-303.dmg from /cloak/download/mac or GitHub Releases."},
-    {"Drag", "Open Regents-Cloak-0.2.5-303.dmg and drag Cloak into Applications."},
+     "Get the signed Regents-Cloak-0.2.6-304.dmg from /cloak/download/mac or GitHub Releases."},
+    {"Drag", "Open Regents-Cloak-0.2.6-304.dmg and drag Cloak into Applications."},
     {"Open", "Launch Cloak from Applications. Builds are signed and notarized by Apple."},
     {"Choose",
      "Pick Local (10.21 GB MLX on 16 GB+ Macs) or NEAR AI Gateway (0 GB download on 8 GB+ Macs). Tor modes download the 5.69 GB Qwen 3.5 9B rewriter."},
@@ -371,22 +371,22 @@ defmodule RegentsWeb.Cloak do
   # regents-ai/cloak Releases (`SHA256SUMS.txt` and `checksums.json`). Update
   # these values whenever a new release is published by `app/publish.sh`.
   @release_checksums %{
-    tag: "0.2.5-303",
-    dmg_filename: "Regents-Cloak-0.2.5-303.dmg",
-    dmg_sha256: "d1fe3774b48d099fc17318229a793ba8ddf75bec37c37bf2e615d90823533b7b",
+    tag: "0.2.6-304",
+    dmg_filename: "Regents-Cloak-0.2.6-304.dmg",
+    dmg_sha256: "e9652c2dfa276c759bf181067ec2a015f38d0ef55f24d415e9a90ebc3d3de215",
     # Populated on releases published by the updated app/release.sh + app/publish.sh
     # (e.g. {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)", "..."},
     # {"Apple Code Signature CDHash", "..."}).
     extra_hashes: [
       {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)",
-       "0ccc096f09d8ba060fa76e2027c952e9f2d6c85a068a8aedf291bd590aef2dad"},
-      {"Apple Code Signature CDHash", "411de296f62196f697b5ef39cafc2fcb2b2a1d15"}
+       "619a7bf4120e0129febb2c3c576b1291a234c194a44baf3b03d0bbbbed3f7b73"},
+      {"Apple Code Signature CDHash", "0d03fead04e846f8bb99ab2620fcf730c2629a3f"}
     ],
     team_id: "367G3Z7G3J",
     release_url: "https://github.com/regents-ai/cloak/releases/latest",
     sums_url: "https://github.com/regents-ai/cloak/releases/latest/download/SHA256SUMS.txt",
     commands: [
-      {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/Regents-Cloak-0.2.5-303.dmg"},
+      {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/Regents-Cloak-0.2.6-304.dmg"},
       {"Verify app binary SHA-256",
        "shasum -a 256 \"/Applications/Cloak.app/Contents/MacOS/RegentsCloak\""},
       {"Verify Apple signature (Team 367G3Z7G3J)",
@@ -573,7 +573,7 @@ defmodule RegentsWeb.Cloak do
     - Local, offline models just had an upgrade. Your MacBook can run Inkling 2 Mini and it [is better](https://benchlm.ai/compare/gpt-5-vs-inkling-2-mini) than GPT-5.
     - Private cloud LLMs are the safer way to use AI. Cloak aggregates 4 of them. Using it is a hedge against a more-dangerous future: your personal and business info is being tracked and logged, and the future usage of your most important personal information is unknown and historically dangerous for some groups of people.
 
-    - [Download for Mac (Regents-Cloak-0.2.5-303.dmg)](#{@download_url})
+    - [Download for Mac (Regents-Cloak-0.2.6-304.dmg)](#{@download_url})
     - [#{@watch_label} (#{@watch_time})](#{film})
     - [Install & checksums](#{RegentsWeb.PublicDocuments.url(@install_path)})
     - [View releases](#{@releases_url})

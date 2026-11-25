@@ -1,6 +1,6 @@
 # Cloak Wallet Security, Failure Modes & 30-Day zkAPI Limit
 
-> **Beta software (`v0.2.5 Beta`):** Cloak is public beta software and has not yet undergone an independent security audit. Treat Cloak's built-in wallets as **small working balances only** (for example, $5–$20), not long-term storage.
+> **Beta software (`v0.2.6 Beta`):** Cloak is public beta software and has not yet undergone an independent security audit. Treat Cloak's built-in wallets as **small working balances only** (for example, $5–$20), not long-term storage.
 
 Cloak creates no Regents account and never has custody of your keys or funds. Every crypto payment rail in Cloak generates a local key on your Mac, isolated per rail, and **never synced to iCloud**.
 
