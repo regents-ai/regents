@@ -1,3 +1,16 @@
+/* Top-level custom property registrations required for scroll-driven edge-fade masks. */
+@property --fleet-fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fleet-fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
 @scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 @layer regents-product {
 /* The fleet page: a slim bar with the fleet's name, who is here, Send your
@@ -1265,18 +1278,6 @@
    cards, a phone's rooms), it fades out at an edge while more of the row
    waits past it, and runs crisp to an edge it has reached. A row that fits
    has no fade. The fade shows the page behind the row, in either theme. */
-@property --fleet-fade-start {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0px;
-}
-
-@property --fleet-fade-end {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0px;
-}
-
 .fleet-bar__nav,
 .fleet-channels {
   mask-image: linear-gradient(

@@ -34,7 +34,7 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Account.Answer do
   """
 
   alias RegentAgents.HumanBacking
-  alias Regents.Account.Actors.Agent
+  alias Regents.Account.Actors.{Agent, Human}
   alias Regents.Keyfleet.Agents
   alias Regents.Keyfleet.Agents.Avatar
   alias Regents.Limits
@@ -90,7 +90,7 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Account.Answer do
   end
 
   def answer(:avatar_start, params, actor, _waiter) do
-    with :ok <- Limits.admit(:avatar_uploads, actor.wallet_address),
+    with :ok <- Limits.admit(:keyfleet_avatar_uploads, actor.wallet_address),
          {:ok, declared} <- Avatar.declare(params),
          {:ok, %{id: profile_id}} <- Agents.get_my_profile(actor: actor) do
       ticket =
@@ -153,16 +153,31 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Account.Answer do
   def upload(ticket, content_type) do
     with {:ok, %{profile_id: profile_id, declared: declared, agent: agent}} <-
            Phoenix.Token.verify(Endpoint, @salt, ticket, max_age: @ticket_seconds),
-         actor = struct!(Agent, agent),
-         {:paired, true} <- {:paired, Agent.valid?(actor)},
-         :ok <- Limits.admit(:avatar_uploads, actor.wallet_address),
+         {:paired, {:ok, actor}} <- {:paired, paired_ticket_actor(agent)},
+         :ok <- Limits.admit(:keyfleet_avatar_uploads, actor.wallet_address),
          {:type, true} <- {:type, content_type == declared.content_type} do
       {:ok, %{actor: actor, profile_id: profile_id, declared: declared}}
     else
       {:error, _reason} -> refusal(401, "avatar_upload_expired")
-      {:paired, false} -> refusal(403, "agent_not_paired")
+      {:paired, :not_paired} -> refusal(403, "agent_not_paired")
       {:limited, seconds} -> limited(seconds)
       {:type, false} -> refusal(422, "avatar_mismatch")
+    end
+  end
+
+  # Rebuilds the signed ticket's agent and verifies its live pairing episode and
+  # owner still match the episode that minted the ticket.
+  defp paired_ticket_actor(agent_fields) do
+    raw = struct!(Agent, agent_fields)
+    id = raw.pairing_id
+    owner = raw.privy_user_id
+
+    with true <- is_binary(id) and is_binary(owner) and Agent.authenticated?(raw),
+         {:ok, %Agent{pairing: %Human{}, pairing_id: ^id, privy_user_id: ^owner} = actor} <-
+           Agent.with_pairing(raw) do
+      {:ok, actor}
+    else
+      _unpaired -> :not_paired
     end
   end
 

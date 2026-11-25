@@ -71,7 +71,7 @@ defmodule RegentsWeb.Keyfleet.Components.ScheduleCard do
     <p class="schedule-card__who" data-wallet={@first.wallet}>
       <strong class="schedule-card__name">{@first.name}</strong>
       <span class="check-in-status" data-light={@first.light}><span class="schedule-card__state">{@first.status}</span></span>
-      <.link :if={@more > 0} class="schedule-card__more" navigate={~p"/account/agents"}>
+      <.link :if={@more > 0} class="schedule-card__more" href={~p"/account/agents"}>
         and {@more} more
       </.link>
     </p>
@@ -83,7 +83,7 @@ defmodule RegentsWeb.Keyfleet.Components.ScheduleCard do
     <ul class="schedule-card__agents">
       <li :for={agent <- @agents} data-wallet={agent.wallet} data-fleet={agent.fleet_id}>
         <strong class="schedule-card__name">{agent.name}</strong>
-        <.link navigate={Fleets.path(agent.fleet_id)}>{Fleets.name(agent.fleet_id)}</.link>
+        <.link href={Fleets.path(agent.fleet_id)}>{Fleets.name(agent.fleet_id)}</.link>
         <span class="check-in-status" data-light={agent.light}>{agent.status}</span>
       </li>
     </ul>

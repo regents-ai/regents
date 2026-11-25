@@ -11,7 +11,7 @@ defmodule Regents.Keyfleet.Graph do
   so a read never waits on a write. Each read says how far along the log it reflects, its
   `watermark`.
   """
-  use Ash.Domain
+  use Ash.Domain, otp_app: :regents, extensions: [AshAi]
 
   @goals_shown 50
   @tables [
@@ -112,6 +112,36 @@ defmodule Regents.Keyfleet.Graph do
       define :pin, action: :pin
       define :unpin, action: :destroy
       define :pins, action: :in_place, args: [:fleet_id, :place, {:optional, :project}]
+    end
+  end
+
+  @browser_tools Map.new(Regents.Keyfleet.Capabilities.tools(), &{&1["name"], &1})
+  @workspace_writes [
+    workspace_create: {:create, "Keyfleet new item", :write},
+    workspace_edit: {:patch, "Keyfleet edit item", :write},
+    workspace_link: {:link, "Keyfleet link", :write},
+    workspace_unlink: {:unlink, "Keyfleet unlink", :remove},
+    workspace_archive: {:archive, "Keyfleet archive", :remove},
+    workspace_join: {:join, "Keyfleet join", :write},
+    workspace_leave: {:leave, "Keyfleet leave", :write},
+    workspace_submit_task: {:submit, "Keyfleet submit task", :write},
+    workspace_review_task: {:review, "Keyfleet review", :write},
+    workspace_fork_task: {:fork, "Keyfleet fork task", :write}
+  ]
+
+  tools do
+    for {name, {action, title, kind}} <- @workspace_writes do
+      tool :"keyfleet_#{name}", Regents.Keyfleet.Graph.Workspace, action do
+        title(title)
+        description @browser_tools[Atom.to_string(name)]["description"]
+
+        annotations(
+          read_only_hint: false,
+          idempotent_hint: true,
+          destructive_hint: kind == :remove,
+          open_world_hint: false
+        )
+      end
     end
   end
 

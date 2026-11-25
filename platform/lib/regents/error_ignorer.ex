@@ -14,8 +14,16 @@ defmodule Regents.ErrorIgnorer do
 
   @behaviour ErrorTracker.Ignorer
 
+  # Oban.PerformError wrapping Keyfleet's HubSilentError when no notebook hub
+  # connection came free; the wait is already saved where it happened.
+  @hub_wait ~r/\A\S+ failed with \{:error, \{:hub, "(?:[^"\\]|\\.)*", %Regents\.Keyfleet\.Notebooks\.HubSilentError\{message: "(?:[^"\\]|\\.)*"\}\}\}\z/
+
   @impl ErrorTracker.Ignorer
   def ignore?(_error, %{state: :failure}), do: true
+
+  def ignore?(%ErrorTracker.Error{kind: "Elixir.Oban.PerformError", reason: reason}, _context)
+      when is_binary(reason),
+      do: Regex.match?(@hub_wait, reason)
 
   def ignore?(%ErrorTracker.Error{kind: "Elixir." <> _module = kind}, _context),
     do: kind |> String.to_existing_atom() |> visitors?()

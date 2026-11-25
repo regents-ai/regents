@@ -93,6 +93,9 @@ export const OnchainSteps: Hook = {
         "[data-onchain-step], button[data-onchain-bundle]",
       )
       if (!button || !this.el.contains(button)) return
+      // Signed out, a button carries the page's sign-in mark, and its press
+      // opens sign-in instead (auth_lazy.ts).
+      if (button.dataset.accountTarget === "sign-in") return
       if (button.hasAttribute("data-onchain-bundle") && this.el.hasAttribute("data-onchain-bundle")) {
         this.js().ignoreAttributes(button, ["data-awaiting-wallet"])
         const release = mark(button)
@@ -127,13 +130,18 @@ export const OnchainSteps: Hook = {
         void this.pushEventTo(this.el, "prepare_and_send", {
           form,
           step: name,
-          wallet: wallet.address,
+          address: wallet.address,
         })
           .then(([result]) => {
             if (result?.status !== "fulfilled") return unheard()
-            const reply = result.value.reply as {review?: Review; send?: string; reason?: string}
+            const reply = result.value.reply as {
+              review?: Review
+              send?: string
+              reason?: string
+              note?: string
+            }
             if (reply.review && reply.send) return press(reply.review, reply.send, push)
-            if (reply.reason === "blocked") return undefined
+            if (reply.reason === "blocked" || "note" in reply) return undefined
             return push("step_failed", {step: name, reason: "step_unknown"})
           })
           // A lost connection drops the question; the button comes back to press again.

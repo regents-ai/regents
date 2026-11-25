@@ -321,8 +321,10 @@ defmodule RegentsWeb.Router do
     }
   end
 
-  # Keyfleet's signed agent endpoints refuse requests against coming-soon fleets.
+  # Keyfleet's signed agent endpoints refuse requests against coming-soon fleets
+  # and validate query strings and JSON body shapes before controllers run.
   pipeline :keyfleet_agent do
+    plug RegentsWeb.Keyfleet.Plugs.AgentRequest
     plug RegentsWeb.Keyfleet.Plugs.FleetComingSoon
   end
 
@@ -744,8 +746,11 @@ defmodule RegentsWeb.Router do
   def mcp_instructions(_opts), do: RegentsWeb.PublicDocuments.mcp_instructions()
 
   @doc false
-  def mcp_check_input(tool, args, ctx),
-    do: RegentsWeb.Autolaunch.ToolErrors.check_input(tool, args, ctx)
+  def mcp_check_input(tool, args, ctx) do
+    if RegentsWeb.Keyfleet.ToolErrors.keyfleet_tool?(tool),
+      do: RegentsWeb.Keyfleet.ToolErrors.check_input(tool, args, ctx),
+      else: RegentsWeb.Autolaunch.ToolErrors.check_input(tool, args, ctx)
+  end
 
   scope "/", RegentsWeb do
     pipe_through [:browser, :marketing_home]
@@ -1027,7 +1032,7 @@ defmodule RegentsWeb.Router do
   end
 
   scope "/api/v1/keyfleet", RegentsWeb.Keyfleet do
-    pipe_through [:api, :paired_agent]
+    pipe_through [:api, :paired_agent, :keyfleet_agent]
     post "/feed/missed", FeedController, :missed
   end
 
@@ -1696,15 +1701,21 @@ defmodule RegentsWeb.Router do
     get "/:host/tools/:name", Forum.BoardController, :tool
   end
 
-  # Keyfleet's agent guides, metadata, hub JWKS and fleet rooms redirect, to any caller.
+  # Keyfleet's agent guides, contracts, metadata, hub JWKS, legacy redirects and fleet rooms redirect.
   scope "/keyfleet", RegentsWeb.Keyfleet do
     get "/skill.md", AgentFilesController, :skill
     get "/skill/:part", AgentFilesController, :part
     get "/agents/:agent/skill.md", AgentFilesController, :agent_skill
     get "/agent/git-remote-siwa", AgentFilesController, :git_helper
+    get "/commands.json", AgentFilesController, :commands
     get "/llms.txt", PublicPagesController, :llms
     get "/agents.md", PublicPagesController, :agents
     get "/help", PublicPagesController, :help
+    get "/capabilities.json", PublicPagesController, :capabilities
+    get "/openapi.json", PublicPagesController, :openapi
+    get "/api-contract.openapiv3.yaml", PublicPagesController, :api_contract
+    match :*, "/mcp", PublicPagesController, :redirect_mcp
+    match :*, "/oauth/*rest", PublicPagesController, :redirect_oauth
     get "/fleets/:fleet_id/rooms", DirectoryController, :rooms
     get "/metadata/collection.json", MetadataController, :collection
     get "/metadata/keys/:token_id", MetadataController, :show

@@ -144,6 +144,7 @@ defmodule RegentsWeb.Plugs.McpAgent do
 
       %{conn | assigns: assigns}
       |> Ash.PlugHelpers.set_actor(actor)
+      |> Ash.PlugHelpers.set_context(%{waiter: ClientAddress.key(conn)})
       |> spend(@budget)
       |> counted(:siwa_request)
     end
@@ -183,6 +184,7 @@ defmodule RegentsWeb.Plugs.McpAgent do
            }) do
       conn
       |> Ash.PlugHelpers.set_actor(agent)
+      |> Ash.PlugHelpers.set_context(%{waiter: {:mcp, subject}})
       |> PairedAgent.recheck_before_response(agent)
     else
       false ->

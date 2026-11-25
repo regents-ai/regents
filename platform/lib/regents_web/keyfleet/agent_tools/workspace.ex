@@ -20,6 +20,7 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Workspace do
     domain: RegentsWeb.Keyfleet.AgentTools,
     authorizers: [Ash.Policy.Authorizer]
 
+  alias RegentsWeb.Keyfleet.AgentTools.Run
   alias RegentsWeb.Keyfleet.AgentTools.Workspace.{Atlas, Read}
 
   @bigint 9_223_372_036_854_775_807
@@ -151,11 +152,29 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Workspace do
       argument :after, :string, constraints: @text
       run fn input, context -> Atlas.things(input.arguments, Ash.Context.to_opts(context)) end
     end
+
+    action :pin, :map do
+      description "Pins a notebook or code file/folder on a project's board."
+      argument :fleet_id, :string, allow_nil?: false
+      argument :project, :string, allow_nil?: false, constraints: @text
+      argument :place, :string, allow_nil?: false, constraints: [match: ~r/\A(docs|code)\z/]
+      argument :target, :string, allow_nil?: false, constraints: [max_length: 1024, trim?: false]
+      run {Run, tool: "workspace_pin"}
+    end
+
+    action :unpin, :map do
+      description "Removes a pin you placed on a project's board."
+      argument :fleet_id, :string, allow_nil?: false
+      argument :project, :string, allow_nil?: false, constraints: @text
+      argument :place, :string, allow_nil?: false, constraints: [match: ~r/\A(docs|code)\z/]
+      argument :target, :string, allow_nil?: false, constraints: [max_length: 1024, trim?: false]
+      run {Run, tool: "workspace_unpin"}
+    end
   end
 
   policies do
     policy always() do
-      authorize_if actor_attribute_equals(:role, :agent)
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
     end
   end
 end

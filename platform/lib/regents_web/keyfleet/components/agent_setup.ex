@@ -17,24 +17,28 @@ defmodule RegentsWeb.Keyfleet.Components.AgentSetup do
   use RegentsWeb, :live_component
 
   alias Phoenix.LiveView.AsyncResult
+  alias Regents.Account.Actors.Human
   alias Regents.Keyfleet.Agents.Upkeep
 
   @impl true
-  def mount(socket), do: {:ok, assign(socket, class: nil, gas: AsyncResult.loading())}
+  def mount(socket), do: {:ok, assign(socket, class: nil, agents: [], gas: AsyncResult.loading())}
 
   @impl true
   def update(
         %{changed: true},
-        %{assigns: %{actor: actor, fleet_id: fleet_id, agents: shown}} = socket
+        %{assigns: %{actor: %Human{} = actor, fleet_id: fleet_id, agents: shown}} = socket
       ) do
     agents = Upkeep.person_agents(actor, fleet_id)
     socket = assign(socket, agents: agents)
     {:ok, if(gas_asked(agents) == gas_asked(shown), do: socket, else: ask_gas(socket))}
   end
 
+  def update(%{changed: true}, socket), do: {:ok, assign(socket, agents: [])}
+
   def update(assigns, socket) do
     socket = assign(socket, assigns)
-    {:ok, if(changed?(socket, :fleet_id), do: read(socket), else: socket)}
+    moved? = changed?(socket, :fleet_id) or changed?(socket, :actor)
+    {:ok, if(moved?, do: read(socket), else: socket)}
   end
 
   @impl true
@@ -73,8 +77,10 @@ defmodule RegentsWeb.Keyfleet.Components.AgentSetup do
     """
   end
 
-  defp read(%{assigns: %{actor: actor, fleet_id: fleet_id}} = socket),
+  defp read(%{assigns: %{actor: %Human{} = actor, fleet_id: fleet_id}} = socket),
     do: socket |> assign(agents: Upkeep.person_agents(actor, fleet_id)) |> ask_gas()
+
+  defp read(socket), do: assign(socket, agents: [])
 
   defp ask_gas(%{assigns: %{agents: agents}} = socket) do
     assign_async(socket, :gas, fn ->

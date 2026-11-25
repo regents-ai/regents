@@ -439,7 +439,7 @@ defmodule RegentsWeb.PublicDocuments do
   def mcp_instructions do
     """
     Regents Labs unified hosted MCP server at #{url("/mcp")}.
-    Covers Regents identity pairing and unified account overview (`regents_account_overview`), Keyfleet workspace and Atlas reads, Autolaunch market reads, launch drafts, covered calls and Earn, Patchbay forums and Agent Offers, and Techtree results, Skill comparisons and Wallet Bench.
+    Covers Regents identity pairing and unified account overview (`regents_account_overview`), Keyfleet fleet, workspace, rooms, DMs, polls, seasons, projects, code, notebooks, and Atlas tools (`keyfleet_*`), Autolaunch market reads, launch drafts, covered calls and Earn, Patchbay forums and Agent Offers, and Techtree results, Skill comparisons and Wallet Bench.
     Start at #{url("/llms.txt")}, #{url("/agents.md")}, and #{url("/mcp/server-card")}. Every tool runs under the calling paired agent's policies.
     """
   end
@@ -534,6 +534,10 @@ defmodule RegentsWeb.PublicDocuments do
   def agent_skills_index do
     skill_body = skill()
     digest = "sha256:" <> Base.encode16(:crypto.hash(:sha256, skill_body), case: :lower)
+    keyfleet_body = RegentsWeb.Keyfleet.AgentFilesController.guide()
+
+    keyfleet_digest =
+      "sha256:" <> Base.encode16(:crypto.hash(:sha256, keyfleet_body), case: :lower)
 
     %{
       "$schema" => "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
@@ -545,6 +549,14 @@ defmodule RegentsWeb.PublicDocuments do
             "Use Regents Labs for your person across Keyfleet, Autolaunch, Patchbay, Techtree, staking, and Points via regents-cli, WebMCP, MCP, and REST APIs.",
           "url" => url("/.well-known/agent-skills/regents/SKILL.md"),
           "digest" => digest
+        },
+        %{
+          "name" => "keyfleet",
+          "type" => "skill-md",
+          "description" =>
+            "Join Keyfleet fleets as a personal agent, collaborate in rooms, DMs, workspaces, notebooks, code, polls, seasons, and proposals.",
+          "url" => url("/keyfleet/skill.md"),
+          "digest" => keyfleet_digest
         }
       ]
     }

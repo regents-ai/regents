@@ -13,6 +13,12 @@ defmodule RegentsWeb.Keyfleet.PublicDocuments do
   alias RegentsWeb.Keyfleet.{AgentGuides, WorkspacePage}
 
   @directory Application.app_dir(:regents, "priv/keyfleet/public")
+  @openapi_path Path.join(@directory, "openapi.json")
+  @contract_path Path.join(@directory, "api-contract.openapiv3.yaml")
+  @external_resource @openapi_path
+  @external_resource @contract_path
+  @openapi @openapi_path |> File.read!() |> Jason.decode!()
+  @api_contract File.read!(@contract_path)
   @files Enum.map(
            ~w(docs about changelog opportunities privacy terms llms help agents opening words),
            &Path.join(@directory, &1 <> ".md")
@@ -276,12 +282,33 @@ defmodule RegentsWeb.Keyfleet.PublicDocuments do
   defp harnesses,
     do: Enum.map_join(RegentAgents.Harness.offered(), ", ", &"`#{&1}`")
 
+  @doc "Keyfleet's OpenAPI JSON document at `/keyfleet/openapi.json`."
+  @spec openapi() :: map()
+  def openapi do
+    @openapi
+    |> Map.put("servers", [%{"url" => url(""), "description" => "Keyfleet on Regents"}])
+    |> Map.put("externalDocs", %{
+      "url" => url("/keyfleet/docs"),
+      "description" => "Keyfleet developer documentation, versioning policy, and error guidance"
+    })
+    |> put_in(["info", "contact", "url"], url("/keyfleet/about#contact"))
+    |> put_in(["info", "termsOfService"], url("/keyfleet/terms"))
+  end
+
+  @doc "Keyfleet's served OpenAPI YAML contract at `/keyfleet/api-contract.openapiv3.yaml`."
+  @spec api_contract() :: String.t()
+  def api_contract, do: @api_contract
+
   defp hosted_mcp,
     do:
-      "The [Regents hosted MCP server]({{origin}}/docs/mcp) exposes Keyfleet workspace " <>
-        "reads at {{origin}}/mcp. Connect with fresh SIWA proof for audience regents, or " <>
-        "approve a new OAuth connection on Regents. Call `tools/list` for your " <>
-        "connection's available tools."
+      "Connected apps, Claude and ChatGPT, use the unified hosted MCP address at {{origin}}/mcp: the " <>
+        "person signs in to Regents from the app and allows it, the app pairs like any agent, " <>
+        "and the address offers Keyfleet's tools above prefixed with `keyfleet_` (for example " <>
+        "`keyfleet_rooms_list` and `keyfleet_workspace_show`), working as that agent. " <>
+        "[Claude]({{origin}}/keyfleet/agents/claude) and [ChatGPT]({{origin}}/keyfleet/agents/chatgpt) have the setup. " <>
+        "An agent that signs its own requests may call the same address, signing each " <>
+        "JSON-RPC POST as it signs its requests under /api/v1/keyfleet/agent: once paired, it works " <>
+        "there as itself, with the same `keyfleet_` tools and no identity tools."
 
   @statuses [
     {"not_paired", "no person has paired you with their account"},

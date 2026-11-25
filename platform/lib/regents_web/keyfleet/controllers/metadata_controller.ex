@@ -14,7 +14,7 @@ defmodule RegentsWeb.Keyfleet.MetadataController do
   def collection(conn, _params) do
     conn
     |> put_resp_header("cache-control", "public, max-age=3600")
-    |> json(Metadata.collection(url(~p"/")))
+    |> json(Metadata.collection(url(~p"/keyfleet")))
   end
 
   def show(conn, %{"token_id" => token_id}) do

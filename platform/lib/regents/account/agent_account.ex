@@ -10,14 +10,29 @@ defmodule Regents.Account.AgentAccount do
   alias Regents.Account.Actors.System
 
   # Nil until the person first signs in here; the check-in is then refused.
-  @spec account(String.t()) :: %{display_name: String.t() | nil, ens_name: String.t() | nil} | nil
+  @spec account(String.t()) ::
+          %{
+            display_name: String.t() | nil,
+            ens_name: String.t() | nil,
+            wallet_address: String.t() | nil,
+            wallet_addresses: [String.t()]
+          }
+          | nil
   def account(privy_user_id) do
     case Accounts.get_by_privy_did(privy_user_id,
            actor: %System{},
            load: [:display_name, :ens_name]
          ) do
-      {:ok, %{} = account} -> %{display_name: account.display_name, ens_name: account.ens_name}
-      {:ok, nil} -> nil
+      {:ok, %{} = account} ->
+        %{
+          display_name: account.display_name,
+          ens_name: account.ens_name,
+          wallet_address: account.wallet_address,
+          wallet_addresses: List.wrap(account.wallet_addresses)
+        }
+
+      {:ok, nil} ->
+        nil
     end
   end
 

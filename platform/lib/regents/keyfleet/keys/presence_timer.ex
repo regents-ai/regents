@@ -36,26 +36,42 @@ defmodule Regents.Keyfleet.Keys.PresenceTimer do
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
-    key = private_key!()
-    {:ok, wallet} = Transaction.address(key)
-    shards = Keys.active_shards_held_by!(wallet)
+    case private_key!() do
+      :disabled ->
+        :ok
 
-    if shards != [], do: warn_low_eth(wallet)
+      key ->
+        {:ok, wallet} = Transaction.address(key)
+        shards = Keys.active_shards_held_by!(wallet)
 
-    for {fleet_id, held} <- Enum.group_by(shards, & &1.fleet_id) do
-      keep_present(fleet_id, held, wallet, key)
+        if shards != [], do: warn_low_eth(wallet)
+
+        for {fleet_id, held} <- Enum.group_by(shards, & &1.fleet_id) do
+          keep_present(fleet_id, held, wallet, key)
+        end
+
+        :ok
     end
-
-    :ok
   end
 
-  # The raised words never carry the setting's value.
+  # The raised words never carry the setting's value. Unset (nil or empty) means
+  # no timer wallet is configured in this environment.
   defp private_key! do
-    with "0x" <> hex <- Application.fetch_env!(:regents, __MODULE__)[:key],
-         {:ok, <<key::binary-size(32)>>} <- Base.decode16(hex, case: :mixed) do
-      key
-    else
-      _malformed -> raise "KEYFLEET_PRESENCE_TIMER_KEY is not 0x and 64 hex digits"
+    case Application.get_env(:regents, __MODULE__, [])[:key] do
+      nil ->
+        :disabled
+
+      "" ->
+        :disabled
+
+      "0x" <> hex ->
+        case Base.decode16(hex, case: :mixed) do
+          {:ok, <<key::binary-size(32)>>} -> key
+          _malformed -> raise "KEYFLEET_PRESENCE_TIMER_KEY is not 0x and 64 hex digits"
+        end
+
+      _malformed ->
+        raise "KEYFLEET_PRESENCE_TIMER_KEY is not 0x and 64 hex digits"
     end
   end
 

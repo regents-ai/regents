@@ -115,8 +115,14 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
   def mount(_params, %{"client_tag" => client_tag}, socket) do
     # Heard before they are read, so a change that lands in between still
     # reaches the page.
-    if connected?(socket), do: SharedReading.subscribe(FleetNow.key(@classic))
-    if connected?(socket), do: SharedReading.subscribe(Here.fleet_key(@classic))
+    if connected?(socket) do
+      SharedReading.subscribe(FleetNow.key(@classic))
+      SharedReading.subscribe(Here.fleet_key(@classic))
+
+      if ShellLive.human_actor(socket) != nil do
+        Phoenix.PubSub.subscribe(Regents.PubSub, Keys.topic(@classic))
+      end
+    end
 
     {:ok,
      socket
@@ -240,9 +246,16 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
       when kind in [:keyfleet_fleet_now, :keyfleet_fleet_agents],
       do: {:noreply, assign(socket, :classic, fleet(@classic))}
 
-  # A Key bought here moves Classic's sales, which its reading already
-  # follows; the homepage shows no other figure a purchase changes.
-  def handle_info({:onchain_landed, _fleet_id}, socket), do: {:noreply, socket}
+  # The session hook has already re-read the account when ENS lookup finishes.
+  def handle_info({:ens_lookup_finished, _account_id}, socket), do: {:noreply, socket}
+
+  # Refresh the signed-in holder's Key count when Classic's Keys change hands
+  # or a purchase from the Buy Key window lands.
+  def handle_info({:keys_changed, @classic, _token_ids}, socket),
+    do: {:noreply, assign(socket, :held_keys, held_keys(socket))}
+
+  def handle_info({:onchain_landed, _fleet_id}, socket),
+    do: {:noreply, assign(socket, :held_keys, held_keys(socket))}
 
   @impl true
   def render(assigns) do

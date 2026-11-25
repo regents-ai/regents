@@ -36,6 +36,12 @@
   --theme-switch-p: 1;
 }
 
+@media (prefers-color-scheme: light) {
+  :scope:not([data-theme]) .theme-switch {
+    --theme-switch-p: 1;
+  }
+}
+
 /* Touch screens: the press is at least 44px tall, as every press in the shell. */
 @media (hover: none), (pointer: coarse) {
   .theme-switch {

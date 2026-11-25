@@ -277,6 +277,7 @@ config :regents, Oban,
       # PubSub delivers real-time changes within a second; heals mend missed
       # notices on a calmer cadence so multi-machine clusters stay light on Postgres.
       {"*/10 * * * *", Regents.SharedReading.Heal, args: %{kind: "points_board"}},
+      {"*/10 * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_season_coins"}},
       {"*/5 * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_agents"}},
       {"*/5 * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_key_agents"}},
       {"*/5 * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_now"}},
@@ -357,6 +358,10 @@ config :regents, :limits,
   # Keyfleet workspace writes per wallet in each fleet: two a second, more than
   # real agent work needs.
   keyfleet_graph_writes: [limit: 120, window_seconds: 60],
+  # Keyfleet agent picture upload tickets per agent wallet: 20 per 10 minutes.
+  keyfleet_avatar_uploads: [limit: 20, window_seconds: 600],
+  # Keyfleet notebook run starts per agent wallet in a fleet: 30 per 10 minutes.
+  keyfleet_notebook_run_starts: [limit: 30, window_seconds: 600],
   # A person's presses of Keyfleet's Treasury refresh: one every 30 seconds
   # (Sean, 20 October 2026).
   keyfleet_treasury_refresh: [limit: 1, window_seconds: 30],
@@ -587,6 +592,14 @@ config :regents, Regents.Keyfleet.Lighthouse,
   url: "https://upload.lighthouse.storage",
   req_options: []
 
+# Coinbase's public market data, read with no account or key, for Keyfleet's
+# seasons' picks and prices (`Regents.Keyfleet.Seasons.Coinbase`).
+config :regents, Regents.Keyfleet.Seasons.Coinbase,
+  url: "https://api.coinbase.com/api/v3/brokerage"
+
+# Hourly presence timer key (`KEYFLEET_PRESENCE_TIMER_KEY` sets it in runtime.exs).
+config :regents, Regents.Keyfleet.Keys.PresenceTimer, key: nil
+
 # The chain a fleet's wallet buttons send on, by the chain id its deployment
 # records, with its name in the page's words (Regents.Keyfleet.WalletSteps). Its
 # public rpc_url goes to the wallet; the server reads Base only through
@@ -663,6 +676,9 @@ config :regents, :keyfleet_notebooks,
 # body at most `body_timeout_ms`. A workspace page waits `page_timeout_ms` for the
 # store, and shows files up to `file_max_bytes`.
 config :regents, :keyfleet_code,
+  host: "code.keyfleet.ai",
+  public_port: 443,
+  node: nil,
   pass_ttl_seconds: 120,
   access_ttl_ms: 30_000,
   password_ttl_seconds: 12 * 60 * 60,

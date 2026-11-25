@@ -224,7 +224,10 @@ defmodule Regents.MixProject do
         # The Endpoint passes the launch-gated Markdown lookup to RegentAgentAccess.
         # Hosted product tools add seven intentional links: three tool domain-to-resource
         # links, two Autolaunch domain-to-preparer links and each preparer's launch check.
-        "xref graph --label compile-connected --fail-above 325",
+        # Keyfleet's full hosted MCP surface adds twenty-six intentional links: twelve new
+        # Keyfleet.AgentTools domain-to-resource links, thirteen resource-to-Run action links,
+        # and Keyfleet.Graph reading Keyfleet.Capabilities for AshAi tool descriptions.
+        "xref graph --label compile-connected --fail-above 351",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

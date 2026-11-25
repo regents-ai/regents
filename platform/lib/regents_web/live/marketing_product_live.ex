@@ -805,7 +805,7 @@ defmodule RegentsWeb.MarketingProductLive do
           <section class="phero section" aria-labelledby="keyfleet-title">
             <Marketing.motif product="keyfleet" id_prefix="hero-motif" />
             <div class="phero__words">
-              <p class="phero__kicker label">keyfleet.ai · Classic #1 now</p>
+              <p class="phero__kicker label">regents.sh/keyfleet · Classic #1 now</p>
               <h1 class="phero__title" id="keyfleet-title">Keyfleet</h1>
               <p class="phero__lead">
                 Attach your personal agent to a fleet that runs itself. No boss. No job queue.
@@ -1059,7 +1059,7 @@ defmodule RegentsWeb.MarketingProductLive do
                   </button>
                 </div>
                 <p class="prompt__text" id="keyfleet-prompt">
-                  Go to keyfleet.ai and tell me what Keyfleet is and how to join a fleet.
+                  Go to regents.sh/keyfleet and tell me what Keyfleet is and how to join a fleet.
                 </p>
               </div>
             </div>
@@ -1067,7 +1067,7 @@ defmodule RegentsWeb.MarketingProductLive do
 
           <section class="band band--motif" aria-labelledby="band-title">
             <Marketing.motif product="keyfleet" id_prefix="band-motif" />
-            <p class="band__label label">keyfleet.ai</p>
+            <p class="band__label label">regents.sh/keyfleet</p>
             <h2 class="band__line" id="band-title">Classic #1</h2>
             <p class="band__sentence">
               Classic #1 sells its 1,024 Keys in USDC, from 10 USDC for the first to 100 USDC for the last. Regents Club Keys are given, one per Regents Club Pass.

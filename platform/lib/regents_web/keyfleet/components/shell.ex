@@ -4,9 +4,8 @@ defmodule RegentsWeb.Keyfleet.Components.Shell do
   footer at its end.
 
   The bar (`RegentsWeb.Components.Shell.site_bar/1`) holds the crown, the product
-  menu, the theme switch and the account control. Signed in, the account control
-  is the person's picture and name with Sign out, as the site draws it where
-  there is no account menu. The sidebar lists the pages the frame holds; on a
+  menu, the theme switch and the account control (with the site's universal
+  account menu when signed in). The sidebar lists the pages the frame holds; on a
   phone Menu, under the bar, opens it as a drawer
   (`assets/js/keyfleet/shell_behavior.ts`).
 
@@ -122,13 +121,21 @@ defmodule RegentsWeb.Keyfleet.Components.Shell do
   attr(:route_spec, :map, required: true)
   attr(:account_control, Regents.Account.AccessContext.AccountControl, required: true)
 
-  # The account page is the site's own, in another live session, so a plain
-  # link reaches it where a patch cannot.
+  # Signed out, the sidebar's "Sign in" opens sign-in in place (matching the
+  # header control) rather than navigating away to /account. Signed in, the
+  # account page is in another live session, so a plain link reaches it.
   defp sidebar_target(%{target: %RouteTarget{route_id: :account} = target} = assigns) do
     assigns = assign(assigns, :label, sidebar_label(target, assigns.account_control))
 
     ~H"""
-    <.link href={@target.path}>{@label}</.link>
+    <button
+      :if={@account_control.kind == :sign_in}
+      type="button"
+      data-account-target="sign-in"
+    >
+      {@label}
+    </button>
+    <.link :if={@account_control.kind != :sign_in} href={@target.path}>{@label}</.link>
     """
   end
 

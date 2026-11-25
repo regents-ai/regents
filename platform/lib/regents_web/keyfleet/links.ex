@@ -60,7 +60,7 @@ defmodule RegentsWeb.Keyfleet.Links do
   # The Atlas and the workspace link a notebook, or a saved page of it,
   # through this site (`RegentsWeb.Keyfleet.NotebookOpenController`): `to` is its
   # path on the fleet's notebook host.
-  defp page("/fleets/" <> rest, %{"to" => to}, actor) do
+  defp page("/keyfleet/fleets/" <> rest, %{"to" => to}, actor) do
     with [fleet_id, "notebooks", "open"] <- String.split(rest, "/"),
          true <- Notebooks.hub?(fleet_id) do
       notebook_at(fleet_id, to, actor)

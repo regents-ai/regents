@@ -266,43 +266,28 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
     socket = socket |> take_inputs(form) |> take_active(params) |> sync_now()
 
     case refusal(socket, socket.assigns, step) do
-      nil -> {:reply, %{review: socket.assigns.review, send: step}, socket}
-      refused -> {:reply, counted(socket, refused), assign(socket, press_note: refused.note)}
-    end
-  end
-
-  # The browser's own agent's press, with its values over the form's: the
-  # steps are built from those, now, for this press alone, and judged as the
-  # page judges its own, while the form and the steps the page shows stay as
-  # they are. What is sent from them is followed as any other press, and a
-  # proposal's words are saved as its steps are handed over. A refusal is
-  # counted and goes only in the reply: the note below the buttons speaks for
-  # the person's own presses. Past the address's wallet-read allowance, the
-  # steps held answer it when they were built for exactly what it asks for
-  # (`press_built/2`); no press is refused for it.
-  def handle_event("prepare_for_agent", %{"form" => form, "step" => step} = params, socket)
-      when is_map(form) and is_binary(step) do
-    {socket, wallet} = socket |> take_active(params) |> follow_signer()
-    inputs = over(socket.assigns.inputs, form)
-    built = if wallet, do: press_built(socket, request(socket, wallet, inputs))
-    pressed = %{socket.assigns | inputs: inputs, built: built, review: sendable(built, socket)}
-
-    case refusal(socket, pressed, step) do
       nil ->
-        save_words(pressed, step, inputs)
+        save_words(socket.assigns, step, socket.assigns.inputs)
+        review = socket.assigns.review
 
-        {:reply, %{review: pressed.review, send: step},
-         OnchainSteps.remember(socket, pressed.review)}
+        socket =
+          if step == "convert" and socket.assigns.flow == :convert do
+            socket
+            |> assign(inputs: %{socket.assigns.inputs | "amount" => ""})
+            |> sync(:counted)
+          else
+            socket
+          end
+
+        {:reply, %{review: review, send: step}, socket}
 
       refused ->
-        {:reply, counted(socket, refused), socket}
+        {:reply, counted(socket, refused), assign(socket, press_note: refused.note)}
     end
   end
 
   # The press is heard just before the wallet is asked to send it, with the
-  # form it was built from. The browser agent's press, sent from steps the
-  # page already holds, is heard marked as the agent's (`"agent" => true`):
-  # its proposal's words are saved, and the person's form stays as it is.
+  # form it was built from: a proposal's words are saved then.
   def handle_event("step_pressed", %{"step" => "propose", "form" => form}, socket) do
     save_words(socket.assigns, "propose", form)
     {:noreply, socket}

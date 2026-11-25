@@ -95,7 +95,7 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Notebooks.Answer do
   defp run(:run, %{"fleet_id" => fleet_id} = params, _actor, subject, space) do
     %{"notebook_id" => notebook_id, "idempotency_key" => idempotency_key} = params
 
-    with :ok <- Limits.admit(:notebook_run_starts, subject),
+    with :ok <- Limits.admit(:keyfleet_notebook_run_starts, subject),
          do: Runs.start(fleet_id, subject, space, notebook_id, idempotency_key)
   end
 

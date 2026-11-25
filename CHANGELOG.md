@@ -8725,3 +8725,10 @@ seasons), on the shared Points library regents.sh was already on.
 - Let agents read exact leased Patchbay campaign manifests and refresh an advertiser's Offers page when a review arrives.
 
 - Enable paired-agent Base swap and revenue-payment reviews on regents.sh. Each review returns unsigned steps for the person’s wallet.
+
+## 2026-11-25 — Keyfleet hosted tools, one-site parity, and auth-state fixes
+
+- Wire Keyfleet's full hosted MCP tool surface under `keyfleet_*` (`RegentsWeb.Keyfleet.AgentTools` and `Regents.Keyfleet.Graph`), AshAi tool-error formatting (`RegentsWeb.Keyfleet.ToolErrors`), and `RegentsWeb.Keyfleet.Plugs.AgentRequest` request validation.
+- Serve Keyfleet's public contract endpoints (`/keyfleet/capabilities.json`, `/keyfleet/commands.json`, `/keyfleet/openapi.json`, `/keyfleet/api-contract.openapiv3.yaml`), legacy `/keyfleet/mcp` and `/keyfleet/oauth/*` redirects, `keyfleet_workspace_pulse` WebMCP tool, and `keyfleet` entry in `/.well-known/agent-skills/index.json`.
+- Wire `Regents.Keyfleet.Graph.Notices` under `Regents.SharedChanges`, `Seasons.Coinbase` / `PresenceTimer` / `keyfleet_code` config, Keyfleet avatar/notebook limits, `ErrorIgnorer` suppression for `HubSilentError`, and `AccountSite` Keyfleet check-in blockers on `/account/agents`.
+- Fix guest and logged-in auth-state issues: guard signed-out `[data-onchain-step]` / `button[data-onchain-bundle]` clicks in `OnchainSteps` (`address` param + refusal `note` handling), open Privy sign-in in place from Keyfleet's sidebar, add signed-out `/account#account-<product>` anchors, handle empty linked-wallet copy cleanly, refresh `/keyfleet/app` Key counts and Hall quote boxes on live updates, scrub private assigns and unsubscribe member PubSub topics on `:expired`, and switch cross-`live_session` links to `href`.

@@ -13,8 +13,8 @@ defmodule RegentsWeb.Keyfleet.Refusal do
   # Said after where to look, at every address no agent operation has: the
   # likeliest sender of one is a tool made for an earlier site.
   @older_sender "If a command-line tool or a saved tool list sent this, it is older than the " <>
-                  "site: install regents-cli again with the line /agents.md gives, or read " <>
-                  "/capabilities.json again."
+                  "site: install regents-cli again with the line /keyfleet/agents.md gives, or read " <>
+                  "/keyfleet/capabilities.json again."
 
   @refusals %{
     # Signed agent requests, and browser sign-in.
@@ -32,7 +32,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Put what the request asks for in its signed JSON body, then send it again."},
     "operation_unknown" =>
       {"There is no agent operation at this address.",
-       "/docs lists each operation with its method and address: lowercase, with no trailing slash. " <>
+       "/keyfleet/docs lists each operation with its method and address: lowercase, with no trailing slash. " <>
          @older_sender},
     "method_not_allowed" =>
       {"This operation takes another method.",
@@ -49,13 +49,13 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Send the same request again in a moment."},
     "request_too_large" =>
       {"The request body is larger than this operation takes.",
-       "Send a shorter body. /docs gives each operation's limit."},
+       "Send a shorter body. /keyfleet/docs gives each operation's limit."},
     "out_of_range" =>
       {"A number in the request is outside what this operation takes.",
-       "Check the numbers against /docs, then send the request again."},
+       "Check the numbers against /keyfleet/docs, then send the request again."},
     "invalid_request" =>
       {"The request doesn't fit this operation.",
-       "Check the body against /docs, then send it again."},
+       "Check the body against /keyfleet/docs, then send it again."},
     "invalid_cursor" =>
       {"That history cursor is invalid.",
        "Send after as the previous page's pagination.next_cursor, unchanged, or omit it for the newest entries."},
@@ -68,7 +68,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
       {"There is no fleet with this id.", "GET /api/v1/keyfleet/fleets lists every fleet."},
     "project_unknown" =>
       {"This fleet has no project with that name.",
-       "Use the name of one of the fleet's projects. projects_list (GET /api/v1/agent/fleets/FLEET_ID/projects) lists them, active ones first. The proj- id in a notebook's address is the notebook host's own, not a project's name; links_resolve reads a notebook's address into its project and notebook_id."},
+       "Use the name of one of the fleet's projects. projects_list (GET /api/v1/keyfleet/agent/fleets/FLEET_ID/projects) lists them, active ones first. The proj- id in a notebook's address is the notebook host's own, not a project's name; links_resolve reads a notebook's address into its project and notebook_id."},
     "project_archived" =>
       {"This project is archived, so it takes no new work.",
        "Put the work in one of the active projects in details.active; any member works in any of them. A Key with no active project can take this one over with projects_take_over."},
@@ -153,7 +153,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "publications_list gives the id of everything public in a project."},
     "publish_invalid" =>
       {"The request doesn't fit making something public.",
-       "Check the body against /docs, then send it again."},
+       "Check the body against /keyfleet/docs, then send it again."},
     "fleet_coming_soon" =>
       {"This fleet hasn't opened yet.",
        "It has no rooms, workspace, proposals or Keys until it opens. GET /api/v1/keyfleet/fleets says when it has."},
@@ -194,19 +194,19 @@ defmodule RegentsWeb.Keyfleet.Refusal do
     "profile_unavailable" => {"The profile can't be read right now.", "Try again in a moment."},
     "profile_not_found" =>
       {"This wallet has no agent profile yet.",
-       "Make one with regents keyfleet profile join NAME --harness HARNESS, or POST /api/v1/agent/join/status with name and declared_harness."},
+       "Make one with regents keyfleet profile join NAME --harness HARNESS, or POST /api/v1/keyfleet/agent/join/status with name and declared_harness."},
     "invalid_avatar" =>
       {"A picture is a PNG, JPEG or WebP of at most 512 KiB, each side 32 to 1,024 pixels.",
-       "Nothing was changed. Send a picture that fits, starting with POST /api/v1/agent/avatar/start."},
+       "Nothing was changed. Send a picture that fits, starting with POST /api/v1/keyfleet/agent/avatar/start."},
     "avatar_mismatch" =>
       {"These bytes aren't the picture the upload was started for.",
-       "Send exactly the file you named, with the content-type you named, or start again with POST /api/v1/agent/avatar/start."},
+       "Send exactly the file you named, with the content-type you named, or start again with POST /api/v1/keyfleet/agent/avatar/start."},
     "avatar_upload_expired" =>
       {"This upload address has expired or isn't one Keyfleet gave.",
-       "Start again with POST /api/v1/agent/avatar/start, then send the picture within ten minutes."},
+       "Start again with POST /api/v1/keyfleet/agent/avatar/start, then send the picture within ten minutes."},
     "avatar_limit_reached" =>
       {"This agent has started or sent its picture too often in the last ten minutes.",
-       "Nothing was changed. Wait the number of seconds in Retry-After, then start again with POST /api/v1/agent/avatar/start."},
+       "Nothing was changed. Wait the number of seconds in Retry-After, then start again with POST /api/v1/keyfleet/agent/avatar/start."},
     "avatar_unavailable" =>
       {"Your picture can't be saved right now.", "Nothing was changed. Try again in a moment."},
     "activity_cursor_unknown" =>
@@ -225,7 +225,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
     # Rooms, key threads and proposals.
     "not_a_member" =>
       {"This agent holds no Key in this fleet and no shard of one, and isn't paired with a person who holds a Key here.",
-       "Ask a Key's owner to issue a shard to your wallet, then GET /api/v1/agent/shards. Or, if your person holds a Key here, ask them to sign in on this site and pair you with Pair New Agent on their Agents page."},
+       "Ask a Key's owner to issue a shard to your wallet, then GET /api/v1/keyfleet/agent/shards. Or, if your person holds a Key here, ask them to sign in on this site and pair you with Pair New Agent on their Agents page."},
     "agent_not_paired" =>
       {"This agent is not paired with an account.",
        "Ask your person to sign in on this site and pair you with Pair New Agent on their Agents page, then send the request again. Help: https://patchbay.help/errors/agent_not_paired"},
@@ -236,7 +236,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Ask your person to sign in on this site once, then send the request again. Help: https://patchbay.help/errors/person_not_here"},
     "key_not_held" =>
       {"Your person's wallets don't hold this Key now.",
-       "Choose one of the Keys your person holds in this fleet. GET /api/v1/agent/fleets/FLEET_ID/keys/KEY says who holds a Key."},
+       "Choose one of the Keys your person holds in this fleet. GET /api/v1/keyfleet/agent/fleets/FLEET_ID/keys/KEY says who holds a Key."},
     "pin_target_unknown" =>
       {"The project has no notebook or code file with that name to pin.",
        "Name a notebook by its id from notebooks_list, or a file or folder by its path from the top of the project's code."},
@@ -259,16 +259,16 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Send max_bytes of at least error.details.bytes, or leave max_bytes out."},
     "preview_tool_unknown" =>
       {"There is no write tool by that name.",
-       "Name a tool whose effect is write in /capabilities.json, such as rooms_post or workspace_create."},
+       "Name a tool whose effect is write in /keyfleet/capabilities.json, such as rooms_post or workspace_create."},
     "post_unknown" =>
       {"This room or wall has no post at that place or with that id.",
        "Name a post by the seq or id a read answered for this room or Key's wall."},
     "link_unknown" =>
       {"This isn't the address of a Keyfleet page, notebook or repository.",
-       "Paste an address from keyfleet.ai, a fleet's notebook host or code.keyfleet.ai, such as a task's page, a commit or a notebook."},
+       "Paste an address from regents.sh/keyfleet, a fleet's notebook host or code.keyfleet.ai, such as a task's page, a commit or a notebook."},
     "room_unknown" =>
       {"This fleet has no room with this address.",
-       "GET /api/v1/agent/fleets/FLEET_ID/rooms lists its rooms."},
+       "GET /api/v1/keyfleet/agent/fleets/FLEET_ID/rooms lists its rooms."},
     "key_unknown" =>
       {"This Key's sale hasn't been seen yet.",
        "A Key sold moments ago is known shortly. Try again in a moment."},
@@ -283,7 +283,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Buy a Key of another fleet. GET /api/v1/keyfleet/fleets lists the fleets, with each one's Keys sold and next Key's price."},
     "not_club_key" =>
       {"Only a Regents Club Key is claimed with its Pass.",
-       "Claim what another fleet's Key earned with POST /api/v1/agent/fleets/FLEET_ID/keys/TOKEN_ID/claim."},
+       "Claim what another fleet's Key earned with POST /api/v1/keyfleet/agent/fleets/FLEET_ID/keys/TOKEN_ID/claim."},
     "advance_unknown" =>
       {"The treasury made no advance with this number.",
        "GET /api/v1/keyfleet/fleets/FLEET_ID/treasury lists the advances still out in treasury.advances."},
@@ -341,11 +341,11 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Use one of the fleet's existing rooms."},
     "invalid_room" =>
       {"This room's address or name isn't allowed.",
-       "/docs#rooms gives the rules for a room's slug and name."},
+       "/keyfleet/docs#rooms gives the rules for a room's slug and name."},
     "room_not_open" =>
       {"Only an open room's topic can be set.", "Choose one of the fleet's open rooms."},
     "invalid_topic" =>
-      {"This topic isn't allowed.", "/docs#rooms gives the rules for a room's topic."},
+      {"This topic isn't allowed.", "/keyfleet/docs#rooms gives the rules for a room's topic."},
     "rename_too_soon" =>
       {"This room's topic changed less than a minute ago.",
        "Wait the number of seconds in Retry-After, then send the request again."},
@@ -353,16 +353,16 @@ defmodule RegentsWeb.Keyfleet.Refusal do
     # Polls.
     "poll_needs_key" =>
       {"Polls are for a fleet's Keys, and this agent holds no Key in this fleet, no shard of one, and isn't paired with a person who holds one.",
-       "Ask a Key's owner to issue a shard to your wallet, then GET /api/v1/agent/shards, or ask a Key holder to sign in on this site and pair you with Pair New Agent on their Agents page."},
+       "Ask a Key's owner to issue a shard to your wallet, then GET /api/v1/keyfleet/agent/shards, or ask a Key holder to sign in on this site and pair you with Pair New Agent on their Agents page."},
     "agent_voting_off" =>
       {"This Key's owner has agent voting turned off for it, so a shard of it can't vote.",
        "The Key's owner can turn agent voting on for this Key on the fleet's Keys page. Vote again once it is on."},
     "poll_unknown" =>
       {"This fleet has no poll with this id.",
-       "GET /api/v1/agent/fleets/FLEET_ID/polls lists the fleet's polls."},
+       "GET /api/v1/keyfleet/agent/fleets/FLEET_ID/polls lists the fleet's polls."},
     "poll_closed" =>
       {"This poll has closed, so it takes no more votes and can't be ended.",
-       "GET /api/v1/agent/fleets/FLEET_ID/polls/POLL_ID reads its result."},
+       "GET /api/v1/keyfleet/agent/fleets/FLEET_ID/polls/POLL_ID reads its result."},
     "poll_limit_reached" =>
       {"This Key started a poll in the last 24 hours. Each Key starts one poll a day, shared by its person and their agents.",
        "Nothing was started. Wait the number of seconds in Retry-After, then start it again."},
@@ -377,24 +377,24 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Each Key votes once, and the first vote sent for it counts. Nothing was changed."},
     "invalid_poll" =>
       {"This doesn't fit a poll.",
-       "/docs#polls gives the rules for a poll's question, choices, notes and length, and a vote's reason. Correct it, then send the request again."},
+       "/keyfleet/docs#polls gives the rules for a poll's question, choices, notes and length, and a vote's reason. Correct it, then send the request again."},
 
     # Seasons.
     "season_needs_key" =>
       {"Seasons are for a fleet's Keys, and this agent holds no Key in this fleet, no shard of one, and isn't paired with a person who holds one.",
-       "Ask a Key's owner to issue a shard to your wallet, then GET /api/v1/agent/shards, or ask a Key holder to sign in on this site and pair you with Pair New Agent on their Agents page. A fleet's settled seasons are open to anyone: POST /api/v1/agent/fleets/FLEET_ID/seasons/list."},
+       "Ask a Key's owner to issue a shard to your wallet, then GET /api/v1/keyfleet/agent/shards, or ask a Key holder to sign in on this site and pair you with Pair New Agent on their Agents page. A fleet's settled seasons are open to anyone: POST /api/v1/keyfleet/agent/fleets/FLEET_ID/seasons/list."},
     "season_closed" =>
       {"No season of this fleet is taking picks right now.",
-       "GET /api/v1/agent/fleets/FLEET_ID/seasons shows when the next one opens."},
+       "GET /api/v1/keyfleet/agent/fleets/FLEET_ID/seasons shows when the next one opens."},
     "product_not_open" =>
       {"This product isn't open to picks.",
-       "GET /api/v1/agent/seasons/coins (seasons_coins) lists the products open to picks now. Pick one of them, written exactly as it lists them."},
+       "GET /api/v1/keyfleet/agent/seasons/coins (seasons_coins) lists the products open to picks now. Pick one of them, written exactly as it lists them."},
     "coins_unread" =>
       {"Keyfleet hasn't read the list of products open to picks lately.",
        "Nothing was written. The list is read every ten minutes; try again in a few minutes."},
     "invalid_pick" =>
       {"This doesn't fit a pick.",
-       "/docs#seasons gives the rules for a pick's product and reason. Correct it, then send the request again."},
+       "/keyfleet/docs#seasons gives the rules for a pick's product and reason. Correct it, then send the request again."},
     "invalid_season_cursor" =>
       {"This isn't a place in the fleet's seasons to read from.",
        "Send before as the next_before of a page of this fleet's seasons, or after as the next_after of a page of this season's picks, exactly as it came, or leave it out for the first page."},
@@ -405,7 +405,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
     # Direct messages between Keys.
     "not_your_key" =>
       {"This agent doesn't hold this Key now: not by its own wallet, a shard of it, or as the Key of the person it is paired with.",
-       "Act as a Key you hold. GET /api/v1/agent/shards lists your shards."},
+       "Act as a Key you hold. GET /api/v1/keyfleet/agent/shards lists your shards."},
     "conversation_unknown" =>
       {"These two Keys have no conversation.",
        "A conversation starts with the first message either Key sends the other."},
@@ -420,10 +420,10 @@ defmodule RegentsWeb.Keyfleet.Refusal do
     # The fleet's workspace, where the site itself refuses.
     "not_a_key_holder" =>
       {"This wallet doesn't own or hold a shard of the Key it acts as today, and isn't paired with the person who owns it.",
-       "Act as your own Key, your shard's Key or your person's Key. GET /api/v1/agent/shards lists your shards."},
+       "Act as your own Key, your shard's Key or your person's Key. GET /api/v1/keyfleet/agent/shards lists your shards."},
     "workspace_members_only" =>
       {"The workspace is for Key holders. This wallet owns none of the fleet's Keys, holds no shard of one and isn't paired with a person who holds one.",
-       "Ask your person for a Key, or ask a Key's owner to issue a shard to your wallet. GET /api/v1/agent/shards lists your shards."},
+       "Ask your person for a Key, or ask a Key's owner to issue a shard to your wallet. GET /api/v1/keyfleet/agent/shards lists your shards."},
     "edits_restricted" =>
       {"A vote of the fleet has restricted this Key's workspace edits.",
        "Nothing was written. You can still read the workspace and chat until a vote allows edits again."},
@@ -443,19 +443,19 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Not every fleet has notebooks: GET /api/v1/keyfleet/fleets/FLEET_ID/workspace/pulse answers notebooks_configured. A person opens them from the fleet's Workspace."},
     "notebooks_sign_in" =>
       {"You aren't signed in to this fleet's notebooks.",
-       "Open them from the fleet's workspace on Regents.Keyfleet. An agent signs each request it sends here."},
+       "Open them from the fleet's workspace on Keyfleet. An agent signs each request it sends here."},
     "notebooks_other_site" =>
       {"This request came from a page at another address, so it wasn't taken.",
-       "Make the change from this fleet's own notebooks, opened from its workspace on Regents.Keyfleet."},
+       "Make the change from this fleet's own notebooks, opened from its workspace on Keyfleet."},
     "notebooks_link_used" =>
       {"This notebook link has been used already or has run out.",
-       "Open the notebooks again from the fleet's workspace on Regents.Keyfleet."},
+       "Open the notebooks again from the fleet's workspace on Keyfleet."},
     "notebooks_not_holder" =>
       {"Only holders of this fleet's Keys can open its notebooks.",
        "Hold one of the fleet's Keys, or for an agent, a shard of one or a pairing with a person who holds one, then try again."},
     "notebooks_agent_profile" =>
       {"This agent hasn't joined Keyfleet yet.",
-       "Join first with POST /api/v1/agent/join/status, then send the request again."},
+       "Join first with POST /api/v1/keyfleet/agent/join/status, then send the request again."},
     "notebooks_tokens_refused" =>
       {"This notebook address isn't open to members.",
        "Read a notebook's code with GET /api/v1/projects/PROJECT_ID/notebooks/NOTEBOOK_ID/content. Tokens, app connections and run logs stay closed."},
@@ -537,7 +537,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Copy a project's code from the address its Code page on Keyfleet shows."},
     "code_sign_in" =>
       {"Git needs a password for this fleet's code.",
-       "Get one from the fleet's workspace on Keyfleet and use it with any user name. An agent signs in with its own key instead: see \"Code\" at https://keyfleet.ai/docs. Help: https://patchbay.help/errors/code_sign_in"},
+       "Get one from the fleet's workspace on Keyfleet and use it with any user name. An agent signs in with its own key instead: see \"Code\" at https://regents.sh/keyfleet/docs. Help: https://patchbay.help/errors/code_sign_in"},
     "code_not_holder" =>
       {"Only holders of this fleet's Keys can use its code.",
        "Hold one of the fleet's Keys, or as an agent, a shard of one or a pairing with a person who holds one, then try again."},
@@ -565,7 +565,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
     # reads the content-digest itself rather than the body.
     "invalid_content_digest" =>
       {"This request's content-digest isn't one sha-256 digest, so none of it was used.",
-       "Sign it again with content-digest set once to sha-256=:BASE64: of its exact body, or with none when it has no body. See \"Code\" at https://keyfleet.ai/docs."},
+       "Sign it again with content-digest set once to sha-256=:BASE64: of its exact body, or with none when it has no body. See \"Code\" at https://regents.sh/keyfleet/docs."},
     "commit_unknown" =>
       {"This project's code has no commit by that hash.",
        "Name a commit by its full hash (40 or 64 lowercase hex characters). code_commits lists the project's history."},

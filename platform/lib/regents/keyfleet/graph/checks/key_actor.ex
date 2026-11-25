@@ -31,7 +31,6 @@ defmodule Regents.Keyfleet.Graph.Checks.KeyActor do
   """
   use Ash.Policy.SimpleCheck
 
-  alias RegentAgents.Authority
   alias Regents.Account.Actors.Agent
   alias Regents.Account.Actors.Human
   alias Regents.Keyfleet.Graph.Errors.CheckExpiredError
@@ -55,7 +54,7 @@ defmodule Regents.Keyfleet.Graph.Checks.KeyActor do
         %{subject: %Ash.ActionInput{context: %{private: %{ash_ai_pre_check?: true}}}},
         _opts
       ),
-      do: is_struct(actor, Agent)
+      do: is_struct(actor, Agent) and match?(%Human{}, actor.pairing)
 
   def match?(actor, %{subject: %Ash.ActionInput{arguments: arguments}}, _opts) do
     within = Application.fetch_env!(:regents, :keyfleet_graph)[:check_timeout]
@@ -105,20 +104,11 @@ defmodule Regents.Keyfleet.Graph.Checks.KeyActor do
   end
 
   @doc """
-  Locks an agent's pairing until the current transaction ends, as
-  `RegentAgents.RequirePairing` does for a resource's own action: `:ok` while
-  it is paired, and for anyone who is not an agent, or `{:error, reason}`.
+  Locks an agent's pairing until the current transaction ends, via
+  `Regents.Account.Actors.Agent.lock_pairing/1`: `:ok` while it is paired, and
+  for anyone who is not an agent, or `{:error, reason}`.
   """
-  def hold_pairing(%Agent{} = actor) do
-    with {:ok, _pairing} <-
-           Authority.lock(
-             Regents.Repo,
-             actor.pairing_id,
-             actor.privy_user_id,
-             actor.wallet_address
-           ),
-         do: :ok
-  end
+  def hold_pairing(%Agent{} = actor), do: Agent.lock_pairing(actor)
 
   def hold_pairing(_actor), do: :ok
 

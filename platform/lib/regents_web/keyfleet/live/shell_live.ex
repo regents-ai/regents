@@ -99,7 +99,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
       ) do
     {:ok,
      socket
-     |> follow_mutes()
+     |> attach_hook(:shell_unheard, :after_render, &unheard/1)
      |> stream_configure(:posts, dom_id: &"post-#{&1.id}")
      |> stream(:posts, [])
      |> stream_configure(:fleet_who, dom_id: &"fleet-who-#{&1.id}")
@@ -133,6 +133,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
        publish_notice: nil,
        project_page: nil,
        agents_topic: nil,
+       mutes_topic: nil,
        fleet: nil,
        fleet_params: nil,
        fleet_place: :fleet,
@@ -175,6 +176,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
        season_topics: [],
        seasons: nil
      )
+     |> follow_mutes()
      |> follow_agents(current_account(socket.assigns.access_context))}
   end
 
@@ -350,10 +352,11 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
   # ends when this sign-in does.
   defp press("get_code_password", _params, %{assigns: %{workspace: %{}}} = socket) do
     with %Human{} = actor <- human_actor(socket),
+         %{lineage: lineage} <- socket.assigns.session_lease,
          {:ok, %{password: password, expires_at: expires_at}} <-
            CodePassword.for_person(
              actor,
-             socket.assigns.session_lease.lineage,
+             lineage,
              socket.assigns.workspace.fleet_id
            ) do
       {:noreply,
@@ -497,12 +500,16 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
   end
 
   # The person's agents changed on any Regent site: paired, checked in,
-  # corrected or unpaired. Pair on a fleet's page follows, and the agents'
-  # states and shard presses on the person's own Key's page.
+  # corrected or unpaired. Pair and the Message box on a fleet's page follow,
+  # and the agents' states and shard presses on the person's own Key's page.
   defp notice(:agents_changed, socket),
     do:
       {:noreply,
-       socket |> prompts_changed() |> agent_setup_changed() |> KeysLive.agents_changed()}
+       socket
+       |> prompts_changed()
+       |> FleetLive.agents_changed()
+       |> agent_setup_changed()
+       |> KeysLive.agents_changed()}
 
   defp notice(%Broadcast{event: event} = notice, socket)
        when event in ["dm_head", "dm_deleted"],
@@ -704,6 +711,8 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
 
   @impl true
   def render(assigns) do
+    assigns = expire_private_assigns(assigns)
+
     ~H"""
     <.shell
       route_spec={@route_spec}
@@ -987,7 +996,10 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
   # again when the person's agents, the fleet's Keys or a step sent from the
   # page change.
   defp prompts_changed(%{assigns: %{fleet: %{fleet_id: _}}} = socket) do
-    send_update(FleetPrompts, id: "fleet-prompts", changed: true)
+    if human_actor(socket) != nil do
+      send_update(FleetPrompts, id: "fleet-prompts", changed: true)
+    end
+
     socket
   end
 
@@ -1177,9 +1189,140 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
   # pages, for as long as the page is open.
   defp follow_mutes(socket) do
     muter = Muter.of(human_actor(socket))
-    if connected?(socket) and muter != nil, do: start_listening(Muter.topic(muter))
-    socket
+
+    if connected?(socket) and muter != nil do
+      topic = Muter.topic(muter)
+      start_listening(topic)
+      assign(socket, :mutes_topic, topic)
+    else
+      socket
+    end
   end
+
+  # When a logged-in person's session lapses while a Keyfleet page stays open,
+  # drop every private/member PubSub subscription immediately (matching HarbourSeaLive).
+  defp unheard(%{assigns: %{signed_out_reason: :expired} = assigns} = socket) do
+    private_topics =
+      [
+        assigns.agents_topic,
+        assigns.mutes_topic,
+        assigns.dms_topic,
+        assigns.room_topic
+      ] ++
+        List.wrap(assigns.workspace_topics) ++
+        List.wrap(assigns.polls_topics) ++
+        List.wrap(assigns.season_topics)
+
+    if Enum.any?(private_topics, &is_binary/1) do
+      Enum.each(private_topics, &stop_listening/1)
+
+      assign(socket,
+        agents_topic: nil,
+        mutes_topic: nil,
+        dms_topic: nil,
+        room_topic: nil,
+        workspace_topics: [],
+        polls_topics: [],
+        season_topics: []
+      )
+    else
+      socket
+    end
+  end
+
+  defp unheard(socket), do: socket
+
+  # When a session lapses in place (`RegentsWeb.Live.Session` halts with
+  # `signed_out_reason: :expired` and anonymous `access_context`), strip stale
+  # member/owner state before rendering so private UI disappears immediately.
+  defp expire_private_assigns(%{signed_out_reason: :expired} = assigns) do
+    assigns
+    |> Map.put(:fleet_class, nil)
+    |> Map.put(:quotes, nil)
+    |> Map.put(:code_password, nil)
+    |> Map.update(:fleet, nil, &expire_fleet/1)
+    |> Map.update(:season, nil, &expire_season/1)
+    |> Map.update(:room, nil, &expire_room/1)
+    |> Map.update(:workspace, nil, &expire_workspace/1)
+    |> Map.update(:dms, nil, &expire_dms/1)
+    |> Map.update(:polls, nil, &expire_polls/1)
+    |> Map.update(:atlas, nil, &expire_atlas/1)
+    |> Map.update(:key, nil, &expire_key/1)
+    |> Map.update(:key_profile, nil, &expire_key_profile/1)
+  end
+
+  defp expire_private_assigns(assigns), do: assigns
+
+  defp expire_fleet(%{coming_soon?: false} = fleet),
+    do: %{fleet | held: nil, signed_in?: false, polls?: false}
+
+  defp expire_fleet(fleet), do: fleet
+
+  defp expire_season(%{member?: true} = season), do: %{season | member?: false, taking: nil}
+  defp expire_season(season), do: season
+
+  defp expire_room(%{public: true} = room),
+    do: %{room | key?: false, muter?: false, muted: MapSet.new(), read_to: %{}}
+
+  defp expire_room(%{} = room),
+    do: %{
+      room
+      | room_id: nil,
+        key?: false,
+        muter?: false,
+        muted: MapSet.new(),
+        read_to: %{},
+        refreshing?: false
+    }
+
+  defp expire_room(room), do: room
+
+  defp expire_workspace(%{members_only?: true} = workspace), do: workspace
+
+  defp expire_workspace(%{fleet_id: fleet_id} = workspace) do
+    %{
+      fleet_id: fleet_id,
+      fleet_name: Map.get(workspace, :fleet_name) || Fleets.name(fleet_id),
+      members_only?: true,
+      projects: [],
+      hash: Map.get(workspace, :hash)
+    }
+  end
+
+  defp expire_workspace(workspace), do: workspace
+
+  defp expire_dms(%{holder?: true} = dms),
+    do: %{dms | holder?: false, signed_in?: false, refreshing?: false}
+
+  defp expire_dms(dms), do: dms
+
+  defp expire_polls(%{kind: kind, fleet_id: fleet_id, fleet_name: fleet_name})
+       when kind in [:list, :poll],
+       do: %{
+         fleet_id: fleet_id,
+         fleet_name: fleet_name,
+         kind: :locked,
+         signed_in?: false,
+         refreshing?: false
+       }
+
+  defp expire_polls(polls), do: polls
+
+  defp expire_atlas(%{fleet_id: fleet_id, state: state}) when state != :members_only,
+    do: %{fleet_id: fleet_id, state: :members_only}
+
+  defp expire_atlas(atlas), do: atlas
+
+  defp expire_key(%{owner?: true} = key), do: %{key | owner?: false, messages: nil, agents: []}
+  defp expire_key(%{messages: %{}} = key), do: %{key | messages: nil}
+  defp expire_key(key), do: key
+
+  defp expire_key_profile(%{issued?: true} = profile) do
+    composer = if profile.composer == :write, do: :sign_in, else: profile.composer
+    %{profile | yours?: false, dms: nil, muted: MapSet.new(), composer: composer}
+  end
+
+  defp expire_key_profile(profile), do: profile
 
   # One subscription to the keys of each fleet on show, dropped on the way out.
   defp follow_keys(socket, fleet_ids) do

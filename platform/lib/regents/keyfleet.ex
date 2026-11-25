@@ -12,11 +12,11 @@ defmodule Regents.Keyfleet do
 
   Its tables stay in Keyfleet's own schema, `keyfleet_app` (`schema/0`), with
   their own migrations and ledger (`priv/keyfleet`), all on `Regents.Repo`.
-  Its domains (`domains/0`) are in `config :regents, ash_domains`, but none of
-  their triggers or scheduled actions runs here yet: `Regents.Application`
-  gives AshOban the site's domains without them, no queue of Keyfleet's is
-  declared and no schedule names its jobs. The only process it starts is
-  `Supervisor`'s. Its pages are `RegentsWeb.Keyfleet`.
+  Its domains (`domains/0`) are in `config :regents, ash_domains`, its Oban
+  queues and crons are declared in `config :regents, Oban`, its runtime
+  processes run under `Supervisor` and `RegentsWeb.Keyfleet.Supervisor`, and
+  its workspace graph notifications run under `Regents.SharedChanges`. Its
+  pages are `RegentsWeb.Keyfleet`.
   """
   use Boundary,
     top_level?: true,
@@ -26,6 +26,7 @@ defmodule Regents.Keyfleet do
       Activity,
       Agents,
       Agents.Avatar,
+      Agents.CheckIn,
       Agents.CheckInStatus,
       Agents.Here,
       Agents.Upkeep,
@@ -63,6 +64,7 @@ defmodule Regents.Keyfleet do
       Graph.Errors.UnknownFleetError,
       Graph.Errors.WriteLimitError,
       Graph.Event,
+      Graph.Notices,
       Graph.Object,
       Graph.RerunCheck,
       Keys,

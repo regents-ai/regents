@@ -105,7 +105,9 @@ const keyfleetShell: Hook = {
         closeMenu()
       }
 
-      if (target?.closest("#shell-sidebar a")) closeMenu()
+      if (target?.closest("#shell-sidebar a, #shell-sidebar [data-account-target='sign-in']")) {
+        closeMenu()
+      }
     }
 
     const onKeydown = (event: KeyboardEvent) => {

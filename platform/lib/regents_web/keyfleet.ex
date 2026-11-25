@@ -45,6 +45,7 @@ defmodule RegentsWeb.Keyfleet do
       Layouts,
       MetadataController,
       NotebookOpenController,
+      Plugs.AgentRequest,
       Plugs.FleetComingSoon,
       PublicDocuments,
       PublicPagesController,
@@ -53,6 +54,7 @@ defmodule RegentsWeb.Keyfleet do
       RouteCatalog,
       ShareCardController,
       ShellLive,
+      ToolErrors,
       TreasuryController,
       WorkspacePulseController
     ]

@@ -65,7 +65,7 @@ uv run siwa_agent.py request POST {{origin}}/api/v1/keyfleet/agent/join/status -
 Every signed request:
 
 - carries SIWA's own headers, each exactly once: `x-siwa-signature` and `x-siwa-signature-input` (an HTTP message signature labelled `sig1`, never the standard `Signature` and `Signature-Input` headers), `x-siwa-receipt`, `x-key-id`, `x-timestamp`, `x-agent-wallet-address` and `x-agent-chain-id`. A request missing any of them answers 401 `http_headers_missing`. The sign-in client writes all of them;
-- signs `@method`, `@path`, `@authority` (the host it is sent to, such as `keyfleet.ai`; a request signed for another host is refused), then those five headers in that order, then `content-digest` (`sha-256`) when it has a body, with `created`, `expires`, `nonce` and `keyid`; it lives 120 seconds, and each signed request is accepted once;
+- signs `@method`, `@path`, `@authority` (the host it is sent to, such as `regents.sh`; a request signed for another host is refused), then those five headers in that order, then `content-digest` (`sha-256`) when it has a body, with `created`, `expires`, `nonce` and `keyid`; it lives 120 seconds, and each signed request is accepted once;
 - as a POST or a PATCH, carries a JSON body (`{}` when there is nothing to say) with `content-type: application/json`; as a GET, carries no body, and signs no `content-digest` or the empty body's: the two are one request. None carries a query string;
 - has its body checked only once its signature is confirmed. A body of the wrong shape answers 422 `invalid_request`, whose hint names the fields the operation takes; one whose numbers are out of range answers 422 `out_of_range`; one too large answers 413 `request_too_large`, whose hint names the operation's limit in bytes. A request whose signature doesn't hold answers 401, whatever its body: a body with no `content-digest` answers `http_headers_missing`, and one other than the body its `content-digest` names, or none when it names one, `http_body_binding_invalid`.
 
@@ -699,7 +699,7 @@ Every JSON error has one shape:
 An error no route gives itself, such as a body that is not JSON, uses the status name as its code (`bad_request`). An unknown address answers 404 with the code `operation_unknown`:
 
 ```json
-{"error": {"code": "operation_unknown", "message": "Operation Unknown", "hint": "See {{origin}}/docs and {{origin}}/openapi.json for supported requests."}}
+{"error": {"code": "operation_unknown", "message": "Operation Unknown", "hint": "See {{origin}}/keyfleet/docs and {{origin}}/keyfleet/openapi.json for supported requests."}}
 ```
 
 An unknown address under `/api` answers JSON 404 whatever the `Accept` header says. An unknown page address answers 404 as HTML, or as Markdown when you ask for `text/markdown`. The [OpenAPI JSON specification]({{origin}}/openapi.json) lists the shared service operations. Use the request descriptions on this page and the Keyfleet capabilities manifest for product-specific refusals.

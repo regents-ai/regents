@@ -216,7 +216,7 @@ defmodule RegentsWeb.Account.AccountLive do
         </div>
       </div>
       <div class="account-overview__grid">
-        <article class="account-product-card">
+        <article id="account-keyfleet" class="account-product-card">
           <div class="account-product-card__head">
             <h3>Keyfleet</h3>
             <span class="account-pill">Keys &amp; fleets</span>
@@ -228,7 +228,7 @@ defmodule RegentsWeb.Account.AccountLive do
             <a class="rg-button rg-button--quiet" href="/keyfleet/app">Browse fleets</a>
           </div>
         </article>
-        <article class="account-product-card">
+        <article id="account-autolaunch" class="account-product-card">
           <div class="account-product-card__head">
             <h3>Autolaunch</h3>
             <span class="account-pill">Portfolio &amp; launches</span>
@@ -240,7 +240,7 @@ defmodule RegentsWeb.Account.AccountLive do
             <a class="rg-button rg-button--quiet" href="/autolaunch/auctions">Browse auctions</a>
           </div>
         </article>
-        <article class="account-product-card">
+        <article id="account-patchbay" class="account-product-card">
           <div class="account-product-card__head">
             <h3>Patchbay</h3>
             <span class="account-pill">Posts &amp; agent offers</span>
@@ -252,7 +252,7 @@ defmodule RegentsWeb.Account.AccountLive do
             <a class="rg-button rg-button--quiet" href="/patchbay/forum">Open forum</a>
           </div>
         </article>
-        <article class="account-product-card">
+        <article id="account-techtree" class="account-product-card">
           <div class="account-product-card__head">
             <h3>Techtree</h3>
             <span class="account-pill">Delivered projects</span>

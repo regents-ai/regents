@@ -136,6 +136,11 @@ defmodule RegentsWeb.Keyfleet.OnchainSteps do
       when reason in ~w(step_unknown wallet_unavailable),
       do: "Sign in to send this. Nothing was sent."
 
+  def failure_note(reason, [], nil, _chain_name)
+      when reason in ~w(step_unknown wallet_unavailable),
+      do:
+        "This account has no linked wallet yet. Link a wallet on your account, then press again. Nothing was sent."
+
   def failure_note(reason, linked, nil, _chain_name)
       when reason in ~w(step_unknown wallet_unavailable),
       do:
@@ -182,6 +187,10 @@ defmodule RegentsWeb.Keyfleet.OnchainSteps do
   The note beside the buttons while the wallet app has open a wallet the
   signed-in account does not link, naming both and asking the person to switch.
   """
+  def mismatch_note([], active) when is_binary(active),
+    do:
+      "Your wallet is on #{short(active)}, which isn't linked to this account. Sign in with this wallet or link a wallet on your account."
+
   def mismatch_note(linked, active) when is_list(linked) and is_binary(active) do
     if signer(linked, active) == nil do
       "Your wallet is on #{short(active)}, which isn't linked to this account. Switch to #{wallets(linked, " or ")}."

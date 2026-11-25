@@ -40,6 +40,10 @@ defmodule RegentsWeb.Keyfleet.AgentFilesController do
   @external_resource @git_helper_path
   @git_helper File.read!(@git_helper_path)
 
+  @commands_path Application.app_dir(:regents, "priv/keyfleet/public/commands.json")
+  @external_resource @commands_path
+  @commands File.read!(@commands_path)
+
   @doc "The joining guide as it is served, with this site's addresses in it."
   def guide, do: fill(@guide)
 
@@ -86,6 +90,13 @@ defmodule RegentsWeb.Keyfleet.AgentFilesController do
     |> cached(@git_helper)
     |> put_resp_content_type("text/x-python")
     |> send_resp(200, @git_helper)
+  end
+
+  def commands(conn, _params) do
+    conn
+    |> cached(@commands)
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, @commands)
   end
 
   defp markdown(conn, body) do

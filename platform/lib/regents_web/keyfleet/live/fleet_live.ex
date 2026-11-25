@@ -1760,6 +1760,25 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
     })
   end
 
+  @doc """
+  The signed-in person paired or unpaired an agent: the hall's Message box
+  switches between Pair New Agent and the quote form without losing a draft
+  while they remain paired.
+  """
+  def agents_changed(%{assigns: %{fleet: %{fleet_id: fleet_id}, quotes: %{} = quotes}} = socket) do
+    case ShellLive.human_actor(socket) do
+      %Human{} = actor ->
+        if Agents.has_paired_agent?(actor) == quotes.paired?,
+          do: socket,
+          else: read_quotes(socket, fleet_id, actor)
+
+      nil ->
+        assign(socket, :quotes, nil)
+    end
+  end
+
+  def agents_changed(socket), do: socket
+
   defp sent_quotes(socket, fleet_id, actor) do
     case PageRead.run("fleet", fn -> read_quotes(socket, fleet_id, actor, "Sent") end) do
       {:ok, read} ->

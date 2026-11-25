@@ -29,7 +29,8 @@ defmodule Regents.Keyfleet.Supervisor do
         Regents.Keyfleet.AccessCache,
         Regents.Keyfleet.Chain.RewardsWaiting,
         if(serving?, do: Regents.Keyfleet.Graph.Client),
-        if(serving?, do: Regents.Keyfleet.Agents.Here)
+        if(serving?, do: Regents.Keyfleet.Agents.Here),
+        if(serving?, do: Regents.Keyfleet.Seasons.CoinList)
       ]
       |> Enum.reject(&is_nil/1),
       strategy: :one_for_one

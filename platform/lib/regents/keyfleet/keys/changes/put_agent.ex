@@ -23,7 +23,7 @@ defmodule Regents.Keyfleet.Keys.Changes.PutAgent do
 
   require Ash.Query
 
-  alias RegentAgents.Authority
+  alias Regents.Account.Actors.Agent
   alias Regents.Keyfleet.Keys
   alias Regents.Keyfleet.Keys.AgentKey
   alias Regents.Keyfleet.Keys.Errors.{AgentUnknownError, KeyNotHeldError}
@@ -52,7 +52,7 @@ defmodule Regents.Keyfleet.Keys.Changes.PutAgent do
   # The named agent's current pairing with the person.
   defp lock_pairing(actor, wallet) do
     with {:ok, person} <- Keys.person_privy_id(actor),
-         {:ok, pairing} <- Authority.lock_current(Regents.Repo, person, wallet) do
+         {:ok, pairing} <- Agent.lock_current_pairing(person, wallet) do
       {:ok, pairing}
     else
       not_theirs when not_theirs in [:error, {:error, :not_paired}] ->

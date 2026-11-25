@@ -27,6 +27,7 @@ defmodule RegentsWeb.Keyfleet.Components.FleetPrompts do
   """
   use RegentsWeb, :live_component
 
+  alias Regents.Account.Actors.Human
   alias Regents.Keyfleet.Agents
   alias Regents.Keyfleet.Agents.Upkeep
   alias Regents.Keyfleet.Fleets
@@ -55,7 +56,7 @@ defmodule RegentsWeb.Keyfleet.Components.FleetPrompts do
 
   # Pairing without a Key opens nothing here, so a person holding none sees
   # none of the three.
-  defp read(%{assigns: %{actor: actor, fleet: %{fleet_id: fleet_id}}} = socket) do
+  defp read(%{assigns: %{actor: %Human{} = actor, fleet: %{fleet_id: fleet_id}}} = socket) do
     keys = Keys.keys_held_in_fleet!(fleet_id, actor.wallet_addresses, actor: actor, load: [:idle])
 
     assign(socket,
@@ -64,6 +65,8 @@ defmodule RegentsWeb.Keyfleet.Components.FleetPrompts do
       schedule: if(keys == [], do: [], else: Upkeep.unscheduled(actor, [fleet_id]))
     )
   end
+
+  defp read(socket), do: assign(socket, pair?: false, idle: [], schedule: [])
 
   @impl true
   def render(assigns) do

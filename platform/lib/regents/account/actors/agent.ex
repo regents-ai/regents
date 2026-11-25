@@ -33,10 +33,9 @@ defmodule Regents.Account.Actors.Agent do
   `verification_method` how SIWA proved the wallet, and `receipt_expires_at`
   when its receipt runs out. A plain wallet's signature (`:eoa_recovery`) proves
   its key on every chain; a smart wallet's (`:erc1271`, `:erc6492`) only on the
-  chain it was checked on, so it counts only on Base. The SIWA answer the site
-  reads today (`RegentAgents.HTTP.Hooks`) keeps none of the three, so they are
-  nil on every agent this site builds, and `authenticated?/1`, `valid?/1` and
-  `refresh/1` refuse it.
+  chain it was checked on, so it counts only on Base. `RegentAgents.HTTP.Hooks`
+  preserves all three from the SIWA verification payload so `authenticated?/1`,
+  `valid?/1` and `refresh/1` verify SIWA-signed agents cleanly.
 
   `connection` is set when the agent is a connected app's own identity acting
   with the token its person approved; nothing on this site sets it yet.
@@ -208,6 +207,22 @@ defmodule Regents.Account.Actors.Agent do
   def valid?(_), do: false
 
   @doc """
+  Reads the paired agent's pairing episode again without locking it,
+  distinguishing a missing or changed pairing from a read failure.
+  """
+  @spec verify_pairing(t()) :: :ok | {:error, :agent_not_paired | :unavailable}
+  def verify_pairing(%__MODULE__{pairing: %Human{}, pairing_id: id, privy_user_id: owner} = agent) do
+    case Authority.resolve(Regents.Repo, agent.wallet_address) do
+      {:ok, %{id: ^id, privy_user_id: ^owner}} -> :ok
+      {:ok, _different} -> {:error, :agent_not_paired}
+      {:error, :not_paired} -> {:error, :agent_not_paired}
+      {:error, _unreadable} -> {:error, :unavailable}
+    end
+  end
+
+  def verify_pairing(_agent), do: {:error, :agent_not_paired}
+
+  @doc """
   Inside the caller's database transaction, reads the paired agent's pairing
   episode again and locks it until the transaction ends, so it cannot be ended
   mid-write. `:ok`, or the refusal `RegentsWeb.Account.PairedAgent` gives:
@@ -225,4 +240,14 @@ defmodule Regents.Account.Actors.Agent do
 
   def lock_pairing(%__MODULE__{pairing: :person_not_here}), do: {:error, :person_not_here}
   def lock_pairing(%__MODULE__{pairing: :none}), do: {:error, :agent_not_paired}
+
+  @doc """
+  Inside the caller's database transaction, reads and locks a person's current
+  pairing for `wallet` so products never call `RegentAgents.Authority` directly.
+  """
+  @spec lock_current_pairing(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  def lock_current_pairing(privy_user_id, wallet)
+      when is_binary(privy_user_id) and is_binary(wallet) do
+    Authority.lock_current(Regents.Repo, privy_user_id, wallet)
+  end
 end

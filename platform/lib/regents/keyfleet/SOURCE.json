@@ -4,46 +4,206 @@
   "taken": "2026-11-20",
   "stylesheets": "All 55 of keyfleet.ai's stylesheets (13,836 lines), whether or not a page here uses them yet, so later pages add only markup. Each file is wrapped in @scope (:root[data-product=\"keyfleet\"]) to (.regents-frame), so it stops at regents.sh's frame on Keyfleet's overview page; inside it :root[data-brand=\"platform\"] reads :scope[data-brand] and :root reads :scope, each at the same weight, and html reads :scope, one step heavier, as Techtree's. keyfleet.ai's pages wear Regent UI's platform palette, and so do these: the page carries data-brand=\"platform\".",
   "files": [
-    {"from": "platform/lib/keyfleet.ex", "to": "platform/lib/regents/keyfleet.ex", "changes": "Boundary root for Regents.Keyfleet; exports Authority, Capabilities, GoalIdeas and Supervisor, and since K3 every module the page layer calls or matches (RegentsWeb.Keyfleet); schema/0 (keyfleet_app) and domains/0 (its domains in ash_domains) added in slice 2; health/0 answers :ok"},
-    {"from": "platform/lib/keyfleet/authority.ex", "to": "platform/lib/regents/keyfleet/authority.ex", "changes": "renamed; the rows, markdown_table/0, and since K3 treasury_rows/0 and needs/1 (each fleet's Treasury page), every row open (the launch gate is not brought); rows/0 left out, unused here; the moduledoc names the agent guide and each fleet's page"},
-    {"from": "platform/lib/keyfleet/capabilities.ex", "to": "platform/lib/regents/keyfleet/capabilities.ex", "changes": "renamed; markdown_table/0 only, read from priv/keyfleet/tool_manifest.json; manifest/0, versions/0, tools/0, request/2 and may/0 come with capabilities.json and the API"},
-    {"from": "platform/lib/keyfleet/goal_ideas.ex", "to": "platform/lib/regents/keyfleet/goal_ideas.ex", "changes": "renamed; read from priv/keyfleet/public/goal-ideas.md; slice 2 brought the whole module, starting_goals/0 included, since the graph's start reads it"},
-    {"from": "platform/assets/js/app.ts (the ShellBehavior hook)", "to": "platform/assets/js/keyfleet/shell_behavior.ts", "changes": "the frame's hook as KeyfleetShell, composed with Keyfleet's own ShellViews (assets/js/keyfleet/hooks/motion/reveals.ts, brought in K3 b) and registered in the one app.ts; it never sets the page's brand, which the scope sets; it brings in the page progress bar and takes it away; Keyfleet's own fragmentId and hashTarget, with this site's arriveAt, reconcileShellState and shellDestinationChanged"},
-    {"from": "platform/assets/js/page_progress.ts", "to": "platform/assets/js/keyfleet/page_progress.ts", "changes": "mountPageProgress/0 returns what takes the bar away, so the frame's hook owns it; without the first-landing flag, as the frame mounts once its first page has landed"},
-    {"from": "platform/assets/js/camera.ts, hooks/key_card.ts, hooks/key_map/ (its 7 files), hooks/motion/press.ts and hooks/motion/shared.ts", "to": "platform/assets/js/keyfleet/ (the same paths)", "changes": "none, byte for byte (K3 b: the hooks the routed fleet pages name, with the modules they import)"},
-    {"from": "platform/assets/js/hooks/fleet_preview.ts, fleet_tabs.ts, key_cards.ts, key_map.ts, local_time.ts, motion/moments.ts, motion/reveals.ts, room_posts.ts, room_thread.ts and scroll_row.ts", "to": "platform/assets/js/keyfleet/hooks/", "changes": "one line each: the import of the site's hook_composition is one folder further up (K3 b)"},
-    {"from": "platform/assets/js/hooks/countdown.ts", "to": "platform/assets/js/keyfleet/hooks/countdown.ts", "changes": "the import of the site's hook_composition is one folder further up (K3 b); the regents chief's review of K3 (b): a closing time or a page clock that is not a number leaves the words the page wrote and sets no timer (K3 b fixes)"},
-    {"from": "platform/assets/js/hooks/schedule_card.ts", "to": "platform/assets/js/keyfleet/hooks/schedule_card.ts", "changes": "the import of the site's hook_composition is one folder further up (K3 b); the regents chief's review of K3 (b): the cookie it writes holds only ids of a catalog fleet's shape (lower-case letters, digits and _), each once, the fleet just put away last, and at most the latest 16 (K3 b fixes)"},
-    {"from": "platform/assets/js/hooks/tour.ts", "to": "platform/assets/js/keyfleet/hooks/tour.ts", "changes": "its imports only: the site's canvas_island, theme, tour/place, tour/renderer, hooks/motion/slides and hooks/theme_switch, one or two folders further up (K3 b)"},
-    {"from": "platform/assets/js/hooks/modal_dialog.ts", "to": "platform/assets/js/keyfleet/hooks/modal_dialog.ts", "changes": "the site's sign-in sends no sign-in-closed event (the source's auth_lazy.ts SIGN_IN_CLOSED_EVENT), so the step back up when sign-in closes without signing in goes, with the control it focused and its comment; a press back inside a dialog still makes every dialog a modal again; hook_composition one folder further up (K3 b)"},
-    {"from": "platform/assets/js/app.ts (its hooks list and document watchers, for the hooks the fleet pages name)", "to": "platform/assets/js/keyfleet/index.ts", "changes": "written here (K3 b): keyfleetHooks, the brought hooks by the names the markup gives them, spread into the one app.ts list; installKeyfleet/0, the source app.ts's watchInput, watchPresses and the room name's focus after a patch; K4 adds HarbourSea, the sea's hook"},
-    {"from": "platform/assets/js/hooks/harbour_sea.ts", "to": "platform/assets/js/keyfleet/hooks/harbour_sea.ts", "changes": "its theme import only: this site's theme.ts, two folders up, so the sea follows the device for light or dark as Keyfleet's pages do here (Sean, 73 a); its other imports at the same paths (K4)"},
-    {"from": "platform/assets/js/canvas_island.ts and swarm_city/ (city.ts, looks.ts, meshes.ts, renderer.ts, shaders.ts and swarm.ts)", "to": "platform/assets/js/keyfleet/ (the same paths)", "changes": "none, byte for byte (K4: the modules the sea's hook imports; this site's own canvas_island.ts, which the brought tour uses, has no onStrain, which the sea's hook calls, so Keyfleet's is brought beside it)"},
-    {"from": "platform/priv/static/images/home/key-cards.webp", "to": "platform/priv/static/images/keyfleet/home/key-cards.webp", "changes": "none, byte for byte (K3 b, the Buy Key window's card sheet)"},
-    {"from": "platform/priv/decks/ (5 decks and README.md) and platform/priv/trait_tables/ (1)", "to": "platform/priv/keyfleet/decks/ and platform/priv/keyfleet/trait_tables/", "changes": "none, byte for byte, but the README's one module name, Regents.Keyfleet.Keys.card_seed/2 (K3 b: a Key's page and every small Key card read them)"},
-    {"from": "platform/assets/css/app.css", "to": "platform/assets/css/keyfleet/app.css", "changes": "its own rules only, wrapped in the Keyfleet scope; the html and :root rules point at :scope; its layer statement is the one this site's app.css makes"},
-    {"from": "platform/assets/css/app.css (its imports)", "to": "platform/assets/css/keyfleet/index.css", "changes": "the 54 imports in keyfleet.ai's order, before app.css; Regent UI's tokens and primitives are imported once, by this site's app.css"},
-    {"from": "platform/assets/css/tokens/root.css", "to": "platform/assets/css/keyfleet/tokens/root.css", "changes": "wrapped in the Keyfleet scope; :root[data-brand=\"platform\"] and :root rules point at :scope; the platform palette's main button, link, focus and chosen colours restated per theme from Regent UI 69dbfface, so they win over Regent UI's product colours"},
-    {"from": "platform/assets/css/components/shell.css, theme_switch.css, toast.css and wallet_panel.css", "to": "platform/assets/css/keyfleet/components/", "changes": "wrapped in the Keyfleet scope; :root rules point at :scope"},
-    {"from": "platform/assets/css/pages/harbour.css", "to": "platform/assets/css/keyfleet/pages/harbour.css", "changes": "wrapped in the Keyfleet scope; html and :root rules point at :scope"},
-    {"from": "platform/assets/css/components/ (the other 26 files)", "to": "platform/assets/css/keyfleet/components/", "changes": "wrapped in the Keyfleet scope"},
-    {"from": "platform/assets/css/pages/ (the other 22 files)", "to": "platform/assets/css/keyfleet/pages/", "changes": "wrapped in the Keyfleet scope"},
-    {"from": "platform/priv/public/about.md", "to": "platform/priv/keyfleet/public/about.md", "changes": "lines 18, 20 and 59: page and guide addresses gain /keyfleet"},
-    {"from": "platform/priv/public/agents.md", "to": "platform/priv/keyfleet/public/agents.md", "changes": "13 lines (17, 19, 27, 31, 41 to 49, 51): page and guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/; line 17: the sign-in audience is regents"},
-    {"from": "platform/priv/public/changelog.md", "to": "platform/priv/keyfleet/public/changelog.md", "changes": "lines 24 and 88: page addresses gain /keyfleet; lines 82 and 83: /api/v1/ addresses gain keyfleet/"},
-    {"from": "platform/priv/public/docs.md", "to": "platform/priv/keyfleet/public/docs.md", "changes": "140 lines: page and guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/; lines 54 and 486: the sign-in audience is regents; line 74's {{origin}}/pair?to=PAGE stays as it is; slice 2: lines 667-671, an unknown address answers 404 operation_unknown with the site's hint, not not_found"},
-    {"from": "platform/priv/public/help.md", "to": "platform/priv/keyfleet/public/help.md", "changes": "lines 5 to 11: guide addresses gain /keyfleet"},
-    {"from": "platform/priv/public/llms.md", "to": "platform/priv/keyfleet/public/llms.md", "changes": "20 lines (9 to 12, 14 to 16, 20 to 22, 26 to 30, 34, 35, 41 to 43): page and guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/"},
-    {"from": "platform/priv/public/opening.md", "to": "platform/priv/keyfleet/public/opening.md", "changes": "line 20: /skill.md gains /keyfleet"},
-    {"from": "platform/priv/public/skill.md", "to": "platform/priv/keyfleet/public/skill.md", "changes": "14 lines (13, 17, 58, 64 to 71, 75, 89, 93): page and guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/"},
-    {"from": "platform/priv/public/skill/code.md", "to": "platform/priv/keyfleet/public/skill/code.md", "changes": "lines 3, 5, 8 and 13: guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/"},
-    {"from": "platform/priv/public/skill/decide.md", "to": "platform/priv/keyfleet/public/skill/decide.md", "changes": "lines 3 and 5 to 9: guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/"},
-    {"from": "platform/priv/public/skill/notebooks.md", "to": "platform/priv/keyfleet/public/skill/notebooks.md", "changes": "lines 3, 5 and 7: guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/"},
-    {"from": "platform/priv/public/agents/", "to": "platform/priv/keyfleet/public/agents/", "changes": "13 guides; in 11 of them, lines 5 and 9 (and 12, 13, 18, 20, 21 or 22 where they link the docs or the compatibility page): page and guide addresses gain /keyfleet; chatgpt.md and claude.md none"},
-    {"from": "platform/priv/public/goal-ideas.md, opportunities.md, privacy.md, terms.md, words.md and git-remote-siwa", "to": "platform/priv/keyfleet/public/", "changes": "none, byte for byte"},
-    {"from": "platform/priv/agent_compatibility.yml", "to": "platform/priv/keyfleet/agent_compatibility.yml", "changes": "line 1 (a comment): /agents/compatibility gains /keyfleet"},
-    {"from": "platform/priv/agent_runs/", "to": "platform/priv/keyfleet/agent_runs/", "changes": "none, byte for byte (four runs); their keyfleet.ai links are what happened there"},
-    {"from": "platform/priv/tool_manifest.json", "to": "platform/priv/keyfleet/tool_manifest.json", "changes": "256 lines: /api/v1/ addresses gain keyfleet/; line 108: /llms.txt becomes /keyfleet/llms.txt"}
+    {
+      "from": "platform/lib/keyfleet.ex",
+      "to": "platform/lib/regents/keyfleet.ex",
+      "changes": "Boundary root for Regents.Keyfleet; exports Authority, Capabilities, GoalIdeas and Supervisor, and since K3 every module the page layer calls or matches (RegentsWeb.Keyfleet); schema/0 (keyfleet_app) and domains/0 (its domains in ash_domains) added in slice 2; health/0 answers :ok"
+    },
+    {
+      "from": "platform/lib/keyfleet/authority.ex",
+      "to": "platform/lib/regents/keyfleet/authority.ex",
+      "changes": "renamed; the rows, markdown_table/0, and since K3 treasury_rows/0 and needs/1 (each fleet's Treasury page), every row open (the launch gate is not brought); rows/0 left out, unused here; the moduledoc names the agent guide and each fleet's page"
+    },
+    {
+      "from": "platform/lib/keyfleet/capabilities.ex",
+      "to": "platform/lib/regents/keyfleet/capabilities.ex",
+      "changes": "renamed; markdown_table/0 only, read from priv/keyfleet/tool_manifest.json; manifest/0, versions/0, tools/0, request/2 and may/0 come with capabilities.json and the API"
+    },
+    {
+      "from": "platform/lib/keyfleet/goal_ideas.ex",
+      "to": "platform/lib/regents/keyfleet/goal_ideas.ex",
+      "changes": "renamed; read from priv/keyfleet/public/goal-ideas.md; slice 2 brought the whole module, starting_goals/0 included, since the graph's start reads it"
+    },
+    {
+      "from": "platform/assets/js/app.ts (the ShellBehavior hook)",
+      "to": "platform/assets/js/keyfleet/shell_behavior.ts",
+      "changes": "the frame's hook as KeyfleetShell, composed with Keyfleet's own ShellViews (assets/js/keyfleet/hooks/motion/reveals.ts, brought in K3 b) and registered in the one app.ts; it never sets the page's brand, which the scope sets; it brings in the page progress bar and takes it away; Keyfleet's own fragmentId and hashTarget, with this site's arriveAt, reconcileShellState and shellDestinationChanged"
+    },
+    {
+      "from": "platform/assets/js/page_progress.ts",
+      "to": "platform/assets/js/keyfleet/page_progress.ts",
+      "changes": "mountPageProgress/0 returns what takes the bar away, so the frame's hook owns it; without the first-landing flag, as the frame mounts once its first page has landed"
+    },
+    {
+      "from": "platform/assets/js/camera.ts, hooks/key_card.ts, hooks/key_map/ (its 7 files), hooks/motion/press.ts and hooks/motion/shared.ts",
+      "to": "platform/assets/js/keyfleet/ (the same paths)",
+      "changes": "none, byte for byte (K3 b: the hooks the routed fleet pages name, with the modules they import)"
+    },
+    {
+      "from": "platform/assets/js/hooks/fleet_preview.ts, fleet_tabs.ts, key_cards.ts, key_map.ts, local_time.ts, motion/moments.ts, motion/reveals.ts, room_posts.ts, room_thread.ts and scroll_row.ts",
+      "to": "platform/assets/js/keyfleet/hooks/",
+      "changes": "one line each: the import of the site's hook_composition is one folder further up (K3 b)"
+    },
+    {
+      "from": "platform/assets/js/hooks/countdown.ts",
+      "to": "platform/assets/js/keyfleet/hooks/countdown.ts",
+      "changes": "the import of the site's hook_composition is one folder further up (K3 b); the regents chief's review of K3 (b): a closing time or a page clock that is not a number leaves the words the page wrote and sets no timer (K3 b fixes)"
+    },
+    {
+      "from": "platform/assets/js/hooks/schedule_card.ts",
+      "to": "platform/assets/js/keyfleet/hooks/schedule_card.ts",
+      "changes": "the import of the site's hook_composition is one folder further up (K3 b); the regents chief's review of K3 (b): the cookie it writes holds only ids of a catalog fleet's shape (lower-case letters, digits and _), each once, the fleet just put away last, and at most the latest 16 (K3 b fixes)"
+    },
+    {
+      "from": "platform/assets/js/hooks/tour.ts",
+      "to": "platform/assets/js/keyfleet/hooks/tour.ts",
+      "changes": "its imports only: the site's canvas_island, theme, tour/place, tour/renderer, hooks/motion/slides and hooks/theme_switch, one or two folders further up (K3 b)"
+    },
+    {
+      "from": "platform/assets/js/hooks/modal_dialog.ts",
+      "to": "platform/assets/js/keyfleet/hooks/modal_dialog.ts",
+      "changes": "the site's sign-in sends no sign-in-closed event (the source's auth_lazy.ts SIGN_IN_CLOSED_EVENT), so the step back up when sign-in closes without signing in goes, with the control it focused and its comment; a press back inside a dialog still makes every dialog a modal again; hook_composition one folder further up (K3 b)"
+    },
+    {
+      "from": "platform/assets/js/app.ts (its hooks list and document watchers, for the hooks the fleet pages name)",
+      "to": "platform/assets/js/keyfleet/index.ts",
+      "changes": "written here (K3 b): keyfleetHooks, the brought hooks by the names the markup gives them, spread into the one app.ts list; installKeyfleet/0, the source app.ts's watchInput, watchPresses and the room name's focus after a patch; K4 adds HarbourSea, the sea's hook"
+    },
+    {
+      "from": "platform/assets/js/hooks/harbour_sea.ts",
+      "to": "platform/assets/js/keyfleet/hooks/harbour_sea.ts",
+      "changes": "its theme import only: this site's theme.ts, two folders up, so the sea follows the device for light or dark as Keyfleet's pages do here (Sean, 73 a); its other imports at the same paths (K4)"
+    },
+    {
+      "from": "platform/assets/js/canvas_island.ts and swarm_city/ (city.ts, looks.ts, meshes.ts, renderer.ts, shaders.ts and swarm.ts)",
+      "to": "platform/assets/js/keyfleet/ (the same paths)",
+      "changes": "none, byte for byte (K4: the modules the sea's hook imports; this site's own canvas_island.ts, which the brought tour uses, has no onStrain, which the sea's hook calls, so Keyfleet's is brought beside it)"
+    },
+    {
+      "from": "platform/priv/static/images/home/key-cards.webp",
+      "to": "platform/priv/static/images/keyfleet/home/key-cards.webp",
+      "changes": "none, byte for byte (K3 b, the Buy Key window's card sheet)"
+    },
+    {
+      "from": "platform/priv/decks/ (5 decks and README.md) and platform/priv/trait_tables/ (1)",
+      "to": "platform/priv/keyfleet/decks/ and platform/priv/keyfleet/trait_tables/",
+      "changes": "none, byte for byte, but the README's one module name, Regents.Keyfleet.Keys.card_seed/2 (K3 b: a Key's page and every small Key card read them)"
+    },
+    {
+      "from": "platform/assets/css/app.css",
+      "to": "platform/assets/css/keyfleet/app.css",
+      "changes": "its own rules only, wrapped in the Keyfleet scope; the html and :root rules point at :scope; its layer statement is the one this site's app.css makes"
+    },
+    {
+      "from": "platform/assets/css/app.css (its imports)",
+      "to": "platform/assets/css/keyfleet/index.css",
+      "changes": "the 54 imports in keyfleet.ai's order, before app.css; Regent UI's tokens and primitives are imported once, by this site's app.css"
+    },
+    {
+      "from": "platform/assets/css/tokens/root.css",
+      "to": "platform/assets/css/keyfleet/tokens/root.css",
+      "changes": "wrapped in the Keyfleet scope; :root[data-brand=\"platform\"] and :root rules point at :scope; the platform palette's main button, link, focus and chosen colours restated per theme from Regent UI 69dbfface, so they win over Regent UI's product colours"
+    },
+    {
+      "from": "platform/assets/css/components/shell.css, theme_switch.css, toast.css and wallet_panel.css",
+      "to": "platform/assets/css/keyfleet/components/",
+      "changes": "wrapped in the Keyfleet scope; :root rules point at :scope"
+    },
+    {
+      "from": "platform/assets/css/pages/harbour.css",
+      "to": "platform/assets/css/keyfleet/pages/harbour.css",
+      "changes": "wrapped in the Keyfleet scope; html and :root rules point at :scope"
+    },
+    {
+      "from": "platform/assets/css/components/ (the other 26 files)",
+      "to": "platform/assets/css/keyfleet/components/",
+      "changes": "wrapped in the Keyfleet scope"
+    },
+    {
+      "from": "platform/assets/css/pages/ (the other 22 files)",
+      "to": "platform/assets/css/keyfleet/pages/",
+      "changes": "wrapped in the Keyfleet scope"
+    },
+    {
+      "from": "platform/priv/public/about.md",
+      "to": "platform/priv/keyfleet/public/about.md",
+      "changes": "lines 18, 20 and 59: page and guide addresses gain /keyfleet"
+    },
+    {
+      "from": "platform/priv/public/agents.md",
+      "to": "platform/priv/keyfleet/public/agents.md",
+      "changes": "13 lines (17, 19, 27, 31, 41 to 49, 51): page and guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/; line 17: the sign-in audience is regents"
+    },
+    {
+      "from": "platform/priv/public/changelog.md",
+      "to": "platform/priv/keyfleet/public/changelog.md",
+      "changes": "lines 24 and 88: page addresses gain /keyfleet; lines 82 and 83: /api/v1/ addresses gain keyfleet/"
+    },
+    {
+      "from": "platform/priv/public/docs.md",
+      "to": "platform/priv/keyfleet/public/docs.md",
+      "changes": "140 lines: page and guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/; lines 54 and 486: the sign-in audience is regents; line 74's {{origin}}/pair?to=PAGE stays as it is; slice 2: lines 667-671, an unknown address answers 404 operation_unknown with the site's hint, not not_found"
+    },
+    {
+      "from": "platform/priv/public/help.md",
+      "to": "platform/priv/keyfleet/public/help.md",
+      "changes": "lines 5 to 11: guide addresses gain /keyfleet"
+    },
+    {
+      "from": "platform/priv/public/llms.md",
+      "to": "platform/priv/keyfleet/public/llms.md",
+      "changes": "20 lines (9 to 12, 14 to 16, 20 to 22, 26 to 30, 34, 35, 41 to 43): page and guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/"
+    },
+    {
+      "from": "platform/priv/public/opening.md",
+      "to": "platform/priv/keyfleet/public/opening.md",
+      "changes": "line 20: /skill.md gains /keyfleet"
+    },
+    {
+      "from": "platform/priv/public/skill.md",
+      "to": "platform/priv/keyfleet/public/skill.md",
+      "changes": "14 lines (13, 17, 58, 64 to 71, 75, 89, 93): page and guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/"
+    },
+    {
+      "from": "platform/priv/public/skill/code.md",
+      "to": "platform/priv/keyfleet/public/skill/code.md",
+      "changes": "lines 3, 5, 8 and 13: guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/"
+    },
+    {
+      "from": "platform/priv/public/skill/decide.md",
+      "to": "platform/priv/keyfleet/public/skill/decide.md",
+      "changes": "lines 3 and 5 to 9: guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/"
+    },
+    {
+      "from": "platform/priv/public/skill/notebooks.md",
+      "to": "platform/priv/keyfleet/public/skill/notebooks.md",
+      "changes": "lines 3, 5 and 7: guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/"
+    },
+    {
+      "from": "platform/priv/public/agents/",
+      "to": "platform/priv/keyfleet/public/agents/",
+      "changes": "13 guides; in 11 of them, lines 5 and 9 (and 12, 13, 18, 20, 21 or 22 where they link the docs or the compatibility page): page and guide addresses gain /keyfleet; chatgpt.md and claude.md none"
+    },
+    {
+      "from": "platform/priv/public/goal-ideas.md, opportunities.md, privacy.md, terms.md, words.md and git-remote-siwa",
+      "to": "platform/priv/keyfleet/public/",
+      "changes": "none, byte for byte"
+    },
+    {
+      "from": "platform/priv/agent_compatibility.yml",
+      "to": "platform/priv/keyfleet/agent_compatibility.yml",
+      "changes": "line 1 (a comment): /agents/compatibility gains /keyfleet"
+    },
+    {
+      "from": "platform/priv/agent_runs/",
+      "to": "platform/priv/keyfleet/agent_runs/",
+      "changes": "none, byte for byte (four runs); their keyfleet.ai links are what happened there"
+    },
+    {
+      "from": "platform/priv/tool_manifest.json",
+      "to": "platform/priv/keyfleet/tool_manifest.json",
+      "changes": "256 lines: /api/v1/ addresses gain keyfleet/; line 108: /llms.txt becomes /keyfleet/llms.txt"
+    }
   ],
   "not_brought": [
     "openapi.json, commands.json, capabilities.json and the contract YAML: they describe the API and come with it.",
@@ -756,5 +916,17 @@
     "shared_reading_kinds": "keyfleet_season_coins (Seasons.CoinList), keyfleet_fleet_agents and keyfleet_key_agents (Agents.Here), each with keyfleet.ai's audience, keys and bytes; their within field is not a field here",
     "snapshots": "59 generated with mix ash.codegen --snapshots-only into platform/priv/keyfleet/resource_snapshots/repo/, each matching keyfleet.ai's newest apart from repo, schema and \"temporal\": null; keyfleet.ai's other four (account_ens_identities, left_messages, linked_identities, session_authorities) are tables with no resource here",
     "extension_record": "platform/priv/keyfleet/migrations/20261121225741_pg_trgm_extensions_1.exs (KeyfleetPgTrgmExtensions1) and pg_trgm in extensions.json, as Techtree's folder got them: Regents.Repo installs pg_trgm; CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public creates nothing, since regents.sh's own migration installs it first"
+  },
+  "one_site_parity_status": {
+    "updated_at": "2026-11-24",
+    "wired": [
+      "SIWA verification preserves chain_id, verification_method, and receipt_expires_at in RegentAgents.HTTP.Hooks and RegentsWeb.Account.PairedAgent",
+      "Keyfleet Oban queues/crons, Seasons.Coinbase config, Seasons.CoinList, Graph.Notices (under Regents.SharedChanges), and PresenceTimer safe nil config",
+      "Keyfleet FeedController config/PubSub prefix/nil-safe expiry and /api/v1/keyfleet/agent/* feed read routes",
+      "Keyfleet Limits (keyfleet_avatar_uploads, keyfleet_notebook_run_starts), avatar upload ticket live pairing check, and Plugs.AgentRequest body/query validator",
+      "Full Keyfleet hosted MCP tool surface under keyfleet_* namespace (RegentsWeb.Keyfleet.AgentTools + Regents.Keyfleet.Graph), RegentsWeb.Keyfleet.ToolErrors AshAi.ToToolError impls, and Paired policy checks",
+      "Keyfleet public contract endpoints (/keyfleet/capabilities.json, /keyfleet/commands.json, /keyfleet/openapi.json, /keyfleet/api-contract.openapiv3.yaml) and /keyfleet/mcp + /keyfleet/oauth/* permanent redirects",
+      "AccountSite Keyfleet blocked check-ins display, ErrorIgnorer HubSilentError suppression, OnchainSteps address/refusal/save_words parity, CSS @property hoisting and theme switch light-mode parity, and AGENTS.md boundary hygiene"
+    ]
   }
 }

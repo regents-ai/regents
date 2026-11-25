@@ -132,45 +132,65 @@ defmodule RegentsWeb.Keyfleet.RouteCatalog do
              )
 
   @specs %{
-    about: {:about, :reading, "Keyfleet", "About", "/", [:profile_actions], :product, %{}},
+    about:
+      {:about, :reading, "Keyfleet", "About", "/keyfleet", [:profile_actions], :product, %{}},
     opportunities:
-      {:opportunities, :reading, "Keyfleet", "Opportunities", "/", [:profile_actions], :product,
-       %{}},
-    docs: {:docs, :reading, "Keyfleet", "Docs", "/", [:profile_actions], :product, %{}},
+      {:opportunities, :reading, "Keyfleet", "Opportunities", "/keyfleet", [:profile_actions],
+       :product, %{}},
+    docs: {:docs, :reading, "Keyfleet", "Docs", "/keyfleet", [:profile_actions], :product, %{}},
     changelog:
-      {:changelog, :reading, "Keyfleet", "Changelog", "/", [:profile_actions], :product, %{}},
-    agents: {:agents, :reading, "Keyfleet", "Agents", "/", [:profile_actions], :product, %{}},
-    agent: {:agent, :reading, "Keyfleet", "Agents", "/", [:profile_actions], :product, %{}},
-    privacy: {:privacy, :reading, "Keyfleet", "Privacy", "/", [:profile_actions], :product, %{}},
-    terms: {:terms, :reading, "Keyfleet", "Terms", "/", [:profile_actions], :product, %{}},
-    fleet: {:fleet, :product, "Keyfleet", "Fleet", "/", [:profile_actions], :product, %{}},
-    keys: {:keys, :product, "Keyfleet", "Key", "/", [:profile_actions], :product, %{}},
-    dms: {:dms, :product, "Keyfleet", "Messages", "/", [:profile_actions], :product, %{}},
-    dm: {:dm, :product, "Keyfleet", "Messages", "/", [:profile_actions], :product, %{}},
+      {:changelog, :reading, "Keyfleet", "Changelog", "/keyfleet", [:profile_actions], :product,
+       %{}},
+    agents:
+      {:agents, :reading, "Keyfleet", "Agents", "/keyfleet", [:profile_actions], :product, %{}},
+    agent:
+      {:agent, :reading, "Keyfleet", "Agents", "/keyfleet", [:profile_actions], :product, %{}},
+    privacy:
+      {:privacy, :reading, "Keyfleet", "Privacy", "/keyfleet", [:profile_actions], :product, %{}},
+    terms:
+      {:terms, :reading, "Keyfleet", "Terms", "/keyfleet", [:profile_actions], :product, %{}},
+    fleet:
+      {:fleet, :product, "Keyfleet", "Fleet", "/keyfleet", [:profile_actions], :product, %{}},
+    keys: {:keys, :product, "Keyfleet", "Key", "/keyfleet", [:profile_actions], :product, %{}},
+    dms: {:dms, :product, "Keyfleet", "Messages", "/keyfleet", [:profile_actions], :product, %{}},
+    dm: {:dm, :product, "Keyfleet", "Messages", "/keyfleet", [:profile_actions], :product, %{}},
     workspace:
-      {:workspace, :product, "Keyfleet", "Workspace", "/", [:profile_actions], :product, %{}},
+      {:workspace, :product, "Keyfleet", "Workspace", "/keyfleet", [:profile_actions], :product,
+       %{}},
     workspace_item:
-      {:workspace_item, :product, "Keyfleet", "Workspace", "/", [:profile_actions], :product, %{}},
+      {:workspace_item, :product, "Keyfleet", "Workspace", "/keyfleet", [:profile_actions],
+       :product, %{}},
     code_commit:
-      {:code_commit, :product, "Keyfleet", "Workspace", "/", [:profile_actions], :product, %{}},
+      {:code_commit, :product, "Keyfleet", "Workspace", "/keyfleet", [:profile_actions], :product,
+       %{}},
     code_history:
-      {:code_history, :product, "Keyfleet", "Workspace", "/", [:profile_actions], :product, %{}},
+      {:code_history, :product, "Keyfleet", "Workspace", "/keyfleet", [:profile_actions],
+       :product, %{}},
     code_files:
-      {:code_files, :product, "Keyfleet", "Workspace", "/", [:profile_actions], :product, %{}},
-    project: {:project, :product, "Keyfleet", "Project", "/", [:profile_actions], :product, %{}},
+      {:code_files, :product, "Keyfleet", "Workspace", "/keyfleet", [:profile_actions], :product,
+       %{}},
+    project:
+      {:project, :product, "Keyfleet", "Project", "/keyfleet", [:profile_actions], :product, %{}},
     proposals:
-      {:proposals, :product, "Keyfleet", "Proposals", "/", [:profile_actions], :product, %{}},
+      {:proposals, :product, "Keyfleet", "Proposals", "/keyfleet", [:profile_actions], :product,
+       %{}},
     proposal:
-      {:proposal, :product, "Keyfleet", "Proposals", "/", [:profile_actions], :product, %{}},
+      {:proposal, :product, "Keyfleet", "Proposals", "/keyfleet", [:profile_actions], :product,
+       %{}},
     treasury:
-      {:treasury, :product, "Keyfleet", "Treasury", "/", [:profile_actions], :product, %{}},
-    polls: {:polls, :product, "Keyfleet", "Polls", "/", [:profile_actions], :product, %{}},
-    poll: {:poll, :product, "Keyfleet", "Polls", "/", [:profile_actions], :product, %{}},
-    seasons: {:seasons, :product, "Keyfleet", "Seasons", "/", [:profile_actions], :product, %{}},
-    search: {:search, :product, "Keyfleet", "Search", "/", [:profile_actions], :product, %{}},
+      {:treasury, :product, "Keyfleet", "Treasury", "/keyfleet", [:profile_actions], :product,
+       %{}},
+    polls:
+      {:polls, :product, "Keyfleet", "Polls", "/keyfleet", [:profile_actions], :product, %{}},
+    poll: {:poll, :product, "Keyfleet", "Polls", "/keyfleet", [:profile_actions], :product, %{}},
+    seasons:
+      {:seasons, :product, "Keyfleet", "Seasons", "/keyfleet", [:profile_actions], :product, %{}},
+    search:
+      {:search, :product, "Keyfleet", "Search", "/keyfleet", [:profile_actions], :product, %{}},
     worldline:
-      {:worldline, :product, "Keyfleet", "Worldline", "/", [:profile_actions], :product, %{}},
-    atlas: {:atlas, :product, "Keyfleet", "Atlas", "/", [:profile_actions], :product, %{}}
+      {:worldline, :product, "Keyfleet", "Worldline", "/keyfleet", [:profile_actions], :product,
+       %{}},
+    atlas: {:atlas, :product, "Keyfleet", "Atlas", "/keyfleet", [:profile_actions], :product, %{}}
   }
 
   # The reading pages (`RegentsWeb.Keyfleet.Components.Reading`), listed beside every one

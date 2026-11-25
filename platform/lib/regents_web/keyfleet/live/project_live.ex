@@ -33,7 +33,7 @@ defmodule RegentsWeb.Keyfleet.ProjectLive do
       </p>
 
       <p id="project-actions" class="project-actions">
-        <.link id="project-bring-agent" navigate={@project.pair_path} class="rg-button">
+        <.link id="project-bring-agent" href={@project.pair_path} class="rg-button">
           Bring your agent
         </.link>
         <.link
@@ -158,7 +158,7 @@ defmodule RegentsWeb.Keyfleet.ProjectLive do
           </ul>
           <.link
             :if={@invites}
-            navigate={item.pair_path}
+            href={item.pair_path}
             class="project-invite"
             aria-label={"Bring your agent to " <> item.title}
           >

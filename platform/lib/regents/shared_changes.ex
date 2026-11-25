@@ -7,7 +7,7 @@ defmodule Regents.SharedChanges do
   (`Regents.DatabaseConfig.notifications_config/1`). The connection starts
   first, so a new connection brings new listeners.
   """
-  use Boundary, top_level?: true, deps: [Regents, Regents.Stake]
+  use Boundary, top_level?: true, deps: [Regents, Regents.Stake, Regents.Keyfleet]
 
   use Supervisor
 
@@ -20,7 +20,8 @@ defmodule Regents.SharedChanges do
     children = [
       {Postgrex.Notifications, [name: Regents.Notifications] ++ connection},
       RegentAgents.Listener,
-      Regents.Stake.SnapshotListener
+      Regents.Stake.SnapshotListener,
+      Regents.Keyfleet.Graph.Notices
     ]
 
     Supervisor.init(children, strategy: :rest_for_one)

@@ -12,7 +12,7 @@ defmodule RegentsWeb.Keyfleet.NotebookOpenHTML do
   def entry(assigns) do
     ~H"""
     <!DOCTYPE html>
-    <html lang="en" data-brand="platform" data-theme={@theme}>
+    <html lang="en" data-brand="platform" data-product="keyfleet" data-theme={@theme}>
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

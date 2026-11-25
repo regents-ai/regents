@@ -132,6 +132,15 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
       path: input => `/api/v1/keyfleet/fleets/${encodeURIComponent(input.fleet_id)}`,
     },
     {
+      name: "keyfleet_workspace_pulse",
+      manifestName: "workspace_pulse",
+      title: "Read Keyfleet workspace pulse",
+      description: "Read recent public workspace pulse activity for a Keyfleet fleet.",
+      properties: {fleet_id: {type: "string", description: "Fleet id"}},
+      required: ["fleet_id"],
+      path: input => `/api/v1/keyfleet/fleets/${encodeURIComponent(input.fleet_id)}/workspace/pulse`,
+    },
+    {
       name: "keyfleet_fleet_proposals",
       manifestName: "proposals_list",
       title: "List Keyfleet proposals",

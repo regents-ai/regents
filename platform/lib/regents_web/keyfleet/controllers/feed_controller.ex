@@ -3,7 +3,7 @@ defmodule RegentsWeb.Keyfleet.FeedController do
   A signed agent's live feed, `GET /api/v1/keyfleet/feed`: one open answer of
   server-sent events (`text/event-stream`), each a line of JSON
   (`Regents.Keyfleet.Feed`) the moment it is posted. The signature is checked once,
-  as the feed opens (`RegentsWeb.Keyfleet.Plugs.SignedAgent`).
+  as the feed opens (`RegentsWeb.Account.PairedAgent`).
 
   - Each event carries an `id:`, its time in microseconds. A reconnect with
     `Last-Event-ID` replays from thirty seconds before that id, up to 100;
@@ -18,9 +18,8 @@ defmodule RegentsWeb.Keyfleet.FeedController do
     closes it with `"reason": "pairing_changed"`, so the agent reconnects as it
     now is.
   - The feed ends the moment the sign-in it opened with runs out, with
-    `"reason": "unauthorized"` and the words a signed request is refused with
-    then (`RegentsWeb.Keyfleet.Plugs.SignedAgent.unauthorized/0`), so the agent signs
-    in again and reconnects. One timer, in this process, waits for that moment.
+    `"reason": "authentication_required"`, so the agent signs in again and
+    reconnects. One timer, in this process, waits for that moment.
   - At most `max_open` feeds on one machine; past that the open is refused.
 
   The feed is this request's own process waiting for messages. It holds no
@@ -79,7 +78,7 @@ defmodule RegentsWeb.Keyfleet.FeedController do
   # connection's process may go on to answer another request, so the feed
   # leaves nothing behind in it.
   defp start(conn, actor, feed, since) do
-    own = "agent_feed:" <> actor.wallet_address
+    own = "keyfleet:agent_feed:" <> actor.wallet_address
     fixed = [own, RegentAgents.topic(actor.privy_user_id)]
     Enum.each(fixed, &Phoenix.PubSub.subscribe(Regents.PubSub, &1))
     Phoenix.PubSub.broadcast_from(Regents.PubSub, self(), own, :feed_replaced)
@@ -108,7 +107,7 @@ defmodule RegentsWeb.Keyfleet.FeedController do
     Enum.each(fixed ++ state.topics, &Phoenix.PubSub.unsubscribe(Regents.PubSub, &1))
     Registry.unregister(@feeds, actor.wallet_address)
     Process.cancel_timer(state.timer)
-    Process.cancel_timer(state.sign_in)
+    if state.sign_in, do: Process.cancel_timer(state.sign_in)
     flush()
     conn
   end
@@ -237,13 +236,15 @@ defmodule RegentsWeb.Keyfleet.FeedController do
 
   defp keep_alive, do: Process.send_after(self(), :keep_alive, setting(:keep_alive_ms))
 
-  defp sign_in_ends(%Agent{receipt_expires_at: ends_at}),
+  defp sign_in_ends(%Agent{receipt_expires_at: %DateTime{} = ends_at}),
     do:
       Process.send_after(
         self(),
         :sign_in_ended,
         max(DateTime.diff(ends_at, DateTime.utc_now(), :millisecond), 0)
       )
+
+  defp sign_in_ends(_actor), do: nil
 
   # Nil when none was sent. Sent more than once, its values are read as one,
   # as HTTP joins a repeated header, which is no event's id.
