@@ -3,75 +3,75 @@
   <rect x="64" y="56" width="1472" height="788" fill="none" stroke="#2C4234" stroke-width="2"/>
   <text x="104" y="116" fill="#C8F25C" font-family="monospace" font-size="22" letter-spacing="3">TECHTREE UPLIFT FACTORY · EMPIRICAL PROOF</text>
   <text x="104" y="168" fill="#E4EEE6" font-family="sans-serif" font-size="42" font-weight="600">16,126 Scored Trials Across 4B–32B Models</text>
-  <text x="104" y="206" fill="#8FA595" font-family="monospace" font-size="22">56.11 CU (~$5.60 GPU) · 9 prime-rl v0.11.0 runs · 174 sealed offline Docker containers · 0 errors</text>
+  <text x="104" y="206" fill="#8FA595" font-family="monospace" font-size="21">56.11 CU (~$5.60 GPU) · 9 prime-rl v0.11.0 runs · 174 sealed offline Docker containers · 0 errors</text>
 
   <!-- Panel 1: Models -->
   <rect x="104" y="248" width="676" height="248" fill="#132019" stroke="#2C4234" stroke-width="1.5"/>
-  <text x="136" y="290" fill="#C8F25C" font-family="monospace" font-size="20" letter-spacing="2">01 · MODELS (4B SFT VS 32B-THINKING)</text>
+  <text x="136" y="290" fill="#C8F25C" font-family="monospace" font-size="19" letter-spacing="2">01 · MODELS (4B SFT VS 32B-THINKING)</text>
   <text x="136" y="334" fill="#8FA595" font-family="sans-serif" font-size="20">payment-terms (n=64)</text>
-  <rect x="376" y="316" width="320" height="24" fill="#1E2F25"/>
-  <rect x="376" y="316" width="315" height="24" fill="#C8F25C"/>
-  <text x="708" y="335" fill="#E4EEE6" font-family="monospace" font-size="20">98.4%</text>
+  <rect x="376" y="316" width="300" height="24" fill="#1E2F25"/>
+  <rect x="376" y="316" width="295" height="24" fill="#C8F25C"/>
+  <text x="690" y="335" fill="#E4EEE6" font-family="monospace" font-size="20">98.4%</text>
   <text x="136" y="378" fill="#8FA595" font-family="sans-serif" font-size="20">dependabot (Qwen3-4B)</text>
-  <rect x="376" y="360" width="320" height="24" fill="#1E2F25"/>
-  <rect x="376" y="360" width="264" height="24" fill="#C8F25C"/>
-  <text x="708" y="379" fill="#E4EEE6" font-family="monospace" font-size="20">82.5%</text>
+  <rect x="376" y="360" width="300" height="24" fill="#1E2F25"/>
+  <rect x="376" y="360" width="248" height="24" fill="#C8F25C"/>
+  <text x="690" y="379" fill="#E4EEE6" font-family="monospace" font-size="20">82.5%</text>
   <text x="136" y="422" fill="#8FA595" font-family="sans-serif" font-size="20">32B-Thinking (+Skill)</text>
-  <rect x="376" y="404" width="320" height="24" fill="#1E2F25"/>
-  <rect x="376" y="404" width="250" height="24" fill="#557A63"/>
-  <text x="708" y="423" fill="#8FA595" font-family="monospace" font-size="20">78.1%</text>
-  <text x="136" y="468" fill="#E4EEE6" font-family="monospace" font-size="18">Pure GRPO RL (0 gold labels): 54.7% → 76.6% (+21.9 pp, p=1.22e-4)</text>
+  <rect x="376" y="404" width="300" height="24" fill="#1E2F25"/>
+  <rect x="376" y="404" width="234" height="24" fill="#557A63"/>
+  <text x="690" y="423" fill="#8FA595" font-family="monospace" font-size="20">78.1%</text>
+  <text x="136" y="468" fill="#E4EEE6" font-family="sans-serif" font-size="17">Pure GRPO RL (0 gold labels): 54.7% → 76.6% (+21.9 pp, p = 1.22e-4)</text>
 
   <!-- Panel 2: Evals -->
   <rect x="820" y="248" width="676" height="248" fill="#132019" stroke="#2C4234" stroke-width="1.5"/>
-  <text x="852" y="290" fill="#C8F25C" font-family="monospace" font-size="20" letter-spacing="2">02 · EVALS (14B THINKING VS 32B NO-THINK)</text>
+  <text x="852" y="290" fill="#C8F25C" font-family="monospace" font-size="19" letter-spacing="2">02 · EVALS (14B THINKING VS 32B NO-THINK)</text>
   <text x="852" y="334" fill="#8FA595" font-family="sans-serif" font-size="20">Qwen3-14B gitmoji</text>
-  <rect x="1092" y="316" width="310" height="24" fill="#1E2F25"/>
-  <rect x="1092" y="316" width="87" height="24" fill="#55625A"/>
-  <rect x="1179" y="316" width="189" height="24" fill="#2FA866"/>
-  <text x="1414" y="335" fill="#E4EEE6" font-family="monospace" font-size="20">88.9%</text>
+  <rect x="1092" y="316" width="296" height="24" fill="#1E2F25"/>
+  <rect x="1092" y="316" width="83" height="24" fill="#55625A"/>
+  <rect x="1175" y="316" width="180" height="24" fill="#2FA866"/>
+  <text x="1402" y="335" fill="#E4EEE6" font-family="monospace" font-size="20">88.9%</text>
   <text x="852" y="378" fill="#8FA595" font-family="sans-serif" font-size="20">Qwen3-14B dependabot</text>
-  <rect x="1092" y="360" width="310" height="24" fill="#1E2F25"/>
-  <rect x="1092" y="360" width="71" height="24" fill="#55625A"/>
-  <rect x="1163" y="360" width="127" height="24" fill="#2FA866"/>
-  <text x="1414" y="379" fill="#E4EEE6" font-family="monospace" font-size="20">64.0%</text>
+  <rect x="1092" y="360" width="296" height="24" fill="#1E2F25"/>
+  <rect x="1092" y="360" width="67" height="24" fill="#55625A"/>
+  <rect x="1159" y="360" width="122" height="24" fill="#2FA866"/>
+  <text x="1402" y="379" fill="#E4EEE6" font-family="monospace" font-size="20">64.0%</text>
   <text x="852" y="422" fill="#8FA595" font-family="sans-serif" font-size="20">Local 4B Judge</text>
-  <rect x="1092" y="404" width="310" height="24" fill="#1E2F25"/>
-  <rect x="1092" y="404" width="310" height="24" fill="#C8F25C"/>
-  <text x="1414" y="423" fill="#E4EEE6" font-family="monospace" font-size="20">100%</text>
-  <text x="852" y="468" fill="#E4EEE6" font-family="monospace" font-size="18">260/260 (κ=1.000) incl. 20/20 prompt injections · 14.1 pp 1-pass noise</text>
+  <rect x="1092" y="404" width="296" height="24" fill="#1E2F25"/>
+  <rect x="1092" y="404" width="296" height="24" fill="#C8F25C"/>
+  <text x="1402" y="423" fill="#E4EEE6" font-family="monospace" font-size="20">100%</text>
+  <text x="852" y="468" fill="#E4EEE6" font-family="sans-serif" font-size="17">260/260 local judge (κ = 1.000, 20/20 injections) · 14.1 pp 1-pass noise</text>
 
   <!-- Panel 3: Skills -->
   <rect x="104" y="532" width="676" height="248" fill="#132019" stroke="#2C4234" stroke-width="1.5"/>
-  <text x="136" y="574" fill="#C8F25C" font-family="monospace" font-size="20" letter-spacing="2">03 · SKILLS (MODEL-SIZE DOUBLE DISSOCIATION)</text>
+  <text x="136" y="574" fill="#C8F25C" font-family="monospace" font-size="19" letter-spacing="2">03 · SKILLS (MODEL-SIZE DOUBLE DISSOCIATION)</text>
   <text x="136" y="618" fill="#8FA595" font-family="sans-serif" font-size="20">Nemotron-4B (compact)</text>
-  <rect x="520" y="600" width="134" height="24" fill="#2FA866"/>
-  <text x="666" y="619" fill="#2FA866" font-family="monospace" font-size="20">+16.7 pp</text>
+  <rect x="504" y="600" width="112" height="24" fill="#2FA866"/>
+  <text x="628" y="619" fill="#2FA866" font-family="monospace" font-size="20">+16.7 pp</text>
   <text x="136" y="662" fill="#8FA595" font-family="sans-serif" font-size="20">Qwen3-8B (dependabot)</text>
-  <rect x="520" y="644" width="154" height="24" fill="#2FA866"/>
-  <text x="686" y="663" fill="#2FA866" font-family="monospace" font-size="20">+19.3 pp</text>
+  <rect x="504" y="644" width="130" height="24" fill="#2FA866"/>
+  <text x="646" y="663" fill="#2FA866" font-family="monospace" font-size="20">+19.3 pp</text>
   <text x="136" y="706" fill="#8FA595" font-family="sans-serif" font-size="20">Qwen3-32B (4B Skill)</text>
-  <rect x="364" y="688" width="156" height="24" fill="#E0533F"/>
-  <text x="534" y="707" fill="#E0533F" font-family="monospace" font-size="20">−26.1 pp</text>
-  <line x1="520" y1="592" x2="520" y2="722" stroke="#8FA595" stroke-width="1.5"/>
-  <text x="136" y="752" fill="#E4EEE6" font-family="monospace" font-size="18">Selection Gate passed 3/3 Skills and blocked working-set overfitting</text>
+  <rect x="356" y="688" width="148" height="24" fill="#E0533F"/>
+  <text x="518" y="707" fill="#E0533F" font-family="monospace" font-size="20">−26.1 pp</text>
+  <line x1="504" y1="592" x2="504" y2="722" stroke="#8FA595" stroke-width="1.5"/>
+  <text x="136" y="752" fill="#E4EEE6" font-family="sans-serif" font-size="17">Selection Gate passed 3/3 Skills and blocked working-set overfitting</text>
 
   <!-- Panel 4: Environments -->
   <rect x="820" y="532" width="676" height="248" fill="#132019" stroke="#2C4234" stroke-width="1.5"/>
-  <text x="852" y="574" fill="#C8F25C" font-family="monospace" font-size="20" letter-spacing="2">04 · ENVIRONMENTS (SEALED OFFLINE DOCKER)</text>
+  <text x="852" y="574" fill="#C8F25C" font-family="monospace" font-size="19" letter-spacing="2">04 · ENVIRONMENTS (SEALED OFFLINE DOCKER)</text>
   <text x="852" y="618" fill="#8FA595" font-family="sans-serif" font-size="20">8B Auto-Gen Sound</text>
-  <rect x="1092" y="600" width="310" height="24" fill="#1E2F25"/>
-  <rect x="1092" y="600" width="39" height="24" fill="#E0533F"/>
-  <text x="1414" y="619" fill="#E0533F" font-family="monospace" font-size="20">12.5%</text>
+  <rect x="1092" y="600" width="296" height="24" fill="#1E2F25"/>
+  <rect x="1092" y="600" width="37" height="24" fill="#E0533F"/>
+  <text x="1402" y="619" fill="#E0533F" font-family="monospace" font-size="20">12.5%</text>
   <text x="852" y="662" fill="#8FA595" font-family="sans-serif" font-size="20">Frontier Pass-1 Sound</text>
-  <rect x="1092" y="644" width="310" height="24" fill="#1E2F25"/>
-  <rect x="1092" y="644" width="297" height="24" fill="#C8F25C"/>
-  <text x="1414" y="663" fill="#E4EEE6" font-family="monospace" font-size="20">95.8%</text>
+  <rect x="1092" y="644" width="296" height="24" fill="#1E2F25"/>
+  <rect x="1092" y="644" width="284" height="24" fill="#C8F25C"/>
+  <text x="1402" y="663" fill="#E4EEE6" font-family="monospace" font-size="20">95.8%</text>
   <text x="852" y="706" fill="#8FA595" font-family="sans-serif" font-size="20">32B-Think 6-Turn Bash</text>
-  <rect x="1092" y="688" width="310" height="24" fill="#1E2F25"/>
-  <rect x="1092" y="688" width="165" height="24" fill="#2FA866"/>
-  <text x="1414" y="707" fill="#E4EEE6" font-family="monospace" font-size="20">53.3%</text>
-  <text x="852" y="752" fill="#E4EEE6" font-family="monospace" font-size="18">23/24 sound (0 reward hacks) · 8× higher 6-turn solve rate than 4B–8B</text>
+  <rect x="1092" y="688" width="296" height="24" fill="#1E2F25"/>
+  <rect x="1092" y="688" width="158" height="24" fill="#2FA866"/>
+  <text x="1402" y="707" fill="#E4EEE6" font-family="monospace" font-size="20">53.3%</text>
+  <text x="852" y="752" fill="#E4EEE6" font-family="sans-serif" font-size="17">23/24 sound (0 reward hacks) · 8× higher 6-turn solve rate than 4B–8B</text>
 
-  <text x="104" y="822" fill="#8FA595" font-family="monospace" font-size="20">REGENTS.SH/TECHTREE · NOVEMBER 2026</text>
+  <text x="104" y="822" fill="#8FA595" font-family="monospace" font-size="20">REGENTS.SH · TECHTREE · NOVEMBER 2026</text>
 </svg>
