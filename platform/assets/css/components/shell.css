@@ -119,25 +119,41 @@
   }
 }
 
-:where(.regents-frame) {
-  /* The theme switch has a row of the account menu to itself, its words at the
-     start, so it can be larger than elsewhere and its blocks read. Its light
-     spills only above and below its own press, inside the row. */
-  #account-menu .theme-switch {
-    --theme-switch-lens: var(--space-5);
-    --theme-switch-track: var(--space-4);
-    --theme-switch-travel: var(--space-4);
-    --theme-switch-press: var(--space-6);
-  }
+/* The theme switch has a row of the account menu to itself, its words at the
+   start, so it can be larger than elsewhere and its blocks read. Its light
+   spills only above and below its own press, inside the row. */
+#account-menu .theme-switch {
+  --theme-switch-lens: var(--space-5);
+  --theme-switch-track: var(--space-4);
+  --theme-switch-travel: var(--space-4);
+  --theme-switch-press: var(--space-6);
+}
 
-  /* The account name opens the account menu, which hangs from it. */
-  &#app-shell:has(#account-menu:popover-open) #account-chip {
-    background: color-mix(in oklch, var(--color-fg) 10%, transparent);
-  }
+#account-menu .rg-account-menu__who:not(:has(.rg-account-menu__picture :where(img, svg, span))) {
+  grid-template-columns: minmax(0, 1fr);
+}
 
-  &#app-shell #account-chip {
-    anchor-name: --rg-account-menu;
-  }
+#account-menu .rg-account-menu__picture:not(:has(:where(img, svg, span))) {
+  display: none;
+}
+
+#account-menu .rg-account-menu__pair,
+#account-menu .rg-account-menu__pair:hover {
+  color: var(--color-fg);
+  text-decoration: none;
+}
+
+#account-menu a.rg-button:hover {
+  text-decoration: none;
+}
+
+/* The account name opens the account menu, which hangs from it on every product bar. */
+#site-bar:has(#account-menu:popover-open) #account-chip {
+  background: color-mix(in oklch, var(--color-fg) 10%, transparent);
+}
+
+#account-chip {
+  anchor-name: --rg-account-menu;
 }
 
 .account-name {

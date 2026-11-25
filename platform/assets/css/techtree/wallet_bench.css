@@ -1,4 +1,4 @@
-@scope (:root[data-brand="techtree"]:not([data-marketing])) {
+@scope (:root[data-product="techtree"]:not([data-marketing])) {
 /* Wallet tests: the score grid and its result window, the list of attempts, and one attempt's rulings and evidence. */
 .wallet-bench { display: grid; gap: var(--space-4); }
 .wallet-bench > * { min-width: 0; }

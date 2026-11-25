@@ -69,7 +69,7 @@
 		}
 	}
 
-	@shared_root path /account /account/* /pair /api/agents/v1/* /api/v1/health /api/v1/account /api/v1/account/* /api/v1/profile /api/v1/profile/* /api/v1/messages/* /api/agent/v1/account /api/agent/v1/account/* /api/agent/v1/claims /api/agent/v1/staking/position
+	@shared_root path /account /account/* /pair /oauth /oauth/* /api/agents/v1/* /api/v1/health /api/v1/account /api/v1/account/* /api/v1/profile /api/v1/profile/* /api/v1/messages/* /api/agent/v1/account /api/agent/v1/account/* /api/agent/v1/claims /api/agent/v1/staking/position
 	handle @shared_root {
 		route {
 			uri strip_suffix /

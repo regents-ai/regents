@@ -8,6 +8,7 @@ defmodule Regents.Application do
       Regents,
       RegentsWeb,
       Regents.Stake,
+      Regents.Techtree,
       Regents.Keyfleet,
       Regents.Autolaunch,
       Regents.Patchbay
@@ -45,10 +46,6 @@ defmodule Regents.Application do
         Regents.Patchbay.Forum.FeedCount,
         # Room for two Patchbay word searches at once.
         Regents.Patchbay.Forum.SearchSlots,
-        # Techtree's Wallet Bench reading, kept 30 seconds.
-        Regents.Techtree.WalletBench.Reading,
-        # Concurrent Wallet Bench evidence/zip downloads on this machine.
-        {Registry, keys: :duplicate, name: RegentsWeb.Techtree.ResultsDownloads},
         # Each agent's reading for an open account menu, unlinked from the page.
         {Task.Supervisor, name: Regents.Account.Agents.Reads},
         # Each product's health read for /api/v1/health, unlinked from the request.
@@ -83,6 +80,9 @@ defmodule Regents.Application do
         # Patchbay's caches, Finch pool, payments supervisor and Wallet Bench board.
         {Regents.Patchbay.Supervisor, serving?: serving?()},
         patchbay_web_child(),
+        # Techtree's Wallet Bench reading and web-side download registry.
+        Regents.Techtree.Supervisor,
+        techtree_web_child(),
         # Start a worker by calling: Regents.Worker.start_link(arg)
         # {Regents.Worker, arg},
         # Start to serve requests, typically the last entry
@@ -187,6 +187,10 @@ defmodule Regents.Application do
 
   defp patchbay_web_child do
     if serving?(), do: RegentsWeb.Patchbay.Supervisor
+  end
+
+  defp techtree_web_child do
+    if serving?(), do: RegentsWeb.Techtree.Supervisor
   end
 
   defp serving?, do: Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint)

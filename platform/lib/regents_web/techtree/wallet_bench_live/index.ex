@@ -6,7 +6,7 @@ defmodule RegentsWeb.Techtree.WalletBenchLive.Index do
   (`RegentsWeb.Techtree.WalletBenchCopy.score/1`). Only wallet tools with a result get a
   column; the others are listed under the grid with why.
   A box opens that result in a window, with the full results to download from
-  techtree.sh, which serves them. A
+  this site. A
   wallet box whose pair's newest install did not pass, so its wallet test never
   started, says "No install" and opens that install result. The
   list view shows every attempt, newest first; attempts with no result stay

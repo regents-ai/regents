@@ -13,6 +13,7 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
   alias Regents.Account.Actors.Human
   alias Regents.Techtree.Watchdog
   alias Regents.Techtree.Watchdog.{Host, Limits, Ownership}
+  alias RegentsWeb.Account.Identity
   alias RegentsWeb.Techtree.Layouts
 
   # How long a removed site stays, hidden, before the list drops it: until the
@@ -22,7 +23,7 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket), do: subscribe(socket)
+    topic = if connected?(socket), do: subscribe(socket), else: nil
 
     {:ok,
      socket
@@ -30,10 +31,12 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
        page_title: "Your sites",
        notice: nil,
        field_errors: %{},
-       signed_in?: false,
+       subscribed_topic: topic,
        hosts: [],
-       routes: %{}
+       routes: %{},
+       leaving: []
      )
+     |> attach_hook(:watchdog_unheard, :after_render, &unheard/1)
      |> load_list()}
   end
 
@@ -52,7 +55,7 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
   end
 
   defp handle_write_event("add_site", %{"origin" => origin, "ownership_method" => method}, socket) do
-    with %Human{} = actor <- actor(socket),
+    with %Human{} = actor <- Identity.human_actor(socket),
          {:ok, method} <- parse_method(method),
          {:ok, _host} <- Watchdog.add_host(origin, %{ownership_method: method}, actor: actor) do
       {:noreply,
@@ -82,8 +85,8 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
   # can fade it out while the sites under it close the gap; then the list is read
   # again. It is inert meanwhile, so nothing in it takes a press or the keyboard.
   defp handle_write_event("remove_site", %{"id" => id}, socket) do
-    with %Human{} = actor <- actor(socket),
-         {:ok, host} <- Ash.get(Host, id, actor: actor),
+    with %Human{} = actor <- Identity.human_actor(socket),
+         {:ok, host} <- Watchdog.get_host(id, actor: actor),
          :ok <- Watchdog.remove_host(host, actor: actor) do
       Process.send_after(self(), :removed, @leave_ms)
 
@@ -98,7 +101,7 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
   end
 
   defp handle_write_event("add_address", %{"host_id" => host_id, "url" => url}, socket) do
-    with %Human{} = actor <- actor(socket),
+    with %Human{} = actor <- Identity.human_actor(socket),
          {:ok, _route} <- Watchdog.add_route(host_id, %{url: url}, actor: actor) do
       {:noreply, socket |> inform(:success, "Address added.") |> load_list()}
     else
@@ -131,8 +134,8 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
   def handle_info(_message, socket), do: {:noreply, socket}
 
   defp update_host(socket, id, fun, message, tone) do
-    with %Human{} = actor <- actor(socket),
-         {:ok, host} <- Ash.get(Host, id, actor: actor),
+    with %Human{} = actor <- Identity.human_actor(socket),
+         {:ok, host} <- Watchdog.get_host(id, actor: actor),
          {:ok, _updated} <- fun.(host, actor: actor) do
       {:noreply, socket |> inform(tone, message) |> load_list()}
     else
@@ -142,8 +145,8 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
   end
 
   defp update_route(socket, id, fun, message, tone) do
-    with %Human{} = actor <- actor(socket),
-         {:ok, route} <- Ash.get(Watchdog.Route, id, actor: actor),
+    with %Human{} = actor <- Identity.human_actor(socket),
+         {:ok, route} <- Watchdog.get_route(id, actor: actor),
          {:ok, _updated} <- fun.(route, actor: actor) do
       {:noreply, socket |> inform(tone, message) |> load_list()}
     else
@@ -153,7 +156,7 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
   end
 
   defp load_list(socket) do
-    case actor(socket) do
+    case Identity.human_actor(socket) do
       %Human{} = actor ->
         with {:ok, hosts} <- Watchdog.list_my_hosts(actor: actor),
              {:ok, raw_routes} <- Watchdog.list_my_routes(%{}, actor: actor) do
@@ -162,11 +165,11 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
             |> Enum.reject(&(&1.state == :removed))
             |> Enum.group_by(& &1.host_id)
 
-          assign(socket, signed_in?: true, hosts: hosts, routes: routes, leaving: [])
+          assign(socket, hosts: hosts, routes: routes, leaving: [])
         else
           _error ->
             socket
-            |> assign(signed_in?: true, hosts: [], routes: %{}, leaving: [])
+            |> assign(hosts: [], routes: %{}, leaving: [])
             |> inform(
               :error,
               "Your monitored sites couldn't be read right now. Try again shortly."
@@ -174,24 +177,46 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
         end
 
       nil ->
-        assign(socket, signed_in?: false, hosts: [], routes: %{}, leaving: [])
+        assign(socket, hosts: [], routes: %{}, leaving: [])
     end
   end
 
   defp subscribe(socket) do
-    case actor(socket) do
+    case Identity.human_actor(socket) do
       %Human{human_account_id: id} ->
-        Phoenix.PubSub.subscribe(Regents.PubSub, Host.topic(id))
+        topic = Host.topic(id)
+        Phoenix.PubSub.subscribe(Regents.PubSub, topic)
+        topic
 
       nil ->
-        :ok
+        nil
     end
   end
 
-  defp actor(%{assigns: %{access_context: %{principal: {:human, account}}}}),
-    do: Human.for_account(account)
+  # When the session lapses in place (`RegentsWeb.Live.Session` withdraws
+  # `access_context` and sets `signed_out_reason: :expired`), stop hearing the
+  # account's private host topic and drop cached private assigns from the socket.
+  defp unheard(%{assigns: %{signed_out_reason: :expired} = assigns} = socket) do
+    if is_binary(assigns.subscribed_topic) do
+      Phoenix.PubSub.unsubscribe(Regents.PubSub, assigns.subscribed_topic)
+    end
 
-  defp actor(_socket), do: nil
+    if is_binary(assigns.subscribed_topic) or assigns.hosts != [] or assigns.routes != %{} or
+         assigns.leaving != [] or not is_nil(assigns.notice) or assigns.field_errors != %{} do
+      assign(socket,
+        subscribed_topic: nil,
+        hosts: [],
+        routes: %{},
+        leaving: [],
+        notice: nil,
+        field_errors: %{}
+      )
+    else
+      socket
+    end
+  end
+
+  defp unheard(socket), do: socket
 
   defp parse_method("dns_txt"), do: {:ok, :dns_txt}
   defp parse_method("well_known_file"), do: {:ok, :well_known_file}
@@ -254,7 +279,7 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
         </header>
 
         <Regent.Account.signed_out
-          :if={not @signed_in?}
+          :if={not Identity.authenticated?(@access_context)}
           id="watchdog-signed-out"
           reason={@signed_out_reason}
         >
@@ -265,7 +290,7 @@ defmodule RegentsWeb.Techtree.WatchdogLive do
           </:sign_in>
         </Regent.Account.signed_out>
 
-        <div :if={@signed_in?}>
+        <div :if={Identity.authenticated?(@access_context)}>
           <Regent.Structure.panel class="watchdog-add rg-panel__body">
             <h2>New site</h2>
             <form phx-submit="add_site" class="watchdog-form">

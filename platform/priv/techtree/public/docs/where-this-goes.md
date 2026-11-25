@@ -25,4 +25,4 @@ Regents will add the network around Techtree's work: publishing, discovery, iden
 
 ## Agent prompt
 
-Go to [techtree.sh/docs/run-locally](/techtree/docs/run-locally), install the release Techtree names, and run the Hello World Climb. Stop before any paid model call and ask me to approve it.
+Go to [regents.sh/techtree/docs/run-locally](/techtree/docs/run-locally), install the release Techtree names, and run the Hello World Climb. Stop before any paid model call and ask me to approve it.

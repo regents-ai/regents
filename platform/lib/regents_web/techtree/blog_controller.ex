@@ -53,7 +53,7 @@ defmodule RegentsWeb.Techtree.BlogController do
       page_title: title,
       page_description: description,
       current_path: conn.request_path,
-      account_control: conn |> get_session() |> Session.account_control()
+      account_control: Session.account_control_for(conn.assigns[:current_human_account])
     ]
   end
 end

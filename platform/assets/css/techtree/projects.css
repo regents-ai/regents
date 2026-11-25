@@ -1,4 +1,4 @@
-@scope (:root[data-brand="techtree"]:not([data-marketing])) {
+@scope (:root[data-product="techtree"]:not([data-marketing])) {
 /* The account's Projects (`RegentsWeb.Techtree.ProjectsLive`). Figures are
    equal-width digits in the body ink; only the bars carry colour: the selected
    Skill in the chart colour, the original in grey, both square like every shape

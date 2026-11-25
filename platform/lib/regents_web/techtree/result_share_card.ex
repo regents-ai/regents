@@ -119,7 +119,7 @@ defmodule RegentsWeb.Techtree.ResultShareCard do
     verdict = ResultAssessment.verdict_label(entry.assessment)
     lede = withdrawn(entry) <> "#{tasks(entry.task_count)}, with and without the Skill."
 
-    site = layer("TECHTREE.SH", :label, 17, @muted)
+    site = layer("TECHTREE · REGENTS.SH", :label, 17, @muted)
     eyebrow = fit(eyebrow, :label, 17, @muted, @words_w - 24)
     lines = wrap(verdict, :words, @h1_size, @ink, @words_w)
     lede = layer(lede, :words, 25, @muted, width: @lede_w)

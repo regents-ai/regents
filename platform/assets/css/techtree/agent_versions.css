@@ -1,4 +1,4 @@
-@scope (:root[data-brand="techtree"]:not([data-marketing])) {
+@scope (:root[data-product="techtree"]:not([data-marketing])) {
 /* Submitted-version navigation uses the product's shared palette and type. */
 #agent-version-browser { margin-block: 1.5rem; padding-block: 1rem; border-block: 1px solid var(--hairline); min-width: 0; }
 .agent-versions__families, .agent-versions__carousel, .agent-versions__list { display: flex; align-items: center; gap: .65rem; min-width: 0; }

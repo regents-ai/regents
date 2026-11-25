@@ -36,4 +36,4 @@ When training has become routine, Prime Intellect offers dedicated Model Factory
 
 ## Start
 
-Bring one task you repeat and a few examples of good and bad work. [Contact](/techtree#begin) · [Model Factory](https://www.primeintellect.ai/model-factory) · [Hosted training](https://docs.primeintellect.ai/hosted-training/getting-started)
+Bring one task you repeat and a few examples of good and bad work. [Contact](/techtree/app#begin) · [Model Factory](https://www.primeintellect.ai/model-factory) · [Hosted training](https://docs.primeintellect.ai/hosted-training/getting-started)

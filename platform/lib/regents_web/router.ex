@@ -263,6 +263,29 @@ defmodule RegentsWeb.Router do
     plug :put_layout, html: {RegentsWeb.Techtree.Layouts, :app}
   end
 
+  # Binary downloads on Techtree's browser session (project archive): no HTML/MD
+  # content negotiation and no PageMarkdown interception, so `Accept: application/gzip`
+  # and `*/*` work cleanly while preserving session authority and secure headers.
+  # sobelow_skip ["Config.CSP"]
+  pipeline :techtree_download do
+    plug :fetch_session
+    plug :enforce_session_authority
+    plug RegentsWeb.Plugs.LaunchGate
+    plug :protect_from_forgery
+
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" => ContentSecurityPolicy.reading()
+    }
+  end
+
+  # Binary downloads on Techtree's agent API (project archive): no `:accepts, ["json"]`
+  # so `Accept: application/gzip` or `application/octet-stream` succeed while JSON
+  # error responses still format as JSON.
+  pipeline :techtree_api_download do
+    plug :put_format, "json"
+    plug RegentsWeb.Plugs.LaunchGate
+  end
+
   # The unified hosted MCP server: refused on the read-only venue, then admitted
   # by McpAgent (SIWA paired agent or Regents.OAuth Bearer token). No cookies or
   # sessions are read.
@@ -621,6 +644,10 @@ defmodule RegentsWeb.Router do
     pipe_through [:api, :paired_agent]
     get "/projects", AgentAccountController, :projects
     get "/projects/:id", AgentAccountController, :project
+  end
+
+  scope "/api/v1/techtree/account", RegentsWeb.Techtree do
+    pipe_through [:techtree_api_download, :paired_agent]
     get "/projects/:id/package", AgentAccountController, :package
   end
 
@@ -677,8 +704,8 @@ defmodule RegentsWeb.Router do
   end
 
   # Unified hosted MCP server at `/mcp`, spanning Regents identity tools,
-  # Keyfleet workspace tools, Autolaunch covered calls & Earn tools, and
-  # Patchbay forum tools.
+  # Techtree public catalog/results/bench/train tools, Keyfleet workspace tools,
+  # Autolaunch covered calls & Earn tools, and Patchbay forum tools.
   scope "/" do
     pipe_through :mcp
 
@@ -808,6 +835,27 @@ defmodule RegentsWeb.Router do
     delete "/privy/session", PrivySessionController, :delete
   end
 
+  # Permanent redirects from retired legacy Techtree paths under `/techtree/*`.
+  # Declared ahead of the LiveView scope so `/techtree/docs/method` resolves
+  # before `/techtree/docs/:slug`.
+  scope "/techtree", RegentsWeb.Techtree do
+    get "/start", RedirectController, :start
+    get "/verify", RedirectController, :verify
+    get "/docs/method", RedirectController, :verify
+    get "/repo2rlenv", RedirectController, :environments
+    get "/train", RedirectController, :models
+    get "/services/verify", RedirectController, :evals
+    get "/services/verify/sample-report", RedirectController, :results
+    get "/services/cyber-assist", RedirectController, :security
+    get "/services/cyber-assist/sample-report", RedirectController, :security_sample_report
+    get "/services/watchdog", RedirectController, :security
+  end
+
+  scope "/techtree", RegentsWeb.Techtree do
+    pipe_through :techtree_download
+    get "/account/projects/:id/package", ProjectPackageController, :show
+  end
+
   scope "/techtree", RegentsWeb.Techtree do
     pipe_through [:techtree_browser, :techtree]
 
@@ -819,9 +867,6 @@ defmodule RegentsWeb.Router do
     get "/agents", PublicPagesController, :show
     get "/agents/:agent", PublicPagesController, :show
     get "/services/security/sample-report", PublicPagesController, :show
-    get "/account/projects/:id/package", ProjectPackageController, :show
-    get "/wallet-bench/:id/evidence/:turn/:file", WalletBenchEvidenceController, :show
-    get "/wallet-bench/:id/results.zip", WalletBenchEvidenceController, :results
 
     live_session :techtree,
       session: {RegentsWeb.Live.Session, :render_context, []},
@@ -871,15 +916,21 @@ defmodule RegentsWeb.Router do
   # a site making a link preview included, and the Wallet Bench as Markdown.
   scope "/techtree", RegentsWeb do
     get "/llms.txt", ProductAgentDocsController, :llms, private: %{product: "techtree"}
+
+    get "/capabilities.json", ProductCapabilitiesController, :show,
+      private: %{product: "techtree"}
   end
 
   scope "/techtree", RegentsWeb.Techtree do
     get "/agents.md", AgentsController, :show
     get "/skill.md", PublicPagesController, :skill_guide
     get "/agents/:agent/skill.md", PublicPagesController, :agent_skill_guide
+    match :*, "/oauth/*rest", PublicPagesController, :redirect_oauth
     get "/train/:slug/report.json", TrainController, :report
     get "/results/:bundle_digest/share.png", ResultShareCardController, :show
     get "/wallet-bench.md", WalletBenchController, :markdown
+    get "/wallet-bench/:id/evidence/:turn/:file", WalletBenchEvidenceController, :show
+    get "/wallet-bench/:id/results.zip", WalletBenchEvidenceController, :results
   end
 
   # Every Skill comparison, the Wallet Bench scores and one wallet test's record,

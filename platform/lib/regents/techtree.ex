@@ -1,29 +1,28 @@
 defmodule Regents.Techtree do
   @moduledoc """
-  Techtree's core: custom Skills, evaluations, training environments and
-  open-weight models, folded in from techtree.sh one slice at a time
-  (`SOURCE.json` beside this module names what came from where). Its tables
-  stay in Techtree's own schema, `techtree_app`, with their own migrations and
-  ledger (`priv/techtree`); so far Model Climb's reports
-  (`Regents.Techtree.ModelClimb`), the catalog's releases and entries
-  (`Regents.Techtree.Catalog`, whose bundle is `priv/techtree/catalog`), the
-  public run log of published Results (`Regents.Techtree.Network`, read only
-  here: nothing publishes to it yet), the Wallet Bench's tests
-  (`Regents.Techtree.WalletBench`, read only here: techtree.sh runs them) and
-  the projects Techtree's team delivered to customers
-  (`Regents.Techtree.Projects`, read only here: techtree.sh's team delivers
-  them). The
-  published Skill comparisons are committed files
-  (`Regents.Techtree.Train.Comparisons`), and so are the starter Skills
-  (`Regents.Techtree.Release.StarterSkill`, `priv/techtree/release`). Its pages
-  are `RegentsWeb.Techtree`, and
-  its release commands `Regents.Techtree.Release`.
+  Techtree's core: custom Skills, evaluations, training environments, and
+  open-weight models, consolidated under `/techtree` (`SOURCE.json` beside this
+  module records provenance). Its tables live in `techtree_app` with their own
+  migrations (`priv/techtree`): Model Climb proofs (`Regents.Techtree.ModelClimb`),
+  catalog releases and entries (`Regents.Techtree.Catalog`, bundled in
+  `priv/techtree/catalog`), the public run log of published Results and signed
+  publication/withdrawal ingest (`Regents.Techtree.Network`), the Agent Wallet
+  Bench (`Regents.Techtree.WalletBench`), delivered customer Projects
+  (`Regents.Techtree.Projects`), contact-form Enquiries
+  (`Regents.Techtree.Enquiries`), and Watchdog site ownership monitoring
+  (`Regents.Techtree.Watchdog`). Published Skill comparisons are committed files
+  (`Regents.Techtree.Train.Comparisons`), and starter Skills live in
+  `Regents.Techtree.Release.StarterSkill` (`priv/techtree/release`). Its web
+  surface is `RegentsWeb.Techtree`, its core supervisor is
+  `Regents.Techtree.Supervisor`, and its release commands are
+  `Regents.Techtree.Release`.
   """
   use Boundary,
     top_level?: true,
     deps: [Regents],
     exports: [
       Canonical,
+      Capabilities,
       Catalog.Bundle,
       Catalog.Digest,
       Catalog.Error,
@@ -47,6 +46,7 @@ defmodule Regents.Techtree do
       Projects,
       Release,
       Release.StarterSkill,
+      Supervisor,
       Train.Comparisons,
       WalletBench,
       WalletBench.BaseRpc,

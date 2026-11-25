@@ -38,19 +38,32 @@ defmodule RegentsWeb.Live.Session do
     |> Map.put("product", conn.assigns.product)
     |> Map.put("arrival", conn.assigns[:arrival])
     |> Map.put("gpc", conn.assigns.gpc)
+    |> Map.put("session_refused", conn.assigns[:session_refused] == true)
   end
 
   @doc """
   Who the page was rendered for, as the bar's account control shows it, for a page
   that only shows it and holds no session of its own (the home page).
   """
-  def account_control(session) do
-    access_context = session |> disconnected_account() |> access_context()
+  def account_control(session), do: session |> disconnected_account() |> account_control_for()
+
+  @doc """
+  Builds the bar's account control from an already-resolved human account
+  (`conn.assigns.current_human_account`) without re-reading `SessionAuthority`.
+  """
+  def account_control_for(account) do
+    access_context = access_context(account)
     AccessContext.account_control(access_context, load_regent(access_context))
   end
 
   def on_mount(:load_human, _params, session, socket) do
-    socket = Phoenix.Component.assign(socket, session_lease: nil, signed_out_reason: :signed_out)
+    signed_out_reason = if session["session_refused"], do: :expired, else: :signed_out
+
+    socket =
+      Phoenix.Component.assign(socket,
+        session_lease: nil,
+        signed_out_reason: signed_out_reason
+      )
 
     if connected?(socket) do
       handshake = get_connect_info(socket, :session)
@@ -93,7 +106,8 @@ defmodule RegentsWeb.Live.Session do
 
   defp admit(socket, rendered, route, %{lineage: lineage} = claim) do
     with {^lineage, account} <- SessionAuthority.resolve(claim),
-         ^rendered <- SessionAuthority.topic(lineage) do
+         true <-
+           rendered == SessionAuthority.topic(lineage) or (is_nil(rendered) and is_nil(account)) do
       {:cont, hold(socket, lineage, account)}
     else
       {nil, nil} -> {:halt, redirect(socket, to: @public_root)}
@@ -133,6 +147,10 @@ defmodule RegentsWeb.Live.Session do
     end)
     |> attach_hook(:session_authority_info, :handle_info, fn
       {__MODULE__, :component_lease_lapsed}, socket ->
+        {_cont_or_halt, socket} = recheck(socket, lease, & &1)
+        {:halt, socket}
+
+      {:ens_lookup_finished, _account_id}, socket ->
         {_cont_or_halt, socket} = recheck(socket, lease, & &1)
         {:halt, socket}
 
@@ -210,7 +228,7 @@ defmodule RegentsWeb.Live.Session do
         {:halt,
          socket
          |> assign_principal(nil)
-         |> Phoenix.Component.assign(signed_out_reason: :expired)
+         |> Phoenix.Component.assign(session_lease: nil, signed_out_reason: :expired)
          |> lapsed.()}
 
       account ->

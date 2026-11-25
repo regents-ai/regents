@@ -14,7 +14,7 @@ defmodule Regents.Techtree.Watchdog.EnforceCap do
   Options:
 
     * `:resource` — the Ash resource whose rows are counted.
-    * `:limit` — the key in `config :techtree, Regents.Techtree.Watchdog` holding the cap.
+    * `:limit` — the key in `config :regents, Regents.Techtree.Watchdog` holding the cap.
     * `:message` — the error shown when the cap is reached.
   """
 

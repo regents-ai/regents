@@ -8,8 +8,8 @@ defmodule Regents.Techtree.Enquiries.Enquiry do
 
   Each client address sends a few an hour (`:techtree_enquiries` in
   `Regents.Limits`, counted by `SpendAllowance`); the address itself is never
-  kept. Only the site's admins read enquiries (`RegentAgents.Checks.Admin`),
-  beside the team's messages (`RegentsWeb.Techtree.TeamMessagesLive`). Nothing is sent
+  kept. Only the site's admins read enquiries (`Regents.Checks.Admin`),
+  beside the team's messages (`RegentsWeb.AdminMessagesLive`). Nothing is sent
   anywhere when one arrives.
   """
 
@@ -66,7 +66,7 @@ defmodule Regents.Techtree.Enquiries.Enquiry do
     # The site's admins. Strict, so anyone else is refused, not shown an empty list.
     policy action_type(:read) do
       access_type :strict
-      authorize_if RegentAgents.Checks.Admin
+      authorize_if Regents.Checks.Admin
     end
   end
 

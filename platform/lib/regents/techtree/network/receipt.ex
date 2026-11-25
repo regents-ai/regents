@@ -43,7 +43,7 @@ defmodule Regents.Techtree.Network.Receipt do
   *The signature is the countersignature.* A holder of a receipt checks it by
   canonicalizing `payload`, hashing it, comparing that to `payload_digest`, and
   verifying `signature` over that digest string under the key at
-  `GET /api/v1/publication-keys/<key id>`. The key id in that address is the
+  `GET /api/v1/techtree/publication-keys/<key id>`. The key id in that address is the
   SHA-256 of the key itself, so a receipt naming a key it does not carry is
   caught for free.
 

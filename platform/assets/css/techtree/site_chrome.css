@@ -1,4 +1,4 @@
-@scope (:root[data-brand="techtree"]:not([data-marketing])) {
+@scope (:root[data-product="techtree"]:not([data-marketing])) {
 /* Techtree's row under the site's bar with its Services panel, the frame and the footer
    on every page (`RegentsWeb.Techtree.Layouts`). The site's bar draws itself and carries
    no Techtree links. */
@@ -24,13 +24,18 @@
   --tt-link-pad: var(--space-1);
   --tt-rule: color-mix(in srgb, var(--color-fg) 22%, var(--color-bg));
   position: sticky; inset-block-start: var(--tt-bar); z-index: var(--rg-layer-panel);
-  display: flex; align-items: center; justify-content: space-between;
-  block-size: var(--tt-row); padding-inline: var(--space-4);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-1);
+  max-inline-size: 100%; block-size: var(--tt-row); padding-inline: var(--space-4);
   background: linear-gradient(in oklch, var(--tt-rule) 0 0) bottom / 100% 1px no-repeat var(--color-bg);
   color: var(--color-fg); font-size: .9375rem; line-height: 1.5;
 }
 /* Pulled out by the links' padding, so the first word lines up with the crown. */
-.tt-row__links { display: flex; gap: var(--space-1); margin-inline-start: calc(-1 * var(--tt-link-pad)); }
+.tt-row__links {
+  display: flex; flex: 1 1 auto; gap: var(--space-1); min-inline-size: 0;
+  overflow-x: auto; scrollbar-width: none;
+  margin-inline-start: calc(-1 * var(--tt-link-pad));
+}
+.tt-row__links::-webkit-scrollbar { display: none; }
 .tt-row__link {
   display: inline-flex; align-items: center; gap: .375rem;
   min-height: 2.75rem; margin: 0; padding: 0 var(--tt-link-pad);
@@ -54,15 +59,21 @@
 .tt-book::before { inset: 3px -1px; }
 .tt-book:focus-visible::before { inset: calc(3px - var(--rg-ring-reach)) calc(-1px - var(--rg-ring-reach)); }
 
-/* On a phone the row takes the bar's phone sides, the links touch and Book Call takes
-   Sign in's 12px sides, so all four fit at 360. Narrower, the links' sides narrow and
-   Book Call drops its arrow. */
+/* On a phone the row takes the bar's phone sides (0.75rem), the links touch, and
+   narrower screens tighten padding and drop Book Call's arrow so Services, Results,
+   Projects, Docs and Book Call stay inside the viewport without clipping. */
 @media (max-width: 48rem) {
-  .tt-row { padding-inline: var(--space-2); }
+  .tt-row { --tt-link-pad: 6px; padding-inline: 0.75rem; font-size: .875rem; }
   .tt-row__links { gap: 0; }
   .tt-book { padding-inline: 12px; }
+  .tt-book::before { inset: 3px 0; }
 }
-@media (width < 22.5rem) {
+@media (max-width: 30rem) {
+  .tt-row { --tt-link-pad: 5px; gap: 4px; font-size: .8125rem; }
+  .tt-row__link { gap: .25rem; }
+  .tt-book { padding-inline: 10px; font-size: .8125rem; }
+}
+@media (width < 25rem) {
   .tt-row { --tt-link-pad: 4px; }
   .tt-book::after { display: none; }
 }

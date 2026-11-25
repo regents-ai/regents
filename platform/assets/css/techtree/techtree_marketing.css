@@ -1,4 +1,4 @@
-@scope (:root[data-brand="techtree"]:not([data-marketing])) {
+@scope (:root[data-product="techtree"]:not([data-marketing])) {
 /* The inner pages in the home page's look (`RegentsWeb.Techtree.Components.Marketing`).
 
    Every inner page opens on a dark band: the eyebrow, the page's name, its

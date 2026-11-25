@@ -19,7 +19,9 @@ export function mountEntrance(doc: Document) {
   if (hero === null || still(hero)) return
 
   const display = hero.querySelector<HTMLElement>("[data-entrance-display]")
-  if (display && !display.querySelector(".split-clip")) {
+  if (display === null) return
+
+  if (!display.querySelector(".split-clip")) {
     const label = display.textContent?.trim()
     if (label && !display.hasAttribute("aria-label")) display.setAttribute("aria-label", label)
     const split = splitText(display, {words: CLIPPED_WORD})

@@ -404,7 +404,9 @@ async function deleteLocalSession(fetcher: typeof fetch, csrf: string): Promise<
 // claim and replaces a malformed one. A superseded claim is left alone there in
 // case the winning cookie is still on its way, so it gets a second look; one
 // that is still superseded never received that cookie, and only sign out
-// accepts it. The socket is held throughout, so it connects under the result.
+// accepts it. Once a refused cookie is dropped, a fresh unbound CSRF token is
+// adopted before releasing the socket so it connects cleanly without a stale
+// CSRF reload.
 export function retireRefusedSession(
   documentRoot: Document = document,
   fetcher: typeof fetch = fetch,
@@ -412,21 +414,36 @@ export function retireRefusedSession(
 ): Promise<void> {
   if (!documentRoot.querySelector("meta[name='session-refused']")) return Promise.resolve()
 
-  const stillSuperseded = async (signal: AbortSignal, renewed: () => void) => {
+  const attemptCsrf = async (signal: AbortSignal, renewed: () => void) => {
     try {
       await csrfToken(fetcher, signal, renewed)
-      return false
+      return "adopted" as const
     } catch (refusal) {
       if (!(refusal instanceof SessionLifecycleError)) throw refusal
       return refusal.lifecycle === "session_superseded"
+        ? ("superseded" as const)
+        : ("retired" as const)
     }
   }
 
   return acrossCookieRotation(renewed =>
     sessionMutations.establish(async signal => {
-      if (!await stillSuperseded(signal, renewed)) return
-      if (!await stillSuperseded(signal, renewed)) return
-      await clearLocalSession(fetcher)
+      const first = await attemptCsrf(signal, renewed)
+      if (first === "adopted") return
+
+      if (first === "superseded") {
+        const second = await attemptCsrf(signal, renewed)
+        if (second === "adopted") return
+        if (second === "superseded") {
+          await clearLocalSession(fetcher)
+          renewed()
+        }
+      }
+
+      // Dropping a revoked or twice-superseded cookie clears `_csrf_token`, so
+      // bootstrap a fresh unbound lineage and adopt its CSRF token before the
+      // held LiveSocket connects.
+      await csrfToken(fetcher, signal, renewed)
     }),
   ).catch(() => undefined)
 }

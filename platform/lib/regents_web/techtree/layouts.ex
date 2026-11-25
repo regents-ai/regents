@@ -3,11 +3,11 @@ defmodule RegentsWeb.Techtree.Layouts do
   The frame every Techtree page is read inside, within the site's one root
   document. The site's bar (`RegentsWeb.Components.Shell.site_bar/1`) carries no
   Techtree links; Techtree's row sits under it on every page and at every width
-  (`RegentsWeb.Techtree.SiteMenu`): Services, opening the six services, Results and
-  Docs, with Book Call at its end. Signed in, the bar's account control is the
-  person's picture and name with Sign out, as the site draws it where there is no
-  account menu. The footer lists the services, the site's pages and the agent links
-  in columns, with the legal pages.
+  (`RegentsWeb.Techtree.SiteMenu`): Services, opening the six services, Results,
+  Projects and Docs, with Book Call at its end. Signed in, the bar's account
+  control shows the person's picture and name and opens the universal account menu
+  popover (`RegentsWeb.Components.Shell.site_bar/1`). The footer lists the
+  services, the site's pages and the agent links in columns, with the legal pages.
 
   `app/1` is the layout of the Techtree scope's pages; `on_mount(:page, ...)`
   gives each live page the address the row marks and the description the
@@ -255,7 +255,7 @@ defmodule RegentsWeb.Techtree.Layouts do
         "Custom Skills, evaluations, training environments, and open-weight models, built around your workflows, with results you can measure."
 
   def description("/techtree/watchdog"),
-    do: "Techtree Watchdog: track agent repositories and runs on a schedule."
+    do: "Verify ownership of sites you own and manage monitored addresses for Techtree Security."
 
   @doc """
   The footer under every page: the services, the site's pages, $REGENT and the

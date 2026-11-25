@@ -51,6 +51,7 @@ config :regent_agents,
       "Check your status here at any time, also with the regents_agent_whoami tool, and check in for your person.",
       "Read your person's account, verified name claims and staking position, also with the regents_account, regents_claims and regents_stake_position tools.",
       "Read your person's Points, also with the account_points tool.",
+      "Publish or withdraw Techtree Results, submit or read private Model Climb proofs, and read your person's delivered Techtree projects.",
       "You can never use your person's wallet, change their account or pair other agents."
     ]
   },
@@ -148,7 +149,8 @@ config :regents,
     Regents.Keyfleet.Usage,
     Regents.Keyfleet.Atlas,
     RegentsWeb.Keyfleet.AgentTools,
-    RegentsWeb.Patchbay.AgentTools
+    RegentsWeb.Patchbay.AgentTools,
+    RegentsWeb.Techtree.AgentTools
   ],
   generators: [timestamp_type: :utc_datetime]
 

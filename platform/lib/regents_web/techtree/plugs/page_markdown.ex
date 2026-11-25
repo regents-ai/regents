@@ -2,11 +2,12 @@ defmodule RegentsWeb.Techtree.Plugs.PageMarkdown do
   @moduledoc """
   The Markdown answer of Techtree's public pages built from the database, from
   release files or from their LiveView's own data: Techtree home, Results, each
-  Result, each Climb, the Wallet Bench, the service pages under
-  `/techtree/services`, Techtree Formal, the tdd example, and each Skill
-  comparison. Static Techtree guides are answered before the router by
-  `RegentsWeb.PublicDocuments`; these wait for the router, so an HTML request
-  reads nothing here and a Markdown one reads only what its page reads.
+  Result, each Climb, the Wallet Bench and each wallet test, the Blog and each
+  post, the service pages under `/techtree/services`, Techtree Formal, the tdd
+  example, and each Skill comparison. Static Techtree guides are answered before
+  the router by `RegentsWeb.PublicDocuments`; these wait for the router, so an
+  HTML request reads nothing here and a Markdown one reads only what its page
+  reads.
   """
 
   @behaviour Plug
@@ -16,15 +17,20 @@ defmodule RegentsWeb.Techtree.Plugs.PageMarkdown do
   alias Regents.Techtree.Catalog.Query, as: Catalog
   alias Regents.Techtree.Network.Query
   alias Regents.Techtree.Train.Comparisons
+  alias Regents.Techtree.WalletBench
+  alias Regents.Techtree.WalletBench.Catalog, as: BenchCatalog
   alias RegentsWeb.NotFoundError
 
   alias RegentsWeb.Techtree.{
+    Blog,
+    BlogController,
     CampaignFacts,
     ClimbCopy,
     ClimbsLive,
     FormalLive,
     HomeLive,
     ModelAccess,
+    Outage,
     PublicDocuments,
     RunsLive,
     ServiceLive,
@@ -34,6 +40,7 @@ defmodule RegentsWeb.Techtree.Plugs.PageMarkdown do
     TrainLive,
     TrainMD,
     WalletBenchController,
+    WalletBenchCopy,
     WalletBenchLive
   }
 
@@ -43,6 +50,7 @@ defmodule RegentsWeb.Techtree.Plugs.PageMarkdown do
     RunsLive.Show => :result,
     ClimbsLive.Show => :climb,
     WalletBenchLive.Index => :wallet_bench,
+    WalletBenchLive.Show => :wallet_bench_show,
     ServiceLive => :service,
     FormalLive => :formal,
     TddShowcaseLive => :tdd,
@@ -63,6 +71,9 @@ defmodule RegentsWeb.Techtree.Plugs.PageMarkdown do
       {"md", :wallet_bench} ->
         conn |> WalletBenchController.markdown(%{}) |> halt()
 
+      {"md", :wallet_bench_show} ->
+        send_wallet_bench_show(conn)
+
       {"md", page} ->
         # Markdown is rendered from committed copy and database fields as text/markdown.
         # sobelow_skip ["XSS.SendResp"]
@@ -78,9 +89,41 @@ defmodule RegentsWeb.Techtree.Plugs.PageMarkdown do
   end
 
   defp page(conn) do
-    case conn.private[:phoenix_live_view] do
-      {view, _opts, _session} -> Map.get(@pages, view)
-      _controller -> nil
+    case {conn.private[:phoenix_live_view], conn.private[:phoenix_controller],
+          conn.private[:phoenix_action]} do
+      {{view, _opts, _session}, _controller, _action} -> Map.get(@pages, view)
+      {nil, BlogController, :index} -> :blog_index
+      {nil, BlogController, :show} -> :blog_show
+      _other -> nil
+    end
+  end
+
+  defp send_wallet_bench_show(%{path_params: %{"id" => id}} = conn) do
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         {:ok, attempt} when not is_nil(attempt) <-
+           Outage.read(fn ->
+             WalletBench.get_attempt!(uuid,
+               load: [:machine, :turns, :model_spend_usd, :judge_cost_usd],
+               not_found_error?: false
+             )
+           end) do
+      # Markdown is rendered from bench metadata and stored rulings as text/markdown.
+      # sobelow_skip ["XSS.SendResp"]
+      conn
+      |> Phoenix.Controller.put_secure_browser_headers()
+      |> put_resp_content_type("text/markdown", "utf-8")
+      |> send_resp(200, wallet_bench_attempt(attempt) <> PublicDocuments.trailer())
+      |> halt()
+    else
+      :database_down ->
+        conn
+        |> put_resp_header("retry-after", "30")
+        |> put_resp_content_type("text/markdown", "utf-8")
+        |> send_resp(503, WalletBenchCopy.unreadable() <> "\n")
+        |> halt()
+
+      _missing ->
+        raise NotFoundError, "no wallet test has that number"
     end
   end
 
@@ -123,6 +166,88 @@ defmodule RegentsWeb.Techtree.Plugs.PageMarkdown do
     PublicDocuments.formal()
     |> String.replace("{{frontier}}", FormalLive.frontier_markdown())
     |> String.replace("{{mailto}}", FormalLive.mailto())
+  end
+
+  defp markdown(:blog_index, _conn) do
+    posts =
+      case Blog.all() do
+        [] -> raise NotFoundError, "no blog posts are published yet"
+        list -> Enum.map_join(list, "\n", &blog_row/1)
+      end
+
+    """
+    # Techtree Blog
+
+    Findings from Techtree's evaluations and Agent Wallet Bench runs.
+
+    #{posts}
+    """
+  end
+
+  defp markdown(:blog_show, %{path_params: %{"slug" => slug}}) do
+    case Blog.get(slug) do
+      nil ->
+        raise NotFoundError, "no blog post has that slug"
+
+      post ->
+        """
+        # #{post.title}
+
+        By #{post.author} · #{Calendar.strftime(post.date, "%-d %b %Y")}
+
+        #{post.markdown}
+        """
+    end
+  end
+
+  defp blog_row(post) do
+    summary = if post.description != "", do: ": " <> post.description, else: ""
+    "- [#{post.title}](/techtree/blog/#{post.slug}) (#{Date.to_iso8601(post.date)})#{summary}"
+  end
+
+  defp wallet_bench_attempt(attempt) do
+    turns =
+      Enum.map_join(attempt.turns, "\n\n", fn turn ->
+        ruling =
+          if turn.judgment do
+            "Outcome: #{WalletBenchCopy.outcome(turn.judgment)}."
+          else
+            "State: #{WalletBenchCopy.turn_state(turn.state)}."
+          end
+
+        files =
+          turn.evidence
+          |> Kernel.||(%{})
+          |> Map.keys()
+          |> Enum.sort()
+          |> Enum.map_join("\n", fn file ->
+            encoded = URI.encode(file, &URI.char_unreserved?/1)
+            folder = BenchCatalog.turn_name(turn.test)
+            "- [#{file}](/techtree/wallet-bench/#{attempt.id}/evidence/#{folder}/#{encoded})"
+          end)
+
+        files_block = if files == "", do: "", else: "\n\nRecorded files:\n\n#{files}"
+
+        """
+        ## #{WalletBenchCopy.test(turn.test)}
+
+        #{ruling}#{files_block}
+        """
+        |> String.trim()
+      end)
+
+    """
+    # #{WalletBenchCopy.pair(attempt)} · Wallet Bench
+
+    - Status: #{WalletBenchCopy.status(attempt.state)}
+    - Started: #{Calendar.strftime(attempt.inserted_at, "%d %b %Y %H:%M")} UTC
+    - Model cost: #{WalletBenchCopy.dollars(attempt.model_spend_usd)}
+    - Judge cost: #{WalletBenchCopy.dollars(attempt.judge_cost_usd)}
+    - JSON summary: [/techtree/wallet-bench/#{attempt.id}/results.json](/techtree/wallet-bench/#{attempt.id}/results.json)
+    - Zip archive: [/techtree/wallet-bench/#{attempt.id}/results.zip](/techtree/wallet-bench/#{attempt.id}/results.zip)
+
+    #{turns}
+    """
   end
 
   defp results(%{entries: entries, next_before_sequence: next}, options) do

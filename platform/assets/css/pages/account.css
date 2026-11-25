@@ -510,14 +510,7 @@
   padding-block-start: var(--space-1);
 }
 
-/* Universal account menu links & narrow-screen account menu footer */
-.rg-account-menu__links {
-  display: grid;
-  gap: 0.25rem;
-  border-block-end: 1px solid var(--color-border);
-  padding-block-end: var(--space-2);
-}
-
+/* Narrow-screen account menu footer */
 @media (max-width: 24rem) {
   .rg-account-menu__foot {
     grid-template-columns: minmax(0, 1fr);
@@ -560,4 +553,17 @@
 
 .pair-page #pair-start {
   overflow-wrap: anywhere;
+}
+
+/* Universal account menu links: unlayered so they override vendor/regent_ui/account.css
+   (.rg-account-menu > * padding) without doubling the hairline border between sections. */
+.rg-account-menu > .rg-account-menu__links {
+  display: grid;
+  gap: 0;
+  padding: 0;
+}
+
+.rg-account-menu .rg-account-menu__links .rg-account-menu__pair {
+  padding-inline: var(--space-2);
+  text-decoration: none;
 }

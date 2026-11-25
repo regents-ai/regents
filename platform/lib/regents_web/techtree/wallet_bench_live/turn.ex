@@ -4,7 +4,7 @@ defmodule RegentsWeb.Techtree.WalletBenchLive.Turn do
   the bench's own checks, what it took and cost, the prompt it was sent and the
   files it recorded. The test's own page shows every test this way, and the
   grid's result window shows the tests of the column picked. The recorded files
-  are served by techtree.sh, so each file links there.
+  are served under `/techtree/wallet-bench/:id/evidence/:turn/:file`.
   """
 
   use RegentsWeb, :html
@@ -123,8 +123,7 @@ defmodule RegentsWeb.Techtree.WalletBenchLive.Turn do
     """
   end
 
-  # techtree.sh serves the recorded files, so a file's address is its address
-  # there, the name encoded as an address on this site encodes a path segment.
+  # Encodes each recorded filename as a single path segment under `/techtree/wallet-bench`.
   defp evidence_url(attempt_id, test, file),
     do:
       "/techtree/wallet-bench/#{attempt_id}/evidence/#{Catalog.turn_name(test)}/" <>

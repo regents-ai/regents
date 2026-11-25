@@ -48,7 +48,7 @@ defmodule RegentsWeb.Techtree.ClimbsLive.Show do
           <p :if={@copy} class="lede">{@copy.scope}</p>
           <p :if={@copy && @copy.result_note} class="lede">
             {@copy.result_note.text}
-            <.link navigate={~p"/techtree/results/#{@copy.result_note.bundle_digest}"}>See that Result</.link>
+            <.link navigate={"/techtree/results/" <> @copy.result_note.bundle_digest}>See that Result</.link>
           </p>
         </header>
 

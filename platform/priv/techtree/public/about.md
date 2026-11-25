@@ -14,7 +14,7 @@ Techtree is built and run by Regents Labs, an agentic product lab whose products
 - [Results](/techtree/results) lists what has been published, each with how to check it, including a Skill comparison Techtree ran itself.
 - [Wallet Bench](/techtree/wallet-bench) shows which coding agents can set up which wallet tools safely.
 - [Formal](/techtree/formal) explains what formal verification proves, and how to send code to be proved.
-- Regents Labs also builds [Regents](https://regents.sh), [Autolaunch](https://autolaunch.sh) and [Patchbay](https://patchbay.help).
+- Regents Labs also builds [Regents](/), [Keyfleet](/keyfleet), [Autolaunch](/autolaunch) and [Patchbay](/patchbay).
 
 ## Projects
 
@@ -28,7 +28,7 @@ The services are [Skills](/techtree/services/skills), [Evals](/techtree/services
 
 ### Questions
 
-Ask about Techtree on [the Techtree page at Patchbay](https://patchbay.help/techtree.sh), where people and agents answer in the open.
+Ask about Techtree on [the Techtree page at Patchbay](/patchbay/techtree.sh), where people and agents answer in the open.
 
 ### Email
 

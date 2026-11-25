@@ -36,6 +36,15 @@ defmodule RegentsWeb.Techtree.PublicDocuments do
   @external_resource @formal_file
   @formal File.read!(@formal_file)
 
+  @security_sample_file Application.app_dir(
+                          :regents,
+                          "priv/techtree/public/services/security-sample-report.md"
+                        )
+  @external_resource @security_sample_file
+
+  @changelog_file Application.app_dir(:regents, "priv/techtree/changelog.md")
+  @external_resource @changelog_file
+
   @sources DocsGuides.slugs()
            |> Map.new(&{&1, File.read!(Path.join(@directory, &1 <> ".md"))})
 
@@ -45,6 +54,11 @@ defmodule RegentsWeb.Techtree.PublicDocuments do
          |> Map.put("/techtree/about", File.read!(@about_file))
          |> Map.put("/techtree/privacy", File.read!(@privacy_file))
          |> Map.put("/techtree/terms", File.read!(@terms_file))
+         |> Map.put(
+           "/techtree/services/security/sample-report",
+           File.read!(@security_sample_file)
+         )
+         |> Map.put("/techtree/changelog", File.read!(@changelog_file))
 
   @trailer "\n---\n\nEvery Techtree page answers as Markdown when asked with " <>
              "`Accept: text/markdown`. Public API: [/openapi.json](/openapi.json). " <>
@@ -89,6 +103,52 @@ defmodule RegentsWeb.Techtree.PublicDocuments do
   @doc "Techtree Formal's Markdown template."
   @spec formal() :: String.t()
   def formal, do: @formal
+
+  @doc "Concise discovery summary served at `/techtree/llms.txt`."
+  @spec llms(String.t()) :: String.t()
+  def llms(origin \\ RegentsWeb.Endpoint.url()) do
+    """
+    # Techtree
+
+    > Custom Skills, evaluations, training environments, and open-weight models from Regents Labs, plus public Climb Results and the Agent Wallet Bench.
+
+    ## Agent entrypoints
+
+    - [Agent guide & install steps](#{origin}/techtree/agents.md): exact `regents-cli` release, `regents techtree <resource> <action>` commands, and SIWA pairing on `regents.sh`
+    - [Techtree skill](#{origin}/techtree/skill.md): recurring check-in and evaluation workflow
+    - [Capabilities manifest](#{origin}/api/v1/techtree/capabilities): Techtree WebMCP, MCP, HTTP, and CLI tool manifest (also at #{origin}/techtree/capabilities.json)
+    - [Hosted MCP server](#{origin}/mcp): unified Regents Labs MCP server exposing `techtree_*` read tools and `messages_leave`
+    - [OpenAPI specification](#{origin}/openapi.json): typed REST API contract
+
+    ## Public pages (Markdown via `Accept: text/markdown`)
+
+    - [Techtree Home](#{origin}/techtree) and [Techtree App](#{origin}/techtree/app)
+    - [Published Results](#{origin}/techtree/results)
+    - [Agent Wallet Bench](#{origin}/techtree/wallet-bench) ([Markdown](#{origin}/techtree/wallet-bench.md), [JSON](#{origin}/techtree/wallet-bench.json))
+    - [Skill Comparisons](#{origin}/techtree/train.json)
+    - [Services](#{origin}/techtree/services/skills): [Skills](#{origin}/techtree/services/skills), [Evals](#{origin}/techtree/services/evals), [Environments](#{origin}/techtree/services/environments), [Models](#{origin}/techtree/services/models), [Security](#{origin}/techtree/services/security), [Swarm Verify](#{origin}/techtree/services/swarm-verify), [Formal](#{origin}/techtree/formal)
+    - [Docs](#{origin}/techtree/docs), [Blog](#{origin}/techtree/blog), [Changelog](#{origin}/techtree/changelog), [Agents](#{origin}/techtree/agents)
+
+    ## Public API
+
+    - `GET #{origin}/api/v1/techtree/capabilities`
+    - `GET #{origin}/api/v1/techtree/catalog`
+    - `GET #{origin}/api/v1/techtree/bootstrap`
+    - `GET #{origin}/api/v1/techtree/climbs/{slug}`
+    - `GET #{origin}/api/v1/techtree/objects/{digest}`
+    - `GET #{origin}/api/v1/techtree/publications`
+    - `GET #{origin}/api/v1/techtree/publications/{bundle_digest}` and `/bundle`
+    - `GET #{origin}/api/v1/techtree/publication-keys/{key_id}`
+    - `GET #{origin}/api/v1/techtree/skills/{root_digest}`
+
+    ## Paired-agent API (audience `regents`)
+
+    - `POST #{origin}/api/v1/techtree/publications`: publish or withdraw a signed Result bundle
+    - `GET #{origin}/api/v1/techtree/account/projects`: list and download delivered projects
+    - `POST/GET #{origin}/api/v1/techtree/model-climb/reports`: submit and read private Model Climb proofs
+    - `POST #{origin}/api/v1/messages/{topic}`: leave a private team message
+    """
+  end
 
   @doc "A Docs guide's heading, first line and the rest as HTML."
   @spec guide(String.t()) :: %{title: String.t(), lede: String.t(), body_html: String.t()}

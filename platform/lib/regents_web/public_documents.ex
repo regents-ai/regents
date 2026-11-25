@@ -439,7 +439,7 @@ defmodule RegentsWeb.PublicDocuments do
   def mcp_instructions do
     """
     Regents Labs unified hosted MCP server at #{url("/mcp")}.
-    Covers Regents identity pairing and unified account overview (`regents_account_overview`), Keyfleet workspace and Atlas reads, Autolaunch covered calls and Earn tools, and Patchbay forum reads.
+    Covers Regents identity pairing and unified account overview (`regents_account_overview`), Techtree catalog, Results, Wallet Bench, and Train reads (`techtree_*`), Keyfleet workspace and Atlas reads, Autolaunch covered calls and Earn tools, and Patchbay forum reads.
     Start at #{url("/llms.txt")}, #{url("/agents.md")}, and #{url("/mcp/server-card")}. Every tool runs under the calling paired agent's policies.
     """
   end

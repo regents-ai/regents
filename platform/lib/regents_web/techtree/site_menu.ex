@@ -53,6 +53,7 @@ defmodule RegentsWeb.Techtree.SiteMenu do
       ),
       column("site", "Site", [
         link("Results", ~p"/techtree/results"),
+        link("Wallet Bench", ~p"/techtree/wallet-bench"),
         link("Projects", ~p"/techtree/account/projects"),
         link("Watchdog", ~p"/techtree/watchdog"),
         link("Docs", ~p"/techtree/docs"),
@@ -66,8 +67,8 @@ defmodule RegentsWeb.Techtree.SiteMenu do
       column("agents", "Agents", [
         link("Agents", ~p"/techtree/agents"),
         link("agents.md", ~p"/techtree/agents.md"),
-        link("llms.txt", ~p"/llms.txt"),
-        link("capabilities.json", ~p"/capabilities.json"),
+        link("llms.txt", ~p"/techtree/llms.txt"),
+        link("capabilities.json", ~p"/api/v1/techtree/capabilities"),
         link("openapi.json", ~p"/openapi.json"),
         link("Public API", ~p"/techtree/docs/api"),
         link("Browser agents", ~p"/techtree/docs/browser-agents")

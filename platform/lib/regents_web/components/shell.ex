@@ -229,6 +229,8 @@ defmodule RegentsWeb.Components.Shell do
   end
 
   defp universal_account_menu(assigns) do
+    assigns = assign(assigns, :name_is_wallet, name_is_wallet?(assigns.account_control))
+
     ~H"""
     <section
       id="account-menu"
@@ -237,9 +239,8 @@ defmodule RegentsWeb.Components.Shell do
       aria-label={@account_control.label}
     >
       <div class="rg-account-menu__who">
-        <div class="rg-account-menu__picture">
+        <div :if={@account_control.avatar_src} class="rg-account-menu__picture">
           <img
-            :if={@account_control.avatar_src}
             src={@account_control.avatar_src}
             referrerpolicy="no-referrer"
             width="40"
@@ -248,9 +249,15 @@ defmodule RegentsWeb.Components.Shell do
           />
         </div>
         <p class="rg-account-menu__name">
-          <strong>{@account_control.label}</strong>
+          <strong :if={!@name_is_wallet}>{@account_control.label}</strong>
+          <Regent.Primitives.address
+            :if={@name_is_wallet}
+            id="account-menu-wallet"
+            address={@account_control.wallet}
+            label={@account_control.label}
+          />
         </p>
-        <p :if={@account_control.wallet} class="rg-account-menu__wallet">
+        <p :if={@account_control.wallet && !@name_is_wallet} class="rg-account-menu__wallet">
           <Regent.Primitives.address
             id="account-menu-wallet"
             address={@account_control.wallet}
@@ -262,11 +269,17 @@ defmodule RegentsWeb.Components.Shell do
         <a class="rg-account-menu__pair" href="/account/agents">
           <Regent.Icons.icon name="plus" /> Pair New Agent
         </a>
+        <a class="rg-account-menu__pair" href="/account#account-keyfleet">
+          Keyfleet Keys
+        </a>
         <a class="rg-account-menu__pair" href="/techtree/account/projects">
           Techtree Projects
         </a>
         <a class="rg-account-menu__pair" href="/autolaunch/portfolio">
           Autolaunch Portfolio
+        </a>
+        <a class="rg-account-menu__pair" href="/patchbay/forum">
+          Patchbay Forum
         </a>
       </div>
       <div class="rg-account-menu__theme">
@@ -275,11 +288,12 @@ defmodule RegentsWeb.Components.Shell do
       </div>
       <div class="rg-account-menu__foot">
         <a href="/account" class="rg-button rg-button--secondary rg-button--no-arrow">
-          Manage Account
+          <span class="rg-button__label">Manage Account</span>
         </a>
         <Regent.Primitives.button
-          variant="quiet"
+          variant="secondary"
           type="button"
+          arrow={false}
           data-account-target="sign-out"
         >
           Sign out
@@ -287,6 +301,13 @@ defmodule RegentsWeb.Components.Shell do
       </div>
     </section>
     """
+  end
+
+  defp name_is_wallet?(%{wallet: nil}), do: false
+
+  defp name_is_wallet?(%{label: label, wallet: wallet, ens_name: ens_name}) do
+    label == ens_name or
+      String.downcase(label) == String.downcase(Regent.Primitives.short_address(wallet))
   end
 
   attr :account_control, AccountControl, required: true

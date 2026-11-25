@@ -102,40 +102,37 @@ book_call =
 
 config :regents, :techtree_book_call, book_call
 
-# Techtree's catalog channel, overridable at boot. It belongs here rather than
-# beside the default in `config.exs`, because that file is evaluated when the
-# project is compiled: an environment variable read there is read once, at build
-# time, and a later value is silently ignored.
-#
-# The staged publication rehearsal is why it exists. The release candidate
-# publishes the stable channel while development is the default, and rehearsing
-# a release should not mean editing a committed default for the occasion.
-if channel = System.get_env("TECHTREE_CATALOG_CHANNEL") do
-  config :regents, Regents.Techtree.Catalog,
-    catalog_root: {:priv, "techtree/catalog"},
-    channel: channel
-end
-
 # Techtree's catalog serving. `TECHTREE_CATALOG_ROOT` points at a generated
 # bundle outside the release; without it the bundle shipped in
-# `priv/techtree/catalog` is used. `TECHTREE_BOOTSTRAP_CHANNEL` selects the
-# release channel that is imported and served; unset, it stays on the
-# compile-time default in `config/config.exs`, which is `development`. Every
-# carried snapshot declares `stable`, the channel Techtree's live site serves,
-# so a site that serves the catalog names it here. No model-provider credential
-# is read here.
-config :regents,
-       Regents.Techtree.Catalog,
-       Enum.reject(
-         [
-           catalog_root: System.get_env("TECHTREE_CATALOG_ROOT"),
-           channel: System.get_env("TECHTREE_BOOTSTRAP_CHANNEL")
-         ],
-         fn {_key, value} -> is_nil(value) end
-       )
+# `priv/techtree/catalog` is used. `TECHTREE_BOOTSTRAP_CHANNEL` (or legacy
+# `TECHTREE_CATALOG_CHANNEL`) selects the release channel that is imported and
+# served; unset, it stays on the compile-time default in `config/config.exs`,
+# which is `development`. Every carried snapshot declares `stable`, the channel
+# Techtree's live site serves, so a site that serves the catalog names it here.
+# No model-provider credential is read here.
+techtree_catalog =
+  Enum.reject(
+    [
+      catalog_root: System.get_env("TECHTREE_CATALOG_ROOT"),
+      channel:
+        System.get_env("TECHTREE_BOOTSTRAP_CHANNEL") ||
+          System.get_env("TECHTREE_CATALOG_CHANNEL")
+    ],
+    fn {_key, value} -> is_nil(value) end
+  )
+
+if techtree_catalog != [] do
+  config :regents, Regents.Techtree.Catalog, techtree_catalog
+end
 
 if signing_key = System.get_env("TECHTREE_NETWORK_SIGNING_KEY") do
-  config :regents, Regents.Techtree.Network.Key, private_key: signing_key
+  case Base.decode64(signing_key) do
+    {:ok, raw} when byte_size(raw) == 32 ->
+      config :regents, Regents.Techtree.Network.Key, private_key: signing_key
+
+    _invalid ->
+      raise "TECHTREE_NETWORK_SIGNING_KEY must be base64-encoded 32-byte Ed25519 key material"
+  end
 end
 
 if System.get_env("WALLETBENCH_BUCKET_NAME") do

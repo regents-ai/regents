@@ -11,9 +11,7 @@ defmodule RegentsWeb.Techtree.PublicPagesController do
 
   use RegentsWeb, :controller
 
-  alias Regents.Account.AccessContext
-  alias Regents.Account.Actors.Human
-  alias Regents.Account.Formation
+  alias RegentsWeb.Live.Session
   alias RegentsWeb.Techtree.AgentGuides
   alias RegentsWeb.Techtree.Layouts
   alias RegentsWeb.Techtree.PublicPagesHTML
@@ -26,7 +24,7 @@ defmodule RegentsWeb.Techtree.PublicPagesController do
       page_title: page.title,
       page_description: Layouts.description(conn.request_path),
       current_path: conn.request_path,
-      account_control: account_control(conn.assigns.current_human_account)
+      account_control: Session.account_control_for(conn.assigns[:current_human_account])
     )
   end
 
@@ -35,35 +33,40 @@ defmodule RegentsWeb.Techtree.PublicPagesController do
   defp template(_path), do: :show
 
   @doc "The Techtree skill at `/techtree/skill.md`."
-  def skill_guide(conn, _params), do: send_cached(conn, AgentGuides.skill_guide())
+  def skill_guide(conn, _params), do: send_markdown(conn, AgentGuides.skill_guide())
 
   @doc "One agent's skill: the Techtree skill with that agent's Set up section added."
   def agent_skill_guide(conn, %{"agent" => slug}) do
     case AgentGuides.skill(slug) do
       nil -> raise RegentsWeb.NotFoundError
-      skill -> send_cached(conn, skill)
+      skill -> send_markdown(conn, skill)
     end
   end
 
-  # These change only with a release: a sha256 entity tag of the body and a
-  # five-minute public cache, as techtree.sh sends them.
-  defp send_cached(conn, body) do
+  @doc "Permanent redirect for legacy `techtree.sh/oauth/*` cutover requests."
+  def redirect_oauth(conn, %{"rest" => segments}) when is_list(segments) do
+    target =
+      case segments do
+        ["register"] -> ~p"/oauth/register"
+        ["token"] -> ~p"/oauth/token"
+        ["revoke"] -> ~p"/oauth/revoke"
+        ["authorize"] -> ~p"/oauth/authorize"
+        ["connections"] -> ~p"/oauth/connections"
+        ["connections", "revoke"] -> ~p"/oauth/connections/revoke"
+        _other -> ~p"/oauth/authorize"
+      end
+
+    conn
+    |> put_status(308)
+    |> redirect(to: target)
+  end
+
+  defp send_markdown(conn, body) do
     conn
     |> put_resp_header("etag", ~s("#{Base.encode16(:crypto.hash(:sha256, body), case: :lower)}"))
     |> put_resp_header("cache-control", "public, max-age=300")
+    |> put_resp_header("access-control-allow-origin", "*")
     |> put_resp_content_type("text/markdown", "utf-8")
     |> send_resp(200, body)
-  end
-
-  defp account_control(nil), do: AccessContext.account_control(AccessContext.anonymous())
-
-  defp account_control(account) do
-    regent =
-      case Formation.get_my_regent(actor: Human.for_account(account)) do
-        {:ok, regent} -> regent
-        _no_regent -> nil
-      end
-
-    AccessContext.account_control(AccessContext.human(account), regent)
   end
 end

@@ -5,7 +5,7 @@ The agreement between you and Regents Labs, Inc. for using Techtree.
 **Effective date:** September 28, 2026  
 **Version:** 1.0
 
-These Terms of Use ("Terms") are a binding agreement between you and **Regents Labs, Inc.** ("Regents Labs," "we," "us," or "our"). They govern your access to and use of the website at `techtree.sh`, the Techtree command-line tool and Hermes plugin, the public log of published Results, its public addresses for agents, the documentation, and related services that we operate under the **Techtree** name (collectively, the "Services").
+These Terms of Use ("Terms") are a binding agreement between you and **Regents Labs, Inc.** ("Regents Labs," "we," "us," or "our"). They govern your access to and use of the website at `regents.sh/techtree` (and redirects from `techtree.sh`), the Techtree command-line tool and Hermes plugin, the public log of published Results, its public addresses for agents, the documentation, and related services that we operate under the **Techtree** name (collectively, the "Services").
 
 **Please read these Terms carefully. By accessing or using the Services, signing in with a wallet, publishing a Result, or directing an automated agent to use the Services, you agree to these Terms.**
 

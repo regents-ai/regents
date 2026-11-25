@@ -14,6 +14,7 @@ defmodule Regents.Techtree.Watchdog do
 
   resources do
     resource Regents.Techtree.Watchdog.Host do
+      define :get_host, action: :read, get_by: [:id]
       define :list_my_hosts, action: :mine
       define :add_host, action: :add, args: [:origin]
       define :request_host_verification, action: :request_verification
@@ -21,6 +22,7 @@ defmodule Regents.Techtree.Watchdog do
     end
 
     resource Regents.Techtree.Watchdog.Route do
+      define :get_route, action: :read, get_by: [:id]
       define :list_my_routes, action: :mine
       define :add_route, action: :add, args: [:host_id]
       define :pause_route, action: :pause

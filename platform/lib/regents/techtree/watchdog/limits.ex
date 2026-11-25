@@ -1,6 +1,6 @@
 defmodule Regents.Techtree.Watchdog.Limits do
   @moduledoc """
-  The Watchdog caps, read from `config :techtree, Regents.Techtree.Watchdog`: how many
+  The Watchdog caps, read from `config :regents, Regents.Techtree.Watchdog`: how many
   hosts one account may claim, and how many routes it may list across them.
   """
 

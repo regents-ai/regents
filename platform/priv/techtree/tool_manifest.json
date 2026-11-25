@@ -1,11 +1,25 @@
 {
   "audience": "regents",
   "product": "techtree",
+  "cli": {
+    "package": "regents-cli",
+    "namespace": "techtree"
+  },
+  "proof_headers": [
+    "x-siwa-signature",
+    "x-siwa-signature-input",
+    "x-siwa-receipt",
+    "x-key-id",
+    "x-timestamp",
+    "x-agent-wallet-address",
+    "x-agent-chain-id",
+    "content-digest"
+  ],
   "tools": [
     {
       "name": "techtree_catalog",
       "title": "Read Techtree catalog",
-      "description": "Read the active Techtree catalog of Climbs and Skills.",
+      "description": "Read the active Techtree catalog of published Climbs and Skills.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -18,8 +32,23 @@
         "consequentialHint": false
       },
       "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/catalog",
+      "scope": "site",
+      "operation_id": "getTechtreeCatalog",
       "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
       "effect": "read",
+      "interfaces": {
+        "webmcp": "techtree_catalog",
+        "mcp": "techtree_catalog",
+        "http": "GET /api/v1/techtree/catalog",
+        "cli": {
+          "command": "regents techtree climb list"
+        }
+      },
       "http": {
         "method": "GET",
         "path": "/api/v1/techtree/catalog",
@@ -29,7 +58,7 @@
     {
       "name": "techtree_bootstrap",
       "title": "Read Techtree bootstrap",
-      "description": "Read Techtree CLI bootstrap and install metadata.",
+      "description": "Read Techtree CLI bootstrap and install metadata for the active release channel.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -42,8 +71,20 @@
         "consequentialHint": false
       },
       "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/bootstrap",
+      "scope": "site",
+      "operation_id": "getTechtreeBootstrap",
       "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
       "effect": "read",
+      "interfaces": {
+        "webmcp": "techtree_bootstrap",
+        "mcp": "techtree_bootstrap",
+        "http": "GET /api/v1/techtree/bootstrap"
+      },
       "http": {
         "method": "GET",
         "path": "/api/v1/techtree/bootstrap",
@@ -51,9 +92,322 @@
       }
     },
     {
+      "name": "techtree_climb",
+      "title": "Read a Techtree Climb",
+      "description": "Read the fixed task contract, data policy, and linked object URLs for one Techtree Climb by slug.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Climb slug (the part of a catalog reference before @)."
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/climbs/{slug}",
+      "scope": "site",
+      "operation_id": "getTechtreeClimb",
+      "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "techtree_climb",
+        "mcp": "techtree_climb",
+        "http": "GET /api/v1/techtree/climbs/{slug}",
+        "cli": {
+          "command": "regents techtree climb show <reference>"
+        }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/climbs/{slug}",
+        "accept": "application/json"
+      }
+    },
+    {
       "name": "techtree_publications",
       "title": "List Techtree results",
-      "description": "List published Techtree evaluation results.",
+      "description": "List published Techtree evaluation results, newest first.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Maximum Results per page (default 25)."
+          },
+          "before_sequence": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Keyset cursor from next_before_sequence on the previous page."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/publications",
+      "scope": "site",
+      "operation_id": "listTechtreePublications",
+      "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "techtree_publications",
+        "mcp": "techtree_publications",
+        "http": "GET /api/v1/techtree/publications",
+        "cli": {
+          "command": "regents techtree results list"
+        }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/publications",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_publication",
+      "title": "Read a Techtree result",
+      "description": "Read one published Techtree Result and its verification receipt by bundle digest.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "bundle_digest": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 120,
+            "description": "Result bundle sha256 digest."
+          }
+        },
+        "required": [
+          "bundle_digest"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/publications/{bundle_digest}",
+      "scope": "site",
+      "operation_id": "getTechtreePublication",
+      "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "techtree_publication",
+        "mcp": "techtree_publication_show",
+        "http": "GET /api/v1/techtree/publications/{bundle_digest}"
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/publications/{bundle_digest}",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_publication_bundle",
+      "title": "Download a Techtree result bundle",
+      "description": "Read the exact submitted JSON proof bundle for a published Techtree Result.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "bundle_digest": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 120,
+            "description": "Result bundle sha256 digest."
+          }
+        },
+        "required": [
+          "bundle_digest"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/publications/{bundle_digest}/bundle",
+      "scope": "site",
+      "operation_id": "getTechtreePublicationBundle",
+      "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "techtree_publication_bundle",
+        "http": "GET /api/v1/techtree/publications/{bundle_digest}/bundle"
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/publications/{bundle_digest}/bundle",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_skill",
+      "title": "Read a published Techtree Skill",
+      "description": "Read a published Techtree Skill's files and standing Results by root digest.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "root_digest": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 120,
+            "description": "Skill root sha256 digest."
+          }
+        },
+        "required": [
+          "root_digest"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/skills/{root_digest}",
+      "scope": "site",
+      "operation_id": "getTechtreeSkill",
+      "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "techtree_skill",
+        "mcp": "techtree_skill",
+        "http": "GET /api/v1/techtree/skills/{root_digest}",
+        "cli": {
+          "command": "regents techtree skill fetch <root_digest>"
+        }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/skills/{root_digest}",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_wallet_bench",
+      "title": "Read Techtree Wallet Bench",
+      "description": "Read the Techtree Agent Wallet Bench score grids as JSON.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /techtree/wallet-bench.json",
+      "scope": "site",
+      "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "techtree_wallet_bench",
+        "mcp": "techtree_wallet_bench",
+        "http": "GET /techtree/wallet-bench.json"
+      },
+      "http": {
+        "method": "GET",
+        "path": "/techtree/wallet-bench.json",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_wallet_bench_show",
+      "title": "Read a Techtree Wallet Bench test",
+      "description": "Read one Agent Wallet Bench attempt's summary, rulings, and checks by attempt id.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Wallet Bench attempt UUID."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /techtree/wallet-bench/{id}/results.json",
+      "scope": "site",
+      "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "techtree_wallet_bench_show",
+        "http": "GET /techtree/wallet-bench/{id}/results.json"
+      },
+      "http": {
+        "method": "GET",
+        "path": "/techtree/wallet-bench/{id}/results.json",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_train_comparisons",
+      "title": "List Techtree Train comparisons",
+      "description": "List Techtree's published public Skill comparison demonstrations as JSON.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -66,27 +420,42 @@
         "consequentialHint": false
       },
       "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /techtree/train.json",
+      "scope": "site",
       "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
       "effect": "read",
+      "interfaces": {
+        "webmcp": "techtree_train_comparisons",
+        "mcp": "techtree_train_comparisons",
+        "http": "GET /techtree/train.json"
+      },
       "http": {
         "method": "GET",
-        "path": "/api/v1/techtree/publications",
+        "path": "/techtree/train.json",
         "accept": "application/json"
       }
     },
     {
-      "name": "techtree_climb",
-      "title": "Read a Techtree Climb",
-      "description": "Read the fixed task contract for one Techtree Climb by slug.",
+      "name": "techtree_train_report",
+      "title": "Read a Techtree Train report",
+      "description": "Read one Techtree Skill comparison's full per-case report JSON by slug.",
       "input_schema": {
         "type": "object",
         "properties": {
           "slug": {
             "type": "string",
-            "description": "Climb slug"
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Comparison slug."
           }
         },
-        "required": ["slug"],
+        "required": [
+          "slug"
+        ],
         "additionalProperties": false
       },
       "annotations": {
@@ -95,11 +464,22 @@
         "consequentialHint": false
       },
       "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /techtree/train/{slug}/report.json",
+      "scope": "site",
       "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
       "effect": "read",
+      "interfaces": {
+        "webmcp": "techtree_train_report",
+        "mcp": "techtree_train_report",
+        "http": "GET /techtree/train/{slug}/report.json"
+      },
       "http": {
         "method": "GET",
-        "path": "/api/v1/techtree/climbs/{slug}",
+        "path": "/techtree/train/{slug}/report.json",
         "accept": "application/json"
       }
     },
@@ -119,12 +499,295 @@
         "consequentialHint": false
       },
       "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /techtree/docs",
+      "scope": "site",
       "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
       "effect": "read",
+      "interfaces": {
+        "webmcp": "techtree_docs_markdown",
+        "http": "GET /techtree/docs"
+      },
       "http": {
         "method": "GET",
         "path": "/techtree/docs",
         "accept": "text/markdown"
+      }
+    },
+    {
+      "name": "techtree_publication_submit",
+      "title": "Publish or withdraw a Techtree Result",
+      "description": "Submit an independently signed Result proof bundle or withdrawal request as a paired agent for audience regents.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "raw_body": {
+            "type": "string",
+            "description": "Exact original signed JSON proof bundle or withdrawal document bytes (at most 2,097,152 bytes)."
+          }
+        },
+        "required": [
+          "raw_body"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": false,
+        "consequentialHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": true,
+      "payment": "none",
+      "route": "POST /api/v1/techtree/publications",
+      "scope": "site",
+      "operation_id": "publishTechtreeResult",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "effect": "write",
+      "interfaces": {
+        "http": "POST /api/v1/techtree/publications",
+        "cli": {
+          "command": "regents techtree publish"
+        }
+      },
+      "http": {
+        "method": "POST",
+        "path": "/api/v1/techtree/publications",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_account_projects",
+      "title": "List delivered Techtree projects",
+      "description": "List projects Techtree's team delivered to your paired person, newest first.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/account/projects",
+      "scope": "site",
+      "operation_id": "listAccountProjects",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "http": "GET /api/v1/techtree/account/projects"
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/account/projects",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_account_project",
+      "title": "Read one delivered Techtree project",
+      "description": "Read one delivered Techtree project's summary, Markdown report, and package metadata for your paired person.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Delivered project UUID."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/account/projects/{id}",
+      "scope": "site",
+      "operation_id": "getAccountProject",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "http": "GET /api/v1/techtree/account/projects/{id}"
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/account/projects/{id}",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_account_project_package",
+      "title": "Download a delivered Techtree project package",
+      "description": "Download the exact gzipped tar package archive for one delivered Techtree project.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Delivered project UUID."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/account/projects/{id}/package",
+      "scope": "site",
+      "operation_id": "getAccountProjectPackage",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "http": "GET /api/v1/techtree/account/projects/{id}/package"
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/account/projects/{id}/package",
+        "accept": "application/gzip"
+      }
+    },
+    {
+      "name": "techtree_model_climb_list",
+      "title": "List Model Climb proof reports",
+      "description": "List private Model Climb proof reports submitted for your paired person.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/model-climb/reports",
+      "scope": "site",
+      "operation_id": "listModelClimbReports",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "http": "GET /api/v1/techtree/model-climb/reports"
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/model-climb/reports",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_model_climb_submit",
+      "title": "Submit a Model Climb proof report",
+      "description": "Verify and store a signed private Model Climb proof report for your paired person.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": false,
+        "consequentialHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": true,
+      "payment": "none",
+      "route": "POST /api/v1/techtree/model-climb/reports",
+      "scope": "site",
+      "operation_id": "submitModelClimbReport",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "effect": "write",
+      "interfaces": {
+        "http": "POST /api/v1/techtree/model-climb/reports"
+      },
+      "http": {
+        "method": "POST",
+        "path": "/api/v1/techtree/model-climb/reports",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_model_climb_show",
+      "title": "Read one Model Climb proof report",
+      "description": "Read one private Model Climb proof report by digest for your paired person.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "digest": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 120,
+            "description": "Model Climb proof sha256 digest."
+          }
+        },
+        "required": [
+          "digest"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/model-climb/reports/{digest}",
+      "scope": "site",
+      "operation_id": "getModelClimbReport",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "http": "GET /api/v1/techtree/model-climb/reports/{digest}"
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/model-climb/reports/{digest}",
+        "accept": "application/json"
       }
     }
   ]

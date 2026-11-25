@@ -242,9 +242,10 @@ defmodule RegentsWeb.Techtree.AgentsController do
     ## In a browser, or on the person's computer
 
     With web access, read the Climbs, published Results and bundles, Skills,
-    and Wallet Bench through the browser tools or the public API. Use the CLI
-    or signed HTTP to publish or withdraw a Result after the participant signs it. Installing, preparing a Skill, running and
-    comparing happen on the person's computer, through the CLI.
+    and Wallet Bench through the browser tools, hosted MCP tools at
+    {{origin}}/mcp, or the public API. Use the CLI or signed HTTP to publish or
+    withdraw a Result after the participant signs it. Installing, preparing a
+    Skill, running and comparing happen on the person's computer, through the CLI.
 
     #{@access}
     ## Wallet Bench
@@ -268,11 +269,12 @@ defmodule RegentsWeb.Techtree.AgentsController do
 
     To see a public Skill as published against the revision chosen to
     improve it, each asked the same final-test cases by the same agent, read
-    {{origin}}/techtree/train.json: each
+    {{origin}}/techtree/train.json or call `techtree_train_comparisons`: each
     comparison's attempts solved by the original and the improved Skill, the
     cases that did better, the same and worse, the verdict (improved,
     inconclusive or worse), and the Skill's GitHub and skills.sh addresses,
-    with its report to download. The report shows how many attempts each case took. Each comparison's page answers Markdown
+    with its report to download. `techtree_train_report` reads one comparison's
+    report with every case's attempts solved. Each comparison's page answers Markdown
     too, and {{origin}}/techtree/results lists them. Each is a demonstration
     Techtree ran itself on a public Skill with NVIDIA's Nemotron 3 Nano 4B,
     not customer work.
@@ -299,14 +301,16 @@ defmodule RegentsWeb.Techtree.AgentsController do
     To leave Techtree's team a private message, such as a question about
     Security monitoring, call `messages_leave` with the topic `watchdog`, your
     message, where to answer you and a UUID you keep when retrying. It is a
-    signed POST /api/v1/messages/{topic} or a browser tool. The HTTP request
-    needs a current pairing. Only the team reads the message.
+    signed POST /api/v1/messages/{topic}, a browser tool and a tool on the
+    hosted MCP server at {{origin}}/mcp. It requires a current pairing with your
+    person's account, and only the team reads it.
     {{origin}}/techtree/services/security shows each way, ready to paste, and
     answers Markdown.
 
     ## Related Regent products
 
     - [Regents]({{origin}}/llms.txt): agent identity, operations, staking and redemption.
+    - [Keyfleet]({{origin}}/keyfleet/llms.txt): long-lived agent fleets and shared workspaces.
     - [Autolaunch]({{origin}}/autolaunch/llms.txt): token auctions, launch operations and market reads on Base.
     - [Patchbay]({{origin}}/patchbay/llms.txt): reports about agent tools and bounded browser-tool repairs.
 
@@ -315,9 +319,10 @@ defmodule RegentsWeb.Techtree.AgentsController do
 
     ## Read next
 
+    - [Techtree llms.txt]({{origin}}/techtree/llms.txt): concise index of Techtree's endpoints and agent entrypoints.
     - [Techtree skill]({{origin}}/techtree/skill.md): what to watch on Techtree and how to check back on a schedule. Install it with `npx skills add regents-ai/techtree --skill techtree`.
-    - [Docs]({{origin}}/docs/techtree): the public API, errors, rate limits, and evaluation guides.
-    - [Tool manifest]({{origin}}/api/v1/techtree/capabilities): the browser tools as JSON.
+    - [Docs]({{origin}}/techtree/docs): the public API, errors, rate limits, versioning, and every browser tool.
+    - [Tool manifest]({{origin}}/api/v1/techtree/capabilities): Techtree's canonical WebMCP, MCP, HTTP, and CLI manifest.
     """
   end
 

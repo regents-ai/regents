@@ -85,10 +85,8 @@ defmodule RegentsWeb.Techtree.WalletBenchEvidenceController do
   defp busy(conn) do
     conn
     |> put_resp_header("retry-after", "30")
-    |> put_status(503)
-    |> put_root_layout(false)
-    |> put_view(html: RegentsWeb.ErrorHTML)
-    |> render(:"503")
+    |> put_resp_content_type("text/plain", "utf-8")
+    |> send_resp(503, Copy.unreadable() <> "\n")
   end
 
   defp send_results(conn, attempt, events) do

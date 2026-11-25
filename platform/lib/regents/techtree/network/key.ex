@@ -26,7 +26,7 @@ defmodule Regents.Techtree.Network.Key do
   the value would be a refusal that leaked part of it.
 
   *The public half is published, at its own fingerprint.*
-  `GET /api/v1/publication-keys/<key id>` serves it as the three-member document
+  `GET /api/v1/techtree/publication-keys/<key id>` serves it as the three-member document
   every public key in this protocol is written as, so anybody holding a receipt
   can fetch the key it names and check the signature without asking this site
   for anything else. The key id is the SHA-256 of the public key itself, as
