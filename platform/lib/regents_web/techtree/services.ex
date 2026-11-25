@@ -125,7 +125,7 @@ defmodule RegentsWeb.Techtree.Services do
     maker: "Prime Intellect",
     name: "prime-rl",
     href: "https://github.com/PrimeIntellect-ai/prime-rl",
-    status: :planned,
+    status: :tested,
     line:
       "Trains a smaller model on your accepted examples, then with reinforcement learning, using task scores as feedback."
   }
@@ -292,6 +292,11 @@ defmodule RegentsWeb.Techtree.Services do
         notes: [
           [
             "SkillOpt improves the Skill’s written instructions. Repairing the scripts that come with a Skill is separate engineering, which we scope on the call."
+          ],
+          [
+            "Across 7,356 scored transfer attempts on 4B to 32B models, our selection gate blocked cross-size regressions (−18.2 to −26.1 pp) while automated frontier revisions lifted the target 4B tier (+16.7 pp on payment-terms, +10.5 pp on dependabot): ",
+            {"read the 16,126-trial report", ~p"/techtree/blog/uplift-factory-four-lanes-proof"},
+            "."
           ]
         ]
       },
@@ -321,7 +326,7 @@ defmodule RegentsWeb.Techtree.Services do
             named(@verifiers),
             "."
           ]),
-          step("Scoring check", :planned, [
+          step("Scoring check", :tested, [
             "We show that the scoring accepts known-good work and rejects plausible mistakes."
           ]),
           step("Baseline", :tested, [
@@ -329,7 +334,7 @@ defmodule RegentsWeb.Techtree.Services do
             named(@verifiers),
             ", several times over, and explain where it fails."
           ]),
-          step("Full run", :planned, [
+          step("Full run", :tested, [
             "For a large test, ",
             named(@prime_rl),
             " runs the whole evaluation at scale."
@@ -355,6 +360,11 @@ defmodule RegentsWeb.Techtree.Services do
           ],
           [
             "The test outlives the project: it is the check each new model version passes before it goes into service."
+          ],
+          [
+            "In our 6,670-attempt evaluation suite across 4B to 32B-Thinking models, multi-repeat testing caught 14.1 pp single-pass swings, 34.2 pp 14B ranking reversals, and 260/260 (κ = 1.000) local-judge calibration including 20/20 prompt-injection attacks: ",
+            {"read the 16,126-trial report", ~p"/techtree/blog/uplift-factory-four-lanes-proof"},
+            "."
           ]
         ]
       },
@@ -388,7 +398,7 @@ defmodule RegentsWeb.Techtree.Services do
             named(@harbor),
             " in a sealed setup with no network."
           ]),
-          step("Baseline", :planned, [
+          step("Baseline", :tested, [
             "We measure an agent on the tasks with ",
             named(@verifiers),
             "."
@@ -423,6 +433,11 @@ defmodule RegentsWeb.Techtree.Services do
             "Environments built with ",
             named(@verifiers),
             " are what its Model Factory trains and evaluates on, so the environment you keep is the one a training run uses."
+          ],
+          [
+            "Across 174 sealed offline Docker runs (network_mode=none), automated frontier Harbor authoring jumped Pass-1 soundness from 12.5% (3/24 with 8B, including two nop=1.0 reward hacks) to 95.8% (23/24, zero reward hacks), and 390 multi-turn trials exposed an 8B-to-32B phase transition (6.7% vs 53.3%): ",
+            {"read the 16,126-trial report", ~p"/techtree/blog/uplift-factory-four-lanes-proof"},
+            "."
           ]
         ]
       },
@@ -463,11 +478,11 @@ defmodule RegentsWeb.Techtree.Services do
           step("Plan", :tested, [
             "We write a training plan as a prime-rl configuration, the file Prime Intellect’s hosted training runs, with its cost. Training starts after you approve the plan and budget."
           ]),
-          step("Training", :planned, [
+          step("Training", :tested, [
             named(@prime_rl),
             " trains the model on your accepted examples first. When the project calls for it, training continues with reinforcement learning, using task scores as feedback."
           ]),
-          step("Final test", :planned, [
+          step("Final test", :tested, [
             "We test the trained model against the original on the unseen set with ",
             named(@verifiers),
             ", including the cost per successful task."
@@ -532,6 +547,11 @@ defmodule RegentsWeb.Techtree.Services do
           ],
           [
             "Results from our own runs are labelled a Techtree-run evaluation, not an independent audit."
+          ],
+          [
+            "In 9 live prime-rl v0.11.0 runs (8 LoRA SFT plus 1 pure verifier-reward GRPO RL with zero gold labels), 4B specialists beat 8× larger Qwen3-32B-AWQ (Thinking) on both payment-terms (98.4% vs 97.4%) and dependabot (82.5% vs 78.1%) with zero Skill prompt, and pure GRPO RL lifted payment-terms +21.9 pp (+14/−0, p = 1.22e-4): ",
+            {"read the 16,126-trial report", ~p"/techtree/blog/uplift-factory-four-lanes-proof"},
+            "."
           ]
         ]
       }
