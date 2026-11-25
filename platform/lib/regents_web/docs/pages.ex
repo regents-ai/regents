@@ -185,7 +185,7 @@ defmodule RegentsWeb.Docs.Pages do
              name: "Architecture & reference",
              title: "Cloak Architecture · Docs",
              description:
-               "Architecture, the four modes, Local Agent Box (Pi), Connected Apps (CloakDoor), Tor & live cover traffic, hardware requirements, and privacy limits.",
+               "Architecture, Local AI, Private Cloud Inference, Darkbloom Serving, Local Agent Box (Pi), Connected Apps (CloakDoor), Tor & live cover traffic, hardware requirements, and privacy limits.",
              source: {:regents_file, "cloak"}
            },
            %{

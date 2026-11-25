@@ -4,7 +4,7 @@ Regents Cloak is a native macOS app (Swift 6.2, Apple silicon, macOS 26 or later
 
 Cloak does not support normal account-based cloud AI. You can run models locally on Apple silicon with zero accounts and zero payment, or step up explicitly to hardware-verified enclaves, local prompt rephrasing, per-conversation Tor routing, and crypto payments.
 
-> **Beta & audit status (`v0.2.0 Beta`):** Cloak is beta software and its privacy protections have not been independently audited yet. Keep wallet balances small, back up or withdraw funds before wiping your Mac, and read [Wallet Security, Failure Modes & 30-Day zkAPI Limit](/docs/cloak/wallets) before transferring or depositing crypto.
+> **Beta & audit status (`v0.2.3 Beta`):** Cloak is beta software and its privacy protections have not been independently audited yet. Keep wallet balances small, back up or withdraw funds before wiping your Mac, and read [Wallet Security, Failure Modes & 30-Day zkAPI Limit](/docs/cloak/wallets) before transferring or depositing crypto.
 
 ## Architecture & Isolation
 

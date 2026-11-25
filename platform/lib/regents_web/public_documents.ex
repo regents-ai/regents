@@ -90,7 +90,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Your download of Regents Cloak for Apple silicon Mac is starting. Drag Cloak to Applications and find it in the menu bar."},
     "/cloak/install" =>
       {"Install Cloak",
-       "Download Regents-Cloak-0.2.2-298.dmg, drag Cloak into Applications, pick a mode, and verify the SHA-256 checksum."},
+       "Download Regents-Cloak-0.2.3-300.dmg, drag Cloak into Applications, pick a mode, and verify the SHA-256 checksum."},
     "/siwa" =>
       {"SIWA",
        "Pair an agent with a person's account using a one-time code and its own SIWA key."},
@@ -220,11 +220,16 @@ defmodule RegentsWeb.PublicDocuments do
   def page({:blog_post, %{description: ""} = post}),
     do: [
       page_title: post.title,
-      page_description: "#{post.title}, by #{post.author}, in #{@site_name} Articles."
+      page_description: "#{post.title}, by #{post.author}, in #{@site_name} Articles.",
+      share_image: %{url: url(post.image), size: {1600, 900}, alt: post.image_alt}
     ]
 
   def page({:blog_post, post}),
-    do: [page_title: post.title, page_description: post.description]
+    do: [
+      page_title: post.title,
+      page_description: post.description,
+      share_image: %{url: url(post.image), size: {1600, 900}, alt: post.image_alt}
+    ]
 
   # A page is filed under the address it is served at. Any other address, such as
   # one the router reads as a page's but spelled differently, is a missing page.
@@ -387,6 +392,8 @@ defmodule RegentsWeb.PublicDocuments do
   end
 
   defp static_share_image("/literature"), do: "/images/literature/share.png"
+  defp static_share_image("/cloak" <> _), do: "/images/cloak/cloak-hero.jpg"
+  defp static_share_image("/docs/cloak" <> _), do: "/images/cloak/cloak-hero.jpg"
 
   defp static_share_image(path) when is_map_key(@share_cards, path),
     do: "/images/share/#{@share_cards[path]}.png"
@@ -394,6 +401,8 @@ defmodule RegentsWeb.PublicDocuments do
   defp static_share_image(_path), do: "/mark.png"
 
   defp share_image_size("/literature"), do: {2048, 1024}
+  defp share_image_size("/cloak" <> _), do: {1024, 669}
+  defp share_image_size("/docs/cloak" <> _), do: {1024, 669}
   defp share_image_size("/paper-pro-daily"), do: {1200, 630}
   defp share_image_size(path) when is_map_key(@share_cards, path), do: {1200, 630}
   defp share_image_size(_path), do: {1024, 512}
@@ -401,6 +410,14 @@ defmodule RegentsWeb.PublicDocuments do
   defp share_image_alt("/literature"),
     do:
       "Hope for people, hope for machines: science-fiction book covers placed on a chart of how hopeful each is for humanity and for AI"
+
+  defp share_image_alt("/cloak" <> _),
+    do:
+      "Regents Cloak macOS app running local AI on Apple silicon with native LaTeX math, mode-tagged chat history, and Active Guarantees"
+
+  defp share_image_alt("/docs/cloak" <> _),
+    do:
+      "Regents Cloak macOS app running local AI on Apple silicon with native LaTeX math, mode-tagged chat history, and Active Guarantees"
 
   defp share_image_alt("/"),
     do:
