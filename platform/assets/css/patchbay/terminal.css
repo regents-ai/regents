@@ -761,12 +761,29 @@
     flex: 1;
   }
 
-  .pbt-filter-form select,
   .pbt-filter-form input[type="search"],
-  .pbt-probe-form select,
   .pbt-probe-form input,
   .pbt-stack-form textarea {
-    padding: 0.45rem 0.65rem;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.82rem;
+    color: var(--pbt-fg);
+    background: var(--pbt-panel-alt);
+    border: 1px solid var(--pbt-border);
+    border-radius: var(--pbt-radius);
+  }
+
+  .pbt-probe-form input,
+  .pbt-filter-form input[type="search"] {
+    min-height: 2.5rem;
+  }
+
+  .pbt-select {
+    color: var(--pbt-fg);
+  }
+
+  .pbt-select > select {
+    min-height: 2.5rem;
+    padding: 0.45rem 2.35rem 0.45rem 0.75rem;
     font-size: 0.82rem;
     color: var(--pbt-fg);
     background: var(--pbt-panel-alt);

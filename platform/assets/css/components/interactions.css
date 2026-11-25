@@ -46,6 +46,8 @@
 .rg-bar__links a,
 .rg-disclosure > summary,
 .rg-pill-select > :is(select, summary),
+.rg-select > select,
+.rg-field select,
 .rg-segmented__cell,
 .rg-tabs .rg-tabs__tab,
 .rg-crumbs__beside,
@@ -67,16 +69,74 @@ a.rg-discussion__author {
     transform var(--rg-interact-fast) var(--rg-interact-ease);
 }
 
+/* Shared rectangular select wrapper (`.rg-select`): pairs with `.rg-pill-select`
+   so every app across regents/ renders the exact same inset SVG chevron, hover dip,
+   and open rotation while matching adjacent text inputs and buttons. */
+:where(.rg-select) {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  color: var(--rg-p-text, var(--color-fg, currentColor));
+}
+
+:where(.rg-select > select) {
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-height: 2.5rem;
+  padding: 0.45rem 2.5rem 0.45rem 0.75rem;
+  border: 1px solid var(--rg-p-control-border, var(--color-border, currentColor));
+  border-radius: var(--radius, 0px);
+  background: var(--rg-p-surface, var(--color-surface, transparent));
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.rg-select::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 0.75rem;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  background: currentColor;
+  pointer-events: none;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.rg-field select {
+  cursor: pointer;
+}
+
 .rg-bar__chevron,
 .rg-chevron,
-.rg-pill-select > summary::after {
+.rg-pill-select > summary::after,
+.rg-pill-select:not(details)::after,
+.rg-select::after {
   transition: transform 180ms var(--rg-interact-ease);
 }
 
 .rg-bar:has(.rg-bar__menu:popover-open) .rg-bar__chevron,
 .rg-bar__product[aria-expanded="true"] .rg-bar__chevron,
-.rg-pill-select[open] > summary::after {
+.rg-pill-select[open] > summary::after,
+.rg-pill-select:has(select:open)::after,
+.rg-select:has(select:open)::after {
   transform: rotate(180deg);
+}
+
+@media (forced-colors: active) {
+  .rg-select > select {
+    appearance: auto;
+    padding-inline-end: 0.75rem;
+  }
+
+  .rg-select::after {
+    display: none;
+  }
 }
 
 .rg-discussion__heart {
@@ -347,7 +407,9 @@ a.wallet-bench__score {
   }
 
   .rg-disclosure > summary:hover,
-  .rg-pill-select > :is(select, summary):hover {
+  .rg-pill-select > :is(select, summary):hover,
+  .rg-select > select:hover,
+  .rg-field select:hover {
     border-color: var(--color-fg);
     background: color-mix(in oklch, var(--color-fg) 5%, transparent);
   }
@@ -621,11 +683,22 @@ a.wallet-bench__score {
 }
 
 /* Guard positional lifts in existing stylesheets under reduced motion. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .rg-pill-select:not([open]):not(:has(select:open)):hover::after,
+  .rg-pill-select:not([open]):hover > summary::after,
+  .rg-select:not(:has(select:open)):hover::after {
+    transform: translateY(1.5px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fleet-entry__card:hover,
   .agent-start__tabs a:active,
   .rg-bar__chevron,
   .rg-chevron,
+  .rg-pill-select > summary::after,
+  .rg-pill-select:not(details)::after,
+  .rg-select::after,
   .home-filter[open] summary::after {
     transform: none !important;
     translate: none !important;

@@ -150,15 +150,15 @@ defmodule RegentsWeb.Cloak do
   ]
 
   @curl_example """
-  curl http://127.0.0.1:8742/v1/chat/completions \\
-    -H "Authorization: Bearer cloak-..." \\
-    -H "Content-Type: application/json" \\
-    -d '{
-      "model": "auto",
-      "messages": [{"role": "user", "content": "Review PR #418."}]
-    }'
-  """
-  |> String.trim()
+                curl http://127.0.0.1:8742/v1/chat/completions \\
+                  -H "Authorization: Bearer cloak-..." \\
+                  -H "Content-Type: application/json" \\
+                  -d '{
+                    "model": "auto",
+                    "messages": [{"role": "user", "content": "Review PR #418."}]
+                  }'
+                """
+                |> String.trim()
 
   @ecosystem_heading "One app to aggregate best-in-class local models, cryptographic AI privacy in the cloud, and inference serving"
   @ecosystem [
@@ -277,7 +277,8 @@ defmodule RegentsWeb.Cloak do
     "Local AI" => "Free local model (10.21 GB MLX)",
     "Private Cloud Inference" =>
       "NEAR API key (0 GB download), Boundless Tempo USDC.e, Venice Base USDC / key, or zkAPI ETH deposit",
-    "Inference Serving" => "macOS 27+ · EigenLayer's Darkbloom (Off / Local Only / Network + Local)"
+    "Inference Serving" =>
+      "macOS 27+ · EigenLayer's Darkbloom (Off / Local Only / Network + Local)"
   }
   @caution "Beta software — not independently audited. Keep wallet balances small, back up keys before wiping your Mac (no iCloud sync), and note the 30-day limit on untouched zkAPI deposits."
   @feedback %{

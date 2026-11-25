@@ -117,11 +117,22 @@ defmodule RegentsWeb.Cloak.CloakLive do
               </span>
               <span class="cloak-menubar__sys">
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M2.5 6.2a8 8 0 0 1 11 0M4.8 8.8a4.8 4.8 0 0 1 6.4 0M7.2 11.4a1.3 1.3 0 0 1 1.6 0" stroke-linecap="round" />
+                  <path
+                    d="M2.5 6.2a8 8 0 0 1 11 0M4.8 8.8a4.8 4.8 0 0 1 6.4 0M7.2 11.4a1.3 1.3 0 0 1 1.6 0"
+                    stroke-linecap="round"
+                  />
                 </svg>
                 <svg viewBox="0 0 20 14" fill="none" stroke="currentColor" stroke-width="1.4">
                   <rect x="1" y="2.5" width="15" height="9" rx="2" />
-                  <rect x="3" y="4.5" width="10" height="5" rx="0.8" fill="currentColor" stroke="none" />
+                  <rect
+                    x="3"
+                    y="4.5"
+                    width="10"
+                    height="5"
+                    rx="0.8"
+                    fill="currentColor"
+                    stroke="none"
+                  />
                   <path d="M18 5.2v3.6" stroke-linecap="round" />
                 </svg>
                 <span>Wed Nov 25 10:24</span>
@@ -301,7 +312,13 @@ defmodule RegentsWeb.Cloak.CloakLive do
               Cloak Sandbox <span class="cloak-mini-tag">arm64</span>
             </span>
             <span class="cloak-spec-head__ok">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
                 <path d="M3.5 8.5 6.5 11.5 12.5 4.5" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
               Verified on every start
@@ -396,7 +413,9 @@ defmodule RegentsWeb.Cloak.CloakLive do
                   stroke-width="1.5"
                 />
                 <text x="71" y="54" text-anchor="middle" class="cloak-chart__label">In use</text>
-                <text x="158" y="54" text-anchor="middle" class="cloak-chart__label">15 min idle</text>
+                <text x="158" y="54" text-anchor="middle" class="cloak-chart__label">
+                  15 min idle
+                </text>
                 <text x="240" y="77" text-anchor="middle" class="cloak-chart__muted">Unloaded</text>
               </svg>
             </div>
@@ -419,7 +438,14 @@ defmodule RegentsWeb.Cloak.CloakLive do
             <h3>{card.name}</h3>
             <p>{card.body}</p>
             <p :if={card.credit} class="cloak-mode-card__credit">
-              <%= for part <- card.credit do %><%= case part do %><% {:text, text} -> %>{text}<% {:link, label, href} -> %><a href={href} target="_blank" rel="noopener noreferrer">{label}</a><% end %><% end %>
+              <%= for part <- card.credit do %>
+                <%= case part do %>
+                  <% {:text, text} -> %>
+                    {text}
+                  <% {:link, label, href} -> %>
+                    <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
+                <% end %>
+              <% end %>
             </p>
           </article>
         </div>
@@ -451,7 +477,13 @@ defmodule RegentsWeb.Cloak.CloakLive do
             </p>
             <ul class="cloak-checks">
               <li :for={bullet <- @api_bullets}>
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <svg
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
                   <path d="M3.5 8.5 6.5 11.5 12.5 4.5" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
                 <span>{bullet}</span>
@@ -655,10 +687,12 @@ defmodule RegentsWeb.Cloak.CloakLive do
 
         <p class="cloak-closing__note">
           {Cloak.caution()}
-          <a href="/docs/cloak/wallets">Wallet security</a> ·
-          <.link navigate={~p"/cloak/install"}>Install guide</.link> ·
-          <a href={Cloak.feedback().href} target="_blank" rel="noopener noreferrer">Cloak Forum</a> ·
-          <a href={Cloak.feedback().github_href} target="_blank" rel="noopener noreferrer">GitHub</a> ·
+          <a href="/docs/cloak/wallets">Wallet security</a>
+          · <.link navigate={~p"/cloak/install"}>Install guide</.link>
+          · <a href={Cloak.feedback().href} target="_blank" rel="noopener noreferrer">Cloak Forum</a>
+          ·
+          <a href={Cloak.feedback().github_href} target="_blank" rel="noopener noreferrer">GitHub</a>
+          ·
           <a href={Cloak.feedback().social_href} target="_blank" rel="noopener noreferrer">@regents_sh</a>
         </p>
       </section>

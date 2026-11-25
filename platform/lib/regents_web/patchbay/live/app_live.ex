@@ -774,40 +774,50 @@ defmodule RegentsWeb.Patchbay.AppLive do
             </div>
 
             <form phx-change="filter_services" phx-submit="filter_services" class="pbt-filter-form">
-              <select name="protocol" aria-label="Protocol">
-                <option value="">All Protocols</option>
-                <option value="x402" selected={@protocol == "x402"}>x402</option>
-                <option value="mpp" selected={@protocol == "mpp"}>MPP (Tempo / Stripe)</option>
-                <option value="mcp" selected={@protocol == "mcp"}>MCP</option>
-                <option value="webmcp" selected={@protocol == "webmcp"}>WebMCP</option>
-                <option value="siwa" selected={@protocol == "siwa"}>SIWA</option>
-              </select>
+              <span class="rg-select pbt-select">
+                <select name="protocol" aria-label="Protocol">
+                  <option value="">All Protocols</option>
+                  <option value="x402" selected={@protocol == "x402"}>x402</option>
+                  <option value="mpp" selected={@protocol == "mpp"}>MPP (Tempo / Stripe)</option>
+                  <option value="mcp" selected={@protocol == "mcp"}>MCP</option>
+                  <option value="webmcp" selected={@protocol == "webmcp"}>WebMCP</option>
+                  <option value="siwa" selected={@protocol == "siwa"}>SIWA</option>
+                </select>
+              </span>
 
-              <select name="rail" aria-label="Payment rail">
-                <option value="">All Rails</option>
-                <option value="base:usdc" selected={@rail == "base:usdc"}>Base USDC</option>
-                <option value="tempo:usdc_e" selected={@rail == "tempo:usdc_e"}>Tempo USDC.e</option>
-                <option value="solana:usdc" selected={@rail == "solana:usdc"}>Solana USDC</option>
-                <option value="stripe:link" selected={@rail == "stripe:link"}>Stripe Link</option>
-                <option value="free" selected={@rail == "free"}>Free / Public</option>
-              </select>
+              <span class="rg-select pbt-select">
+                <select name="rail" aria-label="Payment rail">
+                  <option value="">All Rails</option>
+                  <option value="base:usdc" selected={@rail == "base:usdc"}>Base USDC</option>
+                  <option value="tempo:usdc_e" selected={@rail == "tempo:usdc_e"}>
+                    Tempo USDC.e
+                  </option>
+                  <option value="solana:usdc" selected={@rail == "solana:usdc"}>Solana USDC</option>
+                  <option value="stripe:link" selected={@rail == "stripe:link"}>Stripe Link</option>
+                  <option value="free" selected={@rail == "free"}>Free / Public</option>
+                </select>
+              </span>
 
-              <select name="category" aria-label="Category">
-                <option value="">All Categories</option>
-                <option
-                  :for={cat <- Catalog.categories()}
-                  value={cat}
-                  selected={@category == cat}
-                >
-                  {String.capitalize(cat)}
-                </option>
-              </select>
+              <span class="rg-select pbt-select">
+                <select name="category" aria-label="Category">
+                  <option value="">All Categories</option>
+                  <option
+                    :for={cat <- Catalog.categories()}
+                    value={cat}
+                    selected={@category == cat}
+                  >
+                    {String.capitalize(cat)}
+                  </option>
+                </select>
+              </span>
 
-              <select name="sort" aria-label="Sort">
-                <option value="featured" selected={@sort == "featured"}>Featured</option>
-                <option value="az" selected={@sort == "az"}>A → Z</option>
-                <option value="za" selected={@sort == "za"}>Z → A</option>
-              </select>
+              <span class="rg-select pbt-select">
+                <select name="sort" aria-label="Sort">
+                  <option value="featured" selected={@sort == "featured"}>Featured</option>
+                  <option value="az" selected={@sort == "az"}>A → Z</option>
+                  <option value="za" selected={@sort == "za"}>Z → A</option>
+                </select>
+              </span>
 
               <input
                 type="search"
@@ -949,12 +959,14 @@ defmodule RegentsWeb.Patchbay.AppLive do
                 <input type="checkbox" name="agent_stack" value="true" checked={@agent_stack_only} />
                 <span>Agent Stack</span>
               </label>
-              <select name="ecosystem" aria-label="Ecosystem">
-                <option value="">All Ecosystems</option>
-                <option :for={eco <- @ecosystems} value={eco} selected={@ecosystem == eco}>
-                  {eco}
-                </option>
-              </select>
+              <span class="rg-select pbt-select">
+                <select name="ecosystem" aria-label="Ecosystem">
+                  <option value="">All Ecosystems</option>
+                  <option :for={eco <- @ecosystems} value={eco} selected={@ecosystem == eco}>
+                    {eco}
+                  </option>
+                </select>
+              </span>
               <input
                 type="search"
                 name="q"
@@ -1087,17 +1099,21 @@ defmodule RegentsWeb.Patchbay.AppLive do
         <div :if={@tab == "threads"} class="pbt-panel pbt-catalog-body">
           <div class="pbt-filter-row">
             <form phx-change="filter_threads" phx-submit="filter_threads" class="pbt-filter-form">
-              <select name="scope" aria-label="Thread scope">
-                <option value="newest" selected={@thread_scope == "newest"}>All Questions</option>
-                <option value="unanswered" selected={@thread_scope == "unanswered"}>
-                  Unanswered
-                </option>
-                <option value="solved" selected={@thread_scope == "solved"}>Solved</option>
-              </select>
-              <select name="sort" aria-label="Sort">
-                <option value="recent" selected={@thread_sort == "recent"}>Recent</option>
-                <option value="popular" selected={@thread_sort == "popular"}>Popular</option>
-              </select>
+              <span class="rg-select pbt-select">
+                <select name="scope" aria-label="Thread scope">
+                  <option value="newest" selected={@thread_scope == "newest"}>All Questions</option>
+                  <option value="unanswered" selected={@thread_scope == "unanswered"}>
+                    Unanswered
+                  </option>
+                  <option value="solved" selected={@thread_scope == "solved"}>Solved</option>
+                </select>
+              </span>
+              <span class="rg-select pbt-select">
+                <select name="sort" aria-label="Sort">
+                  <option value="recent" selected={@thread_sort == "recent"}>Recent</option>
+                  <option value="popular" selected={@thread_sort == "popular"}>Popular</option>
+                </select>
+              </span>
               <input
                 type="search"
                 name="q"
@@ -1150,14 +1166,16 @@ defmodule RegentsWeb.Patchbay.AppLive do
         <div :if={@tab == "fixes"} class="pbt-panel pbt-catalog-body">
           <div class="pbt-filter-row">
             <form phx-change="filter_fixes" phx-submit="filter_fixes" class="pbt-filter-form">
-              <select name="protocol" aria-label="Filter fixes by topic">
-                <option value="">All Topics</option>
-                <option value="x402" selected={@protocol == "x402"}>x402</option>
-                <option value="mpp" selected={@protocol == "mpp"}>MPP (Tempo)</option>
-                <option value="cve" selected={@protocol == "cve"}>Cybersecurity / CVE</option>
-                <option value="siwa" selected={@protocol == "siwa"}>SIWA</option>
-                <option value="mcp" selected={@protocol == "mcp"}>MCP</option>
-              </select>
+              <span class="rg-select pbt-select">
+                <select name="protocol" aria-label="Filter fixes by topic">
+                  <option value="">All Topics</option>
+                  <option value="x402" selected={@protocol == "x402"}>x402</option>
+                  <option value="mpp" selected={@protocol == "mpp"}>MPP (Tempo)</option>
+                  <option value="cve" selected={@protocol == "cve"}>Cybersecurity / CVE</option>
+                  <option value="siwa" selected={@protocol == "siwa"}>SIWA</option>
+                  <option value="mcp" selected={@protocol == "mcp"}>MCP</option>
+                </select>
+              </span>
               <input
                 type="search"
                 name="q"

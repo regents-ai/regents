@@ -69,24 +69,28 @@ defmodule RegentsWeb.Autolaunch.UpcomingLive do
         </label>
         <label>
           <span>Network</span>
-          <select name="chain">
-            <option value="" selected={@filters.chain == ""}>All networks</option>
-            <option value="base" selected={@filters.chain == "base"}>Base</option>
-            <option value="robinhood" selected={@filters.chain == "robinhood"}>Robinhood</option>
-          </select>
+          <span class="rg-select">
+            <select name="chain">
+              <option value="" selected={@filters.chain == ""}>All networks</option>
+              <option value="base" selected={@filters.chain == "base"}>Base</option>
+              <option value="robinhood" selected={@filters.chain == "robinhood"}>Robinhood</option>
+            </select>
+          </span>
         </label>
         <label>
           <span>Availability</span>
-          <select name="availability">
-            <option value="" selected={@filters.availability == ""}>All stocks</option>
-            <option value="available" selected={@filters.availability == "available"}>
-              Available to Pair
-            </option>
-            <option value="soon" selected={@filters.availability == "soon"}>Soon Available</option>
-            <option value="feed_required" selected={@filters.availability == "feed_required"}>
-              Feed Required
-            </option>
-          </select>
+          <span class="rg-select">
+            <select name="availability">
+              <option value="" selected={@filters.availability == ""}>All stocks</option>
+              <option value="available" selected={@filters.availability == "available"}>
+                Available to Pair
+              </option>
+              <option value="soon" selected={@filters.availability == "soon"}>Soon Available</option>
+              <option value="feed_required" selected={@filters.availability == "feed_required"}>
+                Feed Required
+              </option>
+            </select>
+          </span>
         </label>
         <button class="rg-button" type="submit">Apply</button>
         <.link

@@ -88,22 +88,24 @@ button, input, select, textarea {
 
 /* Prevent double dropdown arrows on styled selects (including Chromium customizable select
    picker icons) and keep long option labels from overflowing narrow containers. */
-.rg-pill-select > :is(select, summary) {
+.rg-pill-select > :is(select, summary),
+.rg-select > select {
   max-inline-size: 100%;
   min-inline-size: 0;
 }
 
 .rg-pill-select > select,
+.rg-select > select,
 .pb-directory-select > select,
-.pb-address-select > select {
+.pb-address-select > select,
+.fleet-map-level__choice > select,
+.key-gallery__add > select {
   appearance: none;
   -webkit-appearance: none;
   background-image: none;
 }
 
-.rg-pill-select > select::picker-icon,
-.pb-directory-select > select::picker-icon,
-.pb-address-select > select::picker-icon {
+select::picker-icon {
   display: none;
 }
 
@@ -131,11 +133,41 @@ h6 {
    In the lowest layer, so any component's own button or field rule wins. */
 @layer regents-base {
   button:not(.rg-button),
-  input {
+  input,
+  select {
     border: 1px solid currentColor;
     border-radius: 0;
     background: var(--color-surface-elevated, Canvas);
     color: var(--color-fg, CanvasText);
+  }
+
+  /* Any bare <select> outside a custom wrapper still gets an inset chevron so
+     the native browser arrow never hugs the right border. Unlayered product and
+     design-system rules (`.rg-select`, `.rg-pill-select`, `.rg-field`) override
+     this cleanly via cascade layer precedence. */
+  select {
+    --rg-base-chevron-inset: 14px;
+    appearance: none;
+    -webkit-appearance: none;
+    min-height: 2.5rem;
+    padding: 0.45rem calc(var(--rg-base-chevron-inset) + 22px) 0.45rem 0.75rem;
+    cursor: pointer;
+    background-image:
+      linear-gradient(45deg, transparent 42%, currentColor 42%, currentColor 58%, transparent 58%),
+      linear-gradient(135deg, transparent 42%, currentColor 42%, currentColor 58%, transparent 58%);
+    background-position:
+      right calc(var(--rg-base-chevron-inset) + 5px) center,
+      right var(--rg-base-chevron-inset) center;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+  }
+
+  @media (forced-colors: active) {
+    select {
+      appearance: auto;
+      background-image: none;
+      padding-inline-end: 0.75rem;
+    }
   }
 
   button:not(.rg-button) {
@@ -148,6 +180,7 @@ h6 {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
+select:focus-visible,
 [tabindex]:not([tabindex="-1"]):focus-visible {
   outline: 2px solid var(--color-focus-ring, Highlight);
   outline-offset: 2px;

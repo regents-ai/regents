@@ -210,11 +210,13 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
       <%!-- TAB 1: ENDPOINT 402 VALIDATOR --%>
       <section :if={@tab == "endpoint"} class="pbt-panel pbt-diag-body">
         <form phx-submit="run_probe" class="pbt-probe-form">
-          <select name="method" aria-label="HTTP method">
-            <option value="GET" selected={@method == "GET"}>GET</option>
-            <option value="POST" selected={@method == "POST"}>POST</option>
-            <option value="HEAD" selected={@method == "HEAD"}>HEAD</option>
-          </select>
+          <span class="rg-select pbt-select">
+            <select name="method" aria-label="HTTP method">
+              <option value="GET" selected={@method == "GET"}>GET</option>
+              <option value="POST" selected={@method == "POST"}>POST</option>
+              <option value="HEAD" selected={@method == "HEAD"}>HEAD</option>
+            </select>
+          </span>
           <input
             type="url"
             name="url"

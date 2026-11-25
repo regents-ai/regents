@@ -1085,11 +1085,13 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
               <input type="hidden" name="project" value={@board.project} />
               <label>
                 <span>{notebook.title}</span>
-                <select name="copy">
-                  <option :for={copy <- notebook.copies} value={copy.id}>
-                    {Calendar.strftime(copy.changed_at, "%-d %b %Y")}
-                  </option>
-                </select>
+                <span class="rg-select">
+                  <select name="copy">
+                    <option :for={copy <- notebook.copies} value={copy.id}>
+                      {Calendar.strftime(copy.changed_at, "%-d %b %Y")}
+                    </option>
+                  </select>
+                </span>
               </label>
               <Regent.Primitives.button type="submit" variant="secondary">
                 Bring back
@@ -2598,9 +2600,11 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
         <input type="hidden" name="project" value={@board.project} />
         <label>
           Room
-          <select name="room" required>
-            <option :for={room <- @board.rooms} value={room.slug}>{room.label}</option>
-          </select>
+          <span class="rg-select">
+            <select name="room" required>
+              <option :for={room <- @board.rooms} value={room.slug}>{room.label}</option>
+            </select>
+          </span>
         </label>
         <label>
           First post

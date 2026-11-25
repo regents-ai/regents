@@ -650,17 +650,19 @@ defmodule RegentsWeb.Patchbay.WalletBenchHTML do
           <input :for={{key, value} <- @context} type="hidden" name={key} value={value} />
           <label>
             Set
-            <select name="set" aria-label="Set">
-              <option value="">All runs</option>
-              <option
-                :for={set <- @sets}
-                :if={set.grid == @test}
-                value={set.id}
-                selected={@selection["set"] == set.id}
-              >
-                {Sets.label(set)}
-              </option>
-            </select>
+            <span class="rg-select">
+              <select name="set" aria-label="Set">
+                <option value="">All runs</option>
+                <option
+                  :for={set <- @sets}
+                  :if={set.grid == @test}
+                  value={set.id}
+                  selected={@selection["set"] == set.id}
+                >
+                  {Sets.label(set)}
+                </option>
+              </select>
+            </span>
           </label>
           <button class="rg-button rg-button--secondary" type="submit"><span class="rg-button__label">Show runs</span></button>
         </form>
@@ -674,21 +676,25 @@ defmodule RegentsWeb.Patchbay.WalletBenchHTML do
           <input :if={@selection["set"]} type="hidden" name="set" value={@selection["set"]} />
           <label>
             Baseline
-            <select name="baseline" aria-label="Baseline" required>
-              <option value="">Choose a set</option>
-              <option :for={set <- @sets} value={set.id} selected={@selection["baseline"] == set.id}>
-                {Sets.label(set)}
-              </option>
-            </select>
+            <span class="rg-select">
+              <select name="baseline" aria-label="Baseline" required>
+                <option value="">Choose a set</option>
+                <option :for={set <- @sets} value={set.id} selected={@selection["baseline"] == set.id}>
+                  {Sets.label(set)}
+                </option>
+              </select>
+            </span>
           </label>
           <label>
             Compare with
-            <select name="compare" aria-label="Compare with" required>
-              <option value="">Choose a set</option>
-              <option :for={set <- @sets} value={set.id} selected={@selection["compare"] == set.id}>
-                {Sets.label(set)}
-              </option>
-            </select>
+            <span class="rg-select">
+              <select name="compare" aria-label="Compare with" required>
+                <option value="">Choose a set</option>
+                <option :for={set <- @sets} value={set.id} selected={@selection["compare"] == set.id}>
+                  {Sets.label(set)}
+                </option>
+              </select>
+            </span>
           </label>
           <button class="rg-button rg-button--secondary" type="submit"><span class="rg-button__label">Compare</span></button>
         </form>

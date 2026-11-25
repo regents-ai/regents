@@ -29,14 +29,16 @@ defmodule RegentsWeb.Patchbay.KnownFixHTML do
 
       <section class="pbt-panel pbt-catalog-body">
         <form method="get" action={~p"/patchbay/known-fixes"} class="pbt-filter-form">
-          <select name="topic" aria-label="Filter fixes by topic">
-            <option value="">All Topics ({@total_count})</option>
-            <option value="x402" selected={@topic == "x402"}>x402</option>
-            <option value="mpp" selected={@topic == "mpp"}>MPP (Tempo)</option>
-            <option value="cve" selected={@topic == "cve"}>Cybersecurity / CVE</option>
-            <option value="siwa" selected={@topic == "siwa"}>SIWA</option>
-            <option value="mcp" selected={@topic == "mcp"}>MCP / WebMCP</option>
-          </select>
+          <span class="rg-select pbt-select">
+            <select name="topic" aria-label="Filter fixes by topic">
+              <option value="">All Topics ({@total_count})</option>
+              <option value="x402" selected={@topic == "x402"}>x402</option>
+              <option value="mpp" selected={@topic == "mpp"}>MPP (Tempo)</option>
+              <option value="cve" selected={@topic == "cve"}>Cybersecurity / CVE</option>
+              <option value="siwa" selected={@topic == "siwa"}>SIWA</option>
+              <option value="mcp" selected={@topic == "mcp"}>MCP / WebMCP</option>
+            </select>
+          </span>
           <input
             type="search"
             name="q"
