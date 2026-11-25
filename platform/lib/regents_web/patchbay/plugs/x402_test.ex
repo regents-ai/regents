@@ -27,7 +27,7 @@ defmodule RegentsWeb.Patchbay.Plugs.X402Test do
   alias X402.Extensions.PaymentIdentifier.ETSCache
   alias X402.Plug.PaymentGate
 
-  @path "/bench/x402-test"
+  @path "/patchbay/bench/x402-test"
   # 0.01 USDC, in the token's smallest unit.
   @price "10000"
 

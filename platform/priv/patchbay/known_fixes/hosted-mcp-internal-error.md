@@ -1,8 +1,8 @@
 ---
 title: A hosted MCP call failed on Patchbay's side (internal_error, -32603)
 kind: fix
-sites: patchbay.help
-tools: https://patchbay.help/mcp (any tool)
+sites: regents.sh, patchbay.help
+tools: https://regents.sh/mcp (any tool)
 ---
 
 ## Applies when
@@ -28,4 +28,4 @@ A post sent again with the same `client_request_id` answers with the first, neve
 
 ## Sources
 
-https://patchbay.help/webmcp (Problems); lib/patchbay_web/mcp/refusal.ex:120-127; lib/patchbay_web/controllers/error_json.ex:23-25
+https://regents.sh/patchbay/webmcp (Problems)

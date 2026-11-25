@@ -115,6 +115,31 @@ defmodule RegentsWeb.Router do
     plug :put_site_edition, :main
   end
 
+  # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
+  # sobelow_skip ["Config.CSP"]
+  pipeline :patchbay_html_or_json do
+    plug :accepts, ["html", "json"]
+    plug :fetch_session
+    plug :enforce_session_authority
+    plug :fetch_live_flash
+    plug RegentsWeb.Plugs.RequireArticleAdmin
+    plug RegentsWeb.Plugs.Theme
+    plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
+    plug :put_product, "patchbay"
+    plug :put_current_path
+    plug :put_site_edition, :main
+    plug :put_layout, html: {RegentsWeb.Patchbay.Layouts, :app}
+    plug RegentsWeb.Plugs.LaunchGate
+    plug :protect_from_forgery
+
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" => ContentSecurityPolicy.sign_in()
+    }
+
+    plug RegentsWeb.Patchbay.Plugs.ForumSession, issue: true
+    plug RegentsWeb.Patchbay.Plugs.CurrentProfile
+  end
+
   pipeline :patchbay_require_profile do
     plug RegentsWeb.Patchbay.Plugs.RequireProfile
   end
@@ -1190,7 +1215,10 @@ defmodule RegentsWeb.Router do
     get "/developers", PagesController, :developers
     get "/webmcp", PagesController, :webmcp
     get "/docs", PagesController, :docs
+    get "/playbooks", PlaybookController, :index
+    get "/playbooks/:slug", PlaybookController, :show
     get "/agents", PagesController, :agents
+    get "/pair", PagesController, :pair
     get "/agents/:public_id", AgentProfileController, :show
     get "/errors/:code", ErrorLinkController, :show
     get "/discuss/techtree/:digest", TechtreeDiscussionController, :show
@@ -1247,11 +1275,24 @@ defmodule RegentsWeb.Router do
   scope "/patchbay", RegentsWeb.Patchbay do
     pipe_through [:browser, :patchbay]
 
+    live_session :patchbay_app,
+      layout: {RegentsWeb.Patchbay.Layouts, :app},
+      on_mount: [
+        {RegentsWeb.Live.Session, :load_human},
+        {RegentsWeb.Patchbay.CurrentProfile, :default},
+        {RegentsWeb.Patchbay.Layouts, :page}
+      ],
+      session: {RegentsWeb.Live.Session, :render_context, []} do
+      live "/app", AppLive, :index
+      live "/validate", ValidateLive, :index
+    end
+
     live_session :patchbay_fixes,
       layout: {RegentsWeb.Patchbay.Layouts, :app},
       on_mount: [
         {RegentsWeb.Live.Session, :load_human},
-        {RegentsWeb.Patchbay.CurrentProfile, :default}
+        {RegentsWeb.Patchbay.CurrentProfile, :default},
+        {RegentsWeb.Patchbay.Layouts, :page}
       ],
       session: {RegentsWeb.Live.Session, :render_context, []} do
       live "/fixes/:id", FixLive.Show, :show
@@ -1265,7 +1306,8 @@ defmodule RegentsWeb.Router do
       layout: {RegentsWeb.Patchbay.Layouts, :app},
       on_mount: [
         {RegentsWeb.Live.Session, :load_human},
-        {RegentsWeb.Patchbay.CurrentProfile, :default}
+        {RegentsWeb.Patchbay.CurrentProfile, :default},
+        {RegentsWeb.Patchbay.Layouts, :page}
       ],
       session: {RegentsWeb.Live.Session, :render_context, []} do
       live "/offers", OffersLive, :index
@@ -1280,6 +1322,7 @@ defmodule RegentsWeb.Router do
       on_mount: [
         {RegentsWeb.Live.Session, :load_human},
         {RegentsWeb.Patchbay.CurrentProfile, :default},
+        {RegentsWeb.Patchbay.Layouts, :page},
         RegentsWeb.Patchbay.Moderators
       ],
       session: {RegentsWeb.Live.Session, :render_context, []} do
@@ -1298,6 +1341,7 @@ defmodule RegentsWeb.Router do
         RegentsWeb.Patchbay.OffersGate,
         {RegentsWeb.Live.Session, :load_human},
         {RegentsWeb.Patchbay.CurrentProfile, :default},
+        {RegentsWeb.Patchbay.Layouts, :page},
         RegentsWeb.Patchbay.Moderators
       ],
       session: {RegentsWeb.Live.Session, :render_context, []} do
@@ -1318,6 +1362,8 @@ defmodule RegentsWeb.Router do
     get "/solved.json", SolvedController, :feed
     get "/solved.rss", SolvedController, :rss
     get "/offers.md", OffersController, :markdown
+    get "/skill.md", CommerceAPIController, :skill
+    get "/llms.txt", CommerceAPIController, :llms
     get "/post-pictures/:id", PostPictureController, :show
     get "/site-screenshots/:site_id", SiteScreenshotController, :show
     get "/listed-site-pictures/:domain", ListedSitePictureController, :show
@@ -1335,11 +1381,16 @@ defmodule RegentsWeb.Router do
   end
 
   scope "/patchbay", RegentsWeb.Patchbay do
+    pipe_through :patchbay_html_or_json
+
+    get "/known-fixes", KnownFixController, :index
+    get "/known-fixes/:id", KnownFixController, :show
+  end
+
+  scope "/patchbay", RegentsWeb.Patchbay do
     pipe_through :api
 
     get "/fix-check", Forum.FixCheckController, :show
-    get "/known-fixes", KnownFixController, :index
-    get "/known-fixes/:id", KnownFixController, :show
     get "/hello", ForumAPI.HelloController, :index
   end
 
@@ -1367,10 +1418,25 @@ defmodule RegentsWeb.Router do
     get "/x402-test", X402TestController, :show
   end
 
+  scope "/patchbay/bench", RegentsWeb.Patchbay do
+    pipe_through :api
+
+    get "/mpp-test", MppTestController, :show
+  end
+
   # Patchbay public JSON APIs.
   scope "/api/v1/patchbay", RegentsWeb.Patchbay do
     pipe_through :patchbay_api
 
+    get "/services", CommerceAPIController, :services
+    get "/endpoints", CommerceAPIController, :endpoints
+    get "/playbooks", CommerceAPIController, :playbooks
+    get "/playbooks/:slug", CommerceAPIController, :playbook
+    post "/validate", CommerceAPIController, :validate
+    get "/security/criticals", CommerceAPIController, :criticals
+    post "/security/check-stack", CommerceAPIController, :check_stack
+    get "/known-fixes", KnownFixController, :index
+    get "/known-fixes/:id", KnownFixController, :show
     get "/sites", Forum.BoardController, :sites_json
     get "/sites/:host/tools/:name", Forum.BoardController, :tool_json
     get "/wallet-bench", WalletBenchController, :index
@@ -1470,11 +1536,10 @@ defmodule RegentsWeb.Router do
     post "/payment_intents/:id/complete", PaymentsAPI.PaymentIntentController, :complete
   end
 
-  # Canonical product agent entry points for Patchbay (before the `/:host` site catch-all).
+  # Canonical product agent entry point for Patchbay (before the `/:host` site catch-all).
+  # `/patchbay/skill.md` and `/patchbay/llms.txt` are served by `CommerceAPIController` above.
   scope "/patchbay", RegentsWeb do
-    get "/llms.txt", ProductAgentDocsController, :llms, private: %{product: "patchbay"}
     get "/agents.md", ProductAgentDocsController, :agents, private: %{product: "patchbay"}
-    get "/skill.md", ProductAgentDocsController, :skill, private: %{product: "patchbay"}
   end
 
   # A site's own page is its domain, as on patchbay.help. These stay the last

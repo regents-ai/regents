@@ -1,6 +1,6 @@
 defmodule RegentsWeb.Patchbay.TechtreeDiscussionController do
   @moduledoc """
-  The address Techtree links from every Result: `/discuss/techtree/<bundle
+  The address Techtree links from every Result: `/patchbay/discuss/techtree/<bundle
   digest>`. It leads to that Result's discussion, opening it the first time
   anyone follows the link, once Techtree confirms the Result exists.
   """
@@ -38,7 +38,7 @@ defmodule RegentsWeb.Patchbay.TechtreeDiscussionController do
             RegentsWeb.Patchbay.Layouts.frame(conn, [])
         )
         |> render(:unavailable,
-          entry_url: "https://techtree.sh/results/" <> digest
+          entry_url: "/techtree/results/" <> digest
         )
     end
   end

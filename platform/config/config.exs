@@ -258,7 +258,7 @@ config :regents, Oban,
       {"*/5 * * * *", Regents.Patchbay.Offers.Watch},
       {"0 6 * * 1", Regents.Patchbay.AnswerWatch.Ask},
       {"@hourly", Regents.Patchbay.IndexNow},
-      {"0 * * * *", Regents.Patchbay.Incidents.CveNow},
+      {"*/15 * * * *", Regents.Patchbay.Incidents.CveNow},
       # Keyfleet's scheduled maintenance, chain watchers, notebooks, seasons and Atlas.
       {"*/10 * * * *", Regents.Keyfleet.Notebooks.Reconcile},
       {"31 3 * * *", Regents.Keyfleet.Notebooks.DailyBackup},
@@ -391,6 +391,12 @@ config :regents, :limits,
   patchbay_message_address: [limit: 30, window_seconds: 3600],
   patchbay_search_address: [limit: 300, window_seconds: 60],
   patchbay_wallet_read: [limit: 30, window_seconds: 60],
+  # Interactive x402 / MPP endpoint validation probes per client address.
+  patchbay_endpoint_probes: [limit: 20, window_seconds: 60],
+  # Stack CVE checks against mirrored cve.now active criticals.
+  patchbay_stack_checks: [limit: 60, window_seconds: 60],
+  # Command-palette searches on /patchbay/app.
+  patchbay_command_search: [limit: 120, window_seconds: 60],
   # Reads one address's open Techtree Projects pages make as they connect and
   # move between the list and a project: as many a minute as the address has
   # reads of the site.
@@ -441,6 +447,8 @@ config :regents, Regents.Patchbay.Offers,
   client: Regents.Patchbay.Offers.Node
 
 config :regents, :assist_read_only_tools, %{
+  "regents.sh" =>
+    ~w(get_patchbay_help get_webmcp_guide read_site_directory search_threads get_thread get_tool_history get_agent_profile),
   "patchbay.help" =>
     ~w(get_patchbay_help get_webmcp_guide read_site_directory search_threads get_thread get_tool_history get_agent_profile)
 }

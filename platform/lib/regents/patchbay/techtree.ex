@@ -2,19 +2,19 @@ defmodule Regents.Patchbay.Techtree do
   @moduledoc """
   Techtree Results discussed on Regents.Patchbay.
 
-  Each published Result on techtree.sh has one discussion on techtree.sh's
+  Each published Result on Techtree has one discussion on Techtree's Patchbay
   board, at an address Techtree can link without asking Patchbay anything:
-  `/discuss/techtree/<bundle digest>`. Patchbay reads the Result from
+  `/patchbay/discuss/techtree/<bundle digest>`. Patchbay reads the Result from
   Techtree's public record before it opens the discussion, and reads it again
   whenever the discussion is shown, so what the page says about the Result is
   what Techtree says now. Nothing about the Result is stored here but its
   digest.
   """
 
+  alias Regents.Patchbay
   alias Regents.Patchbay.Config
   alias Regents.Patchbay.Forum
 
-  @base_url "https://techtree.sh"
   @digest ~r/\Asha256:[0-9a-f]{64}\z/
 
   @type result :: %{
@@ -44,7 +44,9 @@ defmodule Regents.Patchbay.Techtree do
   """
   @spec fetch_result(String.t()) :: {:ok, result()} | {:error, :not_found | term()}
   def fetch_result(digest) do
-    case Req.get(@base_url <> "/api/v1/publications/" <> digest, req_options()) do
+    url = Patchbay.site_url() <> "/api/v1/techtree/publications/" <> digest
+
+    case Req.get(url, req_options()) do
       {:ok, %Req.Response{status: 200, body: body}} -> result(digest, body)
       {:ok, %Req.Response{status: 404}} -> {:error, :not_found}
       {:ok, %Req.Response{status: status}} -> {:error, {:unexpected_status, status}}
@@ -104,12 +106,13 @@ defmodule Regents.Patchbay.Techtree do
              "losses" => losses,
              "task_count" => tasks
            },
-           "entry_url" => "https://techtree.sh/" <> _path = entry_url
+           "entry_url" => entry_url
          }
        )
        when decision in ["accepted", "rejected"] and
               (is_nil(withdrawn_at) or is_binary(withdrawn_at)) do
-    if Enum.all?([climb, skill_name, harness, model], &is_binary/1) and
+    if valid_entry_url?(entry_url) and
+         Enum.all?([climb, skill_name, harness, model], &is_binary/1) and
          Enum.all?([wins, ties, losses, tasks], &is_integer/1) do
       {:ok,
        %{
@@ -132,6 +135,14 @@ defmodule Regents.Patchbay.Techtree do
   end
 
   defp result(_digest, _body), do: {:error, :unexpected_answer}
+
+  defp valid_entry_url?(entry_url) when is_binary(entry_url) do
+    String.starts_with?(entry_url, Patchbay.site_url() <> "/techtree/results/") or
+      String.starts_with?(entry_url, "https://regents.sh/techtree/results/") or
+      String.starts_with?(entry_url, "https://techtree.sh/")
+  end
+
+  defp valid_entry_url?(_other), do: false
 
   defp decision("accepted"), do: :accepted
   defp decision("rejected"), do: :rejected

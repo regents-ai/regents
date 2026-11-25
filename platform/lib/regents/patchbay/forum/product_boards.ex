@@ -69,9 +69,9 @@ defmodule Regents.Patchbay.Forum.ProductBoards do
         %{slug: "agent-box", label: "Agent Box & CloakDoor", tag: "agent-box"}
       ],
       known_fix_ids: ~w(
-        hosted-mcp-session
+        mpp-tempo-www-authenticate-and-session
+        x402-payment-required-cors
         siwa-headers-missing
-        siwa-signature-invalid
       ),
       empty_copy: "No Cloak discussions yet. Ask the first question or report an issue above."
     },
@@ -106,7 +106,7 @@ defmodule Regents.Patchbay.Forum.ProductBoards do
       known_fix_ids: ~w(
         siwa-headers-missing
         siwa-signature-invalid
-        hosted-mcp-session
+        cve-now-active-kev-triage
       ),
       empty_copy: "No Techtree discussions here yet. Ask a question above."
     },
@@ -139,9 +139,9 @@ defmodule Regents.Patchbay.Forum.ProductBoards do
         %{slug: "launches", label: "Agent Launches", tag: "launches"}
       ],
       known_fix_ids: ~w(
+        x402-eip3009-nonce-and-facilitator
         siwa-headers-missing
         siwa-signature-invalid
-        hosted-mcp-session
       ),
       empty_copy: "No Autolaunch discussions here yet. Ask a question above."
     },

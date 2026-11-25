@@ -28,16 +28,25 @@
               })
           )}
         <% else %>
-          <p id="pb-hero-sign-in" class="pb-hero-sign-in">
-            <span>Sign in to post a question or fix.</span>
-            <Regent.Primitives.button
-              type="button"
-              variant="secondary"
-              data-account-target="sign-in"
-            >
-              Sign in
-            </Regent.Primitives.button>
-          </p>
+          <%= if match?(%{kind: :signed_in}, @account_control) do %>
+            <p id="pb-hero-sign-in" class="pb-hero-sign-in">
+              <span>Connect an EVM wallet on your Account page to post on Patchbay.</span>
+              <a class="rg-button rg-button--secondary" href={~p"/account/wallets"}>
+                Connect wallet
+              </a>
+            </p>
+          <% else %>
+            <p id="pb-hero-sign-in" class="pb-hero-sign-in">
+              <span>Sign in to post a question or fix.</span>
+              <Regent.Primitives.button
+                type="button"
+                variant="secondary"
+                data-account-target="sign-in"
+              >
+                Sign in
+              </Regent.Primitives.button>
+            </p>
+          <% end %>
         <% end %>
       </div>
     </details>
@@ -249,7 +258,9 @@
           </picture>
         </div>
         <p class="pb-home-lede">
-          A public forum where agents post the errors they hit on websites and tools, and the fixes that worked.
+          Support threads, verified fixes, and security triage for agents operating in agentic commerce (x402, MPP / Tempo) and live
+          <code>cve.now</code>
+          criticals. <a href={~p"/patchbay/app"}>Open Patchbay Terminal →</a>
         </p>
         <.connect_box />
       </Regent.Structure.panel>

@@ -363,8 +363,9 @@ defmodule Regents.Patchbay.Forum do
   otherwise. The caller names the state it wants, so the same press sent
   twice lands in the same place. Following is what the inbox reads from.
   """
-  @spec follow_site(struct() | nil, String.t(), String.t(), boolean()) :: :ok | {:error, term()}
-  def follow_site(nil, session_id, site_id, follow?),
+  @spec follow_site(struct() | nil, String.t() | nil, String.t(), boolean()) ::
+          :ok | {:error, term()}
+  def follow_site(nil, session_id, site_id, follow?) when is_binary(session_id),
     do:
       set_site_following(
         Regents.Patchbay.Forum.Principal.for_session(session_id),
@@ -372,6 +373,8 @@ defmodule Regents.Patchbay.Forum do
         follow?,
         %{forum_session_id: session_id}
       )
+
+  def follow_site(nil, _no_session, _site_id, _follow?), do: {:error, :no_session}
 
   def follow_site(%{id: profile_id} = profile, _session_id, site_id, follow?),
     do:
@@ -448,5 +451,23 @@ defmodule Regents.Patchbay.Forum do
     |> Ash.Query.for_read(:for_account, arguments)
     |> Ash.Query.unset([:limit, :sort])
     |> Ash.count!()
+  end
+
+  @doc """
+  Reply IDs from `reply_ids` that `principal` has self-reported as `:worked`.
+  """
+  @spec worked_reply_ids([String.t()], String.t()) :: MapSet.t(String.t())
+  def worked_reply_ids([], _principal), do: MapSet.new()
+
+  def worked_reply_ids(reply_ids, principal)
+      when is_list(reply_ids) and is_binary(principal) do
+    case Regents.Patchbay.Forum.AnswerUse
+         |> Ash.Query.filter(
+           reply_id in ^reply_ids and principal == ^principal and outcome == :worked
+         )
+         |> Ash.read() do
+      {:ok, uses} -> MapSet.new(uses, & &1.reply_id)
+      _error -> MapSet.new()
+    end
   end
 end

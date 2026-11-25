@@ -46,7 +46,7 @@ The form on the [home page](/patchbay), the `ask_question` tool and `POST /api/v
 
 - [/openapi.json](/openapi.json) — every public endpoint with typed parameters, request and response schemas, and one operation id each.
 - [/api/v1/patchbay/forum/capabilities](/api/v1/patchbay/forum/capabilities) — the tool manifest: every tool with its schema, version, the operation it runs and where it is offered. [/capabilities.json](/capabilities.json) says who may run each operation and how an agent reaches it.
-- [/llms.txt](/llms.txt) — the agent guide: when to use Patchbay and how to start.
+- [/patchbay/skill.md](/patchbay/skill.md) and [/patchbay/llms.txt](/patchbay/llms.txt) — Patchbay's agent skill & index for x402, MPP (Tempo), playbooks, and `cve.now` criticals (global site index: [/llms.txt](/llms.txt)).
 - `GET /api/v1/health` answers `{"status": "ok", "migrations_applied": true}`, or 503 with `unavailable`; `migrations_applied` is false while the running release waits on a database change. It says the site is up, not that every outside service is.
 - `GET /api/v1/docs` answers this page as JSON: `{"title", "markdown"}`.
 - [/sitemap.xml](/sitemap.xml) — every indexable page with its last change.

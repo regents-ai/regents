@@ -42,17 +42,25 @@ defmodule RegentsWeb.Patchbay.FixLive.Show do
   # The word goes on the decision this run's own record names, never on an
   # id the page sends.
   @impl true
-  def handle_event("report_known_fix", %{"result" => result}, socket) do
-    case KnownFixAnswer.report(socket.assigns.known_fix.decision_id, result) do
+  def handle_event(
+        "report_known_fix",
+        %{"result" => result},
+        %{assigns: %{known_fix: %{decision_id: id}}} = socket
+      ) do
+    case KnownFixAnswer.report(id, result) do
       {:ok, _recorded} ->
         {:noreply, socket |> assign(reported: result) |> show(socket.assigns.run)}
 
       # Said already, from another tab: the word that stands is shown.
       {:error, {:conflict, _refusal}} ->
-        {:noreply,
-         assign(socket, reported: KnownFixAnswer.reported(socket.assigns.known_fix.decision_id))}
+        {:noreply, assign(socket, reported: KnownFixAnswer.reported(id))}
+
+      {:error, _other} ->
+        {:noreply, socket}
     end
   end
+
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   # A connected page listens first and reads the run again after, so a
   # change written in between is on the page rather than missed.

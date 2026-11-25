@@ -59,7 +59,6 @@ defmodule RegentsWeb.Patchbay.ThreadLive do
     socket =
       socket
       |> assign(path: path, refused: %{}, csrf_token: session["csrf_token"])
-      |> assign_new(:site_edition, fn -> :main end)
       |> sign_in(session)
       |> assign_new(:forum_session_id, fn -> session["forum_session_id"] end)
       |> assign_new(:report, fn -> read_report(id) end)
@@ -77,6 +76,8 @@ defmodule RegentsWeb.Patchbay.ThreadLive do
       else: {:noreply, redirect(socket, to: socket.assigns.path)}
   end
 
+  def handle_info(_message, socket), do: {:noreply, socket}
+
   @impl true
   def handle_event("follow", %{"follow" => wanted}, socket) when wanted in ~w(true false) do
     %{report: %{site: site}, forum_session_id: session_id} = socket.assigns
@@ -90,8 +91,14 @@ defmodule RegentsWeb.Patchbay.ThreadLive do
            refused: %{}
          )}
 
+      {:error, :no_session} ->
+        refuse(socket, :follow, "Sign in or enable cookies to follow sites.")
+
       {:error, failure} ->
-        Logger.warning("Following a site was not saved", error_type: inspect(failure.__struct__))
+        error_type =
+          if is_struct(failure), do: inspect(failure.__struct__), else: inspect(failure)
+
+        Logger.warning("Following a site was not saved", error_type: error_type)
         refuse(socket, :follow, "That change to what you follow was not saved. Try again.")
     end
   end
@@ -137,18 +144,24 @@ defmodule RegentsWeb.Patchbay.ThreadLive do
   end
 
   def handle_event("mark_solution", %{"reply" => reply_id}, socket) do
-    {:ok, report} = Board.fetch_report(socket.assigns.report.id)
+    case Board.fetch_report(socket.assigns.report.id) do
+      {:ok, report} ->
+        case Forum.mark_solution(
+               report,
+               reply_id,
+               socket.assigns.forum_session_id,
+               signed_in(socket)
+             ) do
+          {:ok, _thread} -> {:noreply, assign(socket, refused: %{})}
+          {:error, failure} -> refuse(socket, reply_id, solution_words(failure))
+        end
 
-    case Forum.mark_solution(
-           report,
-           reply_id,
-           socket.assigns.forum_session_id,
-           signed_in(socket)
-         ) do
-      {:ok, _thread} -> {:noreply, assign(socket, refused: %{})}
-      {:error, failure} -> refuse(socket, reply_id, solution_words(failure))
+      _missing ->
+        {:noreply, redirect(socket, to: socket.assigns.path)}
     end
   end
+
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns), do: thread_body(assigns)
@@ -158,10 +171,12 @@ defmodule RegentsWeb.Patchbay.ThreadLive do
   # again (`RegentsWeb.Patchbay.CurrentProfile`).
   defp sign_in(socket, session) do
     if connected?(socket) do
-      {profile, lease} = CurrentProfile.connect_lease(session)
+      {profile, lease} = CurrentProfile.connect_lease(socket, session)
       assign(socket, current_profile: profile, session_lease: lease)
     else
-      socket |> assign_new(:current_profile, fn -> nil end) |> assign(:session_lease, nil)
+      socket
+      |> assign_new(:current_profile, fn -> CurrentProfile.disconnected_profile(session) end)
+      |> assign(:session_lease, nil)
     end
   end
 
@@ -209,10 +224,12 @@ defmodule RegentsWeb.Patchbay.ThreadLive do
   defp open(socket, report, session) do
     socket =
       socket
+      |> assign_new(:site_edition, fn -> :main end)
       |> assign_new(:thread, fn assigns -> read_thread(assigns, session) end)
       |> assign_new(:following, fn %{current_profile: profile, forum_session_id: session_id} ->
         Board.followed_sites(profile, session_id)
       end)
+      |> assign_new(:said_worked, fn -> MapSet.new() end)
       |> assign_new(:techtree, fn -> nil end)
       |> assign_new(:reply_problem, fn -> nil end)
       |> assign_new(:escrow_problem, fn -> nil end)

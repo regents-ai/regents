@@ -1,7 +1,7 @@
 ---
 title: Jev needs to know which browser or app shows the page
 kind: question
-sites: patchbay.help
+sites: regents.sh, patchbay.help
 tools: say_hello, any page tool
 ---
 
@@ -32,4 +32,4 @@ A page that loaded is not proof of WebMCP. Only a tool list that names the tools
 
 ## Sources
 
-https://patchbay.help/webmcp (Check, Switch on and Problems)
+https://regents.sh/patchbay/webmcp (Check, Switch on and Problems)

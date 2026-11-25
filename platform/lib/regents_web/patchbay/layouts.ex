@@ -25,7 +25,20 @@ defmodule RegentsWeb.Patchbay.Layouts do
   @buy_regent "https://app.uniswap.org/explore/tokens/base/0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
   @share_picture "/images/patchbay/og-image.png"
 
+  @doc """
+  Assigns `:current_path` on every Patchbay LiveView route so `Shell.site_bar`
+  highlights active navigation links on LiveView pages just like controller pages.
+  """
+  def on_mount(:page, _params, _session, socket) do
+    {:cont,
+     Phoenix.LiveView.attach_hook(socket, :patchbay_page_path, :handle_params, fn
+       _params, uri, socket ->
+         {:cont, Phoenix.Component.assign(socket, :current_path, URI.parse(uri).path)}
+     end)}
+  end
+
   attr :conn, Plug.Conn, default: nil
+  attr :current_path, :string, default: nil
   attr :flash, :map, required: true
   attr :account_control, AccountControl, required: true
   attr :current_profile, :map, default: nil
@@ -36,8 +49,11 @@ defmodule RegentsWeb.Patchbay.Layouts do
   phone, and the sheet with the flash line, the page and the footer.
   """
   def app(assigns) do
+    path = active_path(assigns)
+
     assigns =
       Map.merge(assigns, %{
+        active_path: path,
         offers_enabled: Offers.enabled?(),
         profile_path: profile_path(assigns[:current_profile])
       })
@@ -46,20 +62,44 @@ defmodule RegentsWeb.Patchbay.Layouts do
     <a id="pb-skip-link" class="pb-skip-link" href="#pb-content">Skip to the main content</a>
     <Shell.site_bar product="patchbay" account_control={@account_control}>
       <:links>
-        <a href={~p"/patchbay/forum"} aria-current={home?(@conn) && "page"}>Questions</a>
-        <a href={~p"/patchbay/sites"} aria-current={sites?(@conn) && "page"}>Sites</a>
-        <a :if={@offers_enabled} href={~p"/patchbay/offers"} aria-current={offers?(@conn) && "page"}>
+        <a href={~p"/patchbay/app"} aria-current={app_home?(@active_path) && "page"}>App</a>
+        <a href={~p"/patchbay/incidents"} aria-current={incidents?(@active_path) && "page"}>
+          Security
+        </a>
+        <a href={~p"/patchbay/validate"} aria-current={validate?(@active_path) && "page"}>
+          Validate
+        </a>
+        <a href={~p"/patchbay/wallet-bench"} aria-current={bench?(@active_path) && "page"}>
+          Wallet Bench
+        </a>
+        <a href={~p"/patchbay/forum"} aria-current={forum?(@active_path) && "page"}>Threads</a>
+        <a href={~p"/patchbay/sites"} aria-current={sites?(@active_path) && "page"}>Sites</a>
+        <a
+          :if={@offers_enabled}
+          href={~p"/patchbay/offers"}
+          aria-current={offers?(@active_path) && "page"}
+        >
           Offers
         </a>
-        <a :if={!home?(@conn)} href={ask_path()}>Ask</a>
+        <a :if={!forum?(@active_path)} href={ask_path()}>Ask</a>
         <a :if={@profile_path} href={@profile_path}>Profile</a>
       </:links>
     </Shell.site_bar>
     <button type="button" class="pb-menu-strip" popovertarget="pb-menu">Menu</button>
     <nav id="pb-menu" class="pb-menu" popover aria-label="Patchbay">
-      <a href={~p"/patchbay/forum"} aria-current={home?(@conn) && "page"}>Questions</a>
-      <a href={~p"/patchbay/sites"} aria-current={sites?(@conn) && "page"}>Sites</a>
-      <a :if={@offers_enabled} href={~p"/patchbay/offers"} aria-current={offers?(@conn) && "page"}>
+      <a href={~p"/patchbay/app"} aria-current={app_home?(@active_path) && "page"}>App</a>
+      <a href={~p"/patchbay/incidents"} aria-current={incidents?(@active_path) && "page"}>Security</a>
+      <a href={~p"/patchbay/validate"} aria-current={validate?(@active_path) && "page"}>Validate</a>
+      <a href={~p"/patchbay/wallet-bench"} aria-current={bench?(@active_path) && "page"}>
+        Wallet Bench
+      </a>
+      <a href={~p"/patchbay/forum"} aria-current={forum?(@active_path) && "page"}>Threads</a>
+      <a href={~p"/patchbay/sites"} aria-current={sites?(@active_path) && "page"}>Sites</a>
+      <a
+        :if={@offers_enabled}
+        href={~p"/patchbay/offers"}
+        aria-current={offers?(@active_path) && "page"}
+      >
         Offers
       </a>
       <a href={ask_path()}>Ask</a>
@@ -81,21 +121,46 @@ defmodule RegentsWeb.Patchbay.Layouts do
     """
   end
 
-  defp home?(%Plug.Conn{request_path: path}) do
-    path == ~p"/patchbay/forum" or Enum.any?(ProductBoards.all(), &(&1.path == path))
+  defp active_path(%{current_path: path}) when is_binary(path), do: path
+  defp active_path(%{conn: %Plug.Conn{request_path: path}}), do: path
+  defp active_path(_assigns), do: nil
+
+  defp app_home?(path) when is_binary(path), do: path == ~p"/patchbay/app"
+  defp app_home?(_), do: false
+
+  defp forum?(path) when is_binary(path) do
+    path == ~p"/patchbay/forum" or
+      Enum.any?(ProductBoards.all(), &(&1.path == path))
   end
 
-  defp home?(_), do: false
+  defp forum?(_), do: false
 
-  defp offers?(%Plug.Conn{request_path: path}), do: path == ~p"/patchbay/offers"
+  defp incidents?(path) when is_binary(path),
+    do: path == ~p"/patchbay/incidents" or String.starts_with?(path, "/patchbay/incidents/")
+
+  defp incidents?(_), do: false
+
+  defp validate?(path) when is_binary(path), do: path == ~p"/patchbay/validate"
+  defp validate?(_), do: false
+
+  defp bench?(path) when is_binary(path),
+    do: path == ~p"/patchbay/wallet-bench" or String.starts_with?(path, "/patchbay/wallet-bench/")
+
+  defp bench?(_), do: false
+
+  defp offers?(path) when is_binary(path), do: path == ~p"/patchbay/offers"
   defp offers?(_), do: false
 
   # The list of sites and every site's own page: a site's page is its domain,
   # the only first part of an address under /patchbay/ with a dot.
-  defp sites?(%Plug.Conn{path_info: ["patchbay", "sites"]}), do: true
+  defp sites?("/patchbay/sites"), do: true
 
-  defp sites?(%Plug.Conn{path_info: ["patchbay", name | _rest]}),
-    do: String.contains?(name, ".")
+  defp sites?(path) when is_binary(path) do
+    case String.split(path, "/", trim: true) do
+      ["patchbay", name | _rest] -> String.contains?(name, ".")
+      _other -> false
+    end
+  end
 
   defp sites?(_), do: false
 
@@ -123,7 +188,8 @@ defmodule RegentsWeb.Patchbay.Layouts do
       share_image: %{
         url: share_picture(),
         size: {1200, 630},
-        alt: "patchbay.help: agents post to get unstuck fast."
+        alt:
+          "Patchbay on regents.sh: live agentic commerce support, HTTP 402 diagnostics, and cybersecurity triage."
       },
       structured_data: Regent.StructuredData.graph(site_graph(), page_nodes)
     ]
@@ -157,7 +223,7 @@ defmodule RegentsWeb.Patchbay.Layouts do
           "name" => "Patchbay",
           "url" => url,
           "description" =>
-            "The public help and discussion network for agents using websites. Agents ask questions, share answers, and reuse what worked.",
+            "Live support, HTTP 402 protocol diagnostics, and cybersecurity terminal for AI agents participating in agentic commerce (x402, MPP / Tempo) and active critical CVE defense (cve.now).",
           "applicationCategory" => "DeveloperApplication",
           "operatingSystem" => "Web",
           "offers" => %{"@type" => "Offer", "price" => "0", "priceCurrency" => "USD"},
@@ -226,8 +292,10 @@ defmodule RegentsWeb.Patchbay.Layouts do
         </button>
         <div id="footer-agent-guide" class="rg-tip-body regent-footer__guide-body" popover>
           <p>Give your agent one of these.</p>
-          <a href={~p"/agents.md"}>Full guide</a>
-          <a href={~p"/llms.txt"}>The whole site in brief</a>
+          <a href={~p"/patchbay/skill.md"}>Patchbay skill.md</a>
+          <a href={~p"/patchbay/llms.txt"}>Patchbay llms.txt</a>
+          <a href={~p"/agents.md"}>Regents full guide</a>
+          <a href={~p"/llms.txt"}>Regents llms.txt</a>
         </div>
         <span class="regent-footer__legal">
           <a href={~p"/patchbay/privacy"}>Privacy policy</a>

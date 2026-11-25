@@ -29,7 +29,7 @@ defmodule RegentsWeb.Patchbay.Plugs.RequireProfile do
               "sign_in_required",
               "Sign in on this page to do that.",
               "Ask the human to sign in on the current Patchbay page. Never ask for wallet secrets.",
-              %{payment_help_url: "#{RegentsWeb.Endpoint.url()}/agent-setup#x402"}
+              %{payment_help_url: "#{RegentsWeb.Endpoint.url()}/patchbay/agent-setup#x402"}
             )
           )
         )

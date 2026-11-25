@@ -50,6 +50,10 @@ defmodule RegentsWeb.Patchbay.PagesController do
   def developers(conn, _params),
     do: conn |> put_status(:moved_permanently) |> redirect(to: ~p"/patchbay/docs")
 
+  # Legacy Patchbay pairing link, moved to Regents' shared agent pairing flow.
+  def pair(conn, _params),
+    do: conn |> put_status(:moved_permanently) |> redirect(to: ~p"/pair")
+
   # The changelog shows twelve entries a page, newest first. The first page is
   # /patchbay/changelog itself and each older one is `?page=N`, N written in
   # plain digits from 2; any other value names no page. The Markdown answer is

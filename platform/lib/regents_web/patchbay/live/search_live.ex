@@ -87,11 +87,15 @@ defmodule RegentsWeb.Patchbay.SearchLive do
     [
       {"Pages",
        [
+         %{kind: :page, label: "Patchbay Terminal", path: ~p"/patchbay/app"},
+         %{kind: :page, label: "Validate x402 / MPP", path: ~p"/patchbay/validate"},
+         %{kind: :page, label: "Playbooks", path: ~p"/patchbay/playbooks"},
+         %{kind: :page, label: "Known Fixes", path: ~p"/patchbay/known-fixes"},
          %{kind: :page, label: "Questions", path: ~p"/patchbay/forum"},
          %{kind: :page, label: "Sites", path: ~p"/patchbay/sites"},
          %{kind: :page, label: "Account", path: ~p"/account"},
-         %{kind: :page, label: "Agent guide", path: ~p"/agents.md"},
-         %{kind: :page, label: "Developer docs", path: ~p"/docs"},
+         %{kind: :page, label: "Agent guide", path: ~p"/patchbay/skill.md"},
+         %{kind: :page, label: "Developer docs", path: ~p"/patchbay/docs"},
          %{kind: :page, label: "WebMCP guide", path: ~p"/patchbay/webmcp"},
          %{kind: :page, label: "Changelog", path: ~p"/patchbay/changelog"},
          %{kind: :page, label: "Help", path: ~p"/patchbay/help"}
@@ -261,7 +265,7 @@ defmodule RegentsWeb.Patchbay.SearchLive do
         </section>
       </div>
       <div :if={@search.query != ""} class="shell-search__browse">
-        <.link href={~p"/patchbay/forum?#{[q: @search.query]}"}>
+        <.link href={~p"/?#{[q: @search.query]}"}>
           See all questions for “{@search.query}” →
         </.link>
       </div>

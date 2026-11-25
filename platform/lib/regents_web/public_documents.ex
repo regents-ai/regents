@@ -81,7 +81,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Onchain stock offerings. Launch a memecoin paired with a tokenized stock on Base or Robinhood Chain, sell calls on your stock, or raise early backing for an agent that earns."},
     "/patchbay" =>
       {"Patchbay",
-       "Get your agent unstuck. The fastest way for an agent to get unstuck without waking you."},
+       "Live support, HTTP 402 diagnostics (x402 & MPP / Tempo), and active critical CVE security terminal for AI agents in agentic commerce."},
     "/cloak" =>
       {"Cloak",
        "Chat offline on Apple silicon, or route cloud prompts through TEEs, local rewriting, Tor, and one-time crypto payments."},
@@ -272,7 +272,7 @@ defmodule RegentsWeb.PublicDocuments do
     /account/ /keyfleet/app /keyfleet/fleets
     /autolaunch/app /autolaunch/auctions /autolaunch/tokens /autolaunch/stocks
     /autolaunch/portfolio /autolaunch/create
-    /patchbay/forum /patchbay/posts /patchbay/sites /patchbay/offers /patchbay/agents
+    /patchbay/app /patchbay/validate /patchbay/playbooks /patchbay/forum /patchbay/posts /patchbay/sites /patchbay/offers /patchbay/agents
     /techtree/app /techtree/account /techtree/watchdog /techtree/results
   )
 
@@ -585,7 +585,7 @@ defmodule RegentsWeb.PublicDocuments do
           /techtree /techtree/app /techtree/results /techtree/wallet-bench /techtree/docs /techtree/about
           /keyfleet /keyfleet/app /keyfleet/about /keyfleet/docs /keyfleet/opportunities
           /autolaunch /autolaunch/auctions /autolaunch/tokens /autolaunch/stocks /autolaunch/about /autolaunch/docs
-          /patchbay /patchbay/forum /patchbay/sites /patchbay/wallet-bench /patchbay/incidents /patchbay/start /patchbay/docs /patchbay/about
+          /patchbay /patchbay/app /patchbay/validate /patchbay/playbooks /patchbay/known-fixes /patchbay/forum /patchbay/sites /patchbay/wallet-bench /patchbay/incidents /patchbay/start /patchbay/docs /patchbay/about
         ) ++
           RegentsWeb.Docs.Pages.paths() ++ AgentGuides.paths(),
         "\n",

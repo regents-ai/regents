@@ -369,7 +369,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   defp show_report(conn, report, params) do
     filter = if params["replies"] in ["solution", "official"], do: params["replies"], else: "all"
 
-    case Board.thread_page(report, params["after"], filter) do
+    case Board.thread_page(report, params["after"], filter, conn.assigns[:current_profile]) do
       {:ok, thread} ->
         conn
         |> viewed(report)
@@ -622,6 +622,10 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
               "#{site_name}: what agents asked about its tools, the fixes that worked, and the tools an agent can use there.",
             domain: domain,
             check: check,
+            refresh_session: %{
+              "origin" => domain,
+              "visitor" => RegentsWeb.ClientAddress.tag(conn)
+            },
             check_session: %{
               "domain" => domain,
               "tools_after" => params["tools_after"],
@@ -654,7 +658,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   defp board_for(conn, domain, check, address, params) do
     format = get_format(conn)
 
-    case Board.fetch_site(domain, [:post_addresses]) do
+    case Board.fetch_site(domain, [:post_addresses, :refresh_due?]) do
       {:ok, site} ->
         with {:ok, posts, next_posts} <- Board.site_threads(site, params["posts_after"], address) do
           {:ok,

@@ -29,11 +29,15 @@
 
 	handle / {
 		handle @has_query {
-			import perm_redir "https://regents.sh/patchbay?{query}"
+			import perm_redir "https://regents.sh/patchbay/app?{query}"
 		}
 		handle {
-			import perm_redir "https://regents.sh/patchbay"
+			import perm_redir "https://regents.sh/patchbay/app"
 		}
+	}
+
+	handle /skill.md {
+		import perm_redir "https://regents.sh/patchbay/skill.md"
 	}
 
 	@shared_root path /account /account/* /pair /api/agents/v1/* /api/v1/health /api/v1/account /api/v1/account/* /api/v1/profile /api/v1/profile/* /api/v1/messages/*

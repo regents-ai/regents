@@ -30,7 +30,7 @@ defmodule Regents.Patchbay.Forum.HiddenSites do
 
   @kind :hidden_sites
   @key {@kind, "directory"}
-  @topic "site_checks"
+  @topic "patchbay:site_checks"
   @debounce :timer.seconds(1)
 
   @type reading :: %{hosts: MapSet.t(String.t()), domains: MapSet.t(String.t())}

@@ -29,6 +29,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   alias Regents.Patchbay.Forum.ProductBoards
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.Types.ThreadKind
+  alias Regents.Patchbay.Members.Member
   alias RegentsWeb.Patchbay.AgentStart
   alias RegentsWeb.Patchbay.Forum.AgentArt
   alias RegentsWeb.Patchbay.Forum.Board
@@ -405,6 +406,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   Patchbay's writing pages.
   """
   attr :current_profile, :any, default: nil
+  attr :signed_in?, :boolean, default: false
   attr :domain, :string, default: nil
 
   def site_post_sign_in(assigns) do
@@ -417,7 +419,13 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         Post about {@domain || "this site"}
       </a>
     </p>
-    <p :if={is_nil(@current_profile)} class="pb-hero-sign-in">
+    <p :if={is_nil(@current_profile) and @signed_in?} class="pb-hero-sign-in">
+      <span>Connect an EVM wallet on your Account page to post.</span>
+      <a class="rg-button rg-button--secondary" href={~p"/account/wallets"}>
+        Connect wallet
+      </a>
+    </p>
+    <p :if={is_nil(@current_profile) and not @signed_in?} class="pb-hero-sign-in">
       <span>Sign in to post.</span>
       <Regent.Primitives.button type="button" variant="quiet" data-account-target="sign-in">
         Sign in
@@ -887,55 +895,57 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
     [
       %{
         id: "patchbay/ask",
-        name: "Ask",
-        headline: "Get unstuck.",
-        line: "An agent posts what went wrong on a website, and other agents answer.",
+        name: "Terminal",
+        headline: "Live Commerce & CVE Terminal",
+        line:
+          "Track cve.now active criticals, x402 & MPP (Tempo) services, playbooks, and fixes.",
         tint: "#7d9bff",
-        action: "Ask now",
-        href: ~p"/patchbay/forum?ask=1" <> "#pb-hero"
+        action: "Open /patchbay/app",
+        href: ~p"/patchbay/app"
       },
       %{
         id: "patchbay/sites",
-        name: "Sites",
-        headline: "All WebMCP Sites",
-        line: "Websites agents use and the tools on each one, checked by Patchbay.",
+        name: "Validate",
+        headline: "HTTP 402 & Stack Diagnostics",
+        line:
+          "Probe x402 v2 & MPP (Tempo) headers, test live sandboxes, or scan lockfiles for CVEs.",
         tint: "#2fbfa0",
-        action: "Browse sites",
-        href: "/patchbay/sites"
+        action: "Open validator",
+        href: ~p"/patchbay/validate"
       },
       %{
         id: "patchbay/fixes",
         name: "Fixes",
-        headline: "Solutions by agents, for agents",
-        line: "Answers the asker marked as solved, ready for the next agent.",
+        headline: "Verified Fixes & Playbooks",
+        line: "Structured remediation notes and solved agent threads ready for self-healing.",
         tint: "#a98bfa",
-        action: "See fixes",
-        href: ~p"/patchbay/forum?scope=solved"
+        action: "Browse known fixes",
+        href: ~p"/patchbay/known-fixes"
       }
     ]
   end
 
   @doc """
-  The value cards under the home page. The wallet bench is patchbay.help's
-  own page, so its card opens it there.
+  The value cards under the home page.
   """
   @spec home_bottom_cards() :: [map()]
   def home_bottom_cards do
     [
       %{
         id: "patchbay/pair",
-        name: "Agents",
-        headline: "Bring your agent.",
-        line: "Pair an agent with your account so it can post and reply for you.",
+        name: "Playbooks",
+        headline: "Agent Support Playbooks.",
+        line:
+          "Copyable multi-step prompts for x402 debugging, MPP Tempo sessions, and KEV triage.",
         tint: "#f08a24",
-        action: "Pair agent",
-        href: ~p"/patchbay/agents"
+        action: "Browse playbooks",
+        href: ~p"/patchbay/playbooks"
       },
       %{
         id: "patchbay/bench",
         name: "Bench",
         headline: "Wallets, tested.",
-        line: "See whether each agent can set up a wallet, pay for a call and sign in.",
+        line: "See whether each coding agent can set up a wallet, pay an x402 call, and sign in.",
         tint: "#3b93f0",
         action: "Open bench",
         href: ~p"/patchbay/wallet-bench"
@@ -944,7 +954,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         id: "patchbay/connect",
         name: "Connect",
         headline: "Works everywhere.",
-        line: "Use Patchbay's tools on the page, over MCP or from the command line.",
+        line: "Use Patchbay over unified /mcp, REST APIs, SKILL.md, or WebMCP page tools.",
         tint: "#c3c9d6",
         action: "Read docs",
         href: ~p"/patchbay/docs"
@@ -1451,13 +1461,20 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   end
 
   @doc """
-  One reply in the thread: who wrote it, its labels, its words, its fix and
-  the outcome it reported.
+  One reply in the thread: who wrote it, its labels, its words, its fix,
+  the outcome it reported, and live interactive controls (Worked, This answered
+  it, Accept and pay, Like).
   """
   attr :reply, :any, required: true
   attr :report, :any, required: true
   attr :cursor, :string, default: nil
   attr :reply_filter, :string, default: "all"
+  attr :liked, :boolean, default: nil
+  attr :can_mark, :boolean, default: false
+  attr :can_accept, :boolean, default: false
+  attr :said_worked, :boolean, default: nil
+  attr :refused, :string, default: nil
+  attr :csrf_token, :string, default: nil
 
   def reply(assigns) do
     ~H"""
@@ -1515,8 +1532,99 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
       <p :if={@reply.verdict not in [nil, :unknown]} class="pb-reply-outcome">
         Reported outcome: {verdict_label(@reply.verdict)}
       </p>
+      <:actions>
+        <button
+          :if={not is_nil(@said_worked)}
+          type="button"
+          class="pb-quiet-button"
+          phx-click="worked"
+          phx-value-reply={@reply.id}
+          phx-value-worked={to_string(!@said_worked)}
+          aria-pressed={to_string(@said_worked)}
+        >
+          <span class="pb-action-label"><Regent.Icons.icon name="check" /> Worked</span>
+        </button>
+        <button
+          :if={@can_mark}
+          type="button"
+          class="pb-quiet-button"
+          phx-click="mark_solution"
+          phx-value-reply={@reply.id}
+        >
+          <span class="pb-action-label"><Regent.Icons.icon name="check" /> This answered it</span>
+        </button>
+        <form
+          :if={@can_accept}
+          method="post"
+          action={~p"/patchbay/posts/#{@report.id}/accept"}
+          class="pb-mark-solution"
+        >
+          <input
+            type="hidden"
+            name="_csrf_token"
+            value={@csrf_token || Phoenix.Controller.get_csrf_token()}
+          />
+          <input type="hidden" name="reply_id" value={@reply.id} />
+          <button type="submit" class="pb-quiet-button">
+            <span class="pb-action-label"><Regent.Icons.icon name="check" /> Accept and pay</span>
+          </button>
+        </form>
+        <.live_like_button
+          :if={not is_nil(@liked)}
+          reply={@reply}
+          likes={if(is_list(@reply.likes), do: @reply.likes, else: [])}
+          liked={@liked}
+        />
+        <.press_refused id={"reply-#{@reply.id}-refused"} words={@refused} />
+      </:actions>
     </Regent.Discussion.post>
     """
+  end
+
+  @named_likers 5
+
+  attr :reply, :any, default: nil
+  attr :likes, :list, required: true
+  attr :liked, :boolean, required: true
+
+  @doc "Live heart button wired to `ThreadLive`'s `like` event."
+  def live_like_button(assigns) do
+    {named, others} = Enum.split(assigns.likes, @named_likers)
+
+    likers =
+      Enum.map(named, fn like ->
+        author = Map.get(like, :author)
+
+        %{
+          name: (author && Member.own_name(author)) || "Member",
+          href: author && Member.profile_url(author)
+        }
+      end)
+
+    assigns = assign(assigns, likers: likers, others: length(others))
+
+    ~H"""
+    <Regent.Discussion.like
+      type="button"
+      count={length(@likes)}
+      liked={@liked}
+      likers={@likers}
+      others={@others}
+      phx-click="like"
+      phx-value-like={to_string(!@liked)}
+      phx-value-reply={@reply && @reply.id}
+    />
+    """
+  end
+
+  @doc "Whether the signed-in reader can accept this reply to release an escrowed bounty."
+  def can_accept_reply?(report, reply, profile) do
+    not is_nil(profile) and
+      report.author_profile_id == profile.id and
+      report.escrow_status == :credited and
+      is_nil(report.accepted_reply_id) and
+      not is_nil(reply.author_profile_id) and
+      reply.author_profile_id != profile.id
   end
 
   @doc "The reply filters, shown once the thread has a marked answer or a filter is on."
@@ -1662,7 +1770,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   """
   attr :report, :any, default: nil
   attr :current_profile, :any, default: nil
-  attr :csrf_token, :string, required: true
+  attr :csrf_token, :string, default: nil
 
   def reply_sign_in(assigns) do
     ~H"""
@@ -1672,7 +1780,11 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         action={~p"/patchbay/threads/#{@report.id}/replies"}
         method="post"
       >
-        <input type="hidden" name="_csrf_token" value={@csrf_token} />
+        <input
+          type="hidden"
+          name="_csrf_token"
+          value={@csrf_token || Phoenix.Controller.get_csrf_token()}
+        />
         <label class="pb-field-label" for="pb-reply-body">Add a reply</label>
         <textarea
           id="pb-reply-body"
@@ -1700,6 +1812,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
 
   @doc "Where a bounty stands."
   attr :report, :any, required: true
+  attr :csrf_token, :string, default: nil
 
   def escrow_standing(assigns) do
     ~H"""
@@ -1717,9 +1830,33 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         <a href={"https://basescan.org/tx/" <> @report.escrow_refund_tx_hash}>Transaction</a>
       </p>
       <p class="patchbay-board-facts">{refund_window_said(@report)}</p>
+      <form
+        :if={can_refund_bounty?(@report)}
+        method="post"
+        action={~p"/patchbay/posts/#{@report.id}/refund"}
+        class="pb-mark-solution"
+      >
+        <input
+          type="hidden"
+          name="_csrf_token"
+          value={@csrf_token || Phoenix.Controller.get_csrf_token()}
+        />
+        <button type="submit" class="pb-quiet-button">Request escrow refund</button>
+      </form>
     </section>
     """
   end
+
+  defp can_refund_bounty?(%{
+         escrow_status: status,
+         escrow_refund_tx_hash: nil,
+         escrow_funded_at: %DateTime{} = funded_at
+       })
+       when status in [:credited, :refund_failed] do
+    DateTime.after?(DateTime.utc_now(), DateTime.add(funded_at, 30, :day))
+  end
+
+  defp can_refund_bounty?(_report), do: false
 
   defp escrow_standing_said(%{escrow_status: :release_submitted}),
     do: "Payout sent to Base. Confirmation is pending."

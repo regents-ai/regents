@@ -36,8 +36,13 @@ defmodule Regents.Patchbay.Incidents.CveNow do
 
   require Logger
 
-  # How often the job runs: the cron line in config/config.exs.
-  @every_seconds 60 * 60
+  # How often the job runs: every 15 minutes in config/config.exs.
+  @every_seconds 15 * 60
+  @topic "patchbay:criticals"
+
+  @doc "PubSub topic notified whenever a critical CVE mirror is created or refreshed."
+  @spec topic() :: String.t()
+  def topic, do: @topic
 
   @impl Oban.Worker
   def perform(%Oban.Job{} = job) do
@@ -104,8 +109,12 @@ defmodule Regents.Patchbay.Incidents.CveNow do
 
   defp write({:ok, %{id: id} = copy}, %{id: id}, post) do
     case save(copy, post) do
-      {:ok, _post} -> :ok
-      {:error, %type{}} -> passed_over(id, type)
+      {:ok, saved} ->
+        Phoenix.PubSub.broadcast(Regents.PubSub, @topic, {:cve_updated, saved.cve_now_id})
+        :ok
+
+      {:error, %type{}} ->
+        passed_over(id, type)
     end
   end
 

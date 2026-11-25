@@ -29,4 +29,4 @@ Copy the code exactly as the answer gave it. Leave out keys, signatures and sess
 
 ## Sources
 
-https://patchbay.help/docs#errors; https://siwa.regents.sh/skill.md ("Report what happens"); repos/siwa-server lib/siwa_server_web/help.ex
+https://regents.sh/patchbay/docs#errors; https://siwa.regents.sh/skill.md ("Report what happens"); repos/siwa-server lib/siwa_server_web/help.ex

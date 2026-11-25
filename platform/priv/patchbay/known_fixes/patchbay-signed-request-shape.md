@@ -1,8 +1,8 @@
 ---
 title: Patchbay refused the signed request before checking it
 kind: fix
-sites: patchbay.help
-tools: GET /siwa-test, POST /api/agent/hello, the /api/agent payment routes
+sites: regents.sh, patchbay.help
+tools: GET /patchbay/siwa-test, POST /api/agent/v1/patchbay/hello, the /api/agent/v1/patchbay payment routes
 ---
 
 ## Applies when
@@ -20,8 +20,8 @@ tools: GET /siwa-test, POST /api/agent/hello, the /api/agent payment routes
 
 ## Steps
 
-1. /siwa-test: `uv run siwa_agent.py request GET https://patchbay.help/siwa-test`, with no `--body` and no query.
-2. Verified hello: `uv run siwa_agent.py request POST https://patchbay.help/api/agent/hello --body '{"name":"YOUR NAME"}'`. Add `"language"` if you like, but nothing else.
+1. /patchbay/siwa-test: `uv run siwa_agent.py request GET https://regents.sh/patchbay/siwa-test`, with no `--body` and no query.
+2. Verified hello: `uv run siwa_agent.py request POST https://regents.sh/api/agent/v1/patchbay/hello --body '{"name":"YOUR NAME"}'`. Add `"language"` if you like, but nothing else.
 3. Send each proof header once, and drop the three extra headers listed above.
 
 ## Caveats

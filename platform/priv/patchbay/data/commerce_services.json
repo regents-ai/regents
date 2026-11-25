@@ -1,0 +1,421 @@
+{
+  "updated_at": "2026-11-24",
+  "services": [
+    {
+      "slug": "cve-now",
+      "name": "cve.now",
+      "domain": "cve.now",
+      "category": "security",
+      "verified": true,
+      "featured_rank": 1,
+      "protocols": ["mcp", "llms_txt"],
+      "rails": ["free"],
+      "avg_price": "Free",
+      "summary": "Real-time deduplicated critical CVE & CISA KEV vulnerability feed with native MCP and JSON APIs, mirrored live on Patchbay.",
+      "probe_url": "https://cve.now/api/v1/status",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/entries?filter=critical,kev",
+          "protocol": "http_json",
+          "price": "Free",
+          "network": "public",
+          "description": "List newest active critical & CISA KEV vulnerabilities with CVSS, EPSS, and fix status."
+        },
+        {
+          "method": "POST",
+          "path": "https://mcp.cve.now/mcp",
+          "protocol": "mcp",
+          "price": "Free",
+          "network": "public",
+          "description": "Hosted MCP server exposing search, execute, and check_stack vulnerability tools."
+        }
+      ]
+    },
+    {
+      "slug": "patchbay-sandboxes",
+      "name": "Patchbay Payment Sandboxes",
+      "domain": "regents.sh",
+      "category": "payments",
+      "verified": true,
+      "featured_rank": 2,
+      "protocols": ["x402", "mpp", "siwa", "mcp"],
+      "rails": ["base:usdc", "tempo:usdc_e"],
+      "avg_price": "$0.01",
+      "summary": "Official live HTTP 402 test endpoints for x402 v2 (Base USDC), MPP (Tempo USDC.e charge & session), and SIWA agent auth.",
+      "probe_url": "https://regents.sh/patchbay/bench/mpp-test",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/patchbay/bench/x402-test",
+          "protocol": "x402",
+          "price": "$0.01 USDC",
+          "network": "eip155:8453",
+          "description": "Live x402 v2 exact EVM paid-call test settled on Base mainnet."
+        },
+        {
+          "method": "GET",
+          "path": "/patchbay/bench/mpp-test",
+          "protocol": "mpp",
+          "price": "$0.01 USDC.e",
+          "network": "eip155:4217",
+          "description": "Live MPP Tempo challenge sandbox supporting charge and ?intent=session flows."
+        },
+        {
+          "method": "GET",
+          "path": "/patchbay/siwa-test",
+          "protocol": "siwa",
+          "price": "Free",
+          "network": "eip155:8453",
+          "description": "Read-only SIWA signature verification probe for paired agents."
+        }
+      ]
+    },
+    {
+      "slug": "exa",
+      "name": "Exa",
+      "domain": "exa.ai",
+      "category": "search",
+      "verified": true,
+      "featured_rank": 3,
+      "protocols": ["x402", "mcp"],
+      "rails": ["base:usdc"],
+      "avg_price": "$0.004",
+      "summary": "Neural web search and structured page content retrieval for autonomous agents via x402 pay-per-request.",
+      "probe_url": "https://api.exa.ai/search",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/search",
+          "protocol": "x402",
+          "price": "$0.005",
+          "network": "eip155:8453",
+          "description": "Semantic web search returning ranked URLs and snippets without API keys."
+        },
+        {
+          "method": "POST",
+          "path": "/contents",
+          "protocol": "x402",
+          "price": "$0.001",
+          "network": "eip155:8453",
+          "description": "Extract clean text and highlights from target URLs."
+        }
+      ]
+    },
+    {
+      "slug": "tempo-mpp",
+      "name": "Tempo / MPP Network",
+      "domain": "tempo.xyz",
+      "category": "payments",
+      "verified": true,
+      "featured_rank": 4,
+      "protocols": ["mpp", "mcp"],
+      "rails": ["tempo:usdc_e", "tempo:pathusd", "stripe:link"],
+      "avg_price": "Session",
+      "summary": "High-throughput stablecoin settlement L1 and Machine Payments Protocol (MPP) supporting streaming off-chain vouchers and multi-rail HTTP 402.",
+      "probe_url": "https://mpp.dev/services",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/services",
+          "protocol": "mpp",
+          "price": "Free",
+          "network": "eip155:4217",
+          "description": "Public MPP service catalog and OpenAPI payment-offer discovery registry."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/sessions",
+          "protocol": "mpp",
+          "price": "Metered",
+          "network": "eip155:4217",
+          "description": "Pre-authorized off-chain voucher channel for sub-cent high-frequency agent calls."
+        }
+      ]
+    },
+    {
+      "slug": "boundless-tempo",
+      "name": "Boundless Inference",
+      "domain": "boundless.sh",
+      "category": "inference",
+      "verified": true,
+      "featured_rank": 5,
+      "protocols": ["mpp"],
+      "rails": ["tempo:usdc_e"],
+      "avg_price": "$0.002",
+      "summary": "Pay-per-request LLM token inference settled with USDC.e on Tempo via Machine Payments Protocol (MPP) sessions.",
+      "probe_url": "https://boundless.sh",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/chat/completions",
+          "protocol": "mpp",
+          "price": "Metered USDC.e",
+          "network": "eip155:4217",
+          "description": "OpenAI-compatible inference gated by WWW-Authenticate: Payment on Tempo."
+        }
+      ]
+    },
+    {
+      "slug": "venice-ai",
+      "name": "Venice AI",
+      "domain": "venice.ai",
+      "category": "inference",
+      "verified": true,
+      "featured_rank": 6,
+      "protocols": ["x402"],
+      "rails": ["base:usdc"],
+      "avg_price": "$0.003",
+      "summary": "Private and TEE-backed model inference accessible directly from agent wallets via Base USDC x402.",
+      "probe_url": "https://api.venice.ai/api/v1/chat/completions",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/chat/completions",
+          "protocol": "x402",
+          "price": "upto $0.10",
+          "network": "eip155:8453",
+          "description": "Private LLM completions billed per token with x402 USDC on Base."
+        }
+      ]
+    },
+    {
+      "slug": "coinbase-cdp-x402",
+      "name": "Coinbase CDP x402 & Bazaar",
+      "domain": "coinbase.com",
+      "category": "payments",
+      "verified": true,
+      "featured_rank": 7,
+      "protocols": ["x402", "mcp"],
+      "rails": ["base:usdc", "solana:usdc"],
+      "avg_price": "Facilitator",
+      "summary": "Reference x402 v2 verification/settlement facilitator, Bazaar endpoint discovery index, and Agentic Market directory.",
+      "probe_url": "https://api.agentic.market/v1/services",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/services",
+          "protocol": "x402",
+          "price": "Free",
+          "network": "eip155:8453",
+          "description": "Bazaar / Agentic Market discovery endpoint listing indexed x402 APIs."
+        },
+        {
+          "method": "POST",
+          "path": "/platform/v2/x402/settle",
+          "protocol": "x402",
+          "price": "Gasless",
+          "network": "eip155:8453",
+          "description": "Verify and settle EIP-3009 USDC transfer authorizations on Base and Solana."
+        }
+      ]
+    },
+    {
+      "slug": "stripe-mpp-link",
+      "name": "Stripe MPP & Link Agent Wallet",
+      "domain": "stripe.com",
+      "category": "payments",
+      "verified": true,
+      "featured_rank": 8,
+      "protocols": ["mpp", "x402"],
+      "rails": ["stripe:link", "tempo:usdc_e", "base:usdc"],
+      "avg_price": "$0.50 min card",
+      "summary": "Shared Payment Tokens (SPT), Link agent spending limits, and co-authored Machine Payments Protocol multi-rail checkout.",
+      "probe_url": "https://docs.stripe.com/payments/machine/mpp",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payment_intents",
+          "protocol": "mpp",
+          "price": "2.9% + $0.30",
+          "network": "stripe:spt",
+          "description": "Settle agent-issued Shared Payment Tokens behind HTTP 402 MPP challenges."
+        }
+      ]
+    },
+    {
+      "slug": "alchemy",
+      "name": "Alchemy",
+      "domain": "alchemy.com",
+      "category": "infra",
+      "verified": true,
+      "featured_rank": 9,
+      "protocols": ["x402", "mpp"],
+      "rails": ["base:usdc", "tempo:usdc_e"],
+      "avg_price": "$0.001",
+      "summary": "Pay-per-request EVM & Base JSON-RPC, token balances, and transaction simulation for autonomous onchain agents.",
+      "probe_url": "https://alchemy.com",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v2/rpc",
+          "protocol": "x402",
+          "price": "$0.001",
+          "network": "eip155:8453",
+          "description": "Metered blockchain RPC access with zero pre-provisioned API key."
+        }
+      ]
+    },
+    {
+      "slug": "the-graph",
+      "name": "The Graph",
+      "domain": "thegraph.com",
+      "category": "data",
+      "verified": true,
+      "featured_rank": 10,
+      "protocols": ["x402"],
+      "rails": ["base:usdc"],
+      "avg_price": "$0.002",
+      "summary": "Indexed onchain subgraphs and DeFi analytics queryable by agents over x402.",
+      "probe_url": "https://thegraph.com",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/subgraphs/query",
+          "protocol": "x402",
+          "price": "$0.002",
+          "network": "eip155:8453",
+          "description": "Execute GraphQL queries against indexed protocol subgraphs."
+        }
+      ]
+    },
+    {
+      "slug": "perplexity",
+      "name": "Perplexity",
+      "domain": "perplexity.ai",
+      "category": "search",
+      "verified": true,
+      "featured_rank": 11,
+      "protocols": ["x402", "mpp"],
+      "rails": ["base:usdc", "tempo:usdc_e"],
+      "avg_price": "$0.005",
+      "summary": "Citation-grounded real-time web research APIs accessible to autonomous agents over HTTP 402.",
+      "probe_url": "https://api.perplexity.ai",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/chat/completions",
+          "protocol": "x402",
+          "price": "$0.005",
+          "network": "eip155:8453",
+          "description": "Grounded Sonar research completions with source URLs."
+        }
+      ]
+    },
+    {
+      "slug": "deepgram",
+      "name": "Deepgram",
+      "domain": "deepgram.com",
+      "category": "media",
+      "verified": true,
+      "featured_rank": 12,
+      "protocols": ["x402"],
+      "rails": ["base:usdc"],
+      "avg_price": "$0.004",
+      "summary": "Low-latency speech-to-text and audio intelligence billed per request via x402.",
+      "probe_url": "https://api.deepgram.com",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/listen",
+          "protocol": "x402",
+          "price": "$0.004",
+          "network": "eip155:8453",
+          "description": "Transcribe audio streams and recordings without account setup."
+        }
+      ]
+    },
+    {
+      "slug": "coinmarketcap",
+      "name": "CoinMarketCap",
+      "domain": "coinmarketcap.com",
+      "category": "data",
+      "verified": true,
+      "featured_rank": 13,
+      "protocols": ["x402"],
+      "rails": ["base:usdc"],
+      "avg_price": "$0.002",
+      "summary": "Market quotes, liquidity depth, and token metadata for trading and treasury agents.",
+      "probe_url": "https://pro-api.coinmarketcap.com",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v2/cryptocurrency/quotes/latest",
+          "protocol": "x402",
+          "price": "$0.002",
+          "network": "eip155:8453",
+          "description": "Fetch live spot quotes and volume metrics per symbol."
+        }
+      ]
+    },
+    {
+      "slug": "firecrawl",
+      "name": "Firecrawl",
+      "domain": "firecrawl.dev",
+      "category": "data",
+      "verified": true,
+      "featured_rank": 14,
+      "protocols": ["x402", "mpp", "mcp"],
+      "rails": ["base:usdc", "tempo:usdc_e"],
+      "avg_price": "$0.003",
+      "summary": "Clean Markdown scraping, crawling, and structured extraction built for autonomous web agents.",
+      "probe_url": "https://api.firecrawl.dev",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/scrape",
+          "protocol": "x402",
+          "price": "$0.003",
+          "network": "eip155:8453",
+          "description": "Turn any JS-rendered webpage into LLM-ready Markdown or JSON."
+        }
+      ]
+    },
+    {
+      "slug": "shopify",
+      "name": "Shopify",
+      "domain": "shopify.com",
+      "category": "commerce",
+      "verified": true,
+      "featured_rank": 15,
+      "protocols": ["webmcp", "mcp"],
+      "rails": ["stripe:link"],
+      "avg_price": "Storefront",
+      "summary": "Browser-native WebMCP storefront tools (catalog search, variants, cart) for shopping agents.",
+      "probe_url": "https://shopify.dev/docs/api/web-mcp",
+      "endpoints": [
+        {
+          "method": "TOOL",
+          "path": "search_catalog / get_cart / update_cart",
+          "protocol": "webmcp",
+          "price": "Free",
+          "network": "browser",
+          "description": "Official Shopify WebMCP storefront tools for product discovery and cart checkout."
+        }
+      ]
+    },
+    {
+      "slug": "cloudflare",
+      "name": "Cloudflare",
+      "domain": "cloudflare.com",
+      "category": "infra",
+      "verified": true,
+      "featured_rank": 16,
+      "protocols": ["x402", "mpp", "mcp"],
+      "rails": ["base:usdc", "tempo:usdc_e"],
+      "avg_price": "$0.001",
+      "summary": "Edge workers, dual x402/MPP payment middleware, and pay-per-crawl HTTP 402 edge enforcement.",
+      "probe_url": "https://developers.cloudflare.com",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/workers/x402-mpp-edge",
+          "protocol": "mpp",
+          "price": "$0.001",
+          "network": "multi-rail",
+          "description": "Edge 402 gateway supporting both x402 v2 and MPP challenge headers."
+        }
+      ]
+    }
+  ]
+}

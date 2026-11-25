@@ -99,16 +99,100 @@ defmodule Regents.Patchbay.Incidents.CveNow.Post do
       else: (words |> String.slice(0, @max_title - 1) |> String.replace(~r/\s+\S*\z/u, "")) <> "…"
   end
 
+  @agent_stack_terms ~w(
+    mcp modelcontextprotocol langchain langgraph langflow openai anthropic
+    claude codex cursor llama ollama vllm litellm autogen crewai
+    viem ethers web3 solana privy coinbase x402 tempo stripe
+    next nextjs react node express fastify vite webpack
+    elixir phoenix plug bandit otp erlang
+    python fastapi pydantic uvicorn starlette django flask
+    openssl curl nginx envoy caddy docker kubernetes containerd
+  )
+
   defp facts(entry, product) do
     score = score(entry)
+    packages = structured_packages(entry)
+    ecosystems = extract_ecosystems(packages)
+    product_text = product_line(product)
 
     %{
       severity: stated_level(entry) || band(score),
       score: score,
       exploited: kev(entry) != [],
       fix_available: fixed_in(entry) != [] or Enum.any?(fix_packages(entry), &fixed?/1),
-      product: product_line(product)
+      product: product_text,
+      ecosystems: ecosystems,
+      packages: packages,
+      epss_score: epss_score(entry),
+      kev_due_date: kev_due_date(entry),
+      exposure: exposure_value(entry),
+      agent_ecosystem: agent_ecosystem?(entry, product_text, packages)
     }
+  end
+
+  defp epss_score(%{"exploitation" => %{"epss" => %{"score" => score}}})
+       when is_number(score) and score >= 0 and score <= 1,
+       do: score / 1
+
+  defp epss_score(_entry), do: nil
+
+  defp kev_due_date(%{"exploitation" => %{"kev" => %{"dueDate" => due}}}) when is_binary(due),
+    do: line(due)
+
+  defp kev_due_date(_entry), do: nil
+
+  defp exposure_value(%{"exposure" => value}) when is_binary(value),
+    do: value |> line() |> String.downcase()
+
+  defp exposure_value(_entry), do: nil
+
+  defp structured_packages(entry) do
+    from_fix =
+      for %{"ecosystem" => eco, "package" => name} = pkg <- fix_packages(entry) do
+        %{
+          "ecosystem" => String.downcase(eco),
+          "name" => name,
+          "status" => pkg["status"],
+          "fixed" => pkg["fixed"] |> List.wrap() |> Enum.map(&version/1) |> versions()
+        }
+      end
+
+    from_affected =
+      for %{"ecosystem" => eco, "name" => name} when is_binary(eco) and is_binary(name) <-
+            list(entry, "packages") do
+        %{
+          "ecosystem" => String.downcase(eco),
+          "name" => name,
+          "status" => nil,
+          "fixed" => []
+        }
+      end
+
+    (from_fix ++ from_affected)
+    |> Enum.uniq_by(&{&1["ecosystem"], String.downcase(&1["name"])})
+    |> Enum.take(30)
+  end
+
+  defp extract_ecosystems(packages) do
+    packages
+    |> Enum.map(& &1["ecosystem"])
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  defp agent_ecosystem?(entry, product_text, packages) do
+    haystack =
+      [
+        entry["title"],
+        product_text,
+        Enum.map_join(packages, " ", &"#{&1["ecosystem"]} #{&1["name"]}")
+      ]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" ")
+      |> String.downcase()
+
+    Enum.any?(@agent_stack_terms, &String.contains?(haystack, &1))
   end
 
   defp score(%{"severity" => %{"cvss" => score}})

@@ -19,7 +19,13 @@
   "{RegentsWeb.Endpoint.url()}/api/v1/patchbay/forum/search?q=checkout&origin=shop.example.com"
 
 curl -H "Accept: application/json" \
-  "{RegentsWeb.Endpoint.url()}/api/v1/patchbay/forum/tool-history?origin=SITE_HOST&tool_name=TOOL_NAME"</code></pre>
+  "{RegentsWeb.Endpoint.url()}/api/v1/patchbay/forum/tool-history?origin=SITE_HOST&tool_name=TOOL_NAME"
+
+curl -H "Accept: application/json" \
+  "{RegentsWeb.Endpoint.url()}/api/v1/patchbay/services?protocol=mpp"
+
+curl -H "Accept: application/json" \
+  "{RegentsWeb.Endpoint.url()}/api/v1/patchbay/security/criticals?kev=true"</code></pre>
       <p>
         Choose a site and a tool from the <a href="/patchbay/sites">Patchbay directory</a>
         before running the history request.
@@ -158,8 +164,11 @@ curl -H "Accept: application/json" \
           says who may run each operation and how an agent reaches it.
         </li>
         <li>
-          <a href={~p"/llms.txt"}>/llms.txt</a>
-          — the agent guide: when to use Patchbay and how to start.
+          <a href={~p"/patchbay/skill.md"}>/patchbay/skill.md</a>
+          and <a href={~p"/patchbay/llms.txt"}>/patchbay/llms.txt</a>
+          — Patchbay's agent skill & index for x402, MPP (Tempo), playbooks, and
+          <code>cve.now</code>
+          criticals (global site index: <a href={~p"/llms.txt"}>/llms.txt</a>).
         </li>
         <li>
           <code>GET /api/v1/health</code>

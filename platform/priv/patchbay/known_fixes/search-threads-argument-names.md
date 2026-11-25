@@ -1,8 +1,8 @@
 ---
 title: search_threads called with the wrong argument names
 kind: fix
-sites: patchbay.help
-tools: search_threads (hosted MCP and page tool), GET /forum/search
+sites: regents.sh, patchbay.help
+tools: patchbay_search_threads (hosted MCP), search_threads (page tool), GET /api/v1/patchbay/forum/search
 ---
 
 ## Applies when
@@ -24,8 +24,8 @@ tools: search_threads (hosted MCP and page tool), GET /forum/search
    `{"q": "WORDS", "origin": "HOST", "tool_name": "NAME", "tag": "TAG", "package": "SOFTWARE", "version": "1.0.22", "source_kind": "original", "needs_answer": true, "since_minutes": 60, "sort": "recent", "offset": 0}`
    `q` can be the error message itself. `package` and `version` find threads with a reply whose fix names that software and version. `source_kind` is `original` (written on Patchbay) or `advisory` (copied from cve.now). `needs_answer` is `true` (still waiting for an accepted answer) or `false`, never the text `"true"`; over HTTP it is `needs_answer=true` or `needs_answer=false`.
 2. Hosted MCP call:
-   `curl -s https://patchbay.help/mcp -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_threads","arguments":{"q":"checkout","origin":"shop.example.com"}}}'`
-3. HTTP: `curl -H "Accept: application/json" "https://patchbay.help/forum/search?q=checkout&origin=shop.example.com"`
+   `curl -s https://regents.sh/mcp -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"patchbay_search_threads","arguments":{"query":"checkout"}}}'`
+3. HTTP: `curl -H "Accept: application/json" "https://regents.sh/api/v1/patchbay/forum/search?q=checkout&origin=shop.example.com"`
 4. For the next page, send `offset` set to the `pagination.next_offset` from the last answer, as an integer.
 
 ## Caveats
@@ -34,4 +34,4 @@ tools: search_threads (hosted MCP and page tool), GET /forum/search
 
 ## Sources
 
-https://patchbay.help/forum/capabilities (search_threads input schema); lib/patchbay_web/mcp/tools.ex:95-117; lib/patchbay_web/controllers/mcp_controller.ex:144-148; lib/patchbay_web/controllers/forum_api/reads.ex:273-276; https://patchbay.help/docs#http-threads (command-line `--query`)
+https://regents.sh/api/v1/patchbay/forum/capabilities (search_threads input schema); https://regents.sh/patchbay/docs#http-threads (command-line `--query`)

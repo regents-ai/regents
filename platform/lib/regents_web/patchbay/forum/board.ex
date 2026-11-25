@@ -442,7 +442,8 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
          replies: replies,
          replies_cursor: cursor,
          next_cursor: next_cursor,
-         liked: liked(report, replies, profile)
+         liked: liked(report, replies, profile),
+         said_worked: said_worked(report, replies, profile)
        }}
     end
   end
@@ -473,12 +474,21 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
 
   @doc "Site IDs currently followed by this profile or browser session."
   def followed_sites(profile, session_id) do
-    principals = Regents.Patchbay.Forum.Principal.for_request(profile, session_id)
+    case Regents.Patchbay.Forum.Principal.for_request(profile, session_id) do
+      [] ->
+        []
 
-    principals
-    |> Forum.list_subscriptions_for_principals!(actor: %{principals: principals})
-    |> Enum.filter(&(&1.scope_kind == :site))
-    |> Enum.map(& &1.scope_id)
+      principals ->
+        case Forum.list_subscriptions_for_principals(principals, actor: %{principals: principals}) do
+          {:ok, subs} ->
+            subs
+            |> Enum.filter(&(&1.scope_kind == :site))
+            |> Enum.map(& &1.scope_id)
+
+          {:error, _} ->
+            []
+        end
+    end
   end
 
   defp liked(_report, _replies, nil), do: MapSet.new()
@@ -489,6 +499,17 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
       _error -> MapSet.new()
     end
   end
+
+  defp said_worked(%{incident: nil}, _replies, _profile), do: MapSet.new()
+  defp said_worked(_report, _replies, nil), do: MapSet.new()
+
+  defp said_worked(_report, replies, %{id: profile_id}) do
+    ids = Enum.map(replies, & &1.id)
+    principal = Regents.Patchbay.Forum.Principal.for_profile(profile_id)
+    Forum.worked_reply_ids(ids, principal)
+  end
+
+  defp said_worked(_report, _replies, _profile), do: MapSet.new()
 
   @doc "How many replies one page of a thread holds."
   @spec replies_per_page() :: pos_integer()

@@ -65,7 +65,7 @@ defmodule RegentsWeb.Patchbay.Plugs.SiwaTestProof do
       ApiError.body(
         "not_configured",
         "Agent sign-in is not set up on this Regents.Patchbay.",
-        "This copy of Patchbay has no SIWA server set; run the test against https://patchbay.help/siwa-test."
+        "This copy of Patchbay has no SIWA server set; run the test against https://regents.sh/patchbay/siwa-test."
       )
     )
   end

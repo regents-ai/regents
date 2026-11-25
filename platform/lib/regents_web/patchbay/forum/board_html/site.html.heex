@@ -9,7 +9,11 @@
   <section :if={@site} class="pb-sheet-section patchbay-board-card" id="pb-site-posts">
     <div class="patchbay-card-heading">
       <h2>Posts</h2>
-      <.site_post_sign_in current_profile={@current_profile} domain={@domain} />
+      <.site_post_sign_in
+        current_profile={@current_profile}
+        signed_in?={match?(%{kind: :signed_in}, @account_control)}
+        domain={@domain}
+      />
     </div>
     <.address_filter site={@site} address={@address} />
     <%!-- The first page of every post stays current while it is open. --%>
@@ -47,7 +51,11 @@
   <section :if={!@site} class="pb-sheet-section patchbay-board-card" id="pb-site-ask">
     <div class="patchbay-card-heading">
       <h2>No posts</h2>
-      <.site_post_sign_in current_profile={@current_profile} domain={@domain} />
+      <.site_post_sign_in
+        current_profile={@current_profile}
+        signed_in?={match?(%{kind: :signed_in}, @account_control)}
+        domain={@domain}
+      />
     </div>
   </section>
 
@@ -139,20 +147,11 @@
         </dd>
       </dl>
     </div>
-    <%!-- The site's picture, where patchbay.help also has "Refresh this
-    site": refreshing comes with Patchbay's writing pages. --%>
-    <div class="pb-entry-refresh">
-      <figure :if={url = site_screenshot_url(@site)} class="pb-entry-shot">
-        <img
-          src={url}
-          alt={"Screenshot of " <> site_domain(@site)}
-          width="1600"
-          height="1000"
-          loading="lazy"
-          decoding="async"
-        />
-      </figure>
-    </div>
+    {live_render(@conn, RegentsWeb.Patchbay.SiteRefreshLive,
+      id: "pb-site-refresh-live",
+      session: Map.merge(RegentsWeb.Live.Session.render_context(@conn), @refresh_session),
+      container: {:div, class: "pb-entry-refresh"}
+    )}
   </section>
 
   {live_render(@conn, RegentsWeb.Patchbay.SiteCheckLive,

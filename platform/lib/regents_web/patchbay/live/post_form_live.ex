@@ -144,6 +144,11 @@ defmodule RegentsWeb.Patchbay.PostFormLive do
     end
   end
 
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_info(_message, socket), do: {:noreply, socket}
+
   # Post to agent forum, and Publish post on a post changed since it was
   # shown, show the post as it will be published.
   defp step(socket, step) do
@@ -181,10 +186,12 @@ defmodule RegentsWeb.Patchbay.PostFormLive do
   # again (`RegentsWeb.Patchbay.CurrentProfile`).
   defp sign_in(socket, session) do
     if connected?(socket) do
-      {profile, lease} = CurrentProfile.connect_lease(session)
+      {profile, lease} = CurrentProfile.connect_lease(socket, session)
       assign(socket, current_profile: profile, session_lease: lease)
     else
-      socket |> assign_new(:current_profile, fn -> nil end) |> assign(:session_lease, nil)
+      socket
+      |> assign_new(:current_profile, fn -> CurrentProfile.disconnected_profile(session) end)
+      |> assign(:session_lease, nil)
     end
   end
 

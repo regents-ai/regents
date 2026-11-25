@@ -1,19 +1,31 @@
 defmodule RegentsWeb.Patchbay.CurrentProfile do
   @moduledoc """
-  Bridges Regents' signed-in `HumanAccount` session (`SessionAuthority`) to
-  Patchbay's `Regents.Patchbay.Members.Member` profile for Patchbay LiveViews
-  and controllers.
+  Bridges Regents' signed-in `HumanAccount` session (`SessionAuthority` /
+  `RegentsWeb.Live.Session`) to Patchbay's `Regents.Patchbay.Members.Member`
+  profile for Patchbay LiveViews and controllers.
+
+  When mounted after `{RegentsWeb.Live.Session, :load_human}` inside a router
+  `live_session`, this hook resolves `:current_profile` from the session's
+  already-verified `:access_context` on both disconnected SSR and connected
+  mounts, and keeps `:current_profile` synchronized without clobbering
+  `Live.Session`'s `:session_lease` or `:signed_out_reason`.
+
+  When mounted standalone (for `live_render` child LiveViews such as
+  `AgentMessageLive` or `ModerationLive`), it resolves the session on SSR and
+  verifies the live WebSocket handshake cookie on connect.
   """
 
-  import Phoenix.Component, only: [assign: 2, assign: 3, assign_new: 3]
-  import Phoenix.LiveView, only: [attach_hook: 4, connected?: 1, redirect: 2]
+  import Phoenix.Component, only: [assign: 2, assign: 3]
+  import Phoenix.LiveView, only: [attach_hook: 4, connected?: 1, get_connect_info: 2, redirect: 2]
 
+  alias Regents.Account.AccessContext
   alias Regents.Account.Accounts.SessionAuthority
   alias Regents.Patchbay.Members
   alias Regents.Patchbay.Members.Member
   alias RegentsWeb.VisitLog
 
-  @public_root "/patchbay/forum"
+  @public_root "/patchbay/app"
+  @wallet_pattern ~r/\A0x[0-9a-f]{40}\z/
 
   def render_context(conn) do
     conn
@@ -23,15 +35,30 @@ defmodule RegentsWeb.Patchbay.CurrentProfile do
   end
 
   def on_mount(mode, _params, session, socket) when mode in [:default, :account] do
-    if connected?(socket) do
-      connected(socket, session, lapsed(mode))
+    if Map.has_key?(socket.assigns, :access_context) do
+      mount_from_session_assigns(socket)
     else
-      {:cont,
-       socket
-       |> assign_new(:current_profile, fn -> nil end)
-       |> assign_new(:signed_out_reason, fn -> :signed_out end)
-       |> assign(:session_lease, nil)}
+      mount_standalone(socket, session, mode)
     end
+  end
+
+  @doc "Resolves the Patchbay member from a disconnected render session without writing a lease."
+  @spec disconnected_profile(map()) :: Member.t() | nil
+  def disconnected_profile(session) when is_map(session) do
+    case session |> SessionAuthority.claim() |> SessionAuthority.resolve() do
+      {_lineage, %{} = account} -> member_for_account(account)
+      _signed_out -> nil
+    end
+  rescue
+    _ -> nil
+  end
+
+  def disconnected_profile(_other), do: nil
+
+  @doc "Resolves profile and lease from a LiveView socket's handshake session (falling back to static session)."
+  def connect_lease(socket, session) do
+    handshake = get_connect_info(socket, :session) || session
+    connect_lease(handshake)
   end
 
   def connect_lease(session) do
@@ -45,6 +72,8 @@ defmodule RegentsWeb.Patchbay.CurrentProfile do
       _signed_out ->
         {nil, nil}
     end
+  rescue
+    _ -> {nil, nil}
   end
 
   def leased_profile(nil), do: nil
@@ -54,6 +83,8 @@ defmodule RegentsWeb.Patchbay.CurrentProfile do
       %{} = account -> member_for_account(account)
       nil -> nil
     end
+  rescue
+    _ -> nil
   end
 
   def leased_profile(_other), do: nil
@@ -64,18 +95,18 @@ defmodule RegentsWeb.Patchbay.CurrentProfile do
 
   def member_for_account(%{privy_user_id: privy_user_id} = account)
       when is_binary(privy_user_id) do
-    wallet = Map.get(account, :wallet_address)
-
     case Members.get_profile_by_privy_user_id(privy_user_id) do
       {:ok, %Member{} = member} ->
         attach_account_wallets(member, account)
 
       {:ok, nil} ->
-        provision_member(privy_user_id, wallet, account)
+        provision_member(privy_user_id, primary_wallet(account), account)
 
       _other ->
         nil
     end
+  rescue
+    _ -> nil
   end
 
   def member_for_account(_other), do: nil
@@ -96,9 +127,73 @@ defmodule RegentsWeb.Patchbay.CurrentProfile do
     end)
   end
 
-  defp provision_member(_privy_did, wallet, _account)
-       when not is_binary(wallet) or wallet == "",
-       do: nil
+  # Mounted after RegentsWeb.Live.Session: reuse its verified :access_context and
+  # :session_lease instead of creating a competing lease or wiping SSR auth state.
+  defp mount_from_session_assigns(socket) do
+    socket = sync_profile_from_access_context(socket)
+
+    if connected?(socket) do
+      {:cont,
+       socket
+       |> attach_hook(:current_profile_sync_event, :handle_event, fn _event, _params, socket ->
+         {:cont, sync_profile_from_access_context(socket)}
+       end)
+       |> attach_hook(:current_profile_sync_info, :handle_info, fn _message, socket ->
+         {:cont, sync_profile_from_access_context(socket)}
+       end)
+       |> attach_hook(:current_profile_sync_async, :handle_async, fn _name, _result, socket ->
+         {:cont, sync_profile_from_access_context(socket)}
+       end)
+       |> sync_navigation()}
+    else
+      {:cont, socket}
+    end
+  end
+
+  defp sync_navigation(%{router: nil} = socket), do: socket
+
+  defp sync_navigation(socket) do
+    attach_hook(socket, :current_profile_sync_params, :handle_params, fn _params, _uri, socket ->
+      {:cont, sync_profile_from_access_context(socket)}
+    end)
+  end
+
+  defp sync_profile_from_access_context(socket) do
+    profile =
+      case socket.assigns[:access_context] do
+        %AccessContext{principal: {:human, account}} -> member_for_account(account)
+        _anonymous -> nil
+      end
+
+    assign(socket, :current_profile, profile)
+  end
+
+  # Standalone embedded LiveViews (live_render children without Live.Session).
+  defp mount_standalone(socket, session, mode) do
+    if connected?(socket) do
+      handshake = get_connect_info(socket, :session) || session
+      connected_standalone(socket, session, handshake, lapsed(mode))
+    else
+      profile = disconnected_profile(session)
+
+      {:cont,
+       socket
+       |> assign(:current_profile, profile)
+       |> assign(:signed_out_reason, if(profile, do: nil, else: :signed_out))
+       |> assign(:session_lease, nil)}
+    end
+  end
+
+  defp primary_wallet(account) do
+    candidates =
+      [Map.get(account, :wallet_address) | List.wrap(Map.get(account, :wallet_addresses))]
+      |> Enum.filter(&is_binary/1)
+      |> Enum.map(&(&1 |> String.trim() |> String.downcase()))
+
+    Enum.find(candidates, &Regex.match?(@wallet_pattern, &1))
+  end
+
+  defp provision_member(_privy_did, nil, _account), do: nil
 
   defp provision_member(privy_did, wallet, account) do
     if Regents.read_only?() do
@@ -115,13 +210,22 @@ defmodule RegentsWeb.Patchbay.CurrentProfile do
   end
 
   defp attach_account_wallets(member, account) do
-    wallets = Map.get(account, :wallet_addresses) || List.wrap(account.wallet_address)
+    wallets =
+      (Map.get(account, :wallet_addresses) || List.wrap(Map.get(account, :wallet_address)))
+      |> Enum.filter(&is_binary/1)
+      |> Enum.map(&String.downcase/1)
+      |> Enum.uniq()
+
     %{member | wallet_addresses: wallets}
   end
 
   defp component_profile(%{assigns: %{lease: nil}}), do: :signed_out
+  defp component_profile(%{assigns: %{lease: lease}}), do: resolve_component_lease(lease)
+  defp component_profile(%{assigns: %{session_lease: nil}}), do: :signed_out
+  defp component_profile(%{assigns: %{session_lease: lease}}), do: resolve_component_lease(lease)
+  defp component_profile(_socket), do: :signed_out
 
-  defp component_profile(%{assigns: %{lease: lease}}) do
+  defp resolve_component_lease(lease) do
     case leased_profile(lease) do
       nil ->
         send(self(), {__MODULE__, :component_lease_lapsed})
@@ -135,14 +239,14 @@ defmodule RegentsWeb.Patchbay.CurrentProfile do
   defp take(socket, _take_profile, :signed_out), do: socket
   defp take(socket, take_profile, profile), do: take_profile.(socket, profile)
 
-  defp connected(socket, session, lapsed) do
-    case SessionAuthority.claim(session) do
-      nil -> {:cont, signed_out(socket, SessionAuthority.claim_shaped?(session))}
-      claim -> admit(socket, session, claim, lapsed)
+  defp connected_standalone(socket, static_session, handshake, lapsed) do
+    case SessionAuthority.claim(handshake) do
+      nil -> {:cont, signed_out(socket, SessionAuthority.claim_shaped?(handshake))}
+      claim -> admit(socket, static_session, claim, lapsed)
     end
   end
 
-  defp admit(socket, session, %{lineage: lineage} = claim, lapsed) do
+  defp admit(socket, static_session, %{lineage: lineage} = claim, lapsed) do
     case SessionAuthority.resolve(claim) do
       {nil, nil} ->
         {:cont, signed_out(socket, true)}
@@ -150,10 +254,10 @@ defmodule RegentsWeb.Patchbay.CurrentProfile do
       {^lineage, account} ->
         profile = member_for_account(account)
 
-        if session["render_topic"] == SessionAuthority.topic(lineage) or
-             is_nil(session["render_topic"]),
+        if static_session["render_topic"] == SessionAuthority.topic(lineage) or
+             is_nil(static_session["render_topic"]),
            do: {:cont, hold(socket, lineage, account, profile, lapsed)},
-           else: {:halt, redirect(socket, to: session["render_route"] || @public_root)}
+           else: {:halt, redirect(socket, to: static_session["render_route"] || @public_root)}
     end
   end
 

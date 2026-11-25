@@ -109,11 +109,19 @@ defmodule RegentsWeb.Patchbay.OffersLive do
     {:noreply, socket}
   end
 
+  def handle_info(_message, socket), do: {:noreply, socket}
+
   @impl true
+  def handle_event("change_campaign", _params, %{assigns: %{campaign_form: nil}} = socket),
+    do: {:noreply, socket}
+
   def handle_event("change_campaign", %{"campaign" => params}, socket),
     do:
       {:noreply,
        assign(socket, campaign_form: Form.validate(socket.assigns.campaign_form, params))}
+
+  def handle_event("write_campaign", _params, %{assigns: %{campaign_form: nil}} = socket),
+    do: {:noreply, socket}
 
   def handle_event("write_campaign", %{"campaign" => params}, socket) do
     case Form.submit(socket.assigns.campaign_form, params: params) do
@@ -128,6 +136,8 @@ defmodule RegentsWeb.Patchbay.OffersLive do
         {:noreply, assign(socket, campaign_form: form)}
     end
   end
+
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp read_board(socket) do
     board = Board.read()
@@ -148,14 +158,16 @@ defmodule RegentsWeb.Patchbay.OffersLive do
   # Each campaign with where Patchbay's review stands and how often each of
   # its leases was shown, counted only for the campaign's own account.
   defp read_campaigns(socket) do
-    assign(socket,
-      campaigns:
-        Offers.my_campaigns!(
-          actor: socket.assigns.current_profile,
-          load: [:review, leases: [:delivery_count]]
-        ),
-      written: nil
-    )
+    campaigns =
+      case Offers.my_campaigns(
+             actor: socket.assigns.current_profile,
+             load: [:review, leases: [:delivery_count]]
+           ) do
+        {:ok, list} -> list
+        _error -> []
+      end
+
+    assign(socket, campaigns: campaigns, written: nil)
   end
 
   defp new_campaign(%{assigns: %{current_profile: nil}} = socket),
@@ -360,8 +372,17 @@ defmodule RegentsWeb.Patchbay.OffersLive do
       >
         <h2 id="offers-campaigns-title">Campaigns</h2>
 
+        <Primitives.notice
+          :if={is_nil(@current_profile) and match?(%{kind: :signed_in}, @account_control)}
+          id="offers-connect-wallet"
+          tone="info"
+        >
+          Connect an EVM wallet on your <a href={~p"/account/wallets"}>Account page</a>
+          to create campaigns and buy Agent Offers slots.
+        </Primitives.notice>
+
         <Regent.Account.signed_out
-          :if={is_nil(@current_profile)}
+          :if={is_nil(@current_profile) and not match?(%{kind: :signed_in}, @account_control)}
           id="offers-signed-out"
           reason={@signed_out_reason}
         >

@@ -137,6 +137,7 @@ defmodule Regents.Patchbay.Forum.Site do
   pub_sub do
     module(Phoenix.PubSub)
     name(Regents.PubSub)
+    prefix("patchbay")
 
     publish(:record_screenshot, ["site_picture", :origin])
     publish(:forget_picture, ["site_picture", :origin])

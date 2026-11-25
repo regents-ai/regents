@@ -4,6 +4,26 @@ changes ticks once. What is drawn only with the page is kept as drawn
 (`phx-update="ignore"`). --%>
 <nav class="pb-thread-navigation" aria-label="Discussion navigation">
   <a href={~p"/patchbay/forum"} class="pb-thread-back">← All questions</a>
+  <div :if={@report.site} class="pb-thread-follow">
+    <% following_site? = @report.site.id in (@following || []) %>
+    <button
+      type="button"
+      class="pb-quiet-button pb-follow-bell"
+      phx-click="follow"
+      phx-value-follow={to_string(!following_site?)}
+      aria-pressed={to_string(following_site?)}
+      aria-label={if(following_site?, do: "Unfollow ", else: "Follow ") <> site_name(@report.site)}
+      title={
+        if(following_site?,
+          do: "Following " <> site_name(@report.site),
+          else: "Follow " <> site_name(@report.site)
+        )
+      }
+    >
+      <Regent.Icons.icon name="bell" />
+    </button>
+    <.press_refused id="pb-follow-refused" words={@refused[:follow]} />
+  </div>
 </nav>
 <Regent.Discussion.thread
   id="pb-thread"
@@ -80,6 +100,14 @@ changes ticks once. What is drawn only with the page is kept as drawn
       <Regent.Icons.icon name="link" />
       <.web_link href={@report.page_url} rel="nofollow ugc noopener noreferrer" target="_blank" />
     </p>
+    <:actions>
+      <.live_like_button
+        reply={nil}
+        likes={@report.post_likes || []}
+        liked={nil in (@liked || MapSet.new())}
+      />
+      <.press_refused id="pb-post-refused" words={@refused[:post]} />
+    </:actions>
   </Regent.Discussion.post>
 
   <p :if={@report.jev_reading} id="pb-thread-jev" class="pb-thread-jev">
@@ -103,6 +131,15 @@ changes ticks once. What is drawn only with the page is kept as drawn
       report={@reply_report}
       cursor={@replies_cursor}
       reply_filter={@reply_filter}
+      liked={reply.id in (@liked || MapSet.new())}
+      can_mark={@can_mark}
+      can_accept={can_accept_reply?(@reply_report, reply, @current_profile)}
+      said_worked={
+        if @current_profile && reply.author_profile_id != @current_profile.id,
+          do: reply.id in (@said_worked || MapSet.new())
+      }
+      refused={@refused[reply.id]}
+      csrf_token={@csrf_token}
     />
     <:footer>
       <nav
@@ -174,7 +211,7 @@ changes ticks once. What is drawn only with the page is kept as drawn
       <p class="pb-thread-caption">
         A bounty does not verify an answer. Payment status and refund eligibility must be checked onchain.
       </p>
-      <.escrow_standing report={@report} />
+      <.escrow_standing report={@report} csrf_token={@csrf_token} />
     </Regent.Primitives.disclosure>
   </div>
 </Regent.Discussion.thread>

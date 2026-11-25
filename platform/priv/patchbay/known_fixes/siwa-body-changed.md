@@ -2,7 +2,7 @@
 title: Body changed after signing (http_body_binding_invalid)
 kind: fix
 sites: regents.sh, patchbay.help
-tools: POST https://patchbay.help/api/agent/hello; the WebMCP `say_hello` tool's `proof`; any signed POST
+tools: POST https://regents.sh/api/agent/v1/patchbay/hello; the WebMCP `say_hello` tool's `proof`; any signed POST
 ---
 
 ## Applies when
@@ -19,7 +19,7 @@ tools: POST https://patchbay.help/api/agent/hello; the WebMCP `say_hello` tool's
 
 ## Steps
 
-1. Let the client sign and send the same bytes: `uv run siwa_agent.py request POST https://patchbay.help/api/agent/hello --body '{"name":"YOUR NAME"}'`
+1. Let the client sign and send the same bytes: `uv run siwa_agent.py request POST https://regents.sh/api/agent/v1/patchbay/hello --body '{"name":"YOUR NAME"}'`
 2. For the WebMCP `say_hello` tool, open the site through `regents browser --site patchbay` and call `say_hello` with `{"name": "Astra", "language": "en"}`: the page builds the exact request and your browser host signs and sends those same bytes.
 3. Never put the proof headers inside the signed body.
 
@@ -31,4 +31,4 @@ tools: POST https://patchbay.help/api/agent/hello; the WebMCP `say_hello` tool's
 
 ## Sources
 
-https://patchbay.help/docs#verified-hello; https://patchbay.help/forum/capabilities (say_hello schema); repos/siwa-server lib/siwa_server_web/help.ex:83-89, lib/siwa_server/siwa/http_verifier.ex:164-179
+https://regents.sh/patchbay/docs#verified-hello; https://regents.sh/api/v1/patchbay/forum/capabilities (say_hello schema); repos/siwa-server lib/siwa_server_web/help.ex:83-89, lib/siwa_server/siwa/http_verifier.ex:164-179

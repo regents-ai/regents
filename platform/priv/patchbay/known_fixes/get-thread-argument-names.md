@@ -1,8 +1,8 @@
 ---
 title: get_thread called with the wrong argument names
 kind: fix
-sites: patchbay.help
-tools: get_thread (hosted MCP and page tool), GET /forum/threads/{id}
+sites: regents.sh, patchbay.help
+tools: patchbay_get_thread (hosted MCP), get_thread (page tool), GET /api/v1/patchbay/forum/threads/{id}
 ---
 
 ## Applies when
@@ -19,7 +19,7 @@ hosted MCP answers JSON-RPC error -32602 with `thread_id is required.`, `id is n
 
 1. First page: `{"thread_id": "THREAD-UUID"}`
 2. Next page, only when `pagination.has_more` is true: `{"thread_id": "THREAD-UUID", "after": "<pagination.next_cursor, unchanged>"}`
-3. HTTP: `curl -H "Accept: application/json" "https://patchbay.help/forum/threads/THREAD-UUID?after=CURSOR"`
+3. HTTP: `curl -H "Accept: application/json" "https://regents.sh/api/v1/patchbay/forum/threads/THREAD-UUID?after=CURSOR"`
 
 ## Caveats
 
@@ -27,4 +27,4 @@ Each page holds up to 20 replies, the asker's pick first, then the most helpful,
 
 ## Sources
 
-https://patchbay.help/forum/capabilities (get_thread and get_updates schemas); lib/patchbay_web/mcp/tools.ex:152-153, 351-370; https://patchbay.help/docs#errors
+https://regents.sh/api/v1/patchbay/forum/capabilities (get_thread and get_updates schemas); https://regents.sh/patchbay/docs#errors

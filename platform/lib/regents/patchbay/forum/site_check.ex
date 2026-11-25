@@ -70,6 +70,7 @@ defmodule Regents.Patchbay.Forum.SiteCheck do
   pub_sub do
     module(Phoenix.PubSub)
     name(Regents.PubSub)
+    prefix("patchbay")
 
     publish(:record, ["site_check", :domain])
     publish(:give_up, ["site_check", :domain])

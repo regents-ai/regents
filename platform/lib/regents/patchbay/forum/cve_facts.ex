@@ -46,10 +46,68 @@ defmodule Regents.Patchbay.Forum.CveFacts do
       allow_nil?(true)
       public?(true)
     end
+
+    attribute :ecosystems, {:array, :string} do
+      description("Affected package ecosystems (npm, pypi, hex, cargo, go, etc.).")
+      allow_nil?(false)
+      default([])
+      public?(true)
+    end
+
+    attribute :packages, {:array, :map} do
+      description("Structured affected packages and fixed versions parsed from cve.now.")
+      allow_nil?(false)
+      default([])
+      public?(true)
+    end
+
+    attribute :epss_score, :float do
+      description("Exploit Prediction Scoring System probability (0.0 to 1.0), when reported.")
+      allow_nil?(true)
+      public?(true)
+      constraints(min: 0, max: 1)
+    end
+
+    attribute :kev_due_date, :string do
+      description("CISA KEV remediation due date (ISO-8601 date), when listed.")
+      allow_nil?(true)
+      public?(true)
+    end
+
+    attribute :exposure, :string do
+      description("Attack exposure surface reported by cve.now (e.g. network, local).")
+      allow_nil?(true)
+      public?(true)
+    end
+
+    attribute :agent_ecosystem, :boolean do
+      description(
+        "Whether this CVE affects AI/agent frameworks, MCP tooling, crypto/wallet SDKs, or core agent web runtimes."
+      )
+
+      allow_nil?(false)
+      default(false)
+      public?(true)
+    end
   end
 
   actions do
-    defaults([:read, create: [:severity, :score, :exploited, :fix_available, :product]])
+    defaults([
+      :read,
+      create: [
+        :severity,
+        :score,
+        :exploited,
+        :fix_available,
+        :product,
+        :ecosystems,
+        :packages,
+        :epss_score,
+        :kev_due_date,
+        :exposure,
+        :agent_ecosystem
+      ]
+    ])
   end
 
   changes do

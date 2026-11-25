@@ -2,7 +2,7 @@
 title: Signature does not match the wallet (signature_invalid)
 kind: fix
 sites: regents.sh, patchbay.help
-tools: siwa_agent.py sign-in and `request`; GET https://patchbay.help/siwa-test; any SIWA-signed route
+tools: siwa_agent.py sign-in and `request`; GET https://regents.sh/patchbay/siwa-test; any SIWA-signed route
 checked: 2026-09-30
 ---
 

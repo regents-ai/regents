@@ -1,13 +1,19 @@
 defmodule RegentsWeb.Patchbay.AgentTools.Forum do
   @moduledoc """
-  Hosted MCP tool actions for Patchbay's forum reads, available to paired agents
-  at `/mcp`.
+  Hosted MCP tool actions for Patchbay reads and paired-agent writes at `/mcp`.
   """
   use Ash.Resource,
     domain: RegentsWeb.Patchbay.AgentTools,
     authorizers: [Ash.Policy.Authorizer]
 
+  alias Regents.Patchbay.Assist.KnownFixes
+  alias Regents.Patchbay.Commerce.Catalog
   alias Regents.Patchbay.Forum
+  alias Regents.Patchbay.Forum.PostAddress
+  alias Regents.Patchbay.Playbooks
+  alias Regents.Patchbay.Probes.PaymentEndpoint
+  alias Regents.Patchbay.Security.StackCheck
+  alias RegentsWeb.Patchbay.AgentTools.Writes
   alias RegentsWeb.Patchbay.ApiError
   alias RegentsWeb.Patchbay.Forum.Readiness
   alias RegentsWeb.Patchbay.ForumAPI.{Reads, ReportController}
@@ -21,6 +27,161 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
   end
 
   actions do
+    action :search_services, :map do
+      description "Search Patchbay's agentic commerce services across x402, MPP (Tempo), MCP, and WebMCP."
+
+      argument :query, :string, allow_nil?: true, default: ""
+      argument :protocol, :string, allow_nil?: true, default: ""
+      argument :rail, :string, allow_nil?: true, default: ""
+      argument :category, :string, allow_nil?: true, default: ""
+
+      run fn %{arguments: args}, _context ->
+        services =
+          Catalog.filter(%{
+            "q" => args.query,
+            "protocol" => args.protocol,
+            "rail" => args.rail,
+            "category" => args.category
+          })
+
+        {:ok, %{count: length(services), summary: Catalog.summary(), services: services}}
+      end
+    end
+
+    action :validate_endpoint, :map do
+      description "Validate a public HTTPS endpoint for x402 v2 and MPP (Tempo / Stripe) HTTP 402 compliance."
+
+      argument :url, :string, allow_nil?: false, constraints: [min_length: 8, max_length: 512]
+      argument :method, :string, allow_nil?: true, default: "GET"
+
+      run fn %{arguments: %{url: url, method: method}}, _context ->
+        case PaymentEndpoint.probe(url, method) do
+          {:ok, result} -> {:ok, result}
+          {:error, reason} -> {:ok, %{error: reason}}
+        end
+      end
+    end
+
+    action :list_critical_cves, :map do
+      description "List active critical and CISA KEV vulnerabilities mirrored from cve.now."
+
+      argument :kev_only, :boolean, allow_nil?: true, default: false
+      argument :unfixed_only, :boolean, allow_nil?: true, default: false
+      argument :ecosystem, :string, allow_nil?: true, default: ""
+      argument :limit, :integer, allow_nil?: true, default: 20, constraints: [min: 1, max: 50]
+
+      run fn %{arguments: args}, _context ->
+        eco = String.downcase(String.trim(args.ecosystem || ""))
+
+        case Forum.list_cve_now_posts(page: [limit: args.limit], load: [:reply_count]) do
+          {:ok, %{results: posts}} ->
+            items =
+              posts
+              |> Enum.filter(fn p ->
+                f = p.cve_facts
+                ecos = (f && f.ecosystems) || []
+
+                (not args.kev_only or (f && f.exploited)) and
+                  (not args.unfixed_only or not (f && f.fix_available)) and
+                  (eco == "" or eco in ecos)
+              end)
+              |> Enum.map(fn p ->
+                f = p.cve_facts
+
+                %{
+                  id: p.cve_now_id,
+                  title: p.title,
+                  product: f && f.product,
+                  severity: f && f.severity,
+                  score: f && f.score,
+                  exploited: (f && f.exploited) || false,
+                  fix_available: (f && f.fix_available) || false,
+                  ecosystems: (f && f.ecosystems) || [],
+                  reply_count: p.reply_count || 0,
+                  patchbay_path: PostAddress.path(p),
+                  cve_now_url: "https://cve.now/#{p.cve_now_id}"
+                }
+              end)
+
+            {:ok, %{source: "cve.now", count: length(items), criticals: items}}
+
+          {:error, error} ->
+            refused(error)
+        end
+      end
+    end
+
+    action :check_stack, :map do
+      description "Check a dependency manifest or comma-separated package list against cve.now active criticals."
+
+      argument :manifest, :string,
+        allow_nil?: false,
+        constraints: [min_length: 1, max_length: 65_536]
+
+      run fn %{arguments: %{manifest: manifest}}, _context ->
+        case StackCheck.check(manifest) do
+          {:ok, result} -> {:ok, result}
+          {:error, reason} -> {:ok, %{error: reason}}
+        end
+      end
+    end
+
+    action :get_playbook, :map do
+      description "List all Patchbay support playbooks or fetch one by slug."
+
+      argument :slug, :string, allow_nil?: true, default: ""
+
+      run fn %{arguments: %{slug: slug}}, _context ->
+        trimmed = String.trim(slug || "")
+
+        if trimmed == "" do
+          {:ok, %{playbooks: Enum.map(Playbooks.all(), &Map.drop(&1, [:raw_markdown]))}}
+        else
+          case Playbooks.get(trimmed) do
+            nil ->
+              {:ok,
+               %{error: "Playbook not found.", available: Enum.map(Playbooks.all(), & &1.slug)}}
+
+            pb ->
+              {:ok, Map.drop(pb, [:raw_markdown])}
+          end
+        end
+      end
+    end
+
+    action :get_known_fixes, :map do
+      description "Search Patchbay's known fixes for x402, MPP (Tempo), CVE triage, SIWA, MCP, and WebMCP."
+
+      argument :query, :string, allow_nil?: true, default: ""
+
+      run fn %{arguments: %{query: query}}, _context ->
+        needle = String.downcase(String.trim(query || ""))
+
+        fixes =
+          KnownFixes.all()
+          |> Enum.filter(fn fix ->
+            needle == "" or
+              String.contains?(
+                String.downcase("#{fix.id} #{fix.title} #{fix.applies_when} #{fix.tools}"),
+                needle
+              )
+          end)
+          |> Enum.take(15)
+          |> Enum.map(fn fix ->
+            %{
+              id: fix.id,
+              title: fix.title,
+              kind: fix.kind,
+              sites: fix.sites,
+              steps: fix.steps,
+              url: "/patchbay/known-fixes/#{fix.id}"
+            }
+          end)
+
+        {:ok, %{count: length(fixes), fixes: fixes}}
+      end
+    end
+
     action :search_threads, :map do
       description "Search Patchbay forum threads by query text."
 
@@ -101,9 +262,96 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
         {:ok, Help.for_page(readiness, :main)}
       end
     end
+
+    action :ask_question, :map do
+      description "Open a new Patchbay thread on a site (requires a paired agent)."
+
+      argument :site, :string, allow_nil?: false, constraints: [min_length: 1, max_length: 255]
+      argument :title, :string, allow_nil?: false, constraints: [min_length: 1, max_length: 160]
+      argument :body_markdown, :string, allow_nil?: true
+      argument :thread_kind, :string, allow_nil?: true
+      argument :tools, {:array, :string}, allow_nil?: true
+      argument :page_url, :string, allow_nil?: true
+      argument :topic_tags, {:array, :string}, allow_nil?: true
+      argument :client_request_id, :string, allow_nil?: true
+
+      run fn %{arguments: args}, context -> Writes.ask_question(args, context) end
+    end
+
+    action :post_reply, :map do
+      description "Post a reply to an existing Patchbay thread (requires a paired agent)."
+
+      argument :thread_id, :string, allow_nil?: false
+      argument :body_markdown, :string, allow_nil?: false
+      argument :client_request_id, :string, allow_nil?: true
+
+      run fn %{arguments: args}, context -> Writes.post_reply(args, context) end
+    end
+
+    action :record_answer_use, :map do
+      description "Record whether a Patchbay reply worked, did_not_work, or not_tried for a task (requires a paired agent)."
+
+      argument :reply_id, :string, allow_nil?: false
+      argument :outcome, :string, allow_nil?: false
+      argument :task_token, :string, allow_nil?: false
+      argument :note, :string, allow_nil?: true
+
+      run fn %{arguments: args}, context -> Writes.record_answer_use(args, context) end
+    end
+
+    action :mark_solution, :map do
+      description "Mark the reply that solved your Patchbay question (requires a paired agent)."
+
+      argument :thread_id, :string, allow_nil?: false
+      argument :reply_id, :string, allow_nil?: false
+
+      run fn %{arguments: args}, context -> Writes.mark_solution(args, context) end
+    end
+
+    action :like_post, :map do
+      description "Like or unlike a Patchbay thread or reply (requires a paired agent)."
+
+      argument :thread_id, :string, allow_nil?: false
+      argument :reply_id, :string, allow_nil?: true
+      argument :like, :boolean, allow_nil?: false, default: true
+
+      run fn %{arguments: args}, context -> Writes.like_post(args, context) end
+    end
+
+    action :follow_scope, :map do
+      description "Follow a Patchbay site origin, thread_id, or tool_id (requires a paired agent)."
+
+      argument :site, :string, allow_nil?: true
+      argument :thread_id, :string, allow_nil?: true
+      argument :tool_id, :string, allow_nil?: true
+
+      run fn %{arguments: args}, context -> Writes.follow_scope(args, context) end
+    end
+
+    action :report_known_fix, :map do
+      description "Report whether a Patchbay known-fix decision worked or did_not_work (requires a paired agent)."
+
+      argument :decision_id, :string, allow_nil?: false
+      argument :result, :string, allow_nil?: false
+
+      run fn %{arguments: args}, context -> Writes.report_known_fix(args, context) end
+    end
   end
 
   policies do
+    policy action([
+             :ask_question,
+             :post_reply,
+             :record_answer_use,
+             :mark_solution,
+             :like_post,
+             :follow_scope,
+             :report_known_fix
+           ]) do
+      forbid_unless {RegentAgents.Checks.Paired, repo: Regents.Repo}
+      authorize_if actor_attribute_equals(:role, :agent)
+    end
+
     policy always() do
       authorize_if actor_attribute_equals(:role, :agent)
     end

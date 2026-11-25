@@ -21,8 +21,8 @@ defmodule RegentsWeb.Patchbay.SiteRefreshLive do
   @impl true
   def mount(_params, %{"origin" => origin, "visitor" => visitor}, socket) do
     if connected?(socket) do
-      :ok = Phoenix.PubSub.subscribe(Regents.PubSub, "site_check:" <> origin)
-      :ok = Phoenix.PubSub.subscribe(Regents.PubSub, "site_picture:" <> origin)
+      :ok = Phoenix.PubSub.subscribe(Regents.PubSub, SiteCheck.topic(origin))
+      :ok = Phoenix.PubSub.subscribe(Regents.PubSub, "patchbay:site_picture:" <> origin)
     end
 
     # Drawn with the page, the panel takes the site and check the page has
@@ -32,8 +32,8 @@ defmodule RegentsWeb.Patchbay.SiteRefreshLive do
      socket
      |> assign(origin: origin, visitor: visitor, limited?: false)
      |> assign_new(:site, fn -> read_site(origin) end)
-     |> assign_new(:check, fn -> SiteChecks.current(origin) end)
-     |> then(&assign_state(&1, &1.assigns.site, &1.assigns.check))}
+     |> assign_new(:check, fn -> read_check(origin) end)
+     |> then(&assign_state(&1, &1.assigns.site, &1.assigns.check)), layout: false}
   end
 
   @impl true
@@ -43,18 +43,42 @@ defmodule RegentsWeb.Patchbay.SiteRefreshLive do
   def handle_info(%Ash.Notifier.Notification{resource: Site}, socket),
     do: {:noreply, assign_state(socket, read_site(socket.assigns.origin), socket.assigns.check)}
 
+  def handle_info(_message, socket), do: {:noreply, socket}
+
   # Whether the site may be refreshed is read again here, never taken from
   # the page.
   @impl true
   def handle_event("refresh", _params, socket) do
     %{origin: origin, visitor: visitor} = socket.assigns
-    site = read_site(origin)
-    {answer, check} = SiteChecks.refresh(site, SiteChecks.current(origin), visitor)
 
-    {:noreply, socket |> assign(limited?: answer == :limited) |> assign_state(site, check)}
+    case read_site(origin) do
+      %Site{} = site ->
+        {answer, check} = SiteChecks.refresh(site, read_check(origin), visitor)
+        {:noreply, socket |> assign(limited?: answer == :limited) |> assign_state(site, check)}
+
+      nil ->
+        {:noreply, socket}
+    end
   end
 
-  defp read_site(origin), do: Forum.get_site_by_origin!(origin, load: [:refresh_due?])
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  defp read_site(origin) do
+    case Forum.get_site_by_origin(origin, load: [:refresh_due?]) do
+      {:ok, site} -> site
+      _ -> nil
+    end
+  end
+
+  defp read_check(origin) do
+    case SiteChecks.current(origin) do
+      {:ok, check} -> check
+      _ -> nil
+    end
+  end
+
+  defp assign_state(socket, nil, check),
+    do: assign(socket, site: nil, check: check, state: :unavailable, now: DateTime.utc_now())
 
   defp assign_state(socket, site, check) do
     assign(socket,
@@ -67,10 +91,12 @@ defmodule RegentsWeb.Patchbay.SiteRefreshLive do
 
   @impl true
   def render(assigns) do
+    assigns = assign(assigns, :shot_url, assigns.site && site_screenshot_url(assigns.site))
+
     ~H"""
-    <figure :if={url = site_screenshot_url(@site)} class="pb-entry-shot">
+    <figure :if={@shot_url} class="pb-entry-shot">
       <img
-        src={url}
+        src={@shot_url}
         alt={"Screenshot of " <> site_domain(@site)}
         width="1600"
         height="1000"
@@ -78,7 +104,7 @@ defmodule RegentsWeb.Patchbay.SiteRefreshLive do
         decoding="async"
       />
     </figure>
-    <p class="pb-site-refresh">
+    <p :if={@site} class="pb-site-refresh">
       <button
         type="button"
         class="pb-quiet-button"

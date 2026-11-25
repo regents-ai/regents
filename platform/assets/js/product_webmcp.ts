@@ -239,6 +239,41 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
       description: "Read active Patchbay Agent Offers placements, slots, and current leases as JSON.",
       path: () => "/api/v1/patchbay/offers",
     },
+    {
+      name: "patchbay_services",
+      title: "List Patchbay commerce services",
+      description:
+        "Browse Patchbay's indexed x402, MPP (Tempo), MCP, and WebMCP agentic commerce services.",
+      properties: {
+        q: {type: "string", description: "Optional search query"},
+        protocol: {type: "string", description: "Optional protocol filter (x402, mpp, mcp, webmcp)"},
+      },
+      path: input => {
+        const params = new URLSearchParams()
+        if (input.q) params.set("q", input.q)
+        if (input.protocol) params.set("protocol", input.protocol)
+        const qs = params.toString()
+        return qs ? `/api/v1/patchbay/services?${qs}` : "/api/v1/patchbay/services"
+      },
+    },
+    {
+      name: "patchbay_critical_cves",
+      title: "List active critical CVEs",
+      description: "Read active critical and CISA KEV vulnerabilities mirrored from cve.now.",
+      path: () => "/api/v1/patchbay/security/criticals",
+    },
+    {
+      name: "patchbay_playbooks",
+      title: "List Patchbay playbooks",
+      description: "List agent support playbooks for x402, MPP (Tempo), and active CVE triage.",
+      path: () => "/api/v1/patchbay/playbooks",
+    },
+    {
+      name: "patchbay_known_fixes",
+      title: "List Patchbay known fixes",
+      description: "Read verified remediation notes for x402, MPP, SIWA, MCP, and WebMCP failures.",
+      path: () => "/api/v1/patchbay/known-fixes",
+    },
   ],
 }
 

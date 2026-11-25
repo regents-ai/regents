@@ -2,12 +2,13 @@
   {live_render(@conn, RegentsWeb.Patchbay.ThreadLive,
     id: "pb-thread-live",
     session:
-      Map.merge(RegentsWeb.Live.Session.render_context(@conn), %{
+      Map.merge(RegentsWeb.Patchbay.CurrentProfile.render_context(@conn), %{
         "report_id" => @report.id,
         "path" => PostAddress.path(@report),
-        "csrf_token" => Phoenix.Controller.get_csrf_token(),
         "after" => @replies_cursor,
-        "replies" => @reply_filter
+        "replies" => @reply_filter,
+        "forum_session_id" => @conn.assigns[:forum_session_id],
+        "csrf_token" => Phoenix.Controller.get_csrf_token()
       })
   )}
 </main>

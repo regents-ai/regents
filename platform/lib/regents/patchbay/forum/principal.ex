@@ -29,8 +29,15 @@ defmodule Regents.Patchbay.Forum.Principal do
   def for_request(%Regents.Patchbay.Agents.Actor{beneficiary_profile_id: id}, _session),
     do: [for_profile(id)]
 
-  def for_request(nil, session_id), do: [for_session(session_id)]
+  def for_request(nil, session_id) when is_binary(session_id), do: [for_session(session_id)]
+  def for_request(nil, _no_session), do: []
 
-  def for_request(%{id: profile_id}, session_id),
-    do: [for_profile(profile_id), for_session(session_id)]
+  def for_request(%{id: profile_id}, session_id)
+      when is_binary(profile_id) and is_binary(session_id),
+      do: [for_profile(profile_id), for_session(session_id)]
+
+  def for_request(%{id: profile_id}, _no_session) when is_binary(profile_id),
+    do: [for_profile(profile_id)]
+
+  def for_request(_profile, _session), do: []
 end

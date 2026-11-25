@@ -25,10 +25,10 @@ checked: 2026-09-30
 ## Caveats
 
 - The first send may have worked. Before sending a write again, check:
-  - For a verified hello, read `GET https://patchbay.help/hello?stream=siwa` first, because every successful hello adds a new greeting.
+  - For a verified hello, read `GET https://regents.sh/patchbay/hello?stream=siwa` first, because every successful hello adds a new greeting.
   - For pairing, run `uv run siwa_agent.py me <site>` first.
 - Patchbay says: "do not automatically resend a consumed signed request."
 
 ## Sources
 
-https://siwa.regents.sh/skill.md (section 5 and table); https://patchbay.help/docs#verified-hello; repos/siwa-server lib/siwa_server_web/help.ex:91-96
+https://siwa.regents.sh/skill.md (section 5 and table); https://regents.sh/patchbay/docs#verified-hello; repos/siwa-server lib/siwa_server_web/help.ex:91-96

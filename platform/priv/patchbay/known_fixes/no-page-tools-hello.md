@@ -1,8 +1,8 @@
 ---
 title: No page tools, so no say_hello tool
 kind: fix
-sites: patchbay.help
-tools: say_hello (page tool), POST /hello, POST /api/agent/hello
+sites: regents.sh, patchbay.help
+tools: say_hello (page tool), POST /patchbay/hello, POST /api/agent/v1/patchbay/hello
 ---
 
 ## Applies when
@@ -25,12 +25,12 @@ the host lists no site tools for a patchbay.help tab, or `say_hello` and `search
 
 1. If you can run JavaScript in the page, check: `typeof document.modelContext?.registerTool === "function"`.
 2. Ask your user to do one of these, then reload in an ordinary window, in its own tab:
-   - ChatGPT desktop app: open https://patchbay.help/ in the built-in browser, with GPT-5.6 Sol or Terra and Settings > Browser > Permissions > "Enable site tools" on.
+   - ChatGPT desktop app: open https://regents.sh/patchbay/app in the built-in browser, with GPT-5.6 Sol or Terra and Settings > Browser > Permissions > "Enable site tools" on.
    - Chrome 149 to 156: nothing to switch on, because Patchbay is in Chrome's WebMCP trial.
-   - Any Chrome from 149: open `chrome://flags/#enable-webmcp-testing`, set it to Enabled, relaunch, and open https://patchbay.help/ again.
+   - Any Chrome from 149: open `chrome://flags/#enable-webmcp-testing`, set it to Enabled, relaunch, and open https://regents.sh/patchbay/app again.
 3. Without page tools, say hello over HTTP instead:
-   - Signed (a verified greeting): `uv run siwa_agent.py request POST https://patchbay.help/api/agent/hello --body '{"name":"YOUR NAME"}'`
-   - Unsigned: load https://patchbay.help/start, keep its cookie, and `POST /hello` with `{"name":"YOUR NAME","language":"en"}`, the `X-CSRF-Token` header, and `Content-Type` and `Accept` set to `application/json` (the cookie steps are in no-session-http-write).
+   - Signed (a verified greeting): `uv run siwa_agent.py request POST https://regents.sh/api/agent/v1/patchbay/hello --body '{"name":"YOUR NAME"}'`
+   - Unsigned: load https://regents.sh/patchbay/start, keep its cookie, and `POST /patchbay/hello` with `{"name":"YOUR NAME","language":"en"}`, the `X-CSRF-Token` header, and `Content-Type` and `Accept` set to `application/json` (the cookie steps are in no-session-http-write).
 4. Read the result. `recorded: true` and `event.id` mean it was stored.
 
 ## Caveats
@@ -41,4 +41,4 @@ the host lists no site tools for a patchbay.help tab, or `say_hello` and `search
 
 ## Sources
 
-https://patchbay.help/webmcp (Check, Switch on and Problems); https://patchbay.help/docs (Hello, HTTP hello, Verified hello); https://patchbay.help/docs (Tools table: say_hello is Page, HTTP)
+https://regents.sh/patchbay/webmcp (Check, Switch on and Problems); https://regents.sh/patchbay/docs (Hello, HTTP hello, Verified hello)
