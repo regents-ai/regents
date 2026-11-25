@@ -13,7 +13,25 @@ defmodule RegentsWeb.Cloak do
     "Choose what leaves your Mac.",
     "Run locally, or pick your privacy in the cloud."
   ]
-  @subtitle "Chat offline on Apple silicon, or route cloud prompts through TEEs, local rewriting, Tor, and one-time crypto payments."
+  @subtitle "Cloak is the simple app to try your first private, local AI"
+
+  @hero_bullets [
+    [
+      {:text,
+       "Local, offline models just had an upgrade. Your MacBook can run Inkling 2 Mini and it "},
+      {:link, "is better", "https://benchlm.ai/compare/gpt-5-vs-inkling-2-mini"},
+      {:text, " than GPT-5."}
+    ],
+    [
+      {:text, "Private cloud LLMs are the safer way to use AI. Cloak aggregates 4 of them."}
+    ],
+    [
+      {:text, "Inspired by Vitalik's anon "},
+      {:link, "'paranoid mode'", "https://x.com/VitalikButerin/status/2111046730959433793"},
+      {:text, " way to use agents."}
+    ]
+  ]
+  @hero_callout "Cloak is the simple app to try your first private, local AI"
 
   @pill "Simple Local AI. Private Cloud AI Aggregator."
 
@@ -373,6 +391,8 @@ defmodule RegentsWeb.Cloak do
 
   def heading, do: @heading
   def subtitle, do: @subtitle
+  def hero_bullets, do: @hero_bullets
+  def hero_callout, do: @hero_callout
   def pill, do: @pill
   def watch_label, do: @watch_label
   def watch_time, do: @watch_time
@@ -439,14 +459,29 @@ defmodule RegentsWeb.Cloak do
 
     film = RegentsWeb.Endpoint.static_url() <> RegentsWeb.Endpoint.static_path(@film)
 
+    hero_bullets_md =
+      Enum.map_join(@hero_bullets, "\n", fn parts ->
+        line =
+          Enum.map_join(parts, "", fn
+            {:text, text} -> text
+            {:link, label, href} -> "[#{label}](#{href})"
+          end)
+
+        "- #{line}"
+      end)
+
     """
     #{@pill}
 
     # #{Enum.join(@heading, " ")}
 
-    #{@subtitle}
+    #{hero_bullets_md}
 
-    - [Download for Mac (Regents-Cloak.dmg)](#{@download_url})
+    ```
+    #{@hero_callout}
+    ```
+
+    - [Download for Mac (Regents-Cloak-0.2.1-295.dmg)](#{@download_url})
     - [#{@watch_label} (#{@watch_time})](#{film})
     - [Install & checksums](#{RegentsWeb.PublicDocuments.url(@install_path)})
     - [View releases](#{@releases_url})

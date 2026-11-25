@@ -47,7 +47,19 @@ defmodule RegentsWeb.Cloak.CloakLive do
           <span class="cloak-hero__first">{hd(Cloak.heading())}</span>
           <span class="cloak-hero__second">{List.last(Cloak.heading())}</span>
         </h1>
-        <p class="cloak-hero__subtitle">{Cloak.subtitle()}</p>
+        <ul class="cloak-hero__bullets">
+          <li :for={parts <- Cloak.hero_bullets()}>
+            <%= for part <- parts do %>
+              <%= case part do %>
+                <% {:text, text} -> %>
+                  {text}
+                <% {:link, label, href} -> %>
+                  <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
+              <% end %>
+            <% end %>
+          </li>
+        </ul>
+        <pre class="cloak-hero__callout"><code>{Cloak.hero_callout()}</code></pre>
         <div class="cloak-hero__actions">
           <.link
             id="cloak-download"
