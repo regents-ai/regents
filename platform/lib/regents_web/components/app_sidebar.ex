@@ -130,8 +130,7 @@ defmodule RegentsWeb.Components.AppSidebar do
         data-workspace-scrim
         tabindex="-1"
         aria-label="Close products"
-      >
-      </button>
+      ></button>
       <div class="workspace-bar__controls">{render_slot(@controls)}</div>
     </div>
     """
@@ -147,7 +146,11 @@ defmodule RegentsWeb.Components.AppSidebar do
 
   defp product_group(assigns) do
     assigns =
-      assign(assigns, :selected, current_link(assigns.links, assigns.path) || assigns.section_path)
+      assign(
+        assigns,
+        :selected,
+        current_link(assigns.links, assigns.path) || assigns.section_path
+      )
 
     ~H"""
     <details

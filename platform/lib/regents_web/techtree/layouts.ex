@@ -32,8 +32,10 @@ defmodule RegentsWeb.Techtree.Layouts do
   The frame: the skip link, the site's bar, Techtree's row and the page under them.
   """
   def app(assigns) do
-    service_links = for column <- SiteMenu.services(), page <- column.pages, do: {page.name, page.href}
-    assigns = assign(assigns, :service_links, service_links)
+    service_links =
+      for column <- SiteMenu.services(), page <- column.pages, do: {page.name, page.href}
+
+    assigns = Map.put(assigns, :service_links, service_links)
 
     ~H"""
     <a class="skip-link" href="#main-content">

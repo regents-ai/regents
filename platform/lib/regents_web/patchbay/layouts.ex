@@ -40,11 +40,11 @@ defmodule RegentsWeb.Patchbay.Layouts do
     profile_path = profile_path(assigns[:current_profile])
 
     assigns =
-      assign(assigns,
+      Map.merge(assigns, %{
         active_path: path,
         sidebar_section: sidebar_section(path, assigns[:conn]),
         sidebar_links: if(profile_path, do: [{"Profile", profile_path}], else: [])
-      )
+      })
 
     ~H"""
     <a id="pb-skip-link" class="pb-skip-link" href="#pb-content">Skip to the main content</a>

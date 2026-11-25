@@ -59,8 +59,8 @@ defmodule RegentsWeb.Autolaunch.Layouts do
       </:links>
     </Shell.site_bar>
     <Regent.Primitives.button
-      variant="quiet"
       :if={!Shell.workspace?(@current_path)}
+      variant="quiet"
       id="mobile-menu-button"
       class="mobile-menu-button"
       type="button"
@@ -82,10 +82,10 @@ defmodule RegentsWeb.Autolaunch.Layouts do
     </Regent.Structure.frame>
     <.drawer :if={!Shell.workspace?(@current_path)} links={links()} current_path={@current_path} />
     <Regent.Primitives.button
+      :if={!Shell.workspace?(@current_path)}
       variant="quiet"
       type="button"
       class="shell-menu-scrim"
-      :if={!Shell.workspace?(@current_path)}
       data-shell-menu-scrim
       aria-label="Close navigation"
       tabindex="-1"

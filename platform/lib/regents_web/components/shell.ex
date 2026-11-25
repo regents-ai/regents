@@ -53,7 +53,8 @@ defmodule RegentsWeb.Components.Shell do
       assign(
         assigns,
         :side_menu?,
-        assigns.route_spec.sidebar_model.targets != [] and !workspace?(assigns.route_spec.destination)
+        assigns.route_spec.sidebar_model.targets != [] and
+          !workspace?(assigns.route_spec.destination)
       )
 
     ~H"""
