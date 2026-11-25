@@ -178,7 +178,7 @@ defmodule RegentsWeb.Components.Shell do
 
       <div id="app-shell-scroller" tabindex="-1">
         <nav
-          :if={@route_spec.tabs != []}
+          :if={@route_spec.tabs != [] and !workspace?(@route_spec.destination)}
           id="shell-tabs"
           class="shell-tabs"
           data-shell-nav
@@ -207,6 +207,8 @@ defmodule RegentsWeb.Components.Shell do
   defdelegate workspace?(path), to: AppSidebar
 
   attr :current_path, :string, default: nil
+  attr :sidebar_section, :string, default: nil
+  attr :sidebar_links, :list, default: []
   attr :product, :string, required: true, doc: "the page's product, one of `Regent.Site`'s"
   attr :account_control, AccountControl, required: true
 
@@ -219,6 +221,7 @@ defmodule RegentsWeb.Components.Shell do
     Sign out inline.
     """
 
+  slot :workspace_actions, doc: "actions kept beside the account controls"
   slot :links, doc: "the product's own links"
   slot :account_menu, doc: "`Regent.Account.menu`, when `menu` is on and someone is signed in"
 
@@ -229,8 +232,16 @@ defmodule RegentsWeb.Components.Shell do
   def site_bar(assigns) do
     ~H"""
     <%= if workspace?(@current_path) do %>
-      <AppSidebar.bar path={@current_path} product={@product}>
-        <:controls><.site_account {assigns} /></:controls>
+      <AppSidebar.bar
+        path={@current_path}
+        product={@product}
+        section_path={@sidebar_section}
+        extra_links={@sidebar_links}
+      >
+        <:controls>
+          {render_slot(@workspace_actions)}
+          <.site_account {assigns} />
+        </:controls>
       </AppSidebar.bar>
     <% else %>
       <Regent.Site.bar id="site-bar" product={@product}>

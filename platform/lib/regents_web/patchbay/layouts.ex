@@ -1,23 +1,10 @@
 defmodule RegentsWeb.Patchbay.Layouts do
-  @moduledoc """
-  The frame every Patchbay page under `/patchbay/...` is read inside, within
-  the site's one root document: patchbay.help's sheet under the site's bar.
-
-  The bar (`RegentsWeb.Components.Shell.site_bar/1`) takes the place of
-  patchbay.help's masthead: its crown, product menu, theme switch and account
-  control are the bar's. patchbay.help's places are the bar's links from 48rem
-  up: Questions, Sites, and Ask on every page but the home page, whose own Ask
-  a question opens the form. Below 48rem, where the bar hides its links, Menu
-  on a strip of its own under the bar opens them, with Ask, in a popover the
-  browser opens and closes. The header's search box and account menu are not
-  here: they wait for a product row under the bar.
-  """
+  @moduledoc "The shared workspace navigation, page and footer for Patchbay."
 
   use RegentsWeb, :html
 
   alias Regents.Account.AccessContext.AccountControl
   alias Regents.Patchbay.Forum.ProductBoards
-  alias Regents.Patchbay.Offers
   alias RegentsWeb.Components.Shell
   alias RegentsWeb.Live.Session
 
@@ -45,18 +32,19 @@ defmodule RegentsWeb.Patchbay.Layouts do
   attr :inner_content, :any, required: true
 
   @doc """
-  The frame: the skip link, the bar with Patchbay's places, Menu with them on a
-  phone, and the sheet with the flash line, the page and the footer.
+  The skip link, workspace navigation, flash, page and footer.
   """
   def app(assigns) do
     path = active_path(assigns)
 
+    profile_path = profile_path(assigns[:current_profile])
+
     assigns =
-      Map.merge(assigns, %{
+      assign(assigns,
         active_path: path,
-        offers_enabled: Offers.enabled?(),
-        profile_path: profile_path(assigns[:current_profile])
-      })
+        sidebar_section: sidebar_section(path, assigns[:conn]),
+        sidebar_links: if(profile_path, do: [{"Profile", profile_path}], else: [])
+      )
 
     ~H"""
     <a id="pb-skip-link" class="pb-skip-link" href="#pb-content">Skip to the main content</a>
@@ -64,51 +52,9 @@ defmodule RegentsWeb.Patchbay.Layouts do
       product="patchbay"
       account_control={@account_control}
       current_path={@active_path}
-    >
-      <:links>
-        <a href={~p"/patchbay/app"} aria-current={app_home?(@active_path) && "page"}>App</a>
-        <a href={~p"/patchbay/incidents"} aria-current={incidents?(@active_path) && "page"}>
-          Security
-        </a>
-        <a href={~p"/patchbay/validate"} aria-current={validate?(@active_path) && "page"}>
-          Validate
-        </a>
-        <a href={~p"/patchbay/wallet-bench"} aria-current={bench?(@active_path) && "page"}>
-          Wallet Bench
-        </a>
-        <a href={~p"/patchbay/forum"} aria-current={forum?(@active_path) && "page"}>Threads</a>
-        <a href={~p"/patchbay/sites"} aria-current={sites?(@active_path) && "page"}>Sites</a>
-        <a
-          :if={@offers_enabled}
-          href={~p"/patchbay/offers"}
-          aria-current={offers?(@active_path) && "page"}
-        >
-          Offers
-        </a>
-        <a :if={!forum?(@active_path)} href={ask_path()}>Ask</a>
-        <a :if={@profile_path} href={@profile_path}>Profile</a>
-      </:links>
-    </Shell.site_bar>
-    <button :if={!Shell.workspace?(@active_path)} type="button" class="pb-menu-strip" popovertarget="pb-menu">Menu</button>
-    <nav :if={!Shell.workspace?(@active_path)} id="pb-menu" class="pb-menu" popover aria-label="Patchbay">
-      <a href={~p"/patchbay/app"} aria-current={app_home?(@active_path) && "page"}>App</a>
-      <a href={~p"/patchbay/incidents"} aria-current={incidents?(@active_path) && "page"}>Security</a>
-      <a href={~p"/patchbay/validate"} aria-current={validate?(@active_path) && "page"}>Validate</a>
-      <a href={~p"/patchbay/wallet-bench"} aria-current={bench?(@active_path) && "page"}>
-        Wallet Bench
-      </a>
-      <a href={~p"/patchbay/forum"} aria-current={forum?(@active_path) && "page"}>Threads</a>
-      <a href={~p"/patchbay/sites"} aria-current={sites?(@active_path) && "page"}>Sites</a>
-      <a
-        :if={@offers_enabled}
-        href={~p"/patchbay/offers"}
-        aria-current={offers?(@active_path) && "page"}
-      >
-        Offers
-      </a>
-      <a href={ask_path()}>Ask</a>
-      <a :if={@profile_path} href={@profile_path}>Profile</a>
-    </nav>
+      sidebar_section={@sidebar_section}
+      sidebar_links={@sidebar_links}
+    />
     <Regent.Structure.frame class="pb-frame">
       <Regent.Structure.row rail={false} class="pb-content-row">
         <div id="pb-content" tabindex="-1">
@@ -129,52 +75,28 @@ defmodule RegentsWeb.Patchbay.Layouts do
   defp active_path(%{conn: %Plug.Conn{request_path: path}}), do: path
   defp active_path(_assigns), do: nil
 
-  defp app_home?(path) when is_binary(path), do: path == ~p"/patchbay/app"
-  defp app_home?(_), do: false
+  defp sidebar_section(_path, %Plug.Conn{path_params: %{"host" => _host}}),
+    do: ~p"/patchbay/sites"
 
-  defp forum?(path) when is_binary(path) do
-    path == ~p"/patchbay/forum" or
-      Enum.any?(ProductBoards.all(), &(&1.path == path))
-  end
+  defp sidebar_section(path, _conn) when is_binary(path) do
+    cond do
+      String.starts_with?(path, ["/patchbay/posts/", "/patchbay/reports/", "/patchbay/discuss/"]) ->
+        ~p"/patchbay/forum"
 
-  defp forum?(_), do: false
+      Enum.any?(ProductBoards.all(), &(&1.path == path)) ->
+        ~p"/patchbay/forum"
 
-  defp incidents?(path) when is_binary(path),
-    do: path == ~p"/patchbay/incidents" or String.starts_with?(path, "/patchbay/incidents/")
-
-  defp incidents?(_), do: false
-
-  defp validate?(path) when is_binary(path), do: path == ~p"/patchbay/validate"
-  defp validate?(_), do: false
-
-  defp bench?(path) when is_binary(path),
-    do: path == ~p"/patchbay/wallet-bench" or String.starts_with?(path, "/patchbay/wallet-bench/")
-
-  defp bench?(_), do: false
-
-  defp offers?(path) when is_binary(path), do: path == ~p"/patchbay/offers"
-  defp offers?(_), do: false
-
-  # The list of sites and every site's own page: a site's page is its domain,
-  # the only first part of an address under /patchbay/ with a dot.
-  defp sites?("/patchbay/sites"), do: true
-
-  defp sites?(path) when is_binary(path) do
-    case String.split(path, "/", trim: true) do
-      ["patchbay", name | _rest] -> String.contains?(name, ".")
-      _other -> false
+      true ->
+        nil
     end
   end
 
-  defp sites?(_), do: false
+  defp sidebar_section(_path, _conn), do: nil
 
   defp profile_path(%{public_id: public_id}) when is_binary(public_id) and public_id != "",
     do: ~p"/patchbay/agents/#{public_id}"
 
   defp profile_path(_), do: nil
-
-  # The home page's form, opened.
-  defp ask_path, do: ~p"/patchbay/forum?ask=1" <> "#pb-hero"
 
   @doc """
   What every Patchbay page's frame and head read beside its title: the account

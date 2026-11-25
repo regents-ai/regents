@@ -32,6 +32,9 @@ defmodule RegentsWeb.Techtree.Layouts do
   The frame: the skip link, the site's bar, Techtree's row and the page under them.
   """
   def app(assigns) do
+    service_links = for column <- SiteMenu.services(), page <- column.pages, do: {page.name, page.href}
+    assigns = assign(assigns, :service_links, service_links)
+
     ~H"""
     <a class="skip-link" href="#main-content">
       Skip to main content
@@ -40,7 +43,10 @@ defmodule RegentsWeb.Techtree.Layouts do
       product="techtree"
       account_control={@account_control}
       current_path={@current_path}
-    />
+      sidebar_links={@service_links}
+    >
+      <:workspace_actions><BookCall.book_call class="tt-book" /></:workspace_actions>
+    </Shell.site_bar>
     <.row :if={!Shell.workspace?(@current_path)} current_path={@current_path} />
     <Regent.Structure.frame class="techtree-frame">
       {@inner_content}

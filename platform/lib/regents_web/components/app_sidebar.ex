@@ -3,22 +3,23 @@ defmodule RegentsWeb.Components.AppSidebar do
 
   use Phoenix.Component
 
+  alias RegentsWeb.RouteCatalog
+
   @regents_paths ~w(/app /account /stake /redeem)
   @autolaunch_paths ~w(/autolaunch/app /autolaunch/auctions /autolaunch/tokens
     /autolaunch/portfolio /autolaunch/create /autolaunch/earn /autolaunch/agent-business
-    /autolaunch/stock /autolaunch/convert /autolaunch/stocks)
-  @patchbay_paths ~w(/patchbay/app /patchbay/forum /patchbay/posts /patchbay/sites
-    /patchbay/validate /patchbay/fixes /patchbay/incidents /patchbay/wallet-bench /patchbay/offers)
+    /autolaunch/stock /autolaunch/convert /autolaunch/stocks /autolaunch/upcoming
+    /autolaunch/regent)
   @techtree_paths ~w(/techtree/app /techtree/results /techtree/wallet-bench /techtree/train
-    /techtree/climbs /techtree/account/projects)
+    /techtree/climbs /techtree/account/projects /techtree/services /techtree/docs
+    /techtree/formal /techtree/examples /techtree/watchdog)
 
   def workspace?(path) when is_binary(path) do
     Enum.any?(
       @regents_paths ++
         @autolaunch_paths ++
-        @patchbay_paths ++
         @techtree_paths ++
-        ~w(/keyfleet/app /keyfleet/classic /keyfleet/syndicate /keyfleet/cascade
+        ~w(/patchbay /keyfleet/app /keyfleet/classic /keyfleet/syndicate /keyfleet/cascade
           /keyfleet/accelerant /keyfleet/fleets),
       &under?(path, &1)
     )
@@ -28,10 +29,26 @@ defmodule RegentsWeb.Components.AppSidebar do
 
   attr(:path, :string, required: true)
   attr(:product, :string, required: true)
+  attr(:section_path, :string, default: nil)
+  attr(:extra_links, :list, default: [])
   slot(:controls, required: true)
 
   def bar(assigns) do
-    assigns = assign(assigns, :groups, groups())
+    account? = under?(assigns.path, "/account")
+    product = if assigns.product == "protocol", do: "regents", else: assigns.product
+
+    {current, other} =
+      Enum.split_with(groups(), fn {slug, _, _, _} ->
+        !account? and slug == product
+      end)
+
+    assigns =
+      assign(assigns,
+        account?: account?,
+        current_groups: current,
+        other_groups: other,
+        account_tabs: Enum.reject(RouteCatalog.account_tabs(), &(&1.path == "/account"))
+      )
 
     ~H"""
     <div
@@ -62,38 +79,50 @@ defmodule RegentsWeb.Components.AppSidebar do
         </span>
       </button>
       <nav id="workspace-sidebar" class="workspace-sidebar" aria-label="Workspace">
-        <a
-          class="workspace-sidebar__account"
-          href="/account"
-          aria-label="Account"
-          title="Account"
-          aria-current={@path == "/account" && "page"}
-        >
-          <Regent.Icons.icon name="user-round" />
-          <span class="workspace-sidebar__label">Account</span>
-        </a>
+        <div class="workspace-account">
+          <a
+            class="workspace-sidebar__account"
+            href="/account"
+            aria-label="Account"
+            title="Account"
+            aria-current={@path == "/account" && "page"}
+          >
+            <Regent.Icons.icon name="user-round" />
+            <span class="workspace-sidebar__label">Account</span>
+          </a>
+          <details class="workspace-account__sections" open={@account?}>
+            <summary aria-label="Account sections" title="Account sections">
+              <Regent.Icons.icon name="chevron-down" class="workspace-product__chevron" />
+            </summary>
+            <ul class="workspace-product__links">
+              <li :for={tab <- @account_tabs}>
+                <.link :if={@account?} patch={tab.path} aria-current={@path == tab.path && "page"}>
+                  {tab.label}
+                </.link>
+                <a :if={!@account?} href={tab.path}>{tab.label}</a>
+              </li>
+            </ul>
+          </details>
+        </div>
+        <.product_group
+          :for={{product, label, icon, links} <- @current_groups}
+          product={product}
+          label={label}
+          icon={icon}
+          links={links ++ @extra_links}
+          path={@path}
+          section_path={@section_path}
+          current
+        />
         <p class="workspace-sidebar__heading">Products</p>
-        <details
-          :for={{product, label, icon, links} <- @groups}
-          id={"workspace-product-#{product}"}
-          class="workspace-product"
-          open={product == @product and !under?(@path, "/account")}
-          data-active={product == @product and !under?(@path, "/account")}
-        >
-          <summary aria-label={label} title={label}>
-            <Regent.Icons.icon name={icon} />
-            <span class="workspace-sidebar__label">{label}</span>
-            <Regent.Icons.icon name="chevron-down" class="workspace-product__chevron" />
-          </summary>
-          <ul class="workspace-product__links">
-            <% current = current_link(links, @path) %>
-            <li :for={{text, href} <- links}>
-              <a href={href} aria-current={if(href == current, do: current_state(href, @path))}>
-                {text}
-              </a>
-            </li>
-          </ul>
-        </details>
+        <.product_group
+          :for={{product, label, icon, links} <- @other_groups}
+          product={product}
+          label={label}
+          icon={icon}
+          links={links}
+          path={@path}
+        />
       </nav>
       <button
         type="button"
@@ -105,6 +134,41 @@ defmodule RegentsWeb.Components.AppSidebar do
       </button>
       <div class="workspace-bar__controls">{render_slot(@controls)}</div>
     </div>
+    """
+  end
+
+  attr(:product, :string, required: true)
+  attr(:label, :string, required: true)
+  attr(:icon, :string, required: true)
+  attr(:links, :list, required: true)
+  attr(:path, :string, required: true)
+  attr(:section_path, :string, default: nil)
+  attr(:current, :boolean, default: false)
+
+  defp product_group(assigns) do
+    assigns =
+      assign(assigns, :selected, current_link(assigns.links, assigns.path) || assigns.section_path)
+
+    ~H"""
+    <details
+      id={"workspace-product-#{@product}"}
+      class={["workspace-product", @current && "workspace-product--current"]}
+      open={@current}
+      data-active={@current}
+    >
+      <summary aria-label={@label} title={@label}>
+        <Regent.Icons.icon name={@icon} />
+        <span class="workspace-sidebar__label">{@label}</span>
+        <Regent.Icons.icon name="chevron-down" class="workspace-product__chevron" />
+      </summary>
+      <ul class="workspace-product__links">
+        <li :for={{label, href} <- @links}>
+          <a href={href} aria-current={if(href == @selected, do: current_state(href, @path))}>
+            {label}
+          </a>
+        </li>
+      </ul>
+    </details>
     """
   end
 
@@ -131,14 +195,13 @@ defmodule RegentsWeb.Components.AppSidebar do
        ]},
       {"patchbay", "Patchbay", "life-buoy",
        [
-         {"Terminal", "/patchbay/app"},
+         {"App", "/patchbay/app"},
          {"Security", "/patchbay/incidents"},
          {"Validate", "/patchbay/validate"},
+         {"Wallet Bench", "/patchbay/wallet-bench"},
          {"Threads", "/patchbay/forum"},
-         {"Ask", "/patchbay/forum?ask=1#pb-hero"},
-         {"Sites", "/patchbay/sites"},
-         {"Wallet Bench", "/patchbay/wallet-bench"}
-       ] ++ offer_links()},
+         {"Sites", "/patchbay/sites"}
+       ] ++ offer_links() ++ [{"Ask", "/patchbay/forum?ask=1#pb-hero"}]},
       {"techtree", "Techtree", "flask-conical",
        [
          {"Overview", "/techtree/app"},

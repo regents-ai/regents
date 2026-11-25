@@ -83,6 +83,38 @@ body:has(.workspace-bar[data-collapsed="true"]) {
   font-weight: 650;
 }
 
+.workspace-account {
+  position: relative;
+}
+
+.workspace-account .workspace-sidebar__account {
+  padding-inline-end: 2.75rem;
+}
+
+.workspace-account__sections > summary {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  display: grid;
+  place-items: center;
+  inline-size: 2.375rem;
+  padding: 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.workspace-account__sections > summary::-webkit-details-marker {
+  display: none;
+}
+
+.workspace-account__sections[open] .workspace-product__chevron {
+  rotate: 180deg;
+}
+
+.workspace-product--current {
+  margin-block-start: 1rem;
+}
+
 .workspace-sidebar__heading {
   margin: 1.5rem .6rem .35rem;
   color: var(--color-fg-muted);
@@ -112,7 +144,7 @@ body:has(.workspace-bar[data-collapsed="true"]) {
   rotate: 180deg;
 }
 
-.workspace-product .workspace-product__links {
+.workspace-sidebar .workspace-product__links {
   margin: .125rem 0 .35rem 1.15rem;
   padding: 0 0 0 .4rem;
   border-inline-start: 1px solid var(--color-border);
@@ -209,6 +241,7 @@ body:has(.workspace-bar[data-collapsed="true"]) {
 
   .workspace-bar[data-collapsed="true"] .workspace-sidebar :is(
     .workspace-sidebar__label,
+    .workspace-account__sections,
     .workspace-product__chevron,
     .workspace-product__links
   ) {
@@ -250,8 +283,7 @@ body:has(.workspace-bar[data-collapsed="true"]) {
   }
 
   .workspace-toggle :is(.workspace-toggle__line, .workspace-toggle__expand, .workspace-toggle__collapse),
-  .workspace-toggle:is(:hover, :focus-visible) .workspace-toggle__tip,
-  .workspace-sidebar .workspace-sidebar__account {
+  .workspace-toggle:is(:hover, :focus-visible) .workspace-toggle__tip {
     display: none;
   }
 
@@ -269,6 +301,10 @@ body:has(.workspace-bar[data-collapsed="true"]) {
 
   .workspace-sidebar :is(a, summary) {
     min-block-size: 2.75rem;
+  }
+
+  .workspace-account__sections > summary {
+    inline-size: 2.75rem;
   }
 
   .workspace-bar[data-mobile-open="true"] .workspace-sidebar {
