@@ -10,8 +10,8 @@ defmodule RegentsWeb.Cloak do
   # The subtitle's first sentence is also the page's description in `RegentsWeb.PublicDocuments`;
   # change it there too.
   @heading [
-    "Your AI.",
-    "Always private, anon optional"
+    "Your agents want privacy.",
+    "Local offline AI is good now"
   ]
   @subtitle "Cloak is a tiny menu bar app for your local or private cloud AI. Inspired by Vitalik's anon 'paranoid mode' way to use agents."
 
