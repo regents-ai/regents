@@ -434,22 +434,22 @@ defmodule RegentsWeb.Components.Marketing do
                   aria-controls="menu-reading"
                   data-menu-trigger
                 >
-                  Reading
+                  Company
                   <svg class="bar__chevron" aria-hidden="true">
                     <use href="#icon-chevron" />
                   </svg>
                 </button>
                 <div class="menu menu--reading" id="menu-reading">
                   <div class="menu__column menu__column--span">
-                    <p class="menu__heading">Reading</p>
-                    <a class="menu__link" href="/articles">
-                      <span class="menu__words">
-                        <span class="menu__name">Articles</span>
-                      </span>
-                    </a>
+                    <p class="menu__heading">Company</p>
                     <a class="menu__link" href="/paper-pro-daily">
                       <span class="menu__words">
                         <span class="menu__name">Daily Research</span>
+                      </span>
+                    </a>
+                    <a class="menu__link" href="/articles">
+                      <span class="menu__words">
+                        <span class="menu__name">Articles</span>
                       </span>
                     </a>
                     <a class="menu__link" href="/literature">
@@ -570,9 +570,9 @@ defmodule RegentsWeb.Components.Marketing do
           <a class="sheet__link" href="/docs">Developer docs</a>
         </div>
         <div class="sheet__section">
-          <p class="sheet__heading label">Reading</p>
-          <a class="sheet__link" href="/articles">Articles</a>
+          <p class="sheet__heading label">Company</p>
           <a class="sheet__link" href="/paper-pro-daily">Daily Research</a>
+          <a class="sheet__link" href="/articles">Articles</a>
           <a class="sheet__link" href="/literature">AI &amp; SCIFI</a>
           <a class="sheet__link" href="/about">About</a>
         </div>
