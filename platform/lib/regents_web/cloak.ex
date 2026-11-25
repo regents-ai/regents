@@ -11,7 +11,7 @@ defmodule RegentsWeb.Cloak do
   # change it there too.
   @heading [
     "Your agents want privacy.",
-    "Local offline AI is good now"
+    "Local offline AI is good now."
   ]
   @subtitle "Cloak is a tiny menu bar app for your local or private cloud AI. Inspired by Vitalik's anon 'paranoid mode' way to use agents."
 

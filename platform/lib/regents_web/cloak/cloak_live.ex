@@ -225,7 +225,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
       <%!-- Section 2: 3 modes for every Mac (exact llama.app 3-card grid) --%>
       <section id="modes" class="cloak-section" aria-labelledby="cloak-modes-heading">
         <div class="cloak-section__head">
-          <h2 id="cloak-modes-heading">3 modes, built for every Mac</h2>
+          <h2 id="cloak-modes-heading">Three modes. Usable on any Mac with an M1 or better.</h2>
           <p>
             Run Local AI offline on Apple silicon, step up to Private Cloud Inference (NEAR, Venice, Boundless, zkAPI), or serve models with EigenLayer's Darkbloom.
           </p>
