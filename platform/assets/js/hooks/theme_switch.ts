@@ -33,7 +33,7 @@ import {byPointer, lastInputByPointer, still} from "./motion/shared"
 
 export type ThemeSwitchController = Pick<CanvasIslandController, "mount" | "pause" | "resume" | "destroy">
 
-type Geometry = Pick<SwitchPicture, "width" | "height" | "track" | "lens">
+type Geometry = Pick<SwitchPicture, "width" | "track" | "lens">
 
 type Pictures = {grid: number; pairs: readonly Pair[]}
 
@@ -98,7 +98,7 @@ export function createThemeSwitch(root: HTMLElement): ThemeSwitchController {
   let side: Side = sideOf(showingTheme())
   let morph: Morph | undefined
   let motion: AnimatableObject | undefined
-  let geometry: Geometry = {width: 1, height: 1, track: {x: 0, y: 0, width: 1, height: 1}, lens: 1}
+  let geometry: Geometry = {width: 1, track: {x: 0, y: 0, width: 1, height: 1}, lens: 1}
   let colours: SwitchPicture["colours"] | undefined
   const pixels = new Float32Array(pictures.pairs.length * PIXEL_STRIDE)
   let draw = () => {}
@@ -114,7 +114,6 @@ export function createThemeSwitch(root: HTMLElement): ThemeSwitchController {
     const k = canvas.clientWidth > 0 && box.width > 0 ? box.width / canvas.clientWidth : 1
     geometry = {
       width: canvas.clientWidth || 1,
-      height: canvas.clientHeight || 1,
       track: {
         x: (track.left - box.left) / k,
         y: (track.top - box.top) / k,
@@ -126,7 +125,7 @@ export function createThemeSwitch(root: HTMLElement): ThemeSwitchController {
   }
 
   // The page under the switch is the first ancestor that paints a solid
-  // background; the beam is the switch's own two tokens (theme_switch.css).
+  // background; the rim reads the switch's two colour tokens (theme_switch.css).
   const readColours = (): SwitchPicture["colours"] => {
     let page: Rgb | undefined
     for (let el: Element | null = root; el && !page; el = el.parentElement) {

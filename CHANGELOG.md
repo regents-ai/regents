@@ -8753,3 +8753,7 @@ seasons), on the shared Points library regents.sh was already on.
 - Use the shared search for documentation headings and remove the separate docs and
   Patchbay Terminal search controls and the Autolaunch market search fields. Keep
   the theme switch in the account menu without its visible label.
+
+## 2026-11-25 — Orbit theme switch
+
+- Use a round thumb and pill track for the light and dark switch in the header and account panel. Keep the pixel sun and moon and the same shape when motion or WebGPU is unavailable.

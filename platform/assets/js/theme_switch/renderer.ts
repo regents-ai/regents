@@ -1,14 +1,12 @@
 /**
- * Draws the theme switch with WebGPU through vgpu, on a clear canvas so the
- * light can spill onto the page round it. Loaded only once the switch is
- * really going to be drawn; the switch's script owns the knob and hands over a
- * picture whenever it changes, and nothing here moves by itself.
+ * Draws Orbit with vgpu on a clear canvas. The switch owns the knob and
+ * hands over a picture whenever it changes.
  */
 import {prepareShader} from "@vgpu/wgsl/prepare"
 import {effect, frame, init, surface} from "vgpu"
 
 import type {IslandRenderer} from "../canvas_island"
-import {stripAngle} from "./knob"
+import {lightAngle} from "./knob"
 import {asLight, distance, LIGHT_DISTANCE, type Rgb} from "./light"
 import {PIXEL_STRIDE} from "./morph"
 import {iconGrid} from "./pixels"
@@ -22,10 +20,9 @@ export type SwitchPicture = {
   p: number
   /** The canvas's own CSS size. */
   width: number
-  height: number
   /** The track's box. */
   track: {x: number; y: number; width: number; height: number}
-  /** The glass lens's side. */
+  /** The round thumb's diameter. */
   lens: number
   /** The blocks' grid, so many cells a side. */
   grid: number
@@ -51,7 +48,7 @@ const rgba = (colour: Rgb): [number, number, number, number] => [colour[0], colo
 const slotsOf = (data: Float32Array) => Array.from({length: PIXEL_SLOTS}, (_, i) => data.subarray(i * 4, (i + 1) * 4))
 
 /**
- * The strip's lights stand LIGHT_DISTANCE from the page whatever its theme. The
+ * The rim colours stand LIGHT_DISTANCE from the page whatever its theme. The
  * icon keeps its own colours unless they lie nearer the page than that.
  */
 function lightsFor({page, night, day}: SwitchPicture["colours"]) {
@@ -75,7 +72,7 @@ export async function createThemeSwitchRenderer(
   try {
     const stage = surface(gpu, canvas, {autoResize: false, alphaMode: "premultiplied", label: "theme-switch"})
     stage.resize([size[0], size[1]])
-    const shader = effect(gpu, prepareShader(themeSwitchWgsl, "theme_switch.wgsl"), {label: "theme-switch.glass"})
+    const shader = effect(gpu, prepareShader(themeSwitchWgsl, "theme_switch.wgsl"), {label: "theme-switch.orbit"})
     await shader.compile(stage)
 
     // Every slot is sent each frame; the shader reads only the first `count`.
@@ -99,7 +96,7 @@ export async function createThemeSwitchRenderer(
       },
       present() {
         if (!picture) return
-        const [width, height] = stage.size
+        const [width] = stage.size
         const scale = width / picture.width
         const {track, lens, p} = picture
         const half = (lens / 2) * scale
@@ -114,18 +111,16 @@ export async function createThemeSwitchRenderer(
         packBlocks(picture.pixels, PIXEL_STRIDE, count, blocks.half, place, look)
         shader.set({
           params: {
-            size: [width, height],
             scale,
-            p,
             track: [
               (track.x + track.width / 2) * scale,
               (track.y + track.height / 2) * scale,
               (track.width / 2) * scale,
               (track.height / 2) * scale,
             ],
-            lens: [centre[0], centre[1], half, 0.3 * lens * scale],
-            shape: [0, stripAngle(p), smoothstep(0.3, 0.7, p), 0],
-            icon: [blocks.x, blocks.y, blocks.cell, 0],
+            lens: [centre[0], centre[1], half],
+            light: [lightAngle(p), smoothstep(0.3, 0.7, p)],
+            icon: [blocks.x, blocks.y, blocks.cell],
             page: rgba(picture.colours.page),
             ink: rgba(picture.colours.ink),
             night: rgba(lights.night),

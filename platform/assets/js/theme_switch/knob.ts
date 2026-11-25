@@ -31,9 +31,5 @@ export const sideOf = (theme: Theme): Side => (theme === "light" ? 1 : 0)
 
 export const themeOf = (side: Side): Theme => (side === 1 ? "light" : "dark")
 
-/**
- * The light strip's place round the glass, in radians clockwise on screen from
- * straight right: below the knob at night, above it by day, passing round the
- * side it trails, as a ball rolling to the right turns.
- */
-export const stripAngle = (p: number): number => Math.PI / 2 + Math.PI * Math.min(1, Math.max(0, p))
+/** Light direction as the thumb moves from dark on the left to light on the right. */
+export const lightAngle = (p: number): number => Math.PI / 2 + Math.PI * Math.min(1, Math.max(0, p))

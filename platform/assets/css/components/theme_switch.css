@@ -1,27 +1,14 @@
-/* The light and dark theme switch (Shell.theme_toggle/1, hooks/theme_switch.ts).
-
-   The button is the whole press. Inside it sits the still face the server draws,
-   a flat square track and a square knob with the moon or the sun in tiny square
-   blocks, and the canvas where the GPU draws the glass knob, the same blocks and
-   its light once a first frame has landed. Everything glassy is inside that
-   canvas; the still face is flat and square and is a whole working switch on its
-   own. The canvas never takes a press and reaches only above and below the
-   button, never past its sides, so it never lies over a neighbour and never
-   changes the size of anything round it.
-
-   The knob's place is --theme-switch-p: 0 at night on the left, 1 by day on the
-   right. Before the script runs it follows the theme showing; after, the script
-   writes it as the knob moves. */
+/* The switch keeps the same pill track and round thumb on the still face and
+   on the vgpu canvas. Both read the position from dark on the left to light
+   on the right. The canvas has no pointer targets of its own. */
 .theme-switch {
   --theme-switch-p: 0;
-  --theme-switch-lens: var(--space-4);
-  --theme-switch-track: var(--space-3);
+  --theme-switch-lens: calc(var(--space-4) - 3px);
+  --theme-switch-track: calc(var(--space-3) - 1px);
   --theme-switch-travel: var(--space-3);
   --theme-switch-press: var(--space-5);
   --theme-switch-gutter: var(--space-1);
-  --theme-switch-spill: 0.25rem;
-  /* The beam: Tangerine by day and Powder Blue at night, unless the brand sets
-     its own (Techtree), as the design system's theme beam does. */
+  /* Tangerine by day and Powder Blue at night, unless the brand sets its own. */
   --theme-switch-day: var(--rg-theme-laser-light, var(--palette-tangerine-tango));
   --theme-switch-night: var(--rg-theme-laser-dark, var(--palette-powder-blue));
   position: relative;
@@ -83,7 +70,7 @@
   width: calc(var(--theme-switch-lens) + var(--theme-switch-travel));
   height: var(--theme-switch-track);
   border: 1px solid var(--color-fg-muted);
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: var(--color-bg);
 }
 
@@ -96,13 +83,13 @@
   width: var(--theme-switch-lens);
   height: var(--theme-switch-lens);
   border: 1px solid var(--color-fg);
-  border-radius: var(--radius);
+  border-radius: 50%;
   background: var(--color-surface);
   color: var(--color-fg);
   transform: translate(calc(var(--theme-switch-p) * var(--theme-switch-travel)), -50%);
 }
 
-/* The blocks fill as much of the knob as they do behind the glass. */
+/* The still glyph uses the same portion of the thumb as the GPU glyph. */
 .theme-switch__moon,
 .theme-switch__sun {
   grid-area: 1 / 1;
@@ -122,19 +109,19 @@
 
 .theme-switch__canvas {
   position: absolute;
-  inset: calc(-1 * var(--theme-switch-spill)) 0;
+  inset: 0;
   width: 100%;
-  height: calc(100% + 2 * var(--theme-switch-spill));
+  height: 100%;
   pointer-events: none;
   visibility: hidden;
 }
 
 /* A first frame has landed: the GPU's switch replaces the still face. */
-.theme-switch[data-theme-switch-ready="true"] .theme-switch__canvas {
+.theme-switch:where([data-theme-switch-ready="true"]) .theme-switch__canvas {
   visibility: visible;
 }
 
-.theme-switch[data-theme-switch-ready="true"] .theme-switch__still {
+.theme-switch:where([data-theme-switch-ready="true"]) .theme-switch__still {
   visibility: hidden;
 }
 
