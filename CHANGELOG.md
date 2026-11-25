@@ -8705,3 +8705,5 @@ seasons), on the shared Points library regents.sh was already on.
 - Update the transitive Hono dependency to 4.13.22 to address the five open npm advisories.
 - Correct hosted Patchbay pagination and error responses, and record fee transactions before broadcasting with a bounded confirmation window.
 - Recover Keyfleet feed cursors after overflow, keep excerpt identifiers out of public Markdown, and clarify when a wallet must send individual steps.
+- Fix Patchbay fee job updates, show exhausted bounty payouts on the board, and reconcile confirmed payouts during escrow checks.
+- Correct Autolaunch agent setup and reference links, and keep nested public docs accessible while product pages are closed.

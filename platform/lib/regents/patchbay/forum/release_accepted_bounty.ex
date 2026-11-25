@@ -22,7 +22,26 @@ defmodule Regents.Patchbay.Forum.ReleaseAcceptedBounty do
   end
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"report_id" => id, "reply_id" => reply_id, "wallet" => wallet}}) do
+  def perform(
+        %Oban.Job{args: %{"report_id" => id, "reply_id" => reply_id, "wallet" => wallet}} = job
+      ) do
+    case pay(id, reply_id, wallet) do
+      {:error, reason} = error when job.attempt >= job.max_attempts ->
+        case update_release(id, reply_id, :release_failed, :keep) do
+          {:ok, _report} -> error
+          {:error, update_error} -> {:error, {:release_failed, reason, update_error}}
+        end
+
+      result ->
+        result
+    end
+  end
+
+  @doc "Records a payout the escrow watcher saw confirmed on Base."
+  def record_confirmation(%Report{accepted_reply_id: reply_id} = report) when is_binary(reply_id),
+    do: update_release(report.id, reply_id, :released, :keep)
+
+  defp pay(id, reply_id, wallet) do
     with {:ok, %Report{accepted_reply_id: ^reply_id} = report} <-
            Forum.get_report(id, actor: @system),
          :ok <- ready(report),
@@ -39,7 +58,7 @@ defmodule Regents.Patchbay.Forum.ReleaseAcceptedBounty do
   defp ready(_report), do: {:cancel, :bounty_not_held}
 
   defp advance(report, %{status: :released}, _wallet),
-    do: record(report, :released, report.escrow_release_tx_hash)
+    do: record(report, :released, :keep)
 
   defp advance(report, %{status: :refunded}, _wallet) do
     case PriorityRefund.record(report, nil) do
@@ -51,10 +70,17 @@ defmodule Regents.Patchbay.Forum.ReleaseAcceptedBounty do
   defp advance(%Report{escrow_release_tx_hash: hash} = report, %{status: :funded}, _wallet)
        when is_binary(hash) do
     case Escrow.outcome(hash) do
-      {:ok, :succeeded} -> record(report, :released, hash)
-      {:ok, :reverted} -> record(report, :release_failed, nil)
-      {:error, :not_landed} -> {:error, :release_unconfirmed}
-      {:error, reason} -> {:error, reason}
+      {:ok, :succeeded} ->
+        record(report, :released, hash)
+
+      {:ok, :reverted} ->
+        with :ok <- record(report, :release_failed, nil), do: {:error, :release_reverted}
+
+      {:error, :not_landed} ->
+        {:error, :release_unconfirmed}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -68,23 +94,33 @@ defmodule Regents.Patchbay.Forum.ReleaseAcceptedBounty do
   defp advance(_report, _post, _wallet), do: {:error, :escrow_unconfirmed}
 
   defp record(report, status, hash) do
-    case Ash.transact([Report], fn -> record_current(report, status, hash) end) do
-      {:ok, _recorded} -> :ok
+    case update_release(report.id, report.accepted_reply_id, status, hash) do
+      {:ok, _report} -> :ok
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp record_current(report, status, hash) do
-    case Forum.lock_report(report.id, actor: @system) do
-      {:ok, %Report{escrow_status: state} = current} when state in @held ->
+  defp update_release(id, reply_id, status, hash) do
+    case Ash.transact([Report], fn -> record_current(id, reply_id, status, hash) end) do
+      {:ok, {:ok, report}} -> {:ok, report}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp record_current(id, reply_id, status, hash) do
+    case Forum.lock_report(id, actor: @system) do
+      {:ok, %Report{accepted_reply_id: ^reply_id, escrow_status: state} = current}
+      when state in @held ->
+        hash = if hash == :keep, do: current.escrow_release_tx_hash, else: hash
+
         Forum.record_escrow_release(
           current,
           %{escrow_status: status, escrow_release_tx_hash: hash},
           actor: @system
         )
 
-      {:ok, _closed} ->
-        :ok
+      {:ok, closed} ->
+        {:ok, closed}
 
       {:error, reason} ->
         {:error, reason}

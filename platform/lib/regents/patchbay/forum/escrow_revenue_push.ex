@@ -97,7 +97,7 @@ defmodule Regents.Patchbay.Forum.EscrowRevenuePush do
           @deadline_key => System.os_time(:second) + @receipt_window_seconds
         })
 
-      Oban.update_job(job, meta: meta)
+      Oban.update_job(job, %{meta: meta})
     else
       snooze()
     end
@@ -124,7 +124,7 @@ defmodule Regents.Patchbay.Forum.EscrowRevenuePush do
   end
 
   defp forget(job),
-    do: Oban.update_job(job, meta: Map.drop(job.meta, [@hash_key, @raw_key, @deadline_key]))
+    do: Oban.update_job(job, %{meta: Map.drop(job.meta, [@hash_key, @raw_key, @deadline_key])})
 
   defp mark_pushed(report), do: Forum.record_escrow_revenue_pushed(report, actor: %SystemActor{})
 

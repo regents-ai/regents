@@ -106,6 +106,11 @@ defmodule RegentsWeb.ProductAgentDocsController do
     """
   end
 
+  defp render_agents("autolaunch") do
+    %{markdown: markdown} = RegentsWeb.Autolaunch.PublicDocuments.document("/autolaunch/agents")
+    markdown
+  end
+
   defp render_agents(product) do
     meta = Map.fetch!(@meta, product)
     origin = RegentsWeb.Endpoint.url()

@@ -16,8 +16,8 @@ defmodule Regents.Patchbay.Escrow.Watch do
   lets anybody refund it, Patchbay included but not only Patchbay, so a
   bounty's money can move without this server ever being asked. Every five
   minutes this takes the bounties the board still believes are held, asks
-  the contract what it holds for each, and writes down the ones the contract
-  has already sent back. A report whose bounty has gone back is an ordinary
+  the contract what it holds for each, and writes down confirmed refunds
+  and payouts. A report whose bounty has gone back is an ordinary
   report again and is listed with them from then on.
 
   These are the `:read_escrow_credit` and `:read_escrow_refund` actions of
@@ -34,7 +34,7 @@ defmodule Regents.Patchbay.Escrow.Watch do
 
   alias Regents.Patchbay.Escrow
   alias Regents.Patchbay.Forum
-  alias Regents.Patchbay.Forum.PriorityRefund
+  alias Regents.Patchbay.Forum.{PriorityRefund, ReleaseAcceptedBounty}
   alias Regents.Patchbay.Payments.SpecialPost
 
   @impl true
@@ -47,7 +47,7 @@ defmodule Regents.Patchbay.Escrow.Watch do
   end
 
   defp read(:credit, report), do: confirmed(report)
-  defp read(:refund, report), do: refunded(report)
+  defp read(:refund, report), do: settled(report)
 
   # The report with the contract's confirmation written down, when the
   # contract has confirmed this bounty from the wallet and for the amount that
@@ -128,16 +128,27 @@ defmodule Regents.Patchbay.Escrow.Watch do
     report
   end
 
-  # The report with its refund written down, when the contract has already
-  # sent this bounty back.
-  defp refunded(report) do
+  defp settled(report) do
     case Escrow.post(report.id) do
-      {:ok, %{status: :refunded}} -> record(report)
-      _held_or_unreachable -> report
+      {:ok, %{status: :refunded}} ->
+        record_refund(report)
+
+      {:ok, %{status: :released}} when is_binary(report.accepted_reply_id) ->
+        case ReleaseAcceptedBounty.record_confirmation(report) do
+          {:ok, current} ->
+            current || report
+
+          {:error, reason} ->
+            Logger.warning("escrow watch could not record a payout: #{inspect(reason)}")
+            report
+        end
+
+      _held_or_unreachable ->
+        report
     end
   end
 
-  defp record(report) do
+  defp record_refund(report) do
     case PriorityRefund.record(report, report.escrow_refund_tx_hash) do
       {:ok, refunded} ->
         Logger.info("escrow watch: bounty on report #{report.id} refunded on Base")
