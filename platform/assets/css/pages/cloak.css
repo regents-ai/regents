@@ -279,12 +279,12 @@
 }
 
 .cloak-hero__subtitle {
-  max-width: 36em;
+  max-width: 38em;
   margin: var(--space-4) 0 0;
   color: color-mix(in srgb, var(--color-fg) 90%, transparent);
-  font-size: clamp(1.0625rem, 1.5vw, 1.3125rem);
-  line-height: 1.5;
-  letter-spacing: -0.01em;
+  font-size: clamp(1.1875rem, 1.7vw, 1.4375rem);
+  line-height: 1.48;
+  letter-spacing: -0.012em;
   text-wrap: balance;
 }
 
@@ -618,9 +618,9 @@
   }
 
   .cloak-hero__subtitle {
-    margin-block-start: 12px;
-    font-size: clamp(0.95rem, 1.28vw, 1.125rem);
-    line-height: 1.42;
+    margin-block-start: 14px;
+    font-size: clamp(1.0625rem, 1.45vw, 1.25rem);
+    line-height: 1.44;
   }
 
   .cloak-hero__actions {

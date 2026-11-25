@@ -45,7 +45,9 @@ defmodule RegentsWeb.Cloak.CloakLive do
         <p class="cloak-pill">{Cloak.pill()}</p>
         <h1 id="cloak-heading" tabindex="-1">
           <span class="cloak-hero__first">{hd(Cloak.heading())}</span>
-          <span class="cloak-hero__second">{List.last(Cloak.heading())}</span>
+          <span :if={length(Cloak.heading()) > 1} class="cloak-hero__second">
+            {List.last(Cloak.heading())}
+          </span>
         </h1>
         <p class="cloak-hero__subtitle">
           <%= for part <- Cloak.hero_compact() do %>
