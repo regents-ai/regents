@@ -31,19 +31,19 @@ body {
 .glow-left {
   position: absolute;
   left: -40px;
-  top: 70px;
+  top: 140px;
   width: 560px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(130, 165, 255, 0.14) 0%, rgba(130, 165, 255, 0.03) 45%, transparent 72%);
+  height: 460px;
+  background: radial-gradient(circle, rgba(130, 165, 255, 0.12) 0%, rgba(130, 165, 255, 0.03) 45%, transparent 72%);
   pointer-events: none;
 }
 .glow-right {
   position: absolute;
-  right: -80px;
-  top: 120px;
+  right: -40px;
+  top: 90px;
   width: 620px;
-  height: 520px;
-  background: radial-gradient(circle, rgba(52, 211, 153, 0.12) 0%, rgba(139, 92, 246, 0.06) 44%, transparent 72%);
+  height: 540px;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.11) 0%, rgba(139, 92, 246, 0.07) 44%, transparent 72%);
   pointer-events: none;
 }
 
@@ -59,12 +59,11 @@ body {
 /* Top bar: small, bright text */
 .topbar {
   position: absolute;
-  top: 46px;
+  top: 44px;
   left: 58px;
   right: 58px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   font-family: "Geist Mono", ui-monospace, monospace;
   font-size: 16px;
   letter-spacing: 0.02em;
@@ -75,24 +74,36 @@ body {
   color: rgba(255,255,255,0.45);
   margin: 0 10px;
 }
-.topbar-right {
-  color: rgba(255,255,255,0.52);
-  font-size: 14px;
-  letter-spacing: 0.08em;
-}
 
-/* Left-center dithered logo tile */
-.logo-wrap {
+/* Upper-left middle URL lockup */
+.url-hero {
   position: absolute;
   left: 58px;
-  top: 128px;
-  width: 248px;
-  height: 248px;
-  border-radius: 52px;
+  top: 214px;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 46px;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  color: rgba(255,255,255,0.62);
+  text-shadow: 0 0 28px rgba(160, 190, 255, 0.18);
+}
+.url-hero strong {
+  font-weight: 400;
+  color: #FFFFFF;
+}
+
+/* Bottom-right dithered logo tile */
+.logo-wrap {
+  position: absolute;
+  right: 58px;
+  bottom: 44px;
+  width: 196px;
+  height: 196px;
+  border-radius: 42px;
   background: #060709;
   border: 1px solid rgba(255,255,255,0.16);
   box-shadow:
-    0 24px 60px rgba(0,0,0,0.65),
+    0 24px 60px rgba(0,0,0,0.68),
     0 0 0 1px rgba(255,255,255,0.04) inset,
     0 1px 0 rgba(255,255,255,0.16) inset;
   display: flex;
@@ -101,37 +112,24 @@ body {
   overflow: hidden;
 }
 .logo-wrap img {
-  width: 224px;
-  height: 224px;
+  width: 176px;
+  height: 176px;
   display: block;
   image-rendering: pixelated;
 }
 
-/* Subtle dither motion echo tiles behind logo */
-.echo {
-  position: absolute;
-  top: 152px;
-  width: 200px;
-  height: 200px;
-  border-radius: 42px;
-  border: 1px solid rgba(255,255,255,0.07);
-  background: rgba(255,255,255,0.015);
-}
-.echo-1 { left: 102px; opacity: 0.55; }
-.echo-2 { left: 136px; opacity: 0.25; }
-
 /* Right-side cropped 5-step Tor startup panel */
 .tor-panel {
   position: absolute;
-  right: -76px;
-  top: 134px;
-  width: 670px;
+  right: -86px;
+  top: 102px;
+  width: 650px;
   background: linear-gradient(180deg, rgba(28, 30, 36, 0.94) 0%, rgba(19, 20, 25, 0.96) 100%);
   border: 1px solid rgba(255,255,255,0.13);
-  border-radius: 22px;
-  padding: 28px 32px 30px;
+  border-radius: 20px;
+  padding: 22px 28px 24px;
   box-shadow:
-    0 28px 70px rgba(0,0,0,0.72),
+    0 24px 64px rgba(0,0,0,0.72),
     0 1px 0 rgba(255,255,255,0.12) inset;
 }
 .tor-panel::after {
@@ -139,26 +137,26 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
-  right: 76px;
-  width: 110px;
-  background: linear-gradient(to right, transparent, rgba(8,9,12,0.86));
+  right: 86px;
+  width: 105px;
+  background: linear-gradient(to right, transparent, rgba(8,9,12,0.88));
   pointer-events: none;
 }
 
 .tor-head {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 22px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 .tor-title {
-  font-size: 24px;
+  font-size: 21px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: #F5F6F9;
 }
 .tor-timer {
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.48);
@@ -168,13 +166,13 @@ body {
 .steps {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 .step {
   display: flex;
   align-items: center;
-  gap: 14px;
-  font-size: 19px;
+  gap: 12px;
+  font-size: 17px;
   line-height: 1.25;
   white-space: nowrap;
 }
@@ -254,14 +252,9 @@ body {
   <div>
     open-source<span class="sep">--</span>MacOS<span class="sep">--</span>recent local models<span class="sep">--</span>verifiable private cloud AI
   </div>
-  <div class="topbar-right">REGENTS.SH/CLOAK</div>
 </div>
 
-<div class="echo echo-2"></div>
-<div class="echo echo-1"></div>
-<div class="logo-wrap">
-  <img id="crown" src="" alt="Cloak dithered crown" />
-</div>
+<div class="url-hero">regents.sh/<strong>cloak</strong></div>
 
 <div class="tor-panel">
   <div class="tor-head">
@@ -274,6 +267,10 @@ body {
 
 <div class="headline-wrap">
   <h1 class="headline">Cloak your agents</h1>
+</div>
+
+<div class="logo-wrap">
+  <img id="crown" src="" alt="Cloak dithered crown" />
 </div>
 
 <script>
