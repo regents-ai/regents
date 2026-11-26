@@ -27,83 +27,93 @@ body {
   background-size: 48px 48px;
 }
 
-/* Soft ambient glows */
+/* Soft ambient glows centered in the iMessage-safe zone */
 .glow-left {
   position: absolute;
-  left: -40px;
-  top: 140px;
-  width: 560px;
-  height: 460px;
-  background: radial-gradient(circle, rgba(130, 165, 255, 0.12) 0%, rgba(130, 165, 255, 0.03) 45%, transparent 72%);
+  left: 140px;
+  top: 130px;
+  width: 520px;
+  height: 440px;
+  background: radial-gradient(circle, rgba(130, 165, 255, 0.13) 0%, rgba(130, 165, 255, 0.03) 45%, transparent 72%);
   pointer-events: none;
 }
 .glow-right {
   position: absolute;
-  right: -40px;
-  top: 90px;
-  width: 620px;
-  height: 540px;
-  background: radial-gradient(circle, rgba(52, 211, 153, 0.11) 0%, rgba(139, 92, 246, 0.07) 44%, transparent 72%);
+  right: 140px;
+  top: 80px;
+  width: 540px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.12) 0%, rgba(139, 92, 246, 0.07) 44%, transparent 72%);
   pointer-events: none;
 }
 
 /* Subtle hairline frame */
 .frame {
   position: absolute;
-  inset: 22px;
-  border: 1px solid rgba(255,255,255,0.08);
+  inset: 20px;
+  border: 1px solid rgba(255,255,255,0.06);
   border-radius: 20px;
   pointer-events: none;
 }
 
-/* Top bar: small, bright text */
+/*
+ * Safe-zone layout: full canvas is 1200x630 (1.91:1 for X, Telegram, Discord, Slack),
+ * while all foreground typography, the animated Tor startup card, and the dithered
+ * crown sit strictly inside the centered 744x630 region (x: 228..972) so iMessage's
+ * ~4:3 center crop never clips any text, card, or logo.
+ */
+
+/* Top bar: small, bright text centered inside safe zone */
 .topbar {
   position: absolute;
-  top: 44px;
-  left: 58px;
-  right: 58px;
+  top: 40px;
+  left: 240px;
+  right: 240px;
   display: flex;
   align-items: center;
+  justify-content: center;
   font-family: "Geist Mono", ui-monospace, monospace;
-  font-size: 16px;
-  letter-spacing: 0.02em;
+  font-size: 13px;
+  letter-spacing: 0.015em;
   color: #F7F8FC;
   text-shadow: 0 0 18px rgba(255,255,255,0.22);
+  white-space: nowrap;
 }
 .topbar .sep {
-  color: rgba(255,255,255,0.45);
-  margin: 0 10px;
+  color: rgba(255,255,255,0.42);
+  margin: 0 8px;
 }
 
-/* Upper-left middle URL lockup */
+/* Upper-left middle URL lockup inside safe zone */
 .url-hero {
   position: absolute;
-  left: 58px;
-  top: 214px;
+  left: 240px;
+  top: 204px;
   font-family: "Geist Mono", ui-monospace, monospace;
-  font-size: 46px;
+  font-size: 30px;
   font-weight: 400;
   letter-spacing: -0.025em;
-  color: rgba(255,255,255,0.62);
+  color: rgba(255,255,255,0.64);
   text-shadow: 0 0 28px rgba(160, 190, 255, 0.18);
+  white-space: nowrap;
 }
 .url-hero strong {
   font-weight: 400;
   color: #FFFFFF;
 }
 
-/* Bottom-right dithered logo tile */
+/* Bottom-right dithered logo tile inside safe zone */
 .logo-wrap {
   position: absolute;
-  right: 58px;
-  bottom: 44px;
-  width: 196px;
-  height: 196px;
-  border-radius: 42px;
+  right: 240px;
+  bottom: 42px;
+  width: 144px;
+  height: 144px;
+  border-radius: 32px;
   background: #060709;
   border: 1px solid rgba(255,255,255,0.16);
   box-shadow:
-    0 24px 60px rgba(0,0,0,0.68),
+    0 20px 48px rgba(0,0,0,0.68),
     0 0 0 1px rgba(255,255,255,0.04) inset,
     0 1px 0 rgba(255,255,255,0.16) inset;
   display: flex;
@@ -112,51 +122,41 @@ body {
   overflow: hidden;
 }
 .logo-wrap img {
-  width: 176px;
-  height: 176px;
+  width: 128px;
+  height: 128px;
   display: block;
   image-rendering: pixelated;
 }
 
-/* Right-side cropped 5-step Tor startup panel */
+/* Right-side 5-step Tor startup panel — fully inside the iMessage safe zone */
 .tor-panel {
   position: absolute;
-  right: -86px;
-  top: 102px;
-  width: 650px;
+  right: 240px;
+  top: 96px;
+  width: 404px;
   background: linear-gradient(180deg, rgba(28, 30, 36, 0.94) 0%, rgba(19, 20, 25, 0.96) 100%);
   border: 1px solid rgba(255,255,255,0.13);
-  border-radius: 20px;
-  padding: 22px 28px 24px;
+  border-radius: 18px;
+  padding: 18px 19px 20px;
   box-shadow:
-    0 24px 64px rgba(0,0,0,0.72),
+    0 20px 52px rgba(0,0,0,0.72),
     0 1px 0 rgba(255,255,255,0.12) inset;
-}
-.tor-panel::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 86px;
-  width: 105px;
-  background: linear-gradient(to right, transparent, rgba(8,9,12,0.88));
-  pointer-events: none;
 }
 
 .tor-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 9px;
+  margin-bottom: 13px;
 }
 .tor-title {
-  font-size: 21px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: #F5F6F9;
 }
 .tor-timer {
-  font-size: 19px;
+  font-size: 14.5px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.48);
@@ -166,13 +166,13 @@ body {
 .steps {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 .step {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 17px;
+  gap: 9px;
+  font-size: 12.6px;
   line-height: 1.25;
   white-space: nowrap;
 }
@@ -181,8 +181,8 @@ body {
 .step.pending { color: rgba(255,255,255,0.34); }
 
 .icon-slot {
-  width: 24px;
-  height: 24px;
+  width: 19px;
+  height: 19px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -191,54 +191,55 @@ body {
 
 /* Green check circle */
 .check {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: #22C55E;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 14px rgba(34, 197, 94, 0.45);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.45);
 }
-.check svg { width: 13px; height: 13px; }
+.check svg { width: 11px; height: 11px; }
 
 /* Pending hollow circle */
 .circle {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  border: 1.75px solid rgba(255,255,255,0.28);
+  border: 1.5px solid rgba(255,255,255,0.28);
 }
 
 /* Native macOS 8-spoke spinner */
 .spinner {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   position: relative;
 }
 .spinner i {
   position: absolute;
-  left: 10px;
-  top: 2px;
-  width: 2.2px;
-  height: 5.5px;
-  border-radius: 1.5px;
+  left: 8px;
+  top: 1.5px;
+  width: 2px;
+  height: 4.5px;
+  border-radius: 1.2px;
   background: #FFFFFF;
-  transform-origin: 1.1px 9px;
+  transform-origin: 1px 7.5px;
 }
 
-/* Bottom-left large headline */
+/* Bottom-left large headline inside safe zone */
 .headline-wrap {
   position: absolute;
-  left: 58px;
+  left: 240px;
   bottom: 58px;
 }
 .headline {
-  font-size: 80px;
+  font-size: 57px;
   font-weight: 600;
   line-height: 0.96;
   letter-spacing: -0.04em;
   color: #FFFFFF;
+  white-space: nowrap;
 }
 </style>
 </head>
@@ -250,7 +251,7 @@ body {
 
 <div class="topbar">
   <div>
-    open-source<span class="sep">--</span>MacOS<span class="sep">--</span>recent local models<span class="sep">--</span>verifiable private cloud AI
+    open-source<span class="sep">--</span>macOS<span class="sep">--</span>local models<span class="sep">--</span>verifiable private cloud AI
   </div>
 </div>
 
