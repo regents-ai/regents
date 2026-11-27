@@ -164,8 +164,8 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
   defp fleet_directory do
     Enum.map(Fleets.catalog(), fn entry ->
       sale = BuyKey.sale(entry.id)
-      offer = BuyKey.offer(sale)
       given? = Presets.given?(entry.id)
+      offer = if given?, do: nil, else: BuyKey.offer(sale)
 
       %{
         id: entry.id,
@@ -273,7 +273,10 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
                   <span class="rl-fleet-card__status">{entry.status}</span>
                 </div>
                 <p class="rl-fleet-card__desc">{entry.description}</p>
-                <p :if={not entry.coming_soon? and not entry.given?} class="rl-fleet-card__meta">
+                <p
+                  :if={not entry.coming_soon? and not entry.given? and entry.offer != nil}
+                  class="rl-fleet-card__meta"
+                >
                   <.sold sales={entry.sales} failed={entry.failed?} /> Keys · Next: {entry.offer.cost}
                 </p>
                 <.link

@@ -105,12 +105,26 @@ defmodule RegentsWeb.Keyfleet.Components.BuyKey do
     }
   end
 
+  def offer(%{sales: %{given?: true}}) do
+    %{
+      state: :given,
+      cost: "Pass claim",
+      key: nil,
+      price: nil,
+      why: "Regents Club Keys are claimed with a Pass"
+    }
+  end
+
+  def offer(%{sales: %{buy: nil}}) do
+    %{state: :soon, cost: "—", key: nil, price: nil, why: "Sales open soon"}
+  end
+
   def offer(%{id: fleet_id, sales: %{buy: %{price: nil}}}) do
     max = grouped(Presets.max_supply(fleet_id))
     %{state: :sold_out, cost: "Sold out", key: nil, price: nil, why: "#{max}/#{max} Keys sold"}
   end
 
-  def offer(%{sales: %{buy: buy}}) do
+  def offer(%{sales: %{buy: %{} = buy}}) do
     %{
       state: :open,
       cost: FleetLive.usdc(buy.price),
