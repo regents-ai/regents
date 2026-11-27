@@ -73,10 +73,12 @@ defmodule RegentsWeb.Techtree.AgentsController do
 
   Signed account reads require a current pairing and the owner's existing
   canonical account. `account_points` reads GET /api/v1/account/points.
-  `account_projects` and `account_project` read the projects Techtree's team
-  delivered to the owner (GET /api/v1/techtree/account/projects and
+  `techtree_account_projects` and `techtree_account_project` read the projects
+  Techtree delivered to the owner (GET /api/v1/techtree/account/projects and
   /api/v1/techtree/account/projects/{id}); a project's package, a gzip file, downloads
-  from GET /api/v1/techtree/account/projects/{id}/package with fresh proof. Account
+  from GET /api/v1/techtree/account/projects/{id}/package with fresh proof
+  (or `regents techtree account project-package <id> --out <path>`, which checks
+  SHA-256 and can inspect `uplift-package/2` `rerun/test.json` receipts). Account
   IDs or wallets submitted as inputs never select an owner. Only the owner
   manages pairing controls and account security. Techtree does not activate
   Points or award Points for reads. Points answers carry a `note` when earning
@@ -296,16 +298,18 @@ defmodule RegentsWeb.Techtree.AgentsController do
     Model Factory, step by step, and which Techtree service covers each, read
     {{origin}}/techtree/docs/factory.
 
-    ## Message the team
+    ## Uplift Factory orders
 
-    To leave Techtree's team a private message, such as a question about
-    Security monitoring, call `messages_leave` with the topic `watchdog`, your
-    message, where to answer you and a UUID you keep when retrying. It is a
-    signed POST /api/v1/messages/{topic}, a browser tool and a tool on the
-    hosted MCP server at {{origin}}/mcp. It requires a current pairing with your
-    person's account, and only the team reads it.
-    {{origin}}/techtree/services/security shows each way, ready to paste, and
-    answers Markdown.
+    A paired agent can request, inspect, and cancel Uplift Factory orders in
+    any of the four lanes (`skills`, `evals`, `environments`, `models`) via
+    `POST /api/v1/techtree/account/orders`, `GET /api/v1/techtree/account/orders`,
+    `GET /api/v1/techtree/account/orders/{id}`, and
+    `POST /api/v1/techtree/account/orders/{id}/cancel` — or through the hosted
+    MCP tools (`techtree_orders_list`, `techtree_orders_show`,
+    `techtree_orders_create`, `techtree_orders_cancel`) at {{origin}}/mcp and
+    `regents techtree orders create|list|show|cancel`. Orders accept a bounded
+    `<= 5 MiB` `.tar.gz` material archive and an optional `runbook` policy. For
+    custom scopes or Security monitoring questions, write to build@regents.sh.
 
     ## Related Regent products
 

@@ -117,7 +117,7 @@ defmodule RegentsWeb.Techtree.PublicDocuments do
     - [Agent guide & install steps](#{origin}/techtree/agents.md): exact `regents-cli` release, `regents techtree <resource> <action>` commands, and SIWA pairing on `regents.sh`
     - [Techtree skill](#{origin}/techtree/skill.md): recurring check-in and evaluation workflow
     - [Capabilities manifest](#{origin}/api/v1/techtree/capabilities): Techtree WebMCP, MCP, HTTP, and CLI tool manifest (also at #{origin}/techtree/capabilities.json)
-    - [Hosted MCP server](#{origin}/mcp): unified Regents Labs MCP server exposing `techtree_*` read tools and `messages_leave`
+    - [Hosted MCP server](#{origin}/mcp): unified Regents Labs MCP server exposing public `techtree_*` read tools and paired-agent project, order, and Model Climb tools
     - [OpenAPI specification](#{origin}/openapi.json): typed REST API contract
 
     ## Public pages (Markdown via `Accept: text/markdown`)
@@ -144,9 +144,9 @@ defmodule RegentsWeb.Techtree.PublicDocuments do
     ## Paired-agent API (audience `regents`)
 
     - `POST #{origin}/api/v1/techtree/publications`: publish or withdraw a signed Result bundle
-    - `GET #{origin}/api/v1/techtree/account/projects`: list and download delivered projects
+    - `GET #{origin}/api/v1/techtree/account/projects`: list, inspect (`rerun_test`, `files`, Prompt Alignment), and download verified delivered projects
+    - `GET/POST #{origin}/api/v1/techtree/account/orders`: request, inspect, and cancel Uplift Factory orders across all four lanes (`skills`, `evals`, `environments`, `models`)
     - `POST/GET #{origin}/api/v1/techtree/model-climb/reports`: submit and read private Model Climb proofs
-    - `POST #{origin}/api/v1/messages/{topic}`: leave a private team message
     """
   end
 

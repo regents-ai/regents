@@ -200,15 +200,17 @@ defmodule RegentsWeb.Techtree.ProjectsLive do
   # https addresses kept (report_html/1).
   # sobelow_skip ["XSS.Raw"]
   defp project(assigns) do
-    manifest = assigns.project.manifest
+    manifest = assigns.project.manifest || %{}
     summary = manifest["summary"]
+    rerun_test = manifest["rerun_test"]
 
     assigns =
       assign(assigns,
         manifest: manifest,
         summary: summary,
-        original: summary["original"],
-        selected: summary["selected"],
+        rerun_test: rerun_test,
+        original: is_map(summary) && summary["original"],
+        selected: is_map(summary) && summary["selected"],
         report: report_html(assigns.project.report_md)
       )
 
@@ -235,8 +237,15 @@ defmodule RegentsWeb.Techtree.ProjectsLive do
       </dl>
     </section>
 
+    <.model_panel :if={@project.line == :models and is_map(@rerun_test)} test={@rerun_test} />
+    <.eval_panel :if={@project.line == :evals and is_map(@rerun_test)} test={@rerun_test} />
+    <.environment_panel
+      :if={@project.line == :environments and is_map(@rerun_test)}
+      test={@rerun_test}
+    />
+
     <section
-      :if={@project.line == :skills}
+      :if={@project.line == :skills and is_map(@summary)}
       class="account-panel"
       aria-labelledby="project-comparison-title"
     >
@@ -306,11 +315,19 @@ defmodule RegentsWeb.Techtree.ProjectsLive do
           </dd>
         </div>
       </dl>
-      <p class="project-note">The checksum is the file’s SHA-256, to check the download.</p>
+      <p class="project-note">
+        The checksum is the file’s SHA-256, to check the download
+        <span :if={@manifest["schema"]}>
+          · {@manifest["schema"]}
+          <span :if={is_list(@manifest["files"])}>
+            ({count(length(@manifest["files"]), "file", "files")})
+          </span>
+        </span>
+      </p>
     </section>
 
     <section
-      :if={@project.line == :skills}
+      :if={@project.line == :skills and is_list(@manifest["cases"])}
       class="account-panel"
       aria-labelledby="project-cases-title"
     >
@@ -348,7 +365,7 @@ defmodule RegentsWeb.Techtree.ProjectsLive do
     </section>
 
     <section
-      :if={@project.line == :skills}
+      :if={@project.line == :skills and is_list(@manifest["selection"])}
       class="account-panel"
       aria-labelledby="project-candidates-title"
     >
@@ -374,7 +391,7 @@ defmodule RegentsWeb.Techtree.ProjectsLive do
     </section>
 
     <section
-      :if={@project.line == :skills}
+      :if={@project.line == :skills and is_map(@manifest["setup"])}
       class="account-panel account-details"
       aria-labelledby="project-setup-title"
     >
@@ -418,6 +435,215 @@ defmodule RegentsWeb.Techtree.ProjectsLive do
     </section>
     """
   end
+
+  attr :test, :map, required: true
+
+  defp model_panel(assigns) do
+    training = Map.get(assigns.test, "training") || %{}
+    prompt_mode = training["inference_prompt_mode"]
+    source_weights = Map.get(assigns.test, "source_weights") || %{}
+    source_verified = assigns.test["source_verified"] == true
+    cases = Map.get(assigns.test, "cases") || []
+    settings = Map.get(assigns.test, "settings") || %{}
+
+    assigns =
+      assign(assigns,
+        training: training,
+        prompt_mode: prompt_mode,
+        source_weights: source_weights,
+        source_verified: source_verified,
+        cases_count: length(cases),
+        settings: settings
+      )
+
+    ~H"""
+    <section class="account-panel account-details" aria-labelledby="project-model-title">
+      <div class="project-verdict__head">
+        <h2 id="project-model-title">Training &amp; serving contract</h2>
+        <Primitives.status
+          tone={if @source_verified, do: "success", else: "warning"}
+          class="project-verdict__status"
+        >
+          {if @source_verified, do: "Source weights verified", else: "Source unverified"}
+        </Primitives.status>
+      </div>
+      <Primitives.notice
+        :if={@prompt_mode == "no_skill"}
+        id="project-prompt-alignment-notice"
+        tone="warning"
+      >
+        <strong>Prompt Alignment Law (<code>no_skill</code>):</strong>
+        This adapter was trained without <code>SKILL.md</code>. Serve it with no Skill prompt at
+        inference — re-attaching a Skill prompt onto a no-skill SFT adapter regresses accuracy.
+      </Primitives.notice>
+      <Primitives.notice
+        :if={@prompt_mode == "with_skill"}
+        id="project-prompt-alignment-notice"
+        tone="info"
+      >
+        <strong>Prompt Alignment Law (<code>with_skill</code>):</strong>
+        This adapter was trained with <code>SKILL.md</code>
+        attached. Keep the exact training Skill
+        prompt attached at inference.
+      </Primitives.notice>
+      <dl>
+        <div :if={@training["mode"]}>
+          <dt>Training mode</dt>
+          <dd>{training_mode_label(@training["mode"])}</dd>
+        </div>
+        <div :if={@prompt_mode}>
+          <dt>Inference prompt</dt>
+          <dd><code>{@prompt_mode}</code></dd>
+        </div>
+        <div :if={@source_weights["repository"] || @source_weights["model"]}>
+          <dt>Source weights</dt>
+          <dd>
+            <bdi>{@source_weights["repository"] || @source_weights["model"]}</bdi>
+            <span :if={@source_weights["revision"]} class="project-note">
+              ({String.slice(to_string(@source_weights["revision"]), 0, 12)})
+            </span>
+          </dd>
+        </div>
+        <div :if={@cases_count > 0}>
+          <dt>Held-out test</dt>
+          <dd>
+            {count(@cases_count, "case", "cases")}
+            <span :if={@test["repeats"]}>
+              · {count(@test["repeats"], "repeat", "repeats")} each
+            </span>
+          </dd>
+        </div>
+        <div :if={@training["steps"] || @training["batch_size"] || @training["seq_len"]}>
+          <dt>Run parameters</dt>
+          <dd>
+            <ul class="project-plain-list">
+              <li :if={@training["steps"]}>Steps: {@training["steps"]}</li>
+              <li :if={@training["batch_size"]}>Batch size: {@training["batch_size"]}</li>
+              <li :if={@training["seq_len"]}>Sequence length: {@training["seq_len"]}</li>
+              <li :if={is_boolean(@training["thinking"])}>
+                Thinking: {if @training["thinking"], do: "on", else: "off"}
+              </li>
+            </ul>
+          </dd>
+        </div>
+        <div :if={@settings != %{}}>
+          <dt>Evaluation settings</dt>
+          <dd>
+            <ul class="project-plain-list">
+              <li :for={{name, value} <- Enum.sort(@settings)}>{setting(name, value)}</li>
+            </ul>
+          </dd>
+        </div>
+      </dl>
+    </section>
+    """
+  end
+
+  attr :test, :map, required: true
+
+  defp eval_panel(assigns) do
+    cases = Map.get(assigns.test, "cases") || []
+    models = Map.get(assigns.test, "models") || []
+    settings = Map.get(assigns.test, "settings") || %{}
+
+    assigns =
+      assign(assigns,
+        cases_count: length(cases),
+        models: models,
+        settings: settings
+      )
+
+    ~H"""
+    <section class="account-panel account-details" aria-labelledby="project-eval-title">
+      <h2 id="project-eval-title">Evaluation setup</h2>
+      <dl>
+        <div :if={@cases_count > 0}>
+          <dt>Reviewed suite</dt>
+          <dd>
+            {count(@cases_count, "case", "cases")}
+            <span :if={@test["repeats"]}>
+              · {count(@test["repeats"], "repeat", "repeats")} each
+            </span>
+          </dd>
+        </div>
+        <div :if={is_number(@test["pass_bar"])}>
+          <dt>Pass bar</dt>
+          <dd>{percent(@test["pass_bar"])}%</dd>
+        </div>
+        <div :if={@models != []}>
+          <dt>Measured models</dt>
+          <dd>
+            <ul class="project-plain-list">
+              <li :for={m <- @models}><bdi>{m["name"]}</bdi></li>
+            </ul>
+          </dd>
+        </div>
+        <div :if={@settings != %{}}>
+          <dt>Settings</dt>
+          <dd>
+            <ul class="project-plain-list">
+              <li :for={{name, value} <- Enum.sort(@settings)}>{setting(name, value)}</li>
+            </ul>
+          </dd>
+        </div>
+      </dl>
+    </section>
+    """
+  end
+
+  attr :test, :map, required: true
+
+  defp environment_panel(assigns) do
+    tasks = Map.get(assigns.test, "tasks") || []
+    images = Map.get(assigns.test, "images") || []
+    baseline = assigns.test["baseline"]
+
+    assigns =
+      assign(assigns,
+        tasks: tasks,
+        images: images,
+        baseline: baseline
+      )
+
+    ~H"""
+    <section class="account-panel account-details" aria-labelledby="project-env-title">
+      <h2 id="project-env-title">Environment soundness &amp; baseline</h2>
+      <dl>
+        <div>
+          <dt>Sound tasks</dt>
+          <dd>
+            {count(length(@tasks), "verified task", "verified tasks")}
+            <span :if={is_number(@test["sound_bar"])} class="project-note">
+              (soundness bar {percent(@test["sound_bar"])}%)
+            </span>
+          </dd>
+        </div>
+        <div :if={@images != []}>
+          <dt>Pinned offline images</dt>
+          <dd>
+            <ul class="project-plain-list">
+              <li :for={img <- @images}><code>{img}</code></li>
+            </ul>
+          </dd>
+        </div>
+        <div :if={is_map(@baseline)}>
+          <dt>Baseline run</dt>
+          <dd>
+            <bdi>{@baseline["model"]}</bdi>
+            <span :if={@baseline["mode"]} class="project-note"> · {@baseline["mode"]}</span>
+            <span :if={@baseline["repeats"]} class="project-note">
+              · {count(@baseline["repeats"], "repeat", "repeats")}
+            </span>
+          </dd>
+        </div>
+      </dl>
+    </section>
+    """
+  end
+
+  defp training_mode_label("rl"), do: "GRPO RL (prime-rl)"
+  defp training_mode_label("sft"), do: "LoRA SFT (prime-rl)"
+  defp training_mode_label(other), do: to_string(other)
 
   attr :id, :string, required: true
   attr :label, :string, required: true

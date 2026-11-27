@@ -17,6 +17,7 @@ defmodule RegentsWeb.Techtree do
   use Boundary,
     deps: [RegentsWeb, Regents.Techtree],
     exports: [
+      AccountOrdersController,
       AgentAccountController,
       AgentTools,
       AgentsController,
@@ -27,6 +28,7 @@ defmodule RegentsWeb.Techtree do
       ClimbController,
       ClimbsLive.Show,
       DocsLive,
+      FactoryOrdersController,
       FormalLive,
       HomeLive,
       Layouts,

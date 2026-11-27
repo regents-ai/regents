@@ -658,16 +658,33 @@ defmodule RegentsWeb.Router do
   end
 
   # A paired agent's reads of the projects Techtree's team delivered to its
-  # person; each is private to that person.
+  # person, and its Uplift Factory order requests; each is private to that person.
   scope "/api/v1/techtree/account", RegentsWeb.Techtree do
     pipe_through [:api, :paired_agent]
     get "/projects", AgentAccountController, :projects
     get "/projects/:id", AgentAccountController, :project
+    get "/orders", AccountOrdersController, :index
+    post "/orders", AccountOrdersController, :create
+    get "/orders/:id", AccountOrdersController, :show
+    post "/orders/:id/cancel", AccountOrdersController, :cancel
   end
 
   scope "/api/v1/techtree/account", RegentsWeb.Techtree do
     pipe_through [:techtree_api_download, :paired_agent]
     get "/projects/:id/package", AgentAccountController, :package
+  end
+
+  # Operator-authenticated Uplift Factory OrderBridge endpoints
+  # (`Authorization: Bearer <token>`, constant-time check inside controller).
+  scope "/api/v1/techtree/factory", RegentsWeb.Techtree do
+    pipe_through :api
+    get "/orders", FactoryOrdersController, :index
+    post "/orders/:id/deliver", FactoryOrdersController, :deliver
+  end
+
+  scope "/api/v1/techtree/factory", RegentsWeb.Techtree do
+    pipe_through :techtree_api_download
+    post "/orders/:id/claim", FactoryOrdersController, :claim
   end
 
   # Techtree's catalog and public run log, read by anyone: the exact bytes the

@@ -1,0 +1,535 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Techtree API on Regents",
+    "version": "1.11.0",
+    "description": "Canonical OpenAPI contract for Techtree endpoints served on https://regents.sh under /api/v1/techtree/* and /techtree/*."
+  },
+  "servers": [
+    {
+      "url": "https://regents.sh"
+    }
+  ],
+  "paths": {
+    "/api/agents/v1/whoami": {
+      "get": {
+        "operationId": "agent_whoami",
+        "summary": "Verify signing agent identity and current pairing",
+        "responses": {
+          "200": {
+            "description": "Agent identity and pairing state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/v1/pair": {
+      "post": {
+        "operationId": "pairAgent",
+        "summary": "Redeem a single-use owner-approved pairing code",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["code", "name", "harness"],
+                "properties": {
+                  "code": { "type": "string" },
+                  "name": { "type": "string" },
+                  "harness": { "type": "string" }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paired agent receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/points": {
+      "get": {
+        "operationId": "getAccountPoints",
+        "summary": "Read the paired owner's Regent Points summary",
+        "responses": {
+          "200": {
+            "description": "Points summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/catalog": {
+      "get": {
+        "operationId": "getTechtreeCatalog",
+        "summary": "Read the active Techtree catalog of published Climbs and Skills",
+        "responses": {
+          "200": {
+            "description": "Catalog JSON bytes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/bootstrap": {
+      "get": {
+        "operationId": "getTechtreeBootstrap",
+        "summary": "Read the active Techtree release's CLI bootstrap metadata",
+        "responses": {
+          "200": {
+            "description": "Bootstrap release JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/climbs/{slug}": {
+      "get": {
+        "operationId": "getTechtreeClimb",
+        "summary": "Read one published Techtree Climb by slug",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Climb summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/publications": {
+      "get": {
+        "operationId": "listTechtreePublications",
+        "summary": "List published Techtree evaluation Results, newest first",
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } },
+          { "name": "before_sequence", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "agent", "in": "query", "schema": { "type": "string" } },
+          { "name": "agent_version", "in": "query", "schema": { "type": "string" } },
+          { "name": "model", "in": "query", "schema": { "type": "string" } },
+          { "name": "challenge", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Result log page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "publishTechtreeResult",
+        "summary": "Submit an independently signed Result proof bundle or withdrawal",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Countersigned receipt",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/publications/{bundle_digest}": {
+      "get": {
+        "operationId": "getTechtreePublication",
+        "summary": "Read one published Techtree Result by bundle digest",
+        "parameters": [
+          { "name": "bundle_digest", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Result entry",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/publications/{bundle_digest}/bundle": {
+      "get": {
+        "operationId": "getTechtreePublicationBundle",
+        "summary": "Download exact submitted proof bundle bytes",
+        "parameters": [
+          { "name": "bundle_digest", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exact JSON proof bundle",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/skills/{root_digest}": {
+      "get": {
+        "operationId": "getTechtreeSkill",
+        "summary": "Read a published Skill's files and standing Results",
+        "parameters": [
+          { "name": "root_digest", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published Skill",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/model-climb/reports": {
+      "get": {
+        "operationId": "listModelClimbReports",
+        "summary": "List private Model Climb proof reports for the paired owner",
+        "responses": {
+          "200": {
+            "description": "Model Climb reports list",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "submitModelClimbReport",
+        "summary": "Submit a signed private Model Climb proof report",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored report receipt",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/model-climb/reports/{digest}": {
+      "get": {
+        "operationId": "getModelClimbReport",
+        "summary": "Read one private Model Climb proof report by digest",
+        "parameters": [
+          { "name": "digest", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model Climb report",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/account/projects": {
+      "get": {
+        "operationId": "listAccountProjects",
+        "summary": "List delivered Techtree projects for the paired owner",
+        "responses": {
+          "200": {
+            "description": "Delivered projects",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/account/projects/{id}": {
+      "get": {
+        "operationId": "getAccountProject",
+        "summary": "Read one delivered Techtree project with manifest, rerun_test receipt, report, and package metadata",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delivered project",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/account/projects/{id}/package": {
+      "get": {
+        "operationId": "getAccountProjectPackage",
+        "summary": "Download gzipped tar archive for one delivered Techtree project",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gzipped tar archive",
+            "content": {
+              "application/gzip": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/account/orders": {
+      "get": {
+        "operationId": "listTechtreeOrders",
+        "summary": "List Techtree Uplift Factory orders for the paired owner",
+        "responses": {
+          "200": {
+            "description": "Order list",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createTechtreeOrder",
+        "summary": "Request a new Techtree Uplift Factory order",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["lane", "title", "success"],
+                "properties": {
+                  "lane": { "type": "string", "enum": ["skills", "evals", "environments", "models"] },
+                  "title": { "type": "string" },
+                  "success": { "type": "string" },
+                  "project_name": { "type": "string" },
+                  "customer_company": { "type": "string" },
+                  "customer_contact_name": { "type": "string" },
+                  "customer_contact_email": { "type": "string" },
+                  "runbook": { "type": "object" },
+                  "material_archive_base64": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created order",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/account/orders/{id}": {
+      "get": {
+        "operationId": "getTechtreeOrder",
+        "summary": "Read one Techtree Uplift Factory order",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/techtree/account/orders/{id}/cancel": {
+      "post": {
+        "operationId": "cancelTechtreeOrder",
+        "summary": "Cancel an unpaid Techtree Uplift Factory order",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancelled order",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/techtree/wallet-bench.json": {
+      "get": {
+        "operationId": "getTechtreeWalletBench",
+        "summary": "Read live Agent Wallet Bench score grids",
+        "responses": {
+          "200": {
+            "description": "Wallet Bench scores JSON",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/techtree/wallet-bench/{id}/results.json": {
+      "get": {
+        "operationId": "getTechtreeWalletBenchAttempt",
+        "summary": "Read one Agent Wallet Bench attempt",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Wallet Bench attempt JSON",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/techtree/train.json": {
+      "get": {
+        "operationId": "listTechtreeTrainComparisons",
+        "summary": "List published public Skill comparison demonstrations",
+        "responses": {
+          "200": {
+            "description": "Train comparisons JSON",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/techtree/train/{slug}/report.json": {
+      "get": {
+        "operationId": "getTechtreeTrainReport",
+        "summary": "Read one Skill comparison's exact per-case report JSON",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Train report JSON",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -85,15 +85,30 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
     end
 
     action :publications, :map do
-      description "List published Techtree evaluation Results, newest first."
+      description "List published Techtree evaluation Results, newest first, with optional limit, before_sequence, agent/agent_version, model, and challenge filters."
 
       argument :limit, :integer, default: 25, allow_nil?: false, constraints: [min: 1, max: 100]
       argument :before_sequence, :integer, allow_nil?: true, constraints: [min: 1]
+      argument :agent, :string, allow_nil?: true, constraints: [min_length: 1, max_length: 128]
+
+      argument :agent_version, :string,
+        allow_nil?: true,
+        constraints: [min_length: 1, max_length: 128]
+
+      argument :model, :string, allow_nil?: true, constraints: [min_length: 1, max_length: 512]
+
+      argument :challenge, :string,
+        allow_nil?: true,
+        constraints: [min_length: 1, max_length: 512]
 
       run fn %{arguments: args}, _context ->
         params =
           %{"limit" => Integer.to_string(args.limit)}
           |> maybe_put_before(args[:before_sequence])
+          |> maybe_put_param("agent", args[:agent])
+          |> maybe_put_param("agent_version", args[:agent_version])
+          |> maybe_put_param("model", args[:model])
+          |> maybe_put_param("challenge", args[:challenge])
 
         with {:ok, options} <- Query.read_page_options(params),
              {:ok, page} <- Outage.read(fn -> Query.page(options) end) do
@@ -104,7 +119,7 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
             refused(
               "publication_query_invalid",
               message,
-              "Pass integer limit (1..100) and optional before_sequence."
+              "Pass integer limit (1..100), optional before_sequence, model, challenge, or agent together with agent_version."
             )
 
           :database_down ->
@@ -258,6 +273,9 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
 
   defp maybe_put_before(params, seq) when is_integer(seq),
     do: Map.put(params, "before_sequence", Integer.to_string(seq))
+
+  defp maybe_put_param(params, _key, nil), do: params
+  defp maybe_put_param(params, key, value) when is_binary(value), do: Map.put(params, key, value)
 end
 
 defimpl AshAi.ToToolError, for: RegentsWeb.Techtree.AgentTools.Public.Refused do

@@ -156,6 +156,30 @@
             "type": "integer",
             "minimum": 1,
             "description": "Keyset cursor from next_before_sequence on the previous page."
+          },
+          "agent": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Filter by agent harness (send together with agent_version)."
+          },
+          "agent_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Filter by agent harness version (send together with agent)."
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Filter by model identifier."
+          },
+          "challenge": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Filter by campaign digest."
           }
         },
         "required": [],
@@ -587,7 +611,11 @@
       "availability": "available",
       "effect": "read",
       "interfaces": {
-        "http": "GET /api/v1/techtree/account/projects"
+        "mcp": "techtree_account_projects",
+        "http": "GET /api/v1/techtree/account/projects",
+        "cli": {
+          "command": "regents techtree account projects"
+        }
       },
       "http": {
         "method": "GET",
@@ -598,7 +626,7 @@
     {
       "name": "techtree_account_project",
       "title": "Read one delivered Techtree project",
-      "description": "Read one delivered Techtree project's summary, Markdown report, and package metadata for your paired person.",
+      "description": "Read one delivered Techtree project's summary, rerun_test receipt, Markdown report, and package metadata for your paired person.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -629,7 +657,11 @@
       "availability": "available",
       "effect": "read",
       "interfaces": {
-        "http": "GET /api/v1/techtree/account/projects/{id}"
+        "mcp": "techtree_account_project",
+        "http": "GET /api/v1/techtree/account/projects/{id}",
+        "cli": {
+          "command": "regents techtree account project <id>"
+        }
       },
       "http": {
         "method": "GET",
@@ -640,7 +672,7 @@
     {
       "name": "techtree_account_project_package",
       "title": "Download a delivered Techtree project package",
-      "description": "Download the exact gzipped tar package archive for one delivered Techtree project.",
+      "description": "Download and SHA-256 verify the exact gzipped tar package archive for one delivered Techtree project.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -671,12 +703,235 @@
       "availability": "available",
       "effect": "read",
       "interfaces": {
-        "http": "GET /api/v1/techtree/account/projects/{id}/package"
+        "http": "GET /api/v1/techtree/account/projects/{id}/package",
+        "cli": {
+          "command": "regents techtree account project-package <id>"
+        }
       },
       "http": {
         "method": "GET",
         "path": "/api/v1/techtree/account/projects/{id}/package",
         "accept": "application/gzip"
+      }
+    },
+    {
+      "name": "techtree_orders_list",
+      "title": "List Techtree Uplift Factory orders",
+      "description": "List Techtree Uplift Factory orders belonging to your paired person, newest first.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/account/orders",
+      "scope": "site",
+      "operation_id": "listTechtreeOrders",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "mcp": "techtree_orders_list",
+        "http": "GET /api/v1/techtree/account/orders",
+        "cli": {
+          "command": "regents techtree orders list"
+        }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/account/orders",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_orders_show",
+      "title": "Read one Techtree Uplift Factory order",
+      "description": "Read one Techtree Uplift Factory order's state, quote, runbook, materials sha256, and delivered project link.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Order UUID."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/techtree/account/orders/{id}",
+      "scope": "site",
+      "operation_id": "getTechtreeOrder",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "effect": "read",
+      "interfaces": {
+        "mcp": "techtree_orders_show",
+        "http": "GET /api/v1/techtree/account/orders/{id}",
+        "cli": {
+          "command": "regents techtree orders show <id>"
+        }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/techtree/account/orders/{id}",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_orders_create",
+      "title": "Request a Techtree Uplift Factory order",
+      "description": "Submit a new Techtree Uplift Factory order in one of the four lanes (skills, evals, environments, models) with optional runbook and bounded <= 5 MiB .tar.gz materials.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "lane": {
+            "type": "string",
+            "enum": [
+              "skills",
+              "evals",
+              "environments",
+              "models"
+            ],
+            "description": "Uplift Factory service lane."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Short order title."
+          },
+          "success": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "Clear, measurable success statement."
+          },
+          "project_name": {
+            "type": "string",
+            "maxLength": 63,
+            "description": "Optional lowercase-hyphenated project slug."
+          },
+          "customer_company": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "customer_contact_name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "customer_contact_email": {
+            "type": "string",
+            "maxLength": 320
+          },
+          "runbook": {
+            "type": "object",
+            "description": "Optional automation runbook policy (mode, auto_deliver, max_gpu_cents, default_gpu, default_learning_rate, default_training_mode)."
+          },
+          "material_archive_base64": {
+            "type": "string",
+            "description": "Optional base64-encoded <= 5 MiB .tar.gz material archive."
+          }
+        },
+        "required": [
+          "lane",
+          "title",
+          "success"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": false,
+        "consequentialHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": true,
+      "payment": "none",
+      "route": "POST /api/v1/techtree/account/orders",
+      "scope": "site",
+      "operation_id": "createTechtreeOrder",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "effect": "write",
+      "interfaces": {
+        "mcp": "techtree_orders_create",
+        "http": "POST /api/v1/techtree/account/orders",
+        "cli": {
+          "command": "regents techtree orders create"
+        }
+      },
+      "http": {
+        "method": "POST",
+        "path": "/api/v1/techtree/account/orders",
+        "accept": "application/json"
+      }
+    },
+    {
+      "name": "techtree_orders_cancel",
+      "title": "Cancel a Techtree Uplift Factory order",
+      "description": "Cancel an unpaid Techtree Uplift Factory order in state requested, checking, or quoted.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Order UUID."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": false,
+        "consequentialHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": true,
+      "payment": "none",
+      "route": "POST /api/v1/techtree/account/orders/{id}/cancel",
+      "scope": "site",
+      "operation_id": "cancelTechtreeOrder",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "effect": "write",
+      "interfaces": {
+        "mcp": "techtree_orders_cancel",
+        "http": "POST /api/v1/techtree/account/orders/{id}/cancel",
+        "cli": {
+          "command": "regents techtree orders cancel <id>"
+        }
+      },
+      "http": {
+        "method": "POST",
+        "path": "/api/v1/techtree/account/orders/{id}/cancel",
+        "accept": "application/json"
       }
     },
     {
@@ -705,7 +960,11 @@
       "availability": "available",
       "effect": "read",
       "interfaces": {
-        "http": "GET /api/v1/techtree/model-climb/reports"
+        "mcp": "techtree_model_climb_list",
+        "http": "GET /api/v1/techtree/model-climb/reports",
+        "cli": {
+          "command": "regents techtree model-climb reports"
+        }
       },
       "http": {
         "method": "GET",
@@ -782,7 +1041,11 @@
       "availability": "available",
       "effect": "read",
       "interfaces": {
-        "http": "GET /api/v1/techtree/model-climb/reports/{digest}"
+        "mcp": "techtree_model_climb_show",
+        "http": "GET /api/v1/techtree/model-climb/reports/{digest}",
+        "cli": {
+          "command": "regents techtree model-climb report <digest>"
+        }
       },
       "http": {
         "method": "GET",

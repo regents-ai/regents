@@ -230,7 +230,9 @@ defmodule Regents.MixProject do
         # Replaced compile-time SystemActor (42 edges) and cross-product Autolaunch/Summary
         # HumanActor (8 edges) policy checks with Ash built-in actor_attribute_equals/2,
         # cutting compile-connected edges from 351 to 301 and cross-product edges from 57 to 7.
-        "xref graph --label compile-connected --fail-above 301",
+        # Techtree's Factory order bridge and paired MCP account tools add two intentional links:
+        # Techtree.Factory reading Order, and Techtree.AgentTools reading AgentTools.Account.
+        "xref graph --label compile-connected --fail-above 303",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check",

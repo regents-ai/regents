@@ -13,6 +13,10 @@ defmodule RegentsWeb.Account.AgentBodyReader do
   @mcp_limit 512 * 1024
   # A 2 MiB picture expands to this size in base64, plus the draft's text.
   @draft_limit 4 * div(2 * 1024 * 1024 + 2, 3) + @limit
+  # A 5 MiB .tar.gz order intake archive in base64, plus order metadata JSON.
+  @techtree_order_limit 4 * div(5 * 1024 * 1024 + 2, 3) + 16_384
+  # A 128 MiB .tar.gz model/project delivery archive in base64, plus JSON envelope.
+  @techtree_deliver_limit 4 * div(128 * 1024 * 1024 + 2, 3) + 65_536
 
   def read_body(conn, opts) do
     cond do
@@ -26,6 +30,12 @@ defmodule RegentsWeb.Account.AgentBodyReader do
           Regents.Techtree.ModelClimb.Proof.maximum_bytes()
         )
 
+      techtree_order_post?(conn) ->
+        Siwa.AgentAuthPlug.read_body(conn, opts, @techtree_order_limit)
+
+      techtree_factory_deliver_post?(conn) ->
+        read_bounded_body(conn, opts, @techtree_deliver_limit, [])
+
       autolaunch_draft_patch?(conn) ->
         Siwa.AgentAuthPlug.read_body(conn, opts, @draft_limit)
 
@@ -34,6 +44,27 @@ defmodule RegentsWeb.Account.AgentBodyReader do
 
       true ->
         RegentIdentity.BodyReader.read_body(conn, opts)
+    end
+  end
+
+  defp read_bounded_body(conn, opts, remaining, acc) do
+    read_opts = Keyword.merge(opts, length: min(remaining, 1_000_000))
+
+    case Plug.Conn.read_body(conn, read_opts) do
+      {:ok, chunk, conn} ->
+        {:ok, IO.iodata_to_binary(Enum.reverse([chunk | acc])), conn}
+
+      {:more, chunk, conn} ->
+        next = remaining - byte_size(chunk)
+
+        if next <= 0 do
+          {:more, IO.iodata_to_binary(Enum.reverse([chunk | acc])), conn}
+        else
+          read_bounded_body(conn, opts, next, [chunk | acc])
+        end
+
+      {:error, _reason} = error ->
+        error
     end
   end
 
@@ -59,6 +90,22 @@ defmodule RegentsWeb.Account.AgentBodyReader do
        do: true
 
   defp techtree_model_climb_post?(_conn), do: false
+
+  defp techtree_order_post?(%{
+         method: "POST",
+         path_info: ["api", "v1", "techtree", "account", "orders"]
+       }),
+       do: true
+
+  defp techtree_order_post?(_conn), do: false
+
+  defp techtree_factory_deliver_post?(%{
+         method: "POST",
+         path_info: ["api", "v1", "techtree", "factory", "orders", _id, "deliver"]
+       }),
+       do: true
+
+  defp techtree_factory_deliver_post?(_conn), do: false
 
   defp autolaunch_draft_patch?(%{
          method: "PATCH",

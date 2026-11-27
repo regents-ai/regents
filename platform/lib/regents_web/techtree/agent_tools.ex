@@ -10,6 +10,7 @@ defmodule RegentsWeb.Techtree.AgentTools do
 
   resources do
     resource RegentsWeb.Techtree.AgentTools.Public
+    resource RegentsWeb.Techtree.AgentTools.Account
   end
 
   tools do
@@ -126,6 +127,110 @@ defmodule RegentsWeb.Techtree.AgentTools do
         read_only_hint: true,
         idempotent_hint: true,
         destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :techtree_account_projects, RegentsWeb.Techtree.AgentTools.Account, :account_projects do
+      title("List delivered Techtree projects")
+
+      description "List Techtree projects delivered to your paired person, newest first (requires paired SIWA agent)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :techtree_account_project, RegentsWeb.Techtree.AgentTools.Account, :account_project do
+      title("Read one delivered Techtree project")
+
+      description "Read one delivered Techtree project with its structured manifest, rerun_test receipt, report, and package metadata (requires paired SIWA agent)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :techtree_model_climb_list, RegentsWeb.Techtree.AgentTools.Account, :model_climb_list do
+      title("List private Model Climb reports")
+
+      description "List private Model Climb proof reports stored for your paired person (requires paired SIWA agent)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :techtree_model_climb_show, RegentsWeb.Techtree.AgentTools.Account, :model_climb_show do
+      title("Read one private Model Climb report")
+
+      description "Read one private Model Climb proof report by digest for your paired person (requires paired SIWA agent)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :techtree_orders_list, RegentsWeb.Techtree.AgentTools.Account, :orders_list do
+      title("List Techtree Uplift Factory orders")
+
+      description "List Uplift Factory orders belonging to your paired person, newest first (requires paired SIWA agent)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :techtree_orders_show, RegentsWeb.Techtree.AgentTools.Account, :orders_show do
+      title("Read one Techtree Uplift Factory order")
+
+      description "Read one Uplift Factory order's state, quote, runbook, materials sha256, and delivered project link (requires paired SIWA agent)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :techtree_orders_create, RegentsWeb.Techtree.AgentTools.Account, :orders_create do
+      title("Request a Techtree Uplift Factory order")
+
+      description "Submit a new Techtree Uplift Factory order in one of the four lanes (skills, evals, environments, models) with optional runbook and material archive (requires paired SIWA agent)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: false,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :techtree_orders_cancel, RegentsWeb.Techtree.AgentTools.Account, :orders_cancel do
+      title("Cancel a Techtree Uplift Factory order")
+
+      description "Cancel an unpaid Techtree Uplift Factory order in state requested, checking, or quoted (requires paired SIWA agent)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: true,
+        destructive_hint: true,
         open_world_hint: false
       )
     end

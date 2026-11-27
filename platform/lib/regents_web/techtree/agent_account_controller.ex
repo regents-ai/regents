@@ -47,7 +47,9 @@ defmodule RegentsWeb.Techtree.AgentAccountController do
     end
   end
 
-  defp listed(project) do
+  @doc "Canonical summary projection of a delivered Techtree project."
+  @spec listed(map()) :: map()
+  def listed(project) do
     %{
       id: project.id,
       title: project.title,
@@ -59,17 +61,22 @@ defmodule RegentsWeb.Techtree.AgentAccountController do
     }
   end
 
-  defp whole(project) do
-    manifest = project.manifest
+  @doc "Canonical full projection of a delivered Techtree project (`uplift-package/1` and `/2`)."
+  @spec whole(map()) :: map()
+  def whole(project) do
+    manifest = project.manifest || %{}
 
     project
     |> listed()
     |> Map.merge(%{
+      schema: manifest["schema"],
       success: manifest["success"],
       summary: manifest["summary"] && Map.delete(manifest["summary"], "cost_cents"),
       cases: manifest["cases"],
       selection: manifest["selection"],
       setup: manifest["setup"],
+      rerun_test: manifest["rerun_test"],
+      files: manifest["files"],
       report_md: project.report_md,
       package: %{
         size_bytes: project.package_size,

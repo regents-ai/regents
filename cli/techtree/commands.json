@@ -1,0 +1,296 @@
+{
+  "$schema": "https://raw.githubusercontent.com/regents-ai/regents-cli/main/src/regents_cli/schemas/commands.v1.json",
+  "format": "regents.commands.v1",
+  "platform": "techtree",
+  "base_url": "https://regents.sh",
+  "notes": [
+    "Owner controls stay owner-only; account reads activate no Points and spend no funds."
+  ],
+  "commands": [
+    {
+      "command": "agents whoami",
+      "operation_id": "agent_whoami",
+      "method": "GET",
+      "path": "/api/agents/v1/whoami",
+      "description": "Verify the signing agent and current pairing; no pairing prerequisite.",
+      "authority": "signed_agent",
+      "effect": "read"
+    },
+    {
+      "command": "agents pair",
+      "operation_id": "pairAgent",
+      "method": "POST",
+      "path": "/api/agents/v1/pair",
+      "description": "Redeem the owner-approved single-use private pairing code. Current pairing grants no spending authority.",
+      "authority": "signed_agent",
+      "effect": "write",
+      "stdin_fields": [
+        {
+          "field": "code",
+          "type": "string",
+          "description": "Private owner-approved pairing code; supply on stdin.",
+          "required": true
+        },
+        {
+          "field": "name",
+          "type": "string",
+          "description": "Agent name, 1 to 80 characters.",
+          "required": true
+        },
+        {
+          "field": "harness",
+          "type": "string",
+          "description": "What the agent runs on, one of: hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi, claude_code, codex, cursor, gemini_cli, dots, other. Send other if yours is not listed.",
+          "required": true
+        }
+      ]
+    },
+    {
+      "command": "account points",
+      "operation_id": "getAccountPoints",
+      "method": "GET",
+      "path": "/api/v1/account/points",
+      "description": "Read the current paired canonical owner's Points, what they earned today and yesterday, their place, the actions still open, daily limits and the leaderboard by name or wallet; awards and activates nothing.",
+      "authority": "paired_agent",
+      "effect": "read"
+    },
+    {
+      "command": "account projects",
+      "description": "List delivered Techtree projects belonging to the paired owner, newest first.",
+      "operation_id": "listAccountProjects",
+      "method": "GET",
+      "path": "/api/v1/techtree/account/projects",
+      "authority": "paired_agent",
+      "effect": "read",
+      "webmcp": "techtree_account_projects"
+    },
+    {
+      "command": "account project <id>",
+      "description": "Read one delivered Techtree project with its report, summary, rerun_test receipt, files, and package metadata.",
+      "operation_id": "getAccountProject",
+      "method": "GET",
+      "path": "/api/v1/techtree/account/projects/{id}",
+      "authority": "paired_agent",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "in": "path",
+          "field": "id",
+          "description": "The project UUID from account projects."
+        }
+      ],
+      "webmcp": "techtree_account_project"
+    },
+    {
+      "command": "orders list",
+      "description": "List Techtree Uplift Factory orders belonging to the paired owner, newest first.",
+      "operation_id": "listTechtreeOrders",
+      "method": "GET",
+      "path": "/api/v1/techtree/account/orders",
+      "authority": "paired_agent",
+      "effect": "read",
+      "webmcp": "techtree_orders_list"
+    },
+    {
+      "command": "orders show <id>",
+      "description": "Read one Techtree Uplift Factory order's state, quote, runbook, materials digest, and delivered project link.",
+      "operation_id": "getTechtreeOrder",
+      "method": "GET",
+      "path": "/api/v1/techtree/account/orders/{id}",
+      "authority": "paired_agent",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "in": "path",
+          "field": "id",
+          "description": "The order UUID from orders list."
+        }
+      ],
+      "webmcp": "techtree_orders_show"
+    },
+    {
+      "command": "orders cancel <id>",
+      "description": "Cancel an unpaid Techtree Uplift Factory order in state requested, checking, or quoted.",
+      "operation_id": "cancelTechtreeOrder",
+      "method": "POST",
+      "path": "/api/v1/techtree/account/orders/{id}/cancel",
+      "authority": "paired_agent",
+      "effect": "write",
+      "body": {},
+      "arguments": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "in": "path",
+          "field": "id",
+          "description": "The order UUID from orders list."
+        }
+      ],
+      "webmcp": "techtree_orders_cancel"
+    },
+    {
+      "command": "model-climb reports",
+      "operation_id": "listModelClimbReports",
+      "method": "GET",
+      "path": "/api/v1/techtree/model-climb/reports",
+      "description": "List the Model Climb reports the current paired owner has kept, newest first; private to that owner.",
+      "authority": "paired_agent",
+      "effect": "read",
+      "webmcp": "techtree_model_climb_list"
+    },
+    {
+      "command": "model-climb report <digest>",
+      "operation_id": "getModelClimbReport",
+      "method": "GET",
+      "path": "/api/v1/techtree/model-climb/reports/{digest}",
+      "description": "Read one of the current paired owner's Model Climb reports with its whole signed proof.",
+      "authority": "paired_agent",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "digest",
+          "type": "string",
+          "in": "path",
+          "field": "digest",
+          "description": "The report's digest, `sha256:` and 64 lowercase hex characters; `regents techtree model-climb reports` names them."
+        }
+      ],
+      "webmcp": "techtree_model_climb_show"
+    },
+    {
+      "command": "results list",
+      "description": "Read one page of the public Result log, newest arrival first. Withdrawn Results stay listed with `withdrawn_at` set.",
+      "operation_id": "listTechtreePublications",
+      "webmcp": "techtree_publications",
+      "method": "GET",
+      "path": "/api/v1/techtree/publications",
+      "authority": "public",
+      "effect": "read",
+      "flags": [
+        {
+          "name": "before-sequence",
+          "type": "integer",
+          "in": "query",
+          "field": "before_sequence",
+          "description": "Older entries: the log sequence of an entry you already hold."
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "in": "query",
+          "field": "limit",
+          "description": "How many entries, 1 to 100; 25 by default."
+        },
+        {
+          "name": "agent",
+          "type": "string",
+          "in": "query",
+          "field": "agent",
+          "description": "Only Results from this agent harness. Send with --agent-version."
+        },
+        {
+          "name": "agent-version",
+          "type": "string",
+          "in": "query",
+          "field": "agent_version",
+          "description": "Only Results from this harness version. Send with --agent."
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "in": "query",
+          "field": "model",
+          "description": "Only Results from this model."
+        },
+        {
+          "name": "challenge",
+          "type": "string",
+          "in": "query",
+          "field": "challenge",
+          "description": "Only Results for this Campaign, by its digest."
+        }
+      ]
+    },
+    {
+      "command": "results show <bundle-digest>",
+      "description": "Read everything Techtree says about one published Result, recomputed from bytes that verified.",
+      "operation_id": "getTechtreePublication",
+      "webmcp": "techtree_publication",
+      "method": "GET",
+      "path": "/api/v1/techtree/publications/{bundle_digest}",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "bundle-digest",
+          "type": "string",
+          "in": "path",
+          "field": "bundle_digest",
+          "description": "The Result's digest, `sha256:` and 64 lowercase hex characters; `regents techtree results list` names them."
+        }
+      ]
+    },
+    {
+      "command": "wallet-bench list",
+      "description": "Read the live Agent Wallet Bench score grids comparing coding agents across wallet tools.",
+      "operation_id": "getTechtreeWalletBench",
+      "webmcp": "techtree_wallet_bench",
+      "method": "GET",
+      "path": "/techtree/wallet-bench.json",
+      "authority": "public",
+      "effect": "read"
+    },
+    {
+      "command": "wallet-bench show <id>",
+      "description": "Read one Agent Wallet Bench attempt's summary, rulings, and checks by attempt UUID.",
+      "operation_id": "getTechtreeWalletBenchAttempt",
+      "webmcp": "techtree_wallet_bench_show",
+      "method": "GET",
+      "path": "/techtree/wallet-bench/{id}/results.json",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "in": "path",
+          "field": "id",
+          "description": "Wallet Bench attempt UUID."
+        }
+      ]
+    },
+    {
+      "command": "train list",
+      "description": "List Techtree's published public Skill comparison demonstrations and verdicts.",
+      "operation_id": "listTechtreeTrainComparisons",
+      "webmcp": "techtree_train_comparisons",
+      "method": "GET",
+      "path": "/techtree/train.json",
+      "authority": "public",
+      "effect": "read"
+    },
+    {
+      "command": "train show <slug>",
+      "description": "Read one Techtree Skill comparison's exact committed per-case JSON report by slug.",
+      "operation_id": "getTechtreeTrainReport",
+      "webmcp": "techtree_train_report",
+      "method": "GET",
+      "path": "/techtree/train/{slug}/report.json",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "slug",
+          "type": "string",
+          "in": "path",
+          "field": "slug",
+          "description": "Comparison slug from train list, such as dependabot-nemotron-3-nano-4b."
+        }
+      ]
+    }
+  ]
+}

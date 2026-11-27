@@ -1,0 +1,432 @@
+defmodule Regents.Techtree.Projects.Manifest do
+  @moduledoc """
+  A package's `manifest.json`, written by the factory that ran it. Skills
+  packages use `uplift-package/1` with structured comparison evidence. Evals,
+  Environments and Models use `uplift-package/2` with a verdict, report and
+  service-specific files (`rerun/test.json`, wheels, Harbor tasks, or PEFT LoRA
+  adapters plus SFT/RL plans).
+
+  It is checked strictly before anything is kept. Every object has exactly its
+  keys, each named once; every value has its type; every count is a whole
+  number from 0 to 1,000,000; every list holds at most 2,000 items; each
+  solved count is at most its attempts, and each case's at most its repeats;
+  every Skill candidate is original, rewrite or skillopt. `files` names every
+  other file in the package once, in path order, inside its service's layout.
+  `Regents.Techtree.Projects.Package` checks the files themselves against it.
+  """
+
+  @most 1_000_000
+  @most_items 2_000
+  # 128 MiB per file so 4B–8B LoRA adapter safetensors fit cleanly.
+  @most_file_bytes 134_217_728
+  @candidates ["original", "rewrite", "skillopt"]
+  @folders ["original/", "selected/", "cases/final/", "rerun/"]
+  @required_files ["report.md", "rerun/README.md"]
+  @service_files @required_files ++ ["rerun/test.json"]
+  @service_folders %{
+    "evals" => ["eval/", "rerun/"],
+    "environments" => ["tasks/", "rerun/"],
+    "models" => ["adapter/", "plan/", "cases/held-out/", "rerun/"]
+  }
+  @service_verdicts %{
+    "evals" => ["pass_bar_met", "pass_bar_not_met"],
+    "environments" => ["completed", "insufficient_tasks"],
+    "models" => ["improved", "inconclusive", "not_improved"]
+  }
+  @model_adapter_files ~w(adapter/adapter_config.json adapter/adapter_model.safetensors)
+
+  @count {:whole, 0, @most}
+  @positive {:whole, 1, @most}
+  @file_list {:list,
+              {:object,
+               [
+                 {"path", :path},
+                 {"sha256", :sha256},
+                 {"size_bytes", {:whole, 0, @most_file_bytes}}
+               ]}}
+  @candidate {:object,
+              [
+                {"candidate", {:one_of, @candidates}},
+                {"solved", @count},
+                {"attempts", @count},
+                {"refused", :boolean},
+                {"selected", :boolean}
+              ]}
+
+  @shape {:object,
+          [
+            {"schema", {:one_of, ["uplift-package/1"]}},
+            {"line", {:one_of, ["skills"]}},
+            {"title", {:name, 200}},
+            {"job_id", :uuid},
+            {"created_at", :utc_time},
+            {"success", {:text, 2_000}},
+            {"verdict", {:one_of, ["improved", "inconclusive", "not_improved"]}},
+            {"summary",
+             {:object,
+              [
+                {"repeats", @positive},
+                {"final_cases", @positive},
+                {"original", {:object, [{"solved", @count}, {"attempts", @positive}]}},
+                {"selected",
+                 {:object,
+                  [
+                    {"candidate", {:one_of, @candidates}},
+                    {"solved", @count},
+                    {"attempts", @positive}
+                  ]}},
+                {"difference", {:whole, -@most, @most}},
+                {"p_value", {:nullable, :share}},
+                {"pass_bar", :share},
+                {"pass_bar_met", :boolean},
+                {"regressions", @count},
+                {"cost_cents", :decimal},
+                {"attempts", @count},
+                {"retries", @count}
+              ]}},
+            {"selection", {:list, @candidate}},
+            {"cases",
+             {:list,
+              {:object,
+               [
+                 {"id", {:name, 200}},
+                 {"original_solved", @count},
+                 {"selected_solved", @count},
+                 {"repeats", @positive}
+               ]}}},
+            {"setup",
+             {:object,
+              [
+                {"model", {:name, 200}},
+                {"tools",
+                 {:list,
+                  {:object,
+                   [{"name", {:name, 100}}, {"maker", {:name, 100}}, {"version", {:name, 100}}]}}},
+                {"limits", :limits},
+                {"split",
+                 {:object,
+                  [
+                    {"working", @count},
+                    {"selection", @count},
+                    {"final", @positive},
+                    {"digest", :sha256}
+                  ]}}
+              ]}},
+            {"files", @file_list}
+          ]}
+
+  @uuid ~r/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/
+  @sha256 ~r/\A[0-9a-f]{64}\z/
+  @decimal ~r/\A(?:0|[1-9][0-9]*)(?:\.[0-9]+)?\z/
+
+  @service_shape [
+    {"schema", {:one_of, ["uplift-package/2"]}},
+    {"line", {:one_of, Map.keys(@service_folders)}},
+    {"title", {:name, 200}},
+    {"job_id", :uuid},
+    {"created_at", :utc_time},
+    {"success", {:text, 2_000}},
+    {"files", @file_list}
+  ]
+
+  @doc "The manifest as a map with string keys, or what is wrong with it."
+  @spec parse(binary()) :: {:ok, map()} | {:error, String.t()}
+  def parse(json) do
+    with {:ok, decoded} <- decode(json),
+         {:ok, manifest} <- plain(decoded),
+         :ok <- check(manifest, shape(manifest), []),
+         :ok <- within_attempts(manifest),
+         :ok <- files_in_layout(manifest) do
+      {:ok, manifest}
+    end
+  end
+
+  defp shape(%{"schema" => "uplift-package/2", "line" => line})
+       when is_map_key(@service_verdicts, line) do
+    {:object, @service_shape ++ [{"verdict", {:one_of, @service_verdicts[line]}}]}
+  end
+
+  defp shape(_), do: @shape
+
+  @doc "A checked manifest's service line, as a project keeps it."
+  @spec line(map()) :: :skills | :evals | :environments | :models
+  def line(%{"line" => "skills"}), do: :skills
+  def line(%{"line" => "evals"}), do: :evals
+  def line(%{"line" => "environments"}), do: :environments
+  def line(%{"line" => "models"}), do: :models
+
+  @doc "A checked manifest's verdict, as a project keeps it."
+  @spec verdict(map()) ::
+          :improved
+          | :inconclusive
+          | :not_improved
+          | :pass_bar_met
+          | :pass_bar_not_met
+          | :completed
+          | :insufficient_tasks
+  def verdict(%{"verdict" => "improved"}), do: :improved
+  def verdict(%{"verdict" => "inconclusive"}), do: :inconclusive
+  def verdict(%{"verdict" => "not_improved"}), do: :not_improved
+  def verdict(%{"verdict" => "pass_bar_met"}), do: :pass_bar_met
+  def verdict(%{"verdict" => "pass_bar_not_met"}), do: :pass_bar_not_met
+  def verdict(%{"verdict" => "completed"}), do: :completed
+  def verdict(%{"verdict" => "insufficient_tasks"}), do: :insufficient_tasks
+
+  defp decode(json) do
+    case Jason.decode(json, objects: :ordered_objects) do
+      {:ok, decoded} -> {:ok, decoded}
+      {:error, _error} -> {:error, "manifest.json isn't valid JSON."}
+    end
+  end
+
+  defp plain(%Jason.OrderedObject{values: pairs}) do
+    Enum.reduce_while(pairs, {:ok, %{}}, fn {key, value}, {:ok, map} ->
+      with false <- Map.has_key?(map, key),
+           {:ok, value} <- plain(value) do
+        {:cont, {:ok, Map.put(map, key, value)}}
+      else
+        true -> {:halt, {:error, "manifest.json names #{key} twice in one object."}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp plain(list) when is_list(list) do
+    Enum.reduce_while(list, {:ok, []}, fn value, {:ok, values} ->
+      case plain(value) do
+        {:ok, value} -> {:cont, {:ok, [value | values]}}
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, values} -> {:ok, Enum.reverse(values)}
+      error -> error
+    end
+  end
+
+  defp plain(value), do: {:ok, value}
+
+  defp check(value, {:object, fields}, at) when is_map(value) do
+    keys = Enum.map(fields, &elem(&1, 0))
+
+    cond do
+      extra = value |> Map.keys() |> Enum.sort() |> Enum.find(&(&1 not in keys)) ->
+        {:error, "In manifest.json, #{place(at ++ [extra])} isn't part of the format."}
+
+      missing = Enum.find(keys, &(not Map.has_key?(value, &1))) ->
+        {:error, "In manifest.json, #{place(at ++ [missing])} is missing."}
+
+      true ->
+        each(fields, fn {key, shape} -> check(Map.fetch!(value, key), shape, at ++ [key]) end)
+    end
+  end
+
+  defp check(value, {:list, shape}, at) when is_list(value) and length(value) <= @most_items do
+    value
+    |> Enum.with_index()
+    |> each(fn {item, index} -> check(item, shape, at ++ [index]) end)
+  end
+
+  defp check(value, {:nullable, _shape}, _at) when is_nil(value), do: :ok
+  defp check(value, {:nullable, shape}, at), do: check(value, shape, at)
+
+  defp check(value, {:whole, least, most}, _at)
+       when is_integer(value) and value >= least and value <= most,
+       do: :ok
+
+  defp check(value, :share, _at) when is_number(value) and value >= 0 and value <= 1, do: :ok
+  defp check(value, :boolean, _at) when is_boolean(value), do: :ok
+
+  defp check(value, {:one_of, values}, at) when is_binary(value),
+    do: if(value in values, do: :ok, else: wrong(at, {:one_of, values}))
+
+  defp check(value, {:name, most}, at) when is_binary(value),
+    do: text(value, most, RegentFormat.Name.pattern(), at, {:name, most})
+
+  defp check(value, {:text, most}, at) when is_binary(value),
+    do: text(value, most, RegentFormat.Text.pattern(), at, {:text, most})
+
+  defp check(value, :uuid, at) when is_binary(value), do: matches(value, @uuid, at, :uuid)
+  defp check(value, :sha256, at) when is_binary(value), do: matches(value, @sha256, at, :sha256)
+
+  defp check(value, :decimal, at) when is_binary(value),
+    do: matches(value, @decimal, at, :decimal)
+
+  defp check(value, :utc_time, at) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, _time, 0} -> :ok
+      _other -> wrong(at, :utc_time)
+    end
+  end
+
+  defp check(value, :path, at) when is_binary(value) do
+    if path?(value), do: :ok, else: wrong(at, :path)
+  end
+
+  defp check(value, :limits, at) when is_map(value) and map_size(value) <= 100 do
+    value
+    |> Enum.sort()
+    |> each(fn {key, setting} ->
+      with :ok <- check(key, {:name, 100}, at ++ [key]) do
+        limit(setting, at ++ [key])
+      end
+    end)
+  end
+
+  defp check(_value, shape, at), do: wrong(at, shape)
+
+  defp limit(setting, _at) when is_number(setting), do: :ok
+  defp limit(setting, at) when is_binary(setting), do: check(setting, {:name, 200}, at)
+  defp limit(_setting, at), do: wrong(at, :limit)
+
+  defp text(value, most, pattern, at, shape) do
+    if value != "" and String.length(value) <= most and Regex.match?(pattern, value),
+      do: :ok,
+      else: wrong(at, shape)
+  end
+
+  defp matches(value, pattern, at, shape),
+    do: if(Regex.match?(pattern, value), do: :ok, else: wrong(at, shape))
+
+  defp path?(value) do
+    byte_size(value) <= 255 and Regex.match?(RegentFormat.Name.pattern(), value) and
+      not String.contains?(value, "\\") and
+      value |> String.split("/") |> Enum.all?(&(&1 not in ["", ".", ".."]))
+  end
+
+  defp within_attempts(%{"schema" => "uplift-package/2"}), do: :ok
+
+  defp within_attempts(manifest) do
+    summary = manifest["summary"]
+
+    counts =
+      [
+        {["summary", "original"], summary["original"]},
+        {["summary", "selected"], summary["selected"]}
+      ] ++ Enum.with_index(manifest["selection"], &{["selection", &2], &1})
+
+    with :ok <- each(counts, &solved_within_attempts/1) do
+      manifest["cases"]
+      |> Enum.with_index(&{["cases", &2], &1})
+      |> each(&solved_within_repeats/1)
+    end
+  end
+
+  defp solved_within_attempts({at, %{"solved" => solved, "attempts" => attempts}}) do
+    if solved <= attempts,
+      do: :ok,
+      else: {:error, "In manifest.json, #{place(at)} solved more than its attempts."}
+  end
+
+  defp solved_within_repeats({at, item}) do
+    if max(item["original_solved"], item["selected_solved"]) <= item["repeats"],
+      do: :ok,
+      else: {:error, "In manifest.json, #{place(at)} solved more than its repeats."}
+  end
+
+  defp files_in_layout(%{"line" => line, "files" => files, "verdict" => verdict}) do
+    paths = Enum.map(files, & &1["path"])
+    folders = Map.get(@service_folders, line, @folders)
+    required = required_files(line)
+
+    cond do
+      paths != Enum.sort(Enum.uniq(paths)) ->
+        {:error, "In manifest.json, files must be in path order, each path once."}
+
+      outside = Enum.find(paths, &(&1 != "report.md" and not String.starts_with?(&1, folders))) ->
+        {:error,
+         "In manifest.json, files lists #{outside}, which is outside the package's layout."}
+
+      missing = Enum.find(required, &(&1 not in paths)) ->
+        {:error, "In manifest.json, files doesn't list #{missing}."}
+
+      true ->
+        service_files(line, verdict, paths)
+    end
+  end
+
+  defp required_files("skills"), do: @required_files
+  defp required_files("models"), do: @service_files ++ @model_adapter_files
+  defp required_files(_), do: @service_files
+
+  defp service_files("evals", _verdict, paths) do
+    if Enum.count(paths, &(String.starts_with?(&1, "eval/") and String.ends_with?(&1, ".whl"))) ==
+         1,
+       do: :ok,
+       else: {:error, "In manifest.json, files must list one evaluation wheel."}
+  end
+
+  defp service_files("environments", "completed", paths),
+    do: need_files(paths, "tasks/")
+
+  defp service_files("models", _verdict, paths) do
+    has_sft = "plan/sft.toml" in paths and "plan/dataset/train.jsonl" in paths
+    has_rl = "plan/rl.toml" in paths
+
+    with :ok <- need_files(paths, "cases/held-out/") do
+      if has_sft or has_rl do
+        :ok
+      else
+        {:error,
+         "In manifest.json, files must list plan/rl.toml or both plan/sft.toml and plan/dataset/train.jsonl."}
+      end
+    end
+  end
+
+  defp service_files(_, _verdict, _paths), do: :ok
+
+  defp need_files(paths, folder) do
+    if Enum.any?(paths, &String.starts_with?(&1, folder)),
+      do: :ok,
+      else: {:error, "In manifest.json, files doesn't list any file under #{folder}."}
+  end
+
+  defp each(items, check) do
+    Enum.reduce_while(items, :ok, fn item, :ok ->
+      case check.(item) do
+        :ok -> {:cont, :ok}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp wrong(at, shape),
+    do: {:error, "In manifest.json, #{place(at)} should be #{expected(shape)}."}
+
+  defp expected({:object, fields}),
+    do: "an object with " <> Enum.map_join(fields, ", ", &elem(&1, 0))
+
+  defp expected({:list, _shape}), do: "a list of at most 2,000 items"
+  defp expected({:nullable, shape}), do: expected(shape) <> ", or null"
+
+  defp expected({:whole, least, most}),
+    do: "a whole number from #{delimited(least)} to #{delimited(most)}"
+
+  defp expected(:share), do: "a number from 0 to 1"
+  defp expected(:boolean), do: "true or false"
+  defp expected({:one_of, [value]}), do: ~s("#{value}")
+  defp expected({:one_of, values}), do: "one of " <> Enum.map_join(values, ", ", &~s("#{&1}"))
+
+  defp expected({kind, most}) when kind in [:name, :text],
+    do: "text of 1 to #{delimited(most)} characters, with no hidden characters"
+
+  defp expected(:uuid), do: "a lowercase UUID"
+  defp expected(:sha256), do: "a sha256 in 64 lowercase hex digits"
+  defp expected(:decimal), do: ~s(a decimal number written as text, such as "1250.5")
+  defp expected(:utc_time), do: "an ISO 8601 time in UTC"
+  defp expected(:path), do: "a path inside the package, such as original/SKILL.md"
+  defp expected(:limits), do: "an object of at most 100 settings"
+  defp expected(:limit), do: "text or a number"
+
+  defp delimited(number), do: RegentFormat.add_delimiters(Integer.to_string(number))
+
+  defp place([]), do: "the file"
+
+  defp place(at) do
+    Enum.reduce(at, "", fn
+      index, place when is_integer(index) -> place <> "[#{index}]"
+      key, "" -> key
+      key, place -> place <> "." <> key
+    end)
+  end
+end

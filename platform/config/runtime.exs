@@ -135,6 +135,25 @@ if signing_key = System.get_env("TECHTREE_NETWORK_SIGNING_KEY") do
   end
 end
 
+# Operator Bearer token for Uplift Factory's `OrderBridge`
+# (`/api/v1/techtree/factory/orders*`). Accepts either a direct env var or a
+# file path; stays nil (bridge closed with 503) when unset.
+factory_operator_token =
+  cond do
+    path = System.get_env("TECHTREE_FACTORY_OPERATOR_TOKEN_FILE") ->
+      path |> File.read!() |> String.trim()
+
+    raw = System.get_env("TECHTREE_FACTORY_OPERATOR_TOKEN") ->
+      String.trim(raw)
+
+    true ->
+      nil
+  end
+
+if is_binary(factory_operator_token) and factory_operator_token != "" do
+  config :regents, :techtree_factory_operator_token, factory_operator_token
+end
+
 if System.get_env("WALLETBENCH_BUCKET_NAME") do
   config :regents, Regents.Techtree.WalletBench.Evidence,
     endpoint: System.get_env("WALLETBENCH_AWS_ENDPOINT_URL_S3"),
