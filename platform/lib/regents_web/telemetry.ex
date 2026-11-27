@@ -28,6 +28,9 @@ defmodule RegentsWeb.Telemetry do
 
   import Telemetry.Metrics
 
+  require Logger
+
+  alias Regents.Patchbay.OperatorWallet
   alias RegentsWeb.Telemetry.Buckets
 
   @reporter :regents_prometheus
@@ -67,6 +70,69 @@ defmodule RegentsWeb.Telemetry do
   @doc "Every measurement as Prometheus text, as the metrics listener answers it."
   def scrape,
     do: @reporter |> Peep.get_all_metrics() |> Peep.Prometheus.export() |> IO.iodata_to_binary()
+
+  @doc "The poller for the measurements the site takes itself, started after Oban."
+  def site_poller do
+    {:telemetry_poller,
+     measurements: [
+       {__MODULE__, :operator_wallet_waiting, []},
+       {__MODULE__, :oldest_unconfirmed_sends, []}
+     ],
+     period: 10_000,
+     name: :regents_site_poller}
+  end
+
+  # The poller drops for good a measurement that raises or exits, so whatever
+  # stops this tick (a database or Oban hiccup) is logged and skipped.
+  @doc false
+  def operator_wallet_waiting do
+    if patchbay_fees_running?() do
+      :telemetry.execute(
+        [:patchbay, :operator_wallet, :waiting],
+        %{
+          escrow_unrecorded: OperatorWallet.escrow_unrecorded(),
+          assist_fees_usdc: OperatorWallet.assist_fees_unforwarded_usdc()
+        },
+        %{}
+      )
+    end
+
+    :ok
+  rescue
+    error -> not_measured("operator wallet numbers", Exception.message(error))
+  catch
+    :exit, reason -> not_measured("operator wallet numbers", Exception.format_exit(reason))
+  end
+
+  @doc false
+  def oldest_unconfirmed_sends do
+    if patchbay_fees_running?() do
+      now = DateTime.utc_now()
+
+      for {flow, signed_at} <- OperatorWallet.unconfirmed_sends() do
+        :telemetry.execute(
+          [:patchbay, :wallet, :unconfirmed_oldest],
+          %{age_ms: unconfirmed_age_ms(now, signed_at)},
+          %{flow: flow}
+        )
+      end
+    end
+
+    :ok
+  rescue
+    error -> not_measured("unconfirmed send age", Exception.message(error))
+  catch
+    :exit, reason -> not_measured("unconfirmed send age", Exception.format_exit(reason))
+  end
+
+  defp unconfirmed_age_ms(_now, nil), do: 0
+  defp unconfirmed_age_ms(now, signed_at), do: DateTime.diff(now, signed_at, :millisecond)
+
+  defp patchbay_fees_running? do
+    Enum.any?(Oban.check_all_queues(), &(&1.queue == "patchbay_fees" and not &1.paused))
+  end
+
+  defp not_measured(what, why), do: Logger.warning("#{what} not measured: #{why}")
 
   defp metrics do
     [
@@ -151,6 +217,24 @@ defmodule RegentsWeb.Telemetry do
         event_name: [:regents, :wallet, :failure],
         tags: [:flow, :reason],
         description: "Wallet presses that were not sent, not confirmed or refused"
+      ),
+      last_value("health.wallet_unconfirmed_oldest.seconds",
+        event_name: [:patchbay, :wallet, :unconfirmed_oldest],
+        measurement: :age_ms,
+        unit: {:millisecond, :second},
+        tags: [:flow],
+        description:
+          "Age of the oldest transaction the site's own wallet signed that is not yet confirmed"
+      ),
+      last_value("patchbay.escrow_unrecorded",
+        event_name: [:patchbay, :operator_wallet, :waiting],
+        measurement: :escrow_unrecorded,
+        description: "Paid priority reports whose escrow credit the chain has not yet confirmed"
+      ),
+      last_value("patchbay.assist_fees_unforwarded.usdc",
+        event_name: [:patchbay, :operator_wallet, :waiting],
+        measurement: :assist_fees_usdc,
+        description: "Assist fees the operator holds that are not yet sent to staking"
       ),
       last_value("health.indexer.lag.blocks",
         event_name: [:regents, :indexer, :lag],

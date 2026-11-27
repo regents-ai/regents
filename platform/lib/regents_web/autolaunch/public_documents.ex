@@ -141,6 +141,7 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
   end
 
   @token_description "A token launched through Autolaunch on Base, to trade and stake."
+  @robinhood_token_description "A token launched through Autolaunch on Robinhood Chain, to trade and stake."
 
   @doc """
   The `page_title` and `page_description` of a token's page, the title naming
@@ -152,9 +153,24 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
     [page_title: "#{named} token", page_description: @token_description]
   end
 
+  def market_page(:robinhood_token, name, ticker) do
+    named = if same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
+    [page_title: "#{named} token", page_description: @robinhood_token_description]
+  end
+
   def market_page(:auction, name, ticker) do
     named = if same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
     [page_title: "#{named} auction", page_description: "A token auction on Autolaunch."]
+  end
+
+  def market_page(:robinhood_auction, name, ticker) do
+    named = if same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
+
+    [
+      page_title: "#{named} auction",
+      page_description:
+        "An Autolaunch auction on Robinhood Chain: its price, its bids and its time left."
+    ]
   end
 
   def market_page(:stock, name, ticker) do

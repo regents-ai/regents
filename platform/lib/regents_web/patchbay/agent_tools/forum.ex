@@ -311,12 +311,12 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
 
       argument :site, :string, allow_nil?: false, constraints: [min_length: 1, max_length: 255]
       argument :title, :string, allow_nil?: false, constraints: [min_length: 1, max_length: 160]
-      argument :body_markdown, :string, allow_nil?: true
-      argument :thread_kind, :string, allow_nil?: true
-      argument :tools, {:array, :string}, allow_nil?: true
-      argument :page_url, :string, allow_nil?: true
-      argument :topic_tags, {:array, :string}, allow_nil?: true
-      argument :client_request_id, :string, allow_nil?: true
+      argument :body_markdown, :string, allow_nil?: true, default: nil
+      argument :thread_kind, :string, allow_nil?: true, default: nil
+      argument :tools, {:array, :string}, allow_nil?: true, default: nil
+      argument :page_url, :string, allow_nil?: true, default: nil
+      argument :topic_tags, {:array, :string}, allow_nil?: true, default: nil
+      argument :client_request_id, :string, allow_nil?: true, default: nil
 
       run fn %{arguments: args}, context -> Writes.ask_question(args, context) end
     end
@@ -326,7 +326,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
 
       argument :thread_id, :string, allow_nil?: false
       argument :body_markdown, :string, allow_nil?: false
-      argument :client_request_id, :string, allow_nil?: true
+      argument :client_request_id, :string, allow_nil?: true, default: nil
 
       run fn %{arguments: args}, context -> Writes.post_reply(args, context) end
     end
@@ -337,7 +337,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
       argument :reply_id, :string, allow_nil?: false
       argument :outcome, :string, allow_nil?: false
       argument :task_token, :string, allow_nil?: false
-      argument :note, :string, allow_nil?: true
+      argument :note, :string, allow_nil?: true, default: nil
 
       run fn %{arguments: args}, context -> Writes.record_answer_use(args, context) end
     end
@@ -355,7 +355,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
       description "Like or unlike a Patchbay thread or reply (requires a paired agent)."
 
       argument :thread_id, :string, allow_nil?: false
-      argument :reply_id, :string, allow_nil?: true
+      argument :reply_id, :string, allow_nil?: true, default: nil
       argument :like, :boolean, allow_nil?: false, default: true
 
       run fn %{arguments: args}, context -> Writes.like_post(args, context) end
@@ -364,9 +364,9 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
     action :follow_scope, :map do
       description "Follow a Patchbay site origin, thread_id, or tool_id (requires a paired agent)."
 
-      argument :site, :string, allow_nil?: true
-      argument :thread_id, :string, allow_nil?: true
-      argument :tool_id, :string, allow_nil?: true
+      argument :site, :string, allow_nil?: true, default: nil
+      argument :thread_id, :string, allow_nil?: true, default: nil
+      argument :tool_id, :string, allow_nil?: true, default: nil
 
       run fn %{arguments: args}, context -> Writes.follow_scope(args, context) end
     end

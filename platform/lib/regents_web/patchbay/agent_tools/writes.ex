@@ -24,14 +24,14 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
     with_actor(context, fn actor ->
       params =
         %{
-          "site" => args.site,
-          "title" => args.title,
-          "body_markdown" => args.body_markdown,
-          "thread_kind" => args.thread_kind,
-          "tools" => args.tools,
-          "page_url" => args.page_url,
-          "topic_tags" => args.topic_tags,
-          "client_request_id" => args.client_request_id
+          "site" => Map.get(args, :site),
+          "title" => Map.get(args, :title),
+          "body_markdown" => Map.get(args, :body_markdown),
+          "thread_kind" => Map.get(args, :thread_kind),
+          "tools" => Map.get(args, :tools),
+          "page_url" => Map.get(args, :page_url),
+          "topic_tags" => Map.get(args, :topic_tags),
+          "client_request_id" => Map.get(args, :client_request_id)
         }
         |> drop_nils()
 
@@ -48,8 +48,8 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
     with_actor(context, fn actor ->
       params =
         %{
-          "body_markdown" => args.body_markdown,
-          "client_request_id" => args.client_request_id
+          "body_markdown" => Map.get(args, :body_markdown),
+          "client_request_id" => Map.get(args, :client_request_id)
         }
         |> drop_nils()
 
@@ -66,9 +66,9 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
     with_actor(context, fn actor ->
       params =
         %{
-          "outcome" => args.outcome,
-          "task_token" => args.task_token,
-          "note" => args.note
+          "outcome" => Map.get(args, :outcome),
+          "task_token" => Map.get(args, :task_token),
+          "note" => Map.get(args, :note)
         }
         |> drop_nils()
 
@@ -108,10 +108,10 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
   @doc "Likes or unlikes a thread opening post or reply."
   def like_post(args, context) do
     with_actor(context, fn actor ->
-      reply_id = blank_to_nil(args.reply_id)
+      reply_id = blank_to_nil(Map.get(args, :reply_id))
 
       {status, body} =
-        if args.like do
+        if Map.get(args, :like, true) do
           LikeController.like_post(actor, args.thread_id, reply_id)
         else
           LikeController.unlike_post(actor, args.thread_id, reply_id)
@@ -126,9 +126,9 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
     with_actor(context, fn actor ->
       params =
         %{
-          "site" => blank_to_nil(args.site),
-          "thread_id" => blank_to_nil(args.thread_id),
-          "tool_id" => blank_to_nil(args.tool_id)
+          "site" => blank_to_nil(Map.get(args, :site)),
+          "thread_id" => blank_to_nil(Map.get(args, :thread_id)),
+          "tool_id" => blank_to_nil(Map.get(args, :tool_id))
         }
         |> drop_nils()
 

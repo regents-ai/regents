@@ -94,6 +94,7 @@ defmodule Regents.Patchbay do
       Offers.Source,
       Offers.Steps,
       Offers.Watch,
+      OperatorWallet,
       Payments,
       Payments.SpecialPost,
       Playbooks,

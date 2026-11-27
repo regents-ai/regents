@@ -60,6 +60,8 @@ defmodule Regents.Application do
         shared_changes_child(),
         # After the repository: background jobs.
         oban_child(),
+        # After Oban: periodic site telemetry measurements (Patchbay operator wallet).
+        site_poller_child(),
         # After PubSub: a finished ENS lookup announces itself on the topic the
         # signed-in shell listens on.
         Regents.Account.Ens,
@@ -198,6 +200,13 @@ defmodule Regents.Application do
   # Metrics are served beside the site, never by a process that only runs a task.
   defp metrics_child do
     if serving?(), do: RegentsWeb.Metrics
+  end
+
+  defp site_poller_child do
+    if serving?() and Application.get_env(:regents, :database_startup_enabled, false) and
+         not Regents.read_only?() do
+      RegentsWeb.Telemetry.site_poller()
+    end
   end
 
   # Tell Phoenix to update the endpoint configuration
