@@ -354,8 +354,7 @@ defmodule RegentsWeb.Cloak do
   @install_path "/cloak/install"
   @install_heading "Install Cloak"
   @install_steps [
-    {"Download",
-     "Get the signed %{dmg_filename} from /cloak/download/mac or GitHub Releases."},
+    {"Download", "Get the signed %{dmg_filename} from /cloak/download/mac or GitHub Releases."},
     {"Drag", "Open %{dmg_filename} and drag Cloak into Applications."},
     {"Open", "Launch Cloak from Applications. Builds are signed and notarized by Apple."},
     {"Choose",
@@ -587,12 +586,14 @@ defmodule RegentsWeb.Cloak do
     end
   end
 
-  defp parse_release_checksums(%{
-         "tag" => tag,
-         "release" => release,
-         "dmg_filename" => dmg_filename,
-         "dmg_sha256" => dmg_sha256
-       } = map)
+  defp parse_release_checksums(
+         %{
+           "tag" => tag,
+           "release" => release,
+           "dmg_filename" => dmg_filename,
+           "dmg_sha256" => dmg_sha256
+         } = map
+       )
        when is_binary(tag) and tag != "" and
               is_binary(release) and release != "" and
               is_binary(dmg_filename) and dmg_filename != "" and
