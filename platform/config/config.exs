@@ -262,6 +262,7 @@ config :regents, Oban,
       {"0 6 * * 1", Regents.Patchbay.AnswerWatch.Ask},
       {"@hourly", Regents.Patchbay.IndexNow},
       {"*/15 * * * *", Regents.Patchbay.Incidents.CveNow},
+      {"*/15 * * * *", Regents.Patchbay.Probes.CatalogWatch},
       # Keyfleet's scheduled maintenance, chain watchers, notebooks, seasons and Atlas.
       {"*/10 * * * *", Regents.Keyfleet.Notebooks.Reconcile},
       {"31 3 * * *", Regents.Keyfleet.Notebooks.DailyBackup},

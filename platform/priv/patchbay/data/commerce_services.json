@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-24",
+  "updated_at": "2026-11-26",
   "services": [
     {
       "slug": "cve-now",
@@ -13,6 +13,8 @@
       "avg_price": "Free",
       "summary": "Real-time deduplicated critical CVE & CISA KEV vulnerability feed with native MCP and JSON APIs, mirrored live on Patchbay.",
       "probe_url": "https://cve.now/api/v1/status",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "GET",
@@ -44,6 +46,8 @@
       "avg_price": "$0.01",
       "summary": "Official live HTTP 402 test endpoints for x402 v2 (Base USDC), MPP (Tempo USDC.e charge & session), and SIWA agent auth.",
       "probe_url": "https://regents.sh/patchbay/bench/mpp-test",
+      "probe_method": "GET",
+      "probe_mode": "payment_402",
       "endpoints": [
         {
           "method": "GET",
@@ -82,7 +86,9 @@
       "rails": ["base:usdc"],
       "avg_price": "$0.004",
       "summary": "Neural web search and structured page content retrieval for autonomous agents via x402 pay-per-request.",
-      "probe_url": "https://api.exa.ai/search",
+      "probe_url": "https://exa.ai",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "POST",
@@ -114,6 +120,8 @@
       "avg_price": "Session",
       "summary": "High-throughput stablecoin settlement L1 and Machine Payments Protocol (MPP) supporting streaming off-chain vouchers and multi-rail HTTP 402.",
       "probe_url": "https://mpp.dev/services",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "GET",
@@ -145,6 +153,8 @@
       "avg_price": "$0.002",
       "summary": "Pay-per-request LLM token inference settled with USDC.e on Tempo via Machine Payments Protocol (MPP) sessions.",
       "probe_url": "https://boundless.sh",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "POST",
@@ -167,7 +177,9 @@
       "rails": ["base:usdc"],
       "avg_price": "$0.003",
       "summary": "Private and TEE-backed model inference accessible directly from agent wallets via Base USDC x402.",
-      "probe_url": "https://api.venice.ai/api/v1/chat/completions",
+      "probe_url": "https://venice.ai",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "POST",
@@ -191,6 +203,8 @@
       "avg_price": "Facilitator",
       "summary": "Reference x402 v2 verification/settlement facilitator, Bazaar endpoint discovery index, and Agentic Market directory.",
       "probe_url": "https://api.agentic.market/v1/services",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "GET",
@@ -222,6 +236,8 @@
       "avg_price": "$0.50 min card",
       "summary": "Shared Payment Tokens (SPT), Link agent spending limits, and co-authored Machine Payments Protocol multi-rail checkout.",
       "probe_url": "https://docs.stripe.com/payments/machine/mpp",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "POST",
@@ -245,6 +261,8 @@
       "avg_price": "$0.001",
       "summary": "Pay-per-request EVM & Base JSON-RPC, token balances, and transaction simulation for autonomous onchain agents.",
       "probe_url": "https://alchemy.com",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "POST",
@@ -268,6 +286,8 @@
       "avg_price": "$0.002",
       "summary": "Indexed onchain subgraphs and DeFi analytics queryable by agents over x402.",
       "probe_url": "https://thegraph.com",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "POST",
@@ -290,7 +310,9 @@
       "rails": ["base:usdc", "tempo:usdc_e"],
       "avg_price": "$0.005",
       "summary": "Citation-grounded real-time web research APIs accessible to autonomous agents over HTTP 402.",
-      "probe_url": "https://api.perplexity.ai",
+      "probe_url": "https://docs.perplexity.ai",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "POST",
@@ -313,7 +335,9 @@
       "rails": ["base:usdc"],
       "avg_price": "$0.004",
       "summary": "Low-latency speech-to-text and audio intelligence billed per request via x402.",
-      "probe_url": "https://api.deepgram.com",
+      "probe_url": "https://developers.deepgram.com",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "POST",
@@ -336,7 +360,9 @@
       "rails": ["base:usdc"],
       "avg_price": "$0.002",
       "summary": "Market quotes, liquidity depth, and token metadata for trading and treasury agents.",
-      "probe_url": "https://pro-api.coinmarketcap.com",
+      "probe_url": "https://coinmarketcap.com/api",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "GET",
@@ -359,7 +385,9 @@
       "rails": ["base:usdc", "tempo:usdc_e"],
       "avg_price": "$0.003",
       "summary": "Clean Markdown scraping, crawling, and structured extraction built for autonomous web agents.",
-      "probe_url": "https://api.firecrawl.dev",
+      "probe_url": "https://docs.firecrawl.dev",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "POST",
@@ -383,6 +411,8 @@
       "avg_price": "Storefront",
       "summary": "Browser-native WebMCP storefront tools (catalog search, variants, cart) for shopping agents.",
       "probe_url": "https://shopify.dev/docs/api/web-mcp",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "TOOL",
@@ -406,6 +436,8 @@
       "avg_price": "$0.001",
       "summary": "Edge workers, dual x402/MPP payment middleware, and pay-per-crawl HTTP 402 edge enforcement.",
       "probe_url": "https://developers.cloudflare.com",
+      "probe_method": "GET",
+      "probe_mode": "discovery_200",
       "endpoints": [
         {
           "method": "GET",

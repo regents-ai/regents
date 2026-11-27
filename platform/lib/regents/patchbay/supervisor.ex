@@ -24,6 +24,7 @@ defmodule Regents.Patchbay.Supervisor do
         WalletBench.Board.builds(),
         {Task.Supervisor, name: Forum.SiteScan.tasks()},
         {Finch, name: Assist.Target.finch()},
+        {Regents.Patchbay.Probes.CatalogStore, serving?: serving?},
         if(serving? and db_enabled?, do: WalletBench.Board),
         if(serving? and db_enabled?, do: Forum.HiddenSites),
         site_loader(serving?, db_enabled?)

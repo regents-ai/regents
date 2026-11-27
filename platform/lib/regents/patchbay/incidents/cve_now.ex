@@ -51,6 +51,40 @@ defmodule Regents.Patchbay.Incidents.CveNow do
       else: :ok
   end
 
+  @doc """
+  Force-refresh up to `limit` newest critical/KEV entries from `cve.now` so
+  existing mirrored posts pick up structured package ranges, ecosystems, and
+  KEV due dates immediately.
+  """
+  @spec refresh_all_now(pos_integer()) ::
+          {:ok, %{checked: non_neg_integer(), refreshed: non_neg_integer()}}
+          | :ok
+          | {:snooze, pos_integer()}
+  def refresh_all_now(limit \\ 50) do
+    with {:ok, %{"items" => items}} when is_list(items) <-
+           read("/entries", filter: "critical,kev", limit: limit),
+         listed = items |> Enum.reverse() |> Enum.flat_map(&listed/1),
+         {:ok, posts} <- Forum.list_cve_now_mirrors(Enum.map(listed, & &1.id)) do
+      posts = Map.new(posts, &{&1.cve_now_id, &1})
+
+      case refresh_records(Enum.take(listed, limit), posts) do
+        {:ok, refreshed} -> {:ok, %{checked: length(listed), refreshed: refreshed}}
+        other -> other
+      end
+    else
+      stop -> stopped(stop)
+    end
+  end
+
+  defp refresh_records(records, posts) do
+    Enum.reduce_while(records, {:ok, 0}, fn record, {:ok, count} ->
+      case copy(record, posts[record.id]) do
+        {:cont, :ok} -> {:cont, {:ok, count + 1}}
+        {:halt, stop} -> {:halt, stop}
+      end
+    end)
+  end
+
   defp copy_newest do
     with {:ok, %{"items" => items}} when is_list(items) <-
            read("/entries", filter: "critical,kev", limit: settings()[:page_size]),
@@ -89,8 +123,17 @@ defmodule Regents.Patchbay.Incidents.CveNow do
   defp copied?(_record, nil), do: false
   defp copied?(_record, %{cve_facts: nil}), do: false
 
-  defp copied?(record, post),
-    do: DateTime.compare(record.modified_at, post.cve_now_modified_at) != :gt
+  defp copied?(record, post) do
+    not facts_need_enrichment?(post.cve_facts) and
+      DateTime.compare(record.modified_at, post.cve_now_modified_at) != :gt
+  end
+
+  defp facts_need_enrichment?(facts) do
+    packages = Map.get(facts, :packages) || []
+
+    (packages != [] and Enum.any?(packages, &(not Map.has_key?(&1, "ranges")))) or
+      (Map.get(facts, :exploited) == true and is_nil(Map.get(facts, :kev_due_date)))
+  end
 
   defp copy(record, post) do
     case read("/entries/" <> URI.encode(record.id, &URI.char_unreserved?/1), []) do

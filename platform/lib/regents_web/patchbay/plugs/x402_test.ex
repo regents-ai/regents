@@ -68,5 +68,25 @@ defmodule RegentsWeb.Patchbay.Plugs.X402Test do
   end
 
   @impl Plug
-  def call(conn, opts), do: PaymentGate.call(conn, opts)
+  def call(conn, opts) do
+    conn
+    |> Plug.Conn.register_before_send(&ensure_cors_headers/1)
+    |> PaymentGate.call(opts)
+  end
+
+  defp ensure_cors_headers(conn) do
+    conn
+    |> put_default_header("access-control-allow-origin", "*")
+    |> put_default_header(
+      "access-control-expose-headers",
+      "PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE"
+    )
+  end
+
+  defp put_default_header(conn, name, value) do
+    case Plug.Conn.get_resp_header(conn, name) do
+      [] -> Plug.Conn.put_resp_header(conn, name, value)
+      _present -> conn
+    end
+  end
 end

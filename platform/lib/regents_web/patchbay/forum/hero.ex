@@ -58,6 +58,7 @@ defmodule RegentsWeb.Patchbay.Forum.Hero do
     draft(%{
       "goal" => params["goal"],
       "site_url" => params["site_url"],
+      "details" => params["details"],
       "tools" => List.wrap(params["tool"]),
       "topic_tags" => params["topic_tags"]
     })

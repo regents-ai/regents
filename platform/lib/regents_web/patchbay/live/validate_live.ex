@@ -324,9 +324,11 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
           <div class="pbt-probe-actions">
             <a
               class="pbt-btn pbt-btn--primary"
-              href={~p"/patchbay/forum?#{[ask: "1", site_url: @probe_result.url, goal: "HTTP #{@probe_result.status} 402 validation issue"]}" <> "#pb-hero"}
+              href={@probe_result.report_prefill.forum_url}
             >
-              Ask Patchbay About This Endpoint →
+              {if @probe_result.verdict == :pass,
+                do: "Share Note on Patchbay →",
+                else: "Report Failure on Patchbay (Prefilled Wire Trace) →"}
             </a>
           </div>
         </div>
@@ -464,9 +466,19 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
                 else: "#{@stack_result.match_count} MATCH(ES)"}
             </span>
             <span class="pbt-mono">
-              Checked {@stack_result.package_count} package(s) against {@stack_result.cves_scanned} mirrored cve.now criticals
+              Checked {@stack_result.package_count} package(s) ({@stack_result.versioned_package_count} version-pinned) against {@stack_result.cves_scanned} mirrored cve.now criticals
               · {@stack_result.kev_match_count} KEV · {@stack_result.unfixed_match_count} unfixed
+              · {@stack_result.cleared_count} patched pin(s) cleared
             </span>
+          </div>
+
+          <div :if={@stack_result.cleared_count > 0} class="pbt-related-fixes">
+            <h3>Cleared as Patched ({@stack_result.cleared_count})</h3>
+            <div class="pbt-pill-group">
+              <span :for={c <- @stack_result.cleared_packages} class="pbt-badge pbt-badge--good">
+                {c.package}@{c.installed_version} safe vs {c.cve_id}
+              </span>
+            </div>
           </div>
 
           <div :if={@stack_result.matches != []} class="pbt-table-wrap">

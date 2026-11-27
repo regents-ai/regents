@@ -24,6 +24,17 @@ defmodule RegentsWeb.Patchbay.MppTestController do
   @amount_display "0.01"
   @challenge_ttl_seconds 300
 
+  def preflight(conn, _params) do
+    conn
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_header("access-control-allow-methods", "GET, HEAD, OPTIONS")
+    |> put_resp_header("access-control-allow-headers", "Authorization, Content-Type")
+    |> put_resp_header("access-control-expose-headers", "WWW-Authenticate, Payment-Receipt")
+    |> put_resp_header("access-control-max-age", "600")
+    |> put_resp_header("vary", "Origin, Access-Control-Request-Headers")
+    |> send_resp(:no_content, "")
+  end
+
   def show(conn, params) do
     intent = if params["intent"] == "session", do: "session", else: "charge"
     pay_to = Application.get_env(:regents, :x402_test_pay_to)

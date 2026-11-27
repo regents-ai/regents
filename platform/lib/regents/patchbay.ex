@@ -98,6 +98,8 @@ defmodule Regents.Patchbay do
       Payments,
       Payments.SpecialPost,
       Playbooks,
+      Probes.CatalogStore,
+      Probes.CatalogWatch,
       Probes.PaymentEndpoint,
       Security.StackCheck,
       Supervisor,

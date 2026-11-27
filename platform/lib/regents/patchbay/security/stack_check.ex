@@ -1,10 +1,17 @@
 defmodule Regents.Patchbay.Security.StackCheck do
   @moduledoc """
-  Matches a project's dependency manifest (`package.json`, `mix.lock`,
-  `requirements.txt`, `Cargo.toml`, `go.mod`, or comma/newline package list)
-  against Patchbay's live mirrored `cve.now` active criticals and curated
-  security briefings, returning each matched CVE together with its Patchbay
-  mitigation discussion thread.
+  Version-accurate dependency security checker for Patchbay.
+
+  Parses exact pinned versions from `package.json`, `package-lock.json`,
+  `composer.json`, `composer.lock`, `mix.lock`, `Cargo.toml`, `Cargo.lock`,
+  `requirements.txt`, `uv.lock`, `go.mod`, or `name@version` lists and evaluates
+  them against Patchbay's live mirrored `cve.now` active criticals (using OSV
+  `introduced` / `fixed` / `last_affected` version ranges) plus curated security
+  briefings.
+
+  When a lockfile pins a patched version (`version >= fixed` or outside all
+  affected ranges), the package is cleared as patched rather than falsely
+  flagged.
   """
 
   alias Regents.Patchbay.Forum
@@ -15,8 +22,14 @@ defmodule Regents.Patchbay.Security.StackCheck do
   @max_packages 200
   @max_cves_scanned 250
 
+  @type parsed_package :: %{
+          ecosystem: String.t() | nil,
+          name: String.t(),
+          version: String.t() | nil
+        }
+
   @doc """
-  Parse raw manifest text or a structured package list and match against
+  Parse raw manifest text or a structured package list and evaluate against
   Patchbay's active critical CVE mirror and incident briefings.
   """
   @spec check(String.t() | [map()]) :: {:ok, map()} | {:error, String.t()}
@@ -28,9 +41,9 @@ defmodule Regents.Patchbay.Security.StackCheck do
 
       if packages == [] do
         {:error,
-         "No package names detected. Paste package.json, mix.lock, requirements.txt, Cargo.toml, go.mod, or a comma/line-separated list of packages."}
+         "No package names detected. Paste package.json, package-lock.json, composer.lock, mix.lock, requirements.txt, uv.lock, Cargo.toml, Cargo.lock, go.mod, or a comma/line-separated list of packages."}
       else
-        match_packages(packages)
+        {:ok, evaluate(packages, load_cves(), Incidents.all())}
       end
     end
   end
@@ -39,20 +52,49 @@ defmodule Regents.Patchbay.Security.StackCheck do
     normalized =
       packages
       |> Enum.flat_map(&normalize_package_entry/1)
-      |> Enum.uniq_by(&{&1.ecosystem, &1.name})
+      |> dedupe_packages()
       |> Enum.take(@max_packages)
 
     if normalized == [] do
       {:error, "Provide at least one package name to check."}
     else
-      match_packages(normalized)
+      {:ok, evaluate(normalized, load_cves(), Incidents.all())}
     end
   end
 
   def check(_other), do: {:error, "Provide manifest text or a list of packages."}
 
-  @doc "Extract normalized `{ecosystem, name}` entries from common manifest formats."
-  @spec parse_manifest(String.t()) :: [%{ecosystem: String.t() | nil, name: String.t()}]
+  @doc """
+  Pure evaluator: match parsed packages against a list of CVE posts and curated
+  briefings. Exposed for deterministic conformance benchmarking without DB I/O.
+  """
+  @spec evaluate([parsed_package()], [map()], [map()]) :: map()
+  def evaluate(packages, cves, briefings \\ []) when is_list(packages) and is_list(cves) do
+    {cve_matches, cleared} = match_cves(cves, packages)
+    briefing_matches = match_briefings(briefings, packages)
+
+    matches =
+      (cve_matches ++ briefing_matches)
+      |> Enum.sort_by(&{not &1.exploited, -(&1.score || 0.0)})
+
+    cleared = Enum.uniq_by(cleared, &{&1.cve_id, &1.package, &1.installed_version})
+
+    %{
+      checked_packages: packages,
+      package_count: length(packages),
+      versioned_package_count: Enum.count(packages, &(not is_nil(&1.version))),
+      cves_scanned: length(cves),
+      match_count: length(matches),
+      kev_match_count: Enum.count(matches, & &1.exploited),
+      unfixed_match_count: Enum.count(matches, &(not &1.fix_available)),
+      cleared_count: length(cleared),
+      cleared_packages: cleared,
+      matches: matches
+    }
+  end
+
+  @doc "Extract normalized `{ecosystem, name, version}` entries from common manifest and lockfile formats."
+  @spec parse_manifest(String.t()) :: [parsed_package()]
   def parse_manifest(text) when is_binary(text) do
     trimmed = String.trim(text)
 
@@ -61,13 +103,16 @@ defmodule Regents.Patchbay.Security.StackCheck do
         []
 
       String.starts_with?(trimmed, "{") ->
-        parse_package_json(trimmed)
+        parse_json_manifest(trimmed)
 
       String.contains?(trimmed, "{:hex,") ->
         parse_mix_lock(trimmed)
 
-      String.contains?(trimmed, "[dependencies]") or String.contains?(trimmed, "[[package]]") ->
-        parse_cargo(trimmed)
+      String.contains?(trimmed, "[[package]]") ->
+        parse_toml_lock(trimmed)
+
+      String.contains?(trimmed, "[dependencies]") ->
+        parse_cargo_toml(trimmed)
 
       String.contains?(trimmed, "module ") and String.contains?(trimmed, "require") ->
         parse_go_mod(trimmed)
@@ -75,48 +120,221 @@ defmodule Regents.Patchbay.Security.StackCheck do
       true ->
         parse_plain_or_requirements(trimmed)
     end
-    |> Enum.uniq_by(&{&1.ecosystem, &1.name})
+    |> dedupe_packages()
     |> Enum.take(@max_packages)
   end
 
-  defp parse_package_json(text) do
-    case Jason.decode(text) do
-      {:ok, %{} = map} ->
-        keys =
-          Map.keys(map["dependencies"] || %{}) ++
-            Map.keys(map["devDependencies"] || %{}) ++
-            Map.keys(map["peerDependencies"] || %{})
+  @doc """
+  Determine whether `installed_version` falls inside a structured package entry's
+  vulnerable ranges/versions. Returns `:vulnerable`, `:patched`, or `:unknown`.
+  """
+  @spec evaluate_package_version(String.t() | nil, map()) :: :vulnerable | :patched | :unknown
+  def evaluate_package_version(nil, _sp), do: :unknown
 
-        Enum.map(keys, &%{ecosystem: "npm", name: String.downcase(&1)})
+  def evaluate_package_version(installed_version, sp) when is_binary(installed_version) do
+    ranges = List.wrap(sp["ranges"]) |> Enum.filter(&is_map/1)
+    explicit_versions = List.wrap(sp["versions"]) |> Enum.filter(&is_binary/1)
+    fixed_versions = List.wrap(sp["fixed"]) |> Enum.filter(&is_binary/1)
+
+    cond do
+      ranges != [] ->
+        if Enum.any?(ranges, &version_in_range?(installed_version, &1)),
+          do: :vulnerable,
+          else: :patched
+
+      explicit_versions != [] ->
+        if Enum.any?(explicit_versions, &(compare_versions(installed_version, &1) == :eq)),
+          do: :vulnerable,
+          else: :patched
+
+      fixed_versions != [] ->
+        evaluate_against_fixed_list(installed_version, fixed_versions)
+
+      true ->
+        :unknown
+    end
+  end
+
+  @doc """
+  Compare two SemVer or dotted-numeric version strings (`:lt`, `:eq`, or `:gt`).
+  """
+  @spec compare_versions(String.t(), String.t()) :: :lt | :eq | :gt
+  def compare_versions(a, b) when is_binary(a) and is_binary(b) do
+    {nums_a, pre_a} = parse_version_tuple(a)
+    {nums_b, pre_b} = parse_version_tuple(b)
+
+    case compare_numeric_lists(nums_a, nums_b) do
+      :eq -> compare_prerelease(pre_a, pre_b)
+      other -> other
+    end
+  end
+
+  # --- Manifest parsers ---
+
+  defp parse_json_manifest(text) do
+    case Jason.decode(text) do
+      {:ok, %{"lockfileVersion" => _} = map} ->
+        parse_package_lock_json(map)
+
+      {:ok, %{"packages" => pkgs} = map} when is_list(pkgs) ->
+        parse_composer_lock(map)
+
+      {:ok, %{"require" => req} = map} when is_map(req) ->
+        parse_composer_json(map)
+
+      {:ok, %{} = map} ->
+        parse_package_json(map)
 
       _ ->
         parse_plain_or_requirements(text)
     end
   end
 
-  defp parse_mix_lock(text) do
-    Regex.scan(~r/"([a-z0-9_]+)":\s*\{:hex,/i, text)
-    |> Enum.map(fn [_, name] -> %{ecosystem: "hex", name: String.downcase(name)} end)
+  defp parse_package_lock_json(map) do
+    from_packages =
+      case map["packages"] do
+        %{} = pkgs ->
+          for {path, info} <- pkgs,
+              is_map(info),
+              String.contains?(path, "node_modules/") do
+            name =
+              path
+              |> String.split("node_modules/")
+              |> List.last()
+              |> String.downcase()
+
+            %{ecosystem: "npm", name: name, version: clean_version(info["version"])}
+          end
+
+        _ ->
+          []
+      end
+
+    from_deps =
+      case map["dependencies"] do
+        %{} = deps ->
+          for {name, info} <- deps, is_map(info) do
+            %{
+              ecosystem: "npm",
+              name: String.downcase(name),
+              version: clean_version(info["version"])
+            }
+          end
+
+        _ ->
+          []
+      end
+
+    from_packages ++ from_deps
   end
 
-  defp parse_cargo(text) do
-    from_toml =
-      Regex.scan(~r/^\s*([a-zA-Z0-9_-]+)\s*=\s*(?:"|\{)/m, text)
-      |> Enum.map(fn [_, name] -> String.downcase(name) end)
-      |> Enum.reject(&(&1 in ~w(name version edition authors license description repository)))
+  defp parse_package_json(map) do
+    sections = [
+      map["dependencies"] || %{},
+      map["devDependencies"] || %{},
+      map["peerDependencies"] || %{},
+      map["optionalDependencies"] || %{}
+    ]
 
-    from_lock =
-      Regex.scan(~r/^\s*name\s*=\s*"([^"]+)"/m, text)
-      |> Enum.map(fn [_, name] -> String.downcase(name) end)
+    for section when is_map(section) <- sections, {name, spec} <- section do
+      %{ecosystem: "npm", name: String.downcase(name), version: clean_version(spec)}
+    end
+  end
 
-    (from_toml ++ from_lock)
-    |> Enum.uniq()
-    |> Enum.map(&%{ecosystem: "cargo", name: &1})
+  defp parse_composer_lock(map) do
+    pkgs = List.wrap(map["packages"]) ++ List.wrap(map["packages-dev"])
+
+    for %{"name" => name} = pkg <- pkgs, is_binary(name) do
+      %{
+        ecosystem: "packagist",
+        name: String.downcase(String.trim(name)),
+        version: clean_version(pkg["version"])
+      }
+    end
+  end
+
+  defp parse_composer_json(map) do
+    sections = [map["require"] || %{}, map["require-dev"] || %{}]
+
+    for section when is_map(section) <- sections,
+        {name, spec} <- section,
+        name != "php" and not String.starts_with?(name, "ext-") do
+      %{
+        ecosystem: "packagist",
+        name: String.downcase(String.trim(name)),
+        version: clean_version(spec)
+      }
+    end
+  end
+
+  defp parse_mix_lock(text) do
+    Regex.scan(~r/"([a-z0-9_]+)":\s*\{:hex,\s*:[a-z0-9_]+,\s*"([^"]+)"/i, text)
+    |> case do
+      [] ->
+        Regex.scan(~r/"([a-z0-9_]+)":\s*\{:hex,/i, text)
+        |> Enum.map(fn [_, name] ->
+          %{ecosystem: "hex", name: String.downcase(name), version: nil}
+        end)
+
+      matches ->
+        Enum.map(matches, fn [_, name, ver] ->
+          %{ecosystem: "hex", name: String.downcase(name), version: clean_version(ver)}
+        end)
+    end
+  end
+
+  defp parse_toml_lock(text) do
+    ecosystem =
+      if String.contains?(text, "requires-python") or String.contains?(text, "pypi.org"),
+        do: "pypi",
+        else: "cargo"
+
+    text
+    |> String.split(~r/^\s*\[\[package\]\]\s*$/m)
+    |> Enum.drop(1)
+    |> Enum.flat_map(fn block ->
+      name =
+        case Regex.run(~r/^\s*name\s*=\s*"([^"]+)"/m, block) do
+          [_, n] -> String.downcase(String.trim(n))
+          _ -> nil
+        end
+
+      version =
+        case Regex.run(~r/^\s*version\s*=\s*"([^"]+)"/m, block) do
+          [_, v] -> clean_version(v)
+          _ -> nil
+        end
+
+      if is_binary(name) and name != "" do
+        [%{ecosystem: ecosystem, name: name, version: version}]
+      else
+        []
+      end
+    end)
+  end
+
+  defp parse_cargo_toml(text) do
+    string_deps =
+      Regex.scan(~r/^\s*([a-zA-Z0-9_-]+)\s*=\s*"([^"]+)"/m, text)
+      |> Enum.map(fn [_, name, ver] -> {String.downcase(name), clean_version(ver)} end)
+
+    table_deps =
+      Regex.scan(~r/^\s*([a-zA-Z0-9_-]+)\s*=\s*\{[^}]*version\s*=\s*"([^"]+)"/m, text)
+      |> Enum.map(fn [_, name, ver] -> {String.downcase(name), clean_version(ver)} end)
+
+    meta_keys =
+      ~w(name version edition authors license description repository homepage documentation readme)
+
+    (string_deps ++ table_deps)
+    |> Enum.reject(fn {name, _ver} -> name in meta_keys end)
+    |> Enum.map(fn {name, ver} -> %{ecosystem: "cargo", name: name, version: ver} end)
   end
 
   defp parse_go_mod(text) do
-    Regex.scan(~r/^\s*([a-z0-9.-]+\/[a-z0-9._\/-]+)\s+v[0-9]/im, text)
-    |> Enum.map(fn [_, mod] -> %{ecosystem: "go", name: String.downcase(mod)} end)
+    Regex.scan(~r/^\s*([a-z0-9.-]+\/[a-z0-9._\/-]+)\s+(v[0-9][^\s]*)/im, text)
+    |> Enum.map(fn [_, mod, ver] ->
+      %{ecosystem: "go", name: String.downcase(mod), version: clean_version(ver)}
+    end)
   end
 
   defp parse_plain_or_requirements(text) do
@@ -131,42 +349,107 @@ defmodule Regents.Patchbay.Security.StackCheck do
 
     cond do
       cleaned == "" or String.starts_with?(cleaned, "-") -> []
-      String.contains?(cleaned, ":") -> parse_prefixed_pkg(cleaned)
-      true -> parse_bare_pkg(cleaned)
+      String.contains?(cleaned, ":") -> parse_ecosystem_line(cleaned)
+      true -> parse_bare_line(cleaned)
     end
   end
 
-  defp parse_prefixed_pkg(cleaned) do
+  defp parse_ecosystem_line(cleaned) do
     case String.split(cleaned, ":", parts: 2) do
-      [eco, name] -> [%{ecosystem: String.downcase(String.trim(eco)), name: clean_pkg_name(name)}]
-      _ -> []
+      [eco, rest] ->
+        {name, ver} = split_name_and_version(rest)
+        wrap_parsed(String.downcase(String.trim(eco)), name, ver)
+
+      _ ->
+        []
     end
   end
 
-  defp parse_bare_pkg(cleaned) do
-    name = clean_pkg_name(cleaned)
-    if name == "", do: [], else: [%{ecosystem: nil, name: name}]
+  defp parse_bare_line(cleaned) do
+    {name, ver} = split_name_and_version(cleaned)
+    wrap_parsed(nil, name, ver)
+  end
+
+  defp wrap_parsed(_eco, "", _ver), do: []
+  defp wrap_parsed(eco, name, ver), do: [%{ecosystem: eco, name: name, version: ver}]
+
+  defp split_name_and_version(raw) do
+    trimmed = String.trim(raw)
+
+    cond do
+      # Scoped npm package with version: @scope/pkg@1.2.3
+      Regex.match?(~r/\A(@[^@\s\/]+\/[^@\s=<>!~]+)@([^\s,;]+)\z/, trimmed) ->
+        [_, name, ver] = Regex.run(~r/\A(@[^@\s\/]+\/[^@\s=<>!~]+)@([^\s,;]+)\z/, trimmed)
+        {String.downcase(name), clean_version(ver)}
+
+      # Package with @version: drupal/core@11.4.12 or next@15.1.0
+      Regex.match?(~r/\A([^@\s=<>!~]+)@([^\s,;]+)\z/, trimmed) ->
+        [_, name, ver] = Regex.run(~r/\A([^@\s=<>!~]+)@([^\s,;]+)\z/, trimmed)
+        {String.downcase(name), clean_version(ver)}
+
+      # Requirements.txt style: pkg==1.2.3, pkg>=1.2.3, pkg~=1.2.3
+      Regex.match?(
+        ~r/\A([a-zA-Z0-9._\/@-]+)(?:\[[^\]]+\])?\s*(?:===|==|~=|>=|<=|=)\s*([^\s,;]+)/,
+        trimmed
+      ) ->
+        [_, name, ver] =
+          Regex.run(
+            ~r/\A([a-zA-Z0-9._\/@-]+)(?:\[[^\]]+\])?\s*(?:===|==|~=|>=|<=|=)\s*([^\s,;]+)/,
+            trimmed
+          )
+
+        {String.downcase(name), clean_version(ver)}
+
+      # Space separated: drupal/core 11.4.12
+      Regex.match?(~r/\A([a-zA-Z0-9._\/@-]+)\s+(v?[0-9][^\s,;]*)\z/, trimmed) ->
+        [_, name, ver] = Regex.run(~r/\A([a-zA-Z0-9._\/@-]+)\s+(v?[0-9][^\s,;]*)\z/, trimmed)
+        {String.downcase(name), clean_version(ver)}
+
+      true ->
+        {clean_pkg_name(trimmed), nil}
+    end
   end
 
   defp clean_pkg_name(raw) do
     raw
     |> String.trim()
-    |> String.split(~r/[=<>!~;@\[\s]/, parts: 2)
+    |> String.split(~r/[=<>!~;\[\s]/, parts: 2)
     |> hd()
     |> String.trim()
     |> String.downcase()
   end
 
+  defp clean_version(ver) when is_binary(ver) do
+    trimmed =
+      ver
+      |> String.trim()
+      |> String.replace(~r/\A[\^~v=<>!\s]+/, "")
+      |> String.split(~r/[\s,|]+/, parts: 2)
+      |> hd()
+      |> String.trim()
+
+    if Regex.match?(
+         ~r/\A[0-9]+(?:\.[0-9]+)*(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?\z/,
+         trimmed
+       ),
+       do: trimmed,
+       else: nil
+  end
+
+  defp clean_version(_other), do: nil
+
   defp normalize_package_entry(%{"name" => name} = entry) when is_binary(name) do
-    cleaned = clean_pkg_name(name)
+    {cleaned, inline_ver} = split_name_and_version(name)
     eco = if is_binary(entry["ecosystem"]), do: String.downcase(String.trim(entry["ecosystem"]))
-    if cleaned == "", do: [], else: [%{ecosystem: eco, name: cleaned}]
+    ver = clean_version(entry["version"]) || inline_ver
+    if cleaned == "", do: [], else: [%{ecosystem: eco, name: cleaned, version: ver}]
   end
 
   defp normalize_package_entry(%{name: name} = entry) when is_binary(name) do
-    cleaned = clean_pkg_name(name)
+    {cleaned, inline_ver} = split_name_and_version(name)
     eco = if is_binary(entry[:ecosystem]), do: String.downcase(String.trim(entry[:ecosystem]))
-    if cleaned == "", do: [], else: [%{ecosystem: eco, name: cleaned}]
+    ver = clean_version(entry[:version]) || inline_ver
+    if cleaned == "", do: [], else: [%{ecosystem: eco, name: cleaned, version: ver}]
   end
 
   defp normalize_package_entry(name) when is_binary(name) do
@@ -175,35 +458,210 @@ defmodule Regents.Patchbay.Security.StackCheck do
 
   defp normalize_package_entry(_other), do: []
 
-  defp match_packages(packages) do
-    cves = load_cves()
-
-    matches =
-      (match_cves(cves, packages) ++ match_briefings(Incidents.all(), packages))
-      |> Enum.sort_by(&{not &1.exploited, -(&1.score || 0.0)})
-
-    {:ok,
-     %{
-       checked_packages: packages,
-       package_count: length(packages),
-       cves_scanned: length(cves),
-       match_count: length(matches),
-       kev_match_count: Enum.count(matches, & &1.exploited),
-       unfixed_match_count: Enum.count(matches, &(not &1.fix_available)),
-       matches: matches
-     }}
+  defp dedupe_packages(packages) do
+    # Prefer versioned entries over unversioned entries for the same package.
+    packages
+    |> Enum.reduce(%{}, fn pkg, acc ->
+      Map.update(acc, {pkg.ecosystem, pkg.name}, pkg, &prefer_versioned(&1, pkg))
+    end)
+    |> Map.values()
   end
 
+  defp prefer_versioned(%{version: nil}, %{version: ver} = pkg) when not is_nil(ver), do: pkg
+  defp prefer_versioned(existing, _pkg), do: existing
+
+  # --- Matching & Version Range Evaluation ---
+
   defp match_cves(cves, packages) do
-    Enum.flat_map(cves, fn post ->
-      case matching_packages_for_post(post, packages) do
-        [] -> []
-        matched -> [build_cve_match(post, matched)]
-      end
+    Enum.reduce(cves, {[], []}, fn post, {matches_acc, cleared_acc} ->
+      {matched_details, cleared_entries} = evaluate_post(post, packages)
+
+      next_matches =
+        if matched_details == [],
+          do: matches_acc,
+          else: [build_cve_match(post, matched_details) | matches_acc]
+
+      {next_matches, cleared_entries ++ cleared_acc}
     end)
   end
 
-  defp build_cve_match(post, matched) do
+  defp evaluate_post(post, packages) do
+    facts = post.cve_facts
+    structured = (facts && facts.packages) || []
+
+    if structured != [] do
+      evaluate_structured_post(post, structured, packages)
+    else
+      evaluate_unstructured_post(post, packages)
+    end
+  end
+
+  defp evaluate_structured_post(post, structured, packages) do
+    Enum.reduce(packages, {[], []}, fn pkg, acc ->
+      evaluate_structured_pkg(post, structured, pkg, acc)
+    end)
+  end
+
+  defp evaluate_structured_pkg(post, structured, pkg, {matched_acc, cleared_acc}) do
+    case find_matching_structured(structured, pkg) do
+      [] ->
+        {matched_acc, cleared_acc}
+
+      matching_sps ->
+        classify_structured_pkg(post, pkg, matching_sps, {matched_acc, cleared_acc})
+    end
+  end
+
+  defp classify_structured_pkg(post, pkg, matching_sps, {matched_acc, cleared_acc}) do
+    fixed_all = matching_sps |> Enum.flat_map(&List.wrap(&1["fixed"])) |> Enum.uniq()
+    eco = pkg.ecosystem || List.first(matching_sps)["ecosystem"]
+    outcomes = Enum.map(matching_sps, &evaluate_package_version(pkg.version, &1))
+
+    cond do
+      :vulnerable in outcomes ->
+        detail = build_match_detail(pkg, eco, fixed_all, :version_range)
+        {[detail | matched_acc], cleared_acc}
+
+      Enum.all?(outcomes, &(&1 == :patched)) ->
+        cleared = %{
+          cve_id: post.cve_now_id,
+          package: pkg.name,
+          ecosystem: eco,
+          installed_version: pkg.version,
+          fixed_versions: fixed_all,
+          reason: "patched_version"
+        }
+
+        {matched_acc, [cleared | cleared_acc]}
+
+      true ->
+        basis = if pkg.version, do: :name_no_ranges, else: :unversioned_name
+        detail = build_match_detail(pkg, eco, fixed_all, basis)
+        {[detail | matched_acc], cleared_acc}
+    end
+  end
+
+  defp build_match_detail(pkg, eco, fixed_all, basis) do
+    %{
+      name: pkg.name,
+      ecosystem: eco,
+      installed_version: pkg.version,
+      fixed_versions: fixed_all,
+      match_basis: basis
+    }
+  end
+
+  defp evaluate_unstructured_post(post, packages) do
+    facts = post.cve_facts
+
+    haystack =
+      [post.title, facts && facts.product, post.body_markdown]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" ")
+      |> String.downcase()
+
+    matched =
+      for pkg <- packages,
+          byte_size(pkg.name) >= 3,
+          token_match?(haystack, pkg.name) do
+        %{
+          name: pkg.name,
+          ecosystem: pkg.ecosystem,
+          installed_version: pkg.version,
+          fixed_versions: [],
+          match_basis: :text_fallback
+        }
+      end
+
+    {matched, []}
+  end
+
+  defp find_matching_structured(structured, %{ecosystem: eco, name: name}) do
+    Enum.filter(structured, fn sp ->
+      pkg_name = String.downcase(sp["name"] || "")
+      pkg_eco = String.downcase(sp["ecosystem"] || "")
+      pkg_name == name and (is_nil(eco) or eco == "" or pkg_eco == "" or pkg_eco == eco)
+    end)
+  end
+
+  defp version_in_range?(ver, range) do
+    introduced_ok?(ver, range["introduced"]) and
+      before_fixed?(ver, range["fixed"]) and
+      within_last_affected?(ver, range["last_affected"])
+  end
+
+  defp introduced_ok?(_ver, bound) when bound in [nil, "", "0"], do: true
+  defp introduced_ok?(ver, bound), do: compare_versions(ver, bound) in [:eq, :gt]
+
+  defp before_fixed?(_ver, bound) when bound in [nil, ""], do: true
+  defp before_fixed?(ver, bound), do: compare_versions(ver, bound) == :lt
+
+  defp within_last_affected?(_ver, bound) when bound in [nil, ""], do: true
+  defp within_last_affected?(ver, bound), do: compare_versions(ver, bound) in [:lt, :eq]
+
+  defp evaluate_against_fixed_list(installed, fixed_versions) do
+    {inst_nums, _} = parse_version_tuple(installed)
+    inst_major = List.first(inst_nums)
+
+    same_major =
+      Enum.filter(fixed_versions, fn fv ->
+        {f_nums, _} = parse_version_tuple(fv)
+        List.first(f_nums) == inst_major
+      end)
+
+    candidates = if same_major != [], do: same_major, else: fixed_versions
+
+    # Patched if installed is at or above a fixed version on its major branch.
+    if Enum.any?(candidates, &(compare_versions(installed, &1) in [:eq, :gt])) do
+      :patched
+    else
+      :vulnerable
+    end
+  end
+
+  defp parse_version_tuple(raw) do
+    trimmed = raw |> String.trim() |> String.replace(~r/\Av/i, "")
+    without_build = trimmed |> String.split("+", parts: 2) |> hd()
+
+    {core, pre} =
+      case String.split(without_build, "-", parts: 2) do
+        [c, p] -> {c, p}
+        [c] -> {c, nil}
+      end
+
+    nums =
+      core
+      |> String.split(".")
+      |> Enum.map(fn part ->
+        case Integer.parse(part) do
+          {n, _} -> n
+          :error -> 0
+        end
+      end)
+
+    {nums, pre}
+  end
+
+  defp compare_numeric_lists([], []), do: :eq
+  defp compare_numeric_lists([a | ta], []), do: compare_numeric_lists([a | ta], [0])
+  defp compare_numeric_lists([], [b | tb]), do: compare_numeric_lists([0], [b | tb])
+  defp compare_numeric_lists([a | _], [b | _]) when a < b, do: :lt
+  defp compare_numeric_lists([a | _], [b | _]) when a > b, do: :gt
+  defp compare_numeric_lists([a | ta], [a | tb]), do: compare_numeric_lists(ta, tb)
+
+  defp compare_prerelease(nil, nil), do: :eq
+  defp compare_prerelease(nil, _pre), do: :gt
+  defp compare_prerelease(_pre, nil), do: :lt
+
+  defp compare_prerelease(a, b) do
+    cond do
+      a < b -> :lt
+      a > b -> :gt
+      true -> :eq
+    end
+  end
+
+  defp build_cve_match(post, matched_details) do
     facts = post.cve_facts || %{}
 
     %{
@@ -216,7 +674,10 @@ defmodule Regents.Patchbay.Security.StackCheck do
       exploited: Map.get(facts, :exploited, false),
       fix_available: Map.get(facts, :fix_available, false),
       ecosystems: Map.get(facts, :ecosystems, []),
-      matched_packages: matched,
+      kev_due_date: Map.get(facts, :kev_due_date),
+      epss_score: Map.get(facts, :epss_score),
+      matched_packages: matched_details |> Enum.map(& &1.name) |> Enum.uniq(),
+      matched_details: matched_details,
       reply_count: post.reply_count || 0,
       patchbay_path: PostAddress.path(post),
       cve_now_url: "https://cve.now/#{post.cve_now_id}",
@@ -252,7 +713,19 @@ defmodule Regents.Patchbay.Security.StackCheck do
       exploited: incident.status == :active,
       fix_available: true,
       ecosystems: [],
+      kev_due_date: nil,
+      epss_score: nil,
       matched_packages: matched,
+      matched_details:
+        Enum.map(matched, fn name ->
+          %{
+            name: name,
+            ecosystem: nil,
+            installed_version: nil,
+            fixed_versions: [],
+            match_basis: :briefing_keyword
+          }
+        end),
       reply_count: 0,
       patchbay_path: "/patchbay/incidents/#{incident.name}",
       cve_now_url: nil,
@@ -265,33 +738,6 @@ defmodule Regents.Patchbay.Security.StackCheck do
       {:ok, %{results: posts}} -> posts
       _ -> []
     end
-  end
-
-  defp matching_packages_for_post(post, packages) do
-    facts = post.cve_facts
-    structured = (facts && facts.packages) || []
-
-    haystack =
-      [post.title, facts && facts.product, post.body_markdown]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join(" ")
-      |> String.downcase()
-
-    packages
-    |> Enum.filter(fn pkg ->
-      structured_match?(structured, pkg) or
-        (byte_size(pkg.name) >= 3 and token_match?(haystack, pkg.name))
-    end)
-    |> Enum.map(& &1.name)
-    |> Enum.uniq()
-  end
-
-  defp structured_match?(structured, %{ecosystem: eco, name: name}) do
-    Enum.any?(structured, fn sp ->
-      pkg_name = String.downcase(sp["name"] || "")
-      pkg_eco = String.downcase(sp["ecosystem"] || "")
-      pkg_name == name and (is_nil(eco) or eco == "" or pkg_eco == eco)
-    end)
   end
 
   defp token_match?(haystack, token) do

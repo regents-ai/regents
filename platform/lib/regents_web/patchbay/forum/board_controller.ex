@@ -85,7 +85,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
               "site_url" => board.default_site_url,
               "topic_tags" => ProductBoards.prefilled_tags(board, topic)
             },
-            Map.take(params, ~w(goal site_url tool topic_tags))
+            Map.take(params, ~w(goal site_url details tool topic_tags))
           )
 
         ask =

@@ -41,7 +41,7 @@ defmodule RegentHttp.Public do
         }
 
   @doc """
-  Sends `method` (`:get`, `:head`, or `:post`) to `url`.
+  Sends `method` (`:get`, `:head`, `:options`, or `:post`) to `url`.
 
   - `:max_bytes` (required) bounds the answer's headers and body; a longer body
     is `{:error, :too_large}`.
@@ -54,9 +54,9 @@ defmodule RegentHttp.Public do
   `:body_statuses` to read the bounded body for specific 4xx or 5xx statuses.
   Redirects are never followed.
   """
-  @spec request(:get | :head | :post, String.t(), keyword()) ::
+  @spec request(:get | :head | :options | :post, String.t(), keyword()) ::
           {:ok, response()} | {:error, atom()}
-  def request(method, url, opts) when method in [:get, :head, :post] do
+  def request(method, url, opts) when method in [:get, :head, :options, :post] do
     Keyword.fetch!(opts, :max_bytes)
 
     case Application.get_env(:regent_http, :public_client) do

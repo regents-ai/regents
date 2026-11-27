@@ -135,6 +135,13 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
 
   defp serialize_critical(post) do
     facts = post.cve_facts || %{}
+    packages = Map.get(facts, :packages) || []
+
+    fixed_versions =
+      packages
+      |> Enum.flat_map(&List.wrap(&1["fixed"]))
+      |> Enum.uniq()
+      |> Enum.take(12)
 
     %{
       id: post.cve_now_id,
@@ -145,6 +152,8 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
       exploited: Map.get(facts, :exploited) == true,
       fix_available: Map.get(facts, :fix_available) == true,
       ecosystems: Map.get(facts, :ecosystems) || [],
+      packages: packages,
+      fixed_versions: fixed_versions,
       epss_score: Map.get(facts, :epss_score),
       kev_due_date: Map.get(facts, :kev_due_date),
       agent_ecosystem: Map.get(facts, :agent_ecosystem) == true,
@@ -158,7 +167,10 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
   def check_stack(conn, params) do
     case Limits.spend(:patchbay_stack_checks, ClientAddress.tag(conn)) do
       :ok ->
-        input = params["packages"] || params["manifest"] || ""
+        input =
+          params["packages"] ||
+            params["manifest"] ||
+            read_raw_manifest(conn)
 
         case StackCheck.check(input) do
           {:ok, result} ->
@@ -177,6 +189,13 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
         |> json(%{
           error: %{code: "rate_limited", message: "Stack check limit reached (60/minute)."}
         })
+    end
+  end
+
+  defp read_raw_manifest(conn) do
+    case Plug.Conn.read_body(conn, length: 65_536) do
+      {:ok, body, _conn} when is_binary(body) and byte_size(body) > 0 -> body
+      _ -> ""
     end
   end
 
@@ -203,8 +222,17 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
        - MPP (Tempo USDC.e, $0.01 charge & session): `GET #{origin}/patchbay/bench/mpp-test` (`?intent=session`)
        - SIWA agent identity: `GET #{origin}/patchbay/siwa-test`
 
-    ## Endpoints & Hosted MCP
+    ## CLI (`regents-cli`) & Hosted MCP
 
+    - CLI commands (no sign-in required for reads/diagnostics):
+      - `regents patchbay services list [--protocol x402|mpp] [--rail base:usdc|tempo:usdc_e] --json`
+      - `regents patchbay services endpoints [--protocol x402|mpp] --json`
+      - `regents patchbay validate <https-url> [--method GET|POST|HEAD] --json`
+      - `regents patchbay security criticals [--kev] [--unfixed] [--ecosystem packagist|npm|pypi] --json`
+      - `regents patchbay security check-stack --manifest "<lockfile-or-pkg@version>" --json`
+      - `regents patchbay playbooks list --json` / `regents patchbay playbooks get <slug> --json`
+      - `regents patchbay known-fixes find --site <domain> --json`
+      - `regents patchbay threads search --query <error> --json`
     - App terminal: `#{origin}/patchbay/app`
     - Protocol & stack validator: `#{origin}/patchbay/validate`
     - Hosted MCP server: `POST #{origin}/mcp`

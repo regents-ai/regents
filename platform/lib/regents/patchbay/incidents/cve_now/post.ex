@@ -119,7 +119,9 @@ defmodule Regents.Patchbay.Incidents.CveNow.Post do
       severity: stated_level(entry) || band(score),
       score: score,
       exploited: kev(entry) != [],
-      fix_available: fixed_in(entry) != [] or Enum.any?(fix_packages(entry), &fixed?/1),
+      fix_available:
+        fixed_in(entry) != [] or Enum.any?(fix_packages(entry), &fixed?/1) or
+          Enum.any?(packages, &((&1["fixed"] || []) != [])),
       product: product_text,
       ecosystems: ecosystems,
       packages: packages,
@@ -131,6 +133,10 @@ defmodule Regents.Patchbay.Incidents.CveNow.Post do
   end
 
   defp epss_score(%{"exploitation" => %{"epss" => %{"score" => score}}})
+       when is_number(score) and score >= 0 and score <= 1,
+       do: score / 1
+
+  defp epss_score(%{"scores" => %{"epss" => %{"score" => score}}})
        when is_number(score) and score >= 0 and score <= 1,
        do: score / 1
 
@@ -147,31 +153,124 @@ defmodule Regents.Patchbay.Incidents.CveNow.Post do
   defp exposure_value(_entry), do: nil
 
   defp structured_packages(entry) do
-    from_fix =
-      for %{"ecosystem" => eco, "package" => name} = pkg <- fix_packages(entry) do
-        %{
-          "ecosystem" => String.downcase(eco),
-          "name" => name,
-          "status" => pkg["status"],
-          "fixed" => pkg["fixed"] |> List.wrap() |> Enum.map(&version/1) |> versions()
-        }
-      end
+    top_fixed = versions(list(entry, "fixedIn"))
 
-    from_affected =
-      for %{"ecosystem" => eco, "name" => name} when is_binary(eco) and is_binary(name) <-
-            list(entry, "packages") do
-        %{
-          "ecosystem" => String.downcase(eco),
-          "name" => name,
-          "status" => nil,
-          "fixed" => []
-        }
-      end
+    merged =
+      (packages_from_affected(entry) ++
+         packages_from_fix_status(entry) ++
+         packages_from_list(entry))
+      |> Enum.reduce(%{}, &merge_structured_package/2)
+      |> Map.values()
+      |> Enum.sort_by(&{&1["ecosystem"], String.downcase(&1["name"])})
+      |> Enum.take(30)
 
-    (from_fix ++ from_affected)
-    |> Enum.uniq_by(&{&1["ecosystem"], String.downcase(&1["name"])})
-    |> Enum.take(30)
+    case {merged, top_fixed} do
+      {[single], [_ | _]} ->
+        fixed = Enum.uniq((single["fixed"] || []) ++ top_fixed)
+        [Map.put(single, "fixed", fixed)]
+
+      _ ->
+        merged
+    end
   end
+
+  defp packages_from_affected(entry) do
+    for item when is_map(item) <- list(entry, "affected"),
+        eco = item["ecosystem"],
+        name = item["package"] || item["name"],
+        is_binary(eco) and eco != "" and is_binary(name) and name != "" do
+      ranges = normalize_ranges(item["ranges"])
+
+      range_fixed =
+        ranges
+        |> Enum.map(& &1["fixed"])
+        |> versions()
+        |> Enum.uniq()
+
+      explicit_versions =
+        item["versions"]
+        |> List.wrap()
+        |> versions()
+        |> Enum.uniq()
+        |> Enum.take(50)
+
+      %{
+        "ecosystem" => String.downcase(String.trim(eco)),
+        "name" => String.trim(name),
+        "status" => if(range_fixed != [], do: "fixed", else: nil),
+        "fixed" => range_fixed,
+        "ranges" => ranges,
+        "versions" => explicit_versions
+      }
+    end
+  end
+
+  defp packages_from_fix_status(entry) do
+    for %{"ecosystem" => eco, "package" => name} = pkg <- fix_packages(entry) do
+      %{
+        "ecosystem" => String.downcase(String.trim(eco)),
+        "name" => String.trim(name),
+        "status" => pkg["status"],
+        "fixed" =>
+          pkg["fixed"] |> List.wrap() |> Enum.map(&version/1) |> versions() |> Enum.uniq(),
+        "ranges" => [],
+        "versions" => []
+      }
+    end
+  end
+
+  defp packages_from_list(entry) do
+    for %{"ecosystem" => eco, "name" => name}
+        when is_binary(eco) and eco != "" and is_binary(name) and name != "" <-
+          list(entry, "packages") do
+      %{
+        "ecosystem" => String.downcase(String.trim(eco)),
+        "name" => String.trim(name),
+        "status" => nil,
+        "fixed" => [],
+        "ranges" => [],
+        "versions" => []
+      }
+    end
+  end
+
+  defp merge_structured_package(pkg, acc) do
+    key = {pkg["ecosystem"], String.downcase(pkg["name"])}
+
+    Map.update(acc, key, pkg, fn existing ->
+      %{
+        "ecosystem" => existing["ecosystem"],
+        "name" => existing["name"],
+        "status" => existing["status"] || pkg["status"],
+        "fixed" => Enum.uniq((existing["fixed"] || []) ++ (pkg["fixed"] || [])),
+        "ranges" => Enum.uniq((existing["ranges"] || []) ++ (pkg["ranges"] || [])),
+        "versions" =>
+          Enum.uniq((existing["versions"] || []) ++ (pkg["versions"] || [])) |> Enum.take(50)
+      }
+    end)
+  end
+
+  defp normalize_ranges(ranges) when is_list(ranges) do
+    ranges
+    |> Enum.filter(&is_map/1)
+    |> Enum.map(fn r ->
+      %{}
+      |> maybe_put_range("introduced", r["introduced"])
+      |> maybe_put_range("fixed", r["fixed"])
+      |> maybe_put_range("last_affected", r["last_affected"] || r["lastAffected"])
+    end)
+    |> Enum.reject(&(&1 == %{}))
+    |> Enum.uniq()
+  end
+
+  defp normalize_ranges(_other), do: []
+
+  defp maybe_put_range(map, key, val) when is_binary(val) do
+    trimmed = String.trim(val)
+    if trimmed == "", do: map, else: Map.put(map, key, trimmed)
+  end
+
+  defp maybe_put_range(map, _key, _val), do: map
 
   defp extract_ecosystems(packages) do
     packages

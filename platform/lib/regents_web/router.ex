@@ -1571,6 +1571,8 @@ defmodule RegentsWeb.Router do
   scope "/patchbay/bench", RegentsWeb.Patchbay do
     pipe_through :api
 
+    options "/x402-test", X402TestController, :preflight
+    options "/mpp-test", MppTestController, :preflight
     get "/mpp-test", MppTestController, :show
   end
 

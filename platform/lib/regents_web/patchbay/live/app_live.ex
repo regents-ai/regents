@@ -17,6 +17,7 @@ defmodule RegentsWeb.Patchbay.AppLive do
   alias Regents.Patchbay.Forum.PostSummary
   alias Regents.Patchbay.Incidents.CveNow
   alias Regents.Patchbay.Playbooks
+  alias Regents.Patchbay.Probes.CatalogStore
   alias Regents.Patchbay.TelemetryBoard
   alias RegentsWeb.Patchbay.Forum.Discussions
   alias RegentsWeb.Patchbay.IncidentHTML
@@ -65,6 +66,7 @@ defmodule RegentsWeb.Patchbay.AppLive do
   def mount(_params, _session, socket) do
     if connected?(socket) do
       :ok = Phoenix.PubSub.subscribe(Regents.PubSub, CveNow.topic())
+      :ok = Phoenix.PubSub.subscribe(Regents.PubSub, CatalogStore.topic())
     end
 
     snap = TelemetryBoard.snapshot()
@@ -283,6 +285,23 @@ defmodule RegentsWeb.Patchbay.AppLive do
       })
 
     {:noreply, assign(socket, snap: snap, filtered_cves: filtered)}
+  end
+
+  def handle_info({:catalog_probes_updated, _snapshots}, socket) do
+    service_params = %{
+      "q" => socket.assigns.q,
+      "protocol" => socket.assigns.protocol,
+      "rail" => socket.assigns.rail,
+      "category" => socket.assigns.category,
+      "verified" => socket.assigns.verified,
+      "sort" => socket.assigns.sort
+    }
+
+    {:noreply,
+     assign(socket,
+       snap: TelemetryBoard.snapshot(),
+       services: Catalog.filter(service_params)
+     )}
   end
 
   def handle_info(_message, socket), do: {:noreply, socket}
@@ -806,6 +825,25 @@ defmodule RegentsWeb.Patchbay.AppLive do
                       <strong>
                         {svc["name"]}
                         <span :if={svc["verified"]} class="pbt-verified">✓</span>
+                        <span
+                          :if={svc["status"] && svc["status"] != "unchecked"}
+                          class={[
+                            "pbt-badge",
+                            if(svc["status"] == "healthy",
+                              do: "pbt-badge--good",
+                              else:
+                                if(svc["status"] == "degraded",
+                                  do: "pbt-badge--amber",
+                                  else: "pbt-badge--critical"
+                                )
+                            )
+                          ]}
+                        >
+                          {if svc["http_status"],
+                            do: "HTTP #{svc["http_status"]}",
+                            else: String.upcase(svc["status"])}
+                          {if svc["latency_ms"], do: " · #{svc["latency_ms"]}ms", else: ""}
+                        </span>
                       </strong>
                       <span class="pbt-svc-domain">{svc["domain"]}</span>
                       <span class="pbt-svc-summary">{svc["summary"]}</span>

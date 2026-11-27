@@ -6,6 +6,8 @@ defmodule Regents.Patchbay.Commerce.Catalog do
   compile time with zero external runtime dependencies.
   """
 
+  alias Regents.Patchbay.Probes.CatalogStore
+
   @data_path "priv/patchbay/data/commerce_services.json"
   @external_resource @data_path
   @document @data_path |> File.read!() |> Jason.decode!()
@@ -15,9 +17,16 @@ defmodule Regents.Patchbay.Commerce.Catalog do
   @protocols ~w(x402 mpp webmcp mcp siwa llms_txt)
   @rails ~w(base:usdc tempo:usdc_e tempo:pathusd solana:usdc stripe:link free)
 
-  @doc "All curated commerce services ordered by featured rank."
+  @doc "Unenriched curated catalog records (used by `CatalogWatch` prober)."
+  @spec raw_services() :: [map()]
+  def raw_services, do: @services
+
+  @doc "All curated commerce services ordered by featured rank, enriched with live probe telemetry."
   @spec all() :: [map()]
-  def all, do: @services
+  def all do
+    probes = CatalogStore.all_map()
+    Enum.map(@services, &attach_live_probe(&1, probes))
+  end
 
   @doc "Date string recording when the curated catalog was last refreshed."
   @spec updated_at() :: String.t() | nil
@@ -45,7 +54,11 @@ defmodule Regents.Patchbay.Commerce.Catalog do
   @spec get(String.t()) :: map() | nil
   def get(ref) when is_binary(ref) do
     needle = ref |> String.trim() |> String.downcase()
-    Enum.find(@services, fn s -> s["slug"] == needle or s["domain"] == needle end)
+
+    case Enum.find(@services, fn s -> s["slug"] == needle or s["domain"] == needle end) do
+      nil -> nil
+      service -> attach_live_probe(service, CatalogStore.all_map())
+    end
   end
 
   def get(_other), do: nil
@@ -59,6 +72,7 @@ defmodule Regents.Patchbay.Commerce.Catalog do
     category = normalize(params["category"])
     verified? = params["verified"] in ["true", "1", true]
     sort = normalize(params["sort"])
+    probes = CatalogStore.all_map()
 
     @services
     |> Enum.filter(fn service ->
@@ -69,6 +83,7 @@ defmodule Regents.Patchbay.Commerce.Catalog do
         (not verified? or service["verified"] == true)
     end)
     |> sort_services(sort)
+    |> Enum.map(&attach_live_probe(&1, probes))
   end
 
   @doc "Flattened list of endpoints across matching services."
@@ -92,10 +107,17 @@ defmodule Regents.Patchbay.Commerce.Catalog do
     |> Enum.filter(fn ep -> protocol == "" or ep["protocol"] == protocol end)
   end
 
-  @doc "Aggregate counts by protocol and rail for telemetry cards."
+  @doc "Aggregate counts by protocol, rail, and live probe status for telemetry cards."
   @spec summary() :: map()
   def summary do
     all_endpoints = Enum.flat_map(@services, &(&1["endpoints"] || []))
+    probes = CatalogStore.all_map() |> Map.values()
+
+    last_probe_at =
+      probes
+      |> Enum.map(& &1[:checked_at])
+      |> Enum.reject(&is_nil/1)
+      |> Enum.max(fn -> nil end)
 
     %{
       services: length(@services),
@@ -109,8 +131,35 @@ defmodule Regents.Patchbay.Commerce.Catalog do
           rails = s["rails"] || []
           "tempo:usdc_e" in rails or "tempo:pathusd" in rails
         end),
-      base_services: Enum.count(@services, &("base:usdc" in (&1["rails"] || [])))
+      base_services: Enum.count(@services, &("base:usdc" in (&1["rails"] || []))),
+      probed_services: length(probes),
+      healthy_services: Enum.count(probes, &(&1[:status] == "healthy")),
+      degraded_services: Enum.count(probes, &(&1[:status] == "degraded")),
+      failing_services: Enum.count(probes, &(&1[:status] == "failing")),
+      last_probe_at: last_probe_at
     }
+  end
+
+  defp attach_live_probe(service, probes) do
+    case Map.get(probes, service["slug"]) do
+      nil ->
+        Map.merge(service, %{
+          "status" => "unchecked",
+          "http_status" => nil,
+          "latency_ms" => nil,
+          "last_checked_at" => nil,
+          "live_probe" => nil
+        })
+
+      snap ->
+        Map.merge(service, %{
+          "status" => snap.status,
+          "http_status" => snap.http_status,
+          "latency_ms" => snap.latency_ms,
+          "last_checked_at" => snap.checked_at,
+          "live_probe" => snap
+        })
+    end
   end
 
   defp matches_query?(_service, ""), do: true
