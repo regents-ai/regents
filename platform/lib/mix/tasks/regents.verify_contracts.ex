@@ -24,9 +24,8 @@ defmodule Mix.Tasks.Regents.VerifyContracts do
   alias Regents.Account.Actors.Agent
   alias Regents.ProductActivity
   alias RegentsWeb.Autolaunch.PublicDocuments, as: AutolaunchDocs
+  alias RegentsWeb.{Cloak, Docs, ProductDirectory, PublicDocuments, Router, SearchLive, Telemetry}
   alias RegentsWeb.Keyfleet.AgentTools.Account.Answer, as: KeyfleetAccountAnswer
-  alias RegentsWeb.Router
-  alias RegentsWeb.Telemetry
 
   @agent_tool_domains [
     {"autolaunch", RegentsWeb.Autolaunch.AgentTools},
@@ -60,7 +59,8 @@ defmodule Mix.Tasks.Regents.VerifyContracts do
         check_autolaunch_market_pages() ++
         check_agent_tools() ++
         check_prometheus_contract() ++
-        check_runtime_regressions()
+        check_runtime_regressions() ++
+        check_cloak_and_surface_contracts()
 
     case failures do
       [] ->
@@ -269,5 +269,129 @@ defmodule Mix.Tasks.Regents.VerifyContracts do
     ]
 
     for {ok?, msg} <- checks, not ok?, do: msg
+  end
+
+  defp check_cloak_and_surface_contracts do
+    {:ok, _} = Application.ensure_all_started(:phoenix)
+
+    children =
+      if(Process.whereis(Regents.PubSub), do: [], else: [{Phoenix.PubSub, name: Regents.PubSub}]) ++
+        if(Process.whereis(RegentsWeb.Endpoint),
+          do: [],
+          else: [{RegentsWeb.Endpoint, server: false}]
+        )
+
+    sup =
+      case children do
+        [] ->
+          nil
+
+        list ->
+          {:ok, pid} = Supervisor.start_link(list, strategy: :one_for_one)
+          pid
+      end
+
+    try do
+      verify_cloak_and_surfaces()
+    after
+      if sup, do: Supervisor.stop(sup)
+    end
+  end
+
+  defp verify_cloak_and_surfaces do
+    check_cloak_release_pins() ++
+      check_app_markdown() ++
+      check_cloak_directory() ++
+      check_cloak_search() ++
+      check_capabilities_write_flag()
+  end
+
+  defp check_cloak_release_pins do
+    rel = Cloak.release_checksums()
+    cloak_md = Cloak.markdown()
+    install_md = Cloak.install_markdown()
+
+    pinned? =
+      String.contains?(rel.dmg_url, "/releases/download/#{rel.tag}/#{rel.dmg_filename}") and
+        String.contains?(rel.sums_url, "/releases/download/#{rel.tag}/SHA256SUMS.txt") and
+        String.contains?(rel.release_url, "/releases/tag/#{rel.tag}")
+
+    moving? =
+      String.contains?(cloak_md, "/releases/latest/") or
+        String.contains?(install_md, "/releases/latest/")
+
+    Enum.reject(
+      [
+        unless(pinned?,
+          do: "Cloak.release_checksums/0 URLs are not pinned to immutable tag #{rel.tag}"
+        ),
+        if(moving?, do: "Cloak Markdown still contains moving /releases/latest/ URL")
+      ],
+      &is_nil/1
+    )
+  end
+
+  defp check_app_markdown do
+    case PublicDocuments.document("/app") do
+      %{markdown: md} when is_binary(md) ->
+        if String.contains?(md, "# Regents Labs — App Overview"),
+          do: [],
+          else: ["PublicDocuments.document(\"/app\") missing overview heading"]
+
+      _ ->
+        ["PublicDocuments.document(\"/app\") did not return public Markdown directory"]
+    end
+  end
+
+  defp check_cloak_directory do
+    rel = Cloak.release_checksums()
+    {:ok, cloak_product} = ProductDirectory.fetch("cloak")
+
+    synced? =
+      Enum.map(cloak_product.cards, & &1.name) == [
+        "Local AI",
+        "Private Cloud Inference",
+        "Inference Serving"
+      ] and String.contains?(cloak_product.kicker, Cloak.version_label(rel))
+
+    if synced?,
+      do: [],
+      else: ["ProductDirectory.fetch(\"cloak\") taxonomy/version drifted from RegentsWeb.Cloak"]
+  end
+
+  defp check_cloak_search do
+    {:ok, docs_hits} = Docs.search_matches("Cloak")
+    ranked = SearchLive.rank("Cloak", "regents", docs_hits)
+    first_path = ranked |> List.first() |> then(&(&1 && &1.path))
+
+    if first_path == "/cloak",
+      do: [],
+      else: [
+        "SearchLive.rank(\"Cloak\", \"regents\", ...) returned #{inspect(first_path)} first instead of /cloak"
+      ]
+  end
+
+  defp check_capabilities_write_flag do
+    manifest =
+      Application.app_dir(:regents, "priv/tool_manifest.json")
+      |> File.read!()
+      |> Jason.decode!()
+
+    expected? =
+      Enum.any?(Map.fetch!(manifest, "tools"), fn tool ->
+        (tool["state_changing"] == true or tool["effect"] == "write") and
+          tool["authentication"] != "public"
+      end)
+
+    manifest_flag = manifest["private_write_available"]
+    runtime_flag = PublicDocuments.capabilities()["private_write_available"]
+
+    if manifest_flag == expected? and runtime_flag == expected? do
+      []
+    else
+      [
+        "capabilities.json private_write_available (#{inspect(manifest_flag)} / #{inspect(runtime_flag)}) does not match tool flags (expected #{expected?})"
+      ]
+    end
   end
 end

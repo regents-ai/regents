@@ -8,7 +8,7 @@ curl --fail '{{origin}}/api/v1/products'
 
 ## One product
 
-`GET /api/v1/products/{slug}` returns everything that product's page on Regents shows. The four slugs above are available here. Cloak is documented on its [desktop app guide]({{origin}}/docs/cloak). An unknown slug answers `404`.
+`GET /api/v1/products/{slug}` returns everything that product's page on Regents shows. All five slugs above (`keyfleet`, `autolaunch`, `patchbay`, `techtree`, and `cloak`) are available here, generated from the same shared metadata their pages render. Cloak's full architecture guide is at [/docs/cloak/reference]({{origin}}/docs/cloak/reference). An unknown slug answers `404`.
 
 ```sh
 curl --fail '{{origin}}/api/v1/products/techtree'

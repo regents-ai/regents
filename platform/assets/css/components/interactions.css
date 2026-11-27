@@ -40,6 +40,52 @@
   color: var(--color-success, currentColor);
 }
 
+.rg-copy-fallback {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border, rgb(255 255 255 / 0.16));
+  border-radius: 10px;
+  background: var(--color-surface, #141417);
+  color: var(--color-fg, #f4f4f5);
+  text-align: left;
+}
+
+.rg-copy-fallback__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--color-fg-muted, #a1a1aa);
+}
+
+.rg-copy-fallback__close {
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.rg-copy-fallback__field {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border, rgb(255 255 255 / 0.2));
+  border-radius: 8px;
+  background: var(--color-bg, #09090b);
+  color: var(--color-fg, #fafafa);
+  font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
 .rg-bar__crown,
 .rg-bar__product,
 .rg-bar__item,

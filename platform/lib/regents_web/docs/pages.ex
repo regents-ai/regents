@@ -65,7 +65,7 @@ defmodule RegentsWeb.Docs.Pages do
              key: "products",
              name: "Products",
              description:
-               "Techtree, Keyfleet, Autolaunch and Patchbay as JSON, with summaries and links.",
+               "Keyfleet, Autolaunch, Patchbay, Techtree, and Cloak as JSON, with summaries and links.",
              source: {:regents_file, "products"}
            },
            %{
@@ -177,7 +177,7 @@ defmodule RegentsWeb.Docs.Pages do
              name: "Overview & modes",
              title: "Cloak · Docs",
              description:
-               "Local AI on Apple MLX and llama.cpp, hardware-verified NEAR AI Gateway, Token Inference (Venice AI or Boundless), and zkAPI Anon Inference over Tor.",
+               "Three modes — Local AI (Apple MLX / llama.cpp), Private Cloud Inference (NEAR AI TEE, Venice, Boundless, zkAPI over Tor), and Inference Serving (EigenLayer Darkbloom) — with explicit privacy boundaries.",
              source: {:doc, "/cloak"}
            },
            %{

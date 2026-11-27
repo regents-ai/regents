@@ -283,9 +283,10 @@
   .copy__words > * {
     grid-area: 1 / 1;
   }
-  .copy:not([data-copy-state]) :is(.copy__done, .copy__failed),
-  .copy[data-copy-state="done"] :is(.copy__idle, .copy__failed),
-  .copy[data-copy-state="failed"] :is(.copy__idle, .copy__done) {
+  .copy:not([data-copy-state]) :is(.copy__done, .copy__selected, .copy__failed),
+  .copy[data-copy-state="done"] :is(.copy__idle, .copy__selected, .copy__failed),
+  .copy[data-copy-state="selected"] :is(.copy__idle, .copy__done, .copy__failed),
+  .copy[data-copy-state="failed"] :is(.copy__idle, .copy__done, .copy__selected) {
     visibility: hidden;
   }
 }

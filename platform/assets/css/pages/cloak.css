@@ -2581,13 +2581,52 @@
 
 .cloak-verify__cmd {
   display: grid;
-  gap: 4px;
+  gap: 6px;
+}
+
+.cloak-verify__cmd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 
 .cloak-verify__cmd-label {
   color: var(--color-fg-muted);
   font-size: 0.8125rem;
   font-weight: 600;
+}
+
+.cloak-layers-grid {
+  margin-block: var(--space-4) var(--space-5);
+}
+
+.cloak-layer-card h4 {
+  margin: 0 0 8px;
+  font-family: var(--cloak-sans);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+
+.cloak-layer-card__limit {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cloak-card-border);
+  font-size: 0.85rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-copy-btn[data-copy-state="selected"],
+.cloak-copy-icon[data-copy-state="selected"] {
+  border-color: color-mix(in srgb, #38bdf8 55%, transparent);
+  color: #7dd3fc;
+}
+
+.cloak-copy-btn[data-copy-state="failed"],
+.cloak-copy-icon[data-copy-state="failed"] {
+  border-color: color-mix(in srgb, #f87171 55%, transparent);
+  color: #fca5a5;
 }
 
 .cloak-verify__cmd pre {

@@ -14,6 +14,7 @@
  * component with its own `ThemeSwitch` hook — untouched here.
  */
 import type {Hook} from "../hook_composition"
+import {copyStatusMessage, copyWithFallback} from "../copy_fallback"
 
 type MarketingPageHook = {
   el: HTMLElement
@@ -393,27 +394,31 @@ export const MarketingPage: Hook = {
       listen(dialog, "close", () => openers.get(dialog)?.focus())
     }
 
-    // Copy buttons.
+    // Copy buttons with selectable-text fallback when clipboard access is blocked.
     const copyTimers: number[] = []
     for (const button of page.querySelectorAll<HTMLButtonElement>("[data-copy-from]")) {
       listen(button, "click", async () => {
         const sourceId = button.dataset.copyFrom
         const source = sourceId ? document.getElementById(sourceId) : null
-        let state: "done" | "failed" = "failed"
-        if (source?.textContent) {
-          try {
-            await navigator.clipboard.writeText(source.textContent)
-            state = "done"
-          } catch {
-            state = "failed"
-          }
-        }
+        const text = source?.textContent?.trim() ?? ""
+        const outcome = text
+          ? await copyWithFallback(text, {
+              target: source,
+              anchor: button,
+              label: "Copy agent prompt manually",
+            })
+          : "failed"
+        const state: "done" | "selected" | "failed" =
+          outcome === "copied" ? "done" : outcome === "selected" ? "selected" : "failed"
         button.dataset.copyState = state
-        if (announce) announce.textContent = state === "done" ? "Copied" : "Couldn't copy"
+        const statusText = copyStatusMessage(outcome)
+        button.title = statusText
+        if (announce) announce.textContent = statusText
         const timer = window.setTimeout(() => {
           delete button.dataset.copyState
+          button.removeAttribute("title")
           if (announce) announce.textContent = ""
-        }, 1600)
+        }, outcome === "selected" ? 3200 : 1600)
         copyTimers.push(timer)
       })
     }

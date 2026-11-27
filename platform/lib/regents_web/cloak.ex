@@ -1,8 +1,10 @@
 defmodule RegentsWeb.Cloak do
   @moduledoc """
-  Regents Cloak's words, in the order `/cloak` shows them. The page
-  (`RegentsWeb.Cloak.CloakLive`) and its Markdown version (`markdown/0`) both
-  read them from here.
+  Regents Cloak's shared metadata and copy, in the order `/cloak` shows them.
+  The landing page (`RegentsWeb.Cloak.CloakLive`), its Markdown view
+  (`markdown/0`), the product directory (`RegentsWeb.ProductDirectory` /
+  `/api/v1/products/cloak`), and Cloak docs version placeholders all read from
+  this single source of truth.
   """
   use Boundary, deps: [RegentsWeb], exports: [CloakLive]
 
@@ -74,8 +76,23 @@ defmodule RegentsWeb.Cloak do
     %{
       icon: "rewrite",
       title: "Local prompt rewriter",
-      detail: "Strips writing style via Qwen 3.5 9B; fails closed on error",
-      status: "Auto"
+      detail:
+        "Paraphrases user writing style via Qwen 3.5 9B (preserves identifiers, paths, and code verbatim); fails closed on error",
+      status: "Style only"
+    },
+    %{
+      icon: "tee",
+      title: "CloakDoor Privacy Shield",
+      detail:
+        "Deterministic < 1 ms secret tripwire + deterministic & Private-Terms alias masking (not yet neural NER)",
+      status: "Deterministic"
+    },
+    %{
+      icon: "keychain",
+      title: "Offline Local Access",
+      detail:
+        "Approved folders, PDFs, OCR, memory, and Apple PIM stay in Local Mode only — zero cloud or VM path",
+      status: "Local Mode"
     },
     %{
       icon: "vm",
@@ -100,6 +117,38 @@ defmodule RegentsWeb.Cloak do
       title: "6 isolated Keychain vaults",
       detail: "Device-only keys per wallet; never synced to iCloud",
       status: "Local"
+    }
+  ]
+
+  # Honest layer-by-layer privacy boundaries: each layer does one specific job
+  # and intentionally does not claim capabilities belonging to another layer.
+  @privacy_layers [
+    %{
+      id: "local-rewriter",
+      name: "Local Rewriter",
+      scope: "Private Cloud (Venice, Boundless, zkAPI) · Pi Agent · Connected Apps",
+      does:
+        "Paraphrases user writing style, filler, and irrelevant personal framing on-device with Qwen 3.5 9B before prompts leave; fails closed if rewriting errors.",
+      limit:
+        "Does not redact secrets or PII on its own — preserves names, identifiers, file paths, URLs, numbers, code, and exact quotes verbatim so technical prompts stay accurate."
+    },
+    %{
+      id: "privacy-shield",
+      name: "CloakDoor Privacy Shield",
+      scope: "Localhost gateway (127.0.0.1:8742/v1) · Pre-send (< 1 ms)",
+      does:
+        "Hard-blocks leaked secrets (PEM private keys, API keys/tokens, JWTs, wallet keys, .env secrets) via a deterministic Secret Tripwire and applies reversible alias masking for deterministic patterns (paths, emails, ETH addresses, ENS names, non-loopback IPs) plus user-defined Private Terms.",
+      limit:
+        "Deterministic rules and explicit Private Terms only — not yet neural NER. Aliases restore only in human-facing reply text, never in tool-call arguments, and novel unconfigured prose can still pass through."
+    },
+    %{
+      id: "local-access",
+      name: "Local Access",
+      scope: "Local Mode only (100% offline)",
+      does:
+        "Injects opt-in approved local folders, PDFs, image OCR, Hermes USER.md/MEMORY.md memory, and macOS Calendar/Reminders/Contacts strictly inside Local Mode.",
+      limit:
+        "Never available in cloud modes — Private Cloud Inference (NEAR, Venice, Boundless, zkAPI), the Pi Agent microVM, and Connected Apps have zero code path to Local Access data."
     }
   ]
 
@@ -150,9 +199,10 @@ defmodule RegentsWeb.Cloak do
 
   @api_bullets [
     "Localhost-only http://127.0.0.1:8742/v1 with per-app bearer keys",
-    "Rewrites user text only — code, tools, and system prompts pass unchanged",
+    "CloakDoor Privacy Shield: deterministic < 1 ms secret tripwire + deterministic/Private-Terms alias masking (not yet neural NER)",
+    "Local Rewriter paraphrases user writing style only — identifiers, code, tools, and system prompts pass unchanged",
     "Paid automatically via zkAPI with a fresh one-time key per request",
-    "Built-in Pi coding agent inside an ephemeral, NIC-less Linux microVM",
+    "Built-in Pi coding agent inside an ephemeral, NIC-less Linux microVM (no Local Access or macOS files)",
     "Native cloak CLI plus progressive Offline Data packs (Kiwix, DevDocs, PubMed)"
   ]
 
@@ -235,9 +285,9 @@ defmodule RegentsWeb.Cloak do
     summary:
       "Run Cloak's Pi coding agent inside a throwaway Linux microVM with no Mac file access, or connect Cursor, Cline, and Aider through CloakDoor at http://127.0.0.1:8742/v1.",
     bullets: [
-      "Isolated VM: shell and file tools stay inside an ephemeral arm64 Linux microVM, never on macOS.",
-      "Tor-only egress: agent web calls go over Tor; model calls rewrite locally and pay via zkAPI or Tempo.",
-      "External apps: CloakDoor rewrites user text only — code and tool results pass through unchanged."
+      "Isolated VM: shell and file tools stay inside an ephemeral arm64 Linux microVM, never touching macOS or Local Access.",
+      "CloakDoor Privacy Shield: deterministic < 1 ms secret tripwire blocks leaked keys/tokens and masks deterministic patterns plus user-defined Private Terms (not yet neural NER).",
+      "Local Rewriter + Tor egress: agent web calls go over Tor; user prompts are paraphrased for style locally (preserving identifiers and code) and paid via zkAPI or Tempo."
     ],
     docs_label: "Read the docs",
     docs_href: "/docs/cloak/reference"
@@ -336,10 +386,16 @@ defmodule RegentsWeb.Cloak do
         "1) Local AI: Apple MLX (Inkling 2 Mini, 10.21 GB) or llama.cpp GGUF, free and offline with Local Access. 2) Private Cloud Inference: includes NEAR AI Gateway (Intel TDX + NVIDIA GPU TEE, E2EE v2, 0 GB download), Venice AI (Base USDC x402 or API key), Boundless (Tempo USDC.e MPP), and zkAPI (local Qwen 3.5 9B rewrite + Tor + fresh one-time key per turn from a reusable ETH deposit). 3) Inference Serving: serve local models on Apple silicon or earn payouts with EigenLayer's Darkbloom while idle (macOS 27+). Also includes the sandboxed Pi agent microVM, CloakDoor (http://127.0.0.1:8742/v1), and Offline Data packs."
     },
     %{
+      id: "privacy-boundaries",
+      summary: "Privacy boundaries: Local Rewriter, CloakDoor Privacy Shield, and Local Access",
+      body:
+        "Each protection layer has a strict scope: 1) Local Rewriter (Qwen 3.5 9B) paraphrases user writing style only and preserves identifiers, names, paths, URLs, and code verbatim (fails closed on error). 2) CloakDoor Privacy Shield runs a deterministic < 1 ms Secret Tripwire (hard-blocks PEM keys, API tokens, JWTs, wallet keys, .env secrets) plus reversible deterministic and user-defined Private-Terms alias masking — explicitly not neural NER yet. 3) Local Access (approved local folders, PDFs, OCR, memory, Calendar/Reminders/Contacts) is strictly Local Mode only with zero code path into cloud modes, the Pi VM, or Connected Apps."
+    },
+    %{
       id: "requirements-and-install",
       summary: "Requirements and downloads",
       body:
-        "Apple silicon Mac, macOS 26+ (macOS 27+ for Darkbloom serving). 8 GB+ RAM for NEAR AI Gateway (0 GB download); 16 GB+ RAM for Local MLX (10.21 GB) and Tor/rewriter modes (5.69 GB Qwen 3.5 9B). Signed, notarized DMGs (Team 367G3Z7G3J), Sparkle appcast.xml, and SHA-256 checksums are published directly on https://github.com/regents-ai/cloak/releases."
+        "Apple silicon Mac, macOS 26+ (macOS 27+ for Darkbloom serving). 8 GB+ RAM for NEAR AI Gateway (0 GB download); 16 GB+ RAM for Local MLX (10.21 GB) and Tor/rewriter modes (5.69 GB Qwen 3.5 9B). Signed, notarized DMGs (Team 367G3Z7G3J), Sparkle appcast.xml, and immutable per-tag SHA-256 checksums are published directly on https://github.com/regents-ai/cloak/releases."
     },
     %{
       id: "agent-discovery",
@@ -365,24 +421,26 @@ defmodule RegentsWeb.Cloak do
   @updates "Signed Sparkle updates are available on demand or automatically when enabled in Settings."
 
   # Fallback release metadata when GitHub Releases has not yet been fetched or
-  # is unreachable. Live metadata is refreshed every 5 minutes from
-  # `https://github.com/regents-ai/cloak/releases/latest/download/checksums.json`
-  # so every future `app/publish.sh` updates the website automatically.
+  # is unreachable. Live metadata is refreshed every 5 minutes from GitHub
+  # Releases and pinned atomically to one immutable release tag so the DMG URL,
+  # SHA256SUMS.txt URL, release page URL, and displayed SHA-256 can never drift.
   @release_checksums %{
-    release: "0.2.6",
-    tag: "0.2.6-304",
-    dmg_filename: "Regents-Cloak-0.2.6-304.dmg",
-    dmg_sha256: "e9652c2dfa276c759bf181067ec2a015f38d0ef55f24d415e9a90ebc3d3de215",
+    release: "0.2.7",
+    tag: "0.2.7-305",
+    dmg_filename: "Regents-Cloak-0.2.7-305.dmg",
+    dmg_url:
+      "https://github.com/regents-ai/cloak/releases/download/0.2.7-305/Regents-Cloak-0.2.7-305.dmg",
+    dmg_sha256: "d5b64060dbe795aedbc5dd9af80d644c67217507d0df18741a024b7ee02b2bc1",
     extra_hashes: [
       {"Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)",
-       "619a7bf4120e0129febb2c3c576b1291a234c194a44baf3b03d0bbbbed3f7b73"},
-      {"Apple Code Signature CDHash", "0d03fead04e846f8bb99ab2620fcf730c2629a3f"}
+       "48ecca003d5278c90c73ea501672b68d2986d658ef3638d85f327f2b30e6fdd9"},
+      {"Apple Code Signature CDHash", "aaa303a4ad384e2c4f5036cddd9e34b50ec582dc"}
     ],
     team_id: "367G3Z7G3J",
-    release_url: "https://github.com/regents-ai/cloak/releases/tag/0.2.6-304",
-    sums_url: "https://github.com/regents-ai/cloak/releases/download/0.2.6-304/SHA256SUMS.txt",
+    release_url: "https://github.com/regents-ai/cloak/releases/tag/0.2.7-305",
+    sums_url: "https://github.com/regents-ai/cloak/releases/download/0.2.7-305/SHA256SUMS.txt",
     commands: [
-      {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/Regents-Cloak-0.2.6-304.dmg"},
+      {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/Regents-Cloak-0.2.7-305.dmg"},
       {"Verify app binary SHA-256",
        "shasum -a 256 \"/Applications/Cloak.app/Contents/MacOS/RegentsCloak\""},
       {"Verify Apple signature (Team 367G3Z7G3J)",
@@ -494,6 +552,8 @@ defmodule RegentsWeb.Cloak do
     end
   rescue
     _ -> :error
+  catch
+    :exit, _ -> :error
   end
 
   def latest_release do
@@ -577,64 +637,99 @@ defmodule RegentsWeb.Cloak do
     end
   rescue
     _ -> :error
+  catch
+    :exit, _ -> :error
   end
 
-  defp parse_release_checksums(body) when is_binary(body) do
+  @doc false
+  def parse_release_checksums(body) when is_binary(body) do
     case Jason.decode(body) do
       {:ok, map} when is_map(map) -> parse_release_checksums(map)
       _ -> :error
     end
   end
 
-  defp parse_release_checksums(
-         %{
-           "tag" => tag,
-           "release" => release,
-           "dmg_filename" => dmg_filename,
-           "dmg_sha256" => dmg_sha256
-         } = map
-       )
-       when is_binary(tag) and tag != "" and
-              is_binary(release) and release != "" and
-              is_binary(dmg_filename) and dmg_filename != "" and
-              is_binary(dmg_sha256) and dmg_sha256 != "" do
-    team_id =
-      case Map.get(map, "team_id") do
-        id when is_binary(id) and id != "" -> id
-        _ -> @release_checksums.team_id
-      end
+  def parse_release_checksums(
+        %{
+          "tag" => tag,
+          "release" => release,
+          "dmg_filename" => dmg_filename,
+          "dmg_sha256" => dmg_sha256
+        } = map
+      ) do
+    with true <- valid_tag?(tag),
+         true <- valid_release?(release),
+         true <- valid_dmg_filename?(dmg_filename),
+         true <- valid_sha256?(dmg_sha256) do
+      team_id = valid_team_id(Map.get(map, "team_id"))
+      base = "https://github.com/regents-ai/cloak/releases"
 
-    extra_hashes =
-      []
-      |> maybe_add_hash(
-        "Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)",
-        Map.get(map, "app_binary_sha256")
-      )
-      |> maybe_add_hash("Apple Code Signature CDHash", Map.get(map, "cdhash"))
+      extra_hashes =
+        []
+        |> maybe_add_hash(
+          "Installed app binary SHA-256 (Cloak.app/Contents/MacOS/RegentsCloak)",
+          Map.get(map, "app_binary_sha256")
+        )
+        |> maybe_add_hash("Apple Code Signature CDHash", Map.get(map, "cdhash"))
 
-    {:ok,
-     %{
-       release: release,
-       tag: tag,
-       dmg_filename: dmg_filename,
-       dmg_sha256: dmg_sha256,
-       extra_hashes: extra_hashes,
-       team_id: team_id,
-       release_url: "https://github.com/regents-ai/cloak/releases/tag/#{tag}",
-       sums_url: "https://github.com/regents-ai/cloak/releases/download/#{tag}/SHA256SUMS.txt",
-       commands: [
-         {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/#{dmg_filename}"},
-         {"Verify app binary SHA-256",
-          "shasum -a 256 \"/Applications/Cloak.app/Contents/MacOS/RegentsCloak\""},
-         {"Verify Apple signature (Team #{team_id})",
-          "codesign -dvv --strict \"/Applications/Cloak.app\""},
-         {"Verify Apple notarization",
-          "spctl --assess --type execute -vv \"/Applications/Cloak.app\""}
-       ]
-     }}
+      {:ok,
+       %{
+         release: release,
+         tag: tag,
+         dmg_filename: dmg_filename,
+         dmg_url: "#{base}/download/#{tag}/#{dmg_filename}",
+         dmg_sha256: String.downcase(dmg_sha256),
+         extra_hashes: extra_hashes,
+         team_id: team_id,
+         release_url: "#{base}/tag/#{tag}",
+         sums_url: "#{base}/download/#{tag}/SHA256SUMS.txt",
+         commands: [
+           {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/#{dmg_filename}"},
+           {"Verify app binary SHA-256",
+            "shasum -a 256 \"/Applications/Cloak.app/Contents/MacOS/RegentsCloak\""},
+           {"Verify Apple signature (Team #{team_id})",
+            "codesign -dvv --strict \"/Applications/Cloak.app\""},
+           {"Verify Apple notarization",
+            "spctl --assess --type execute -vv \"/Applications/Cloak.app\""}
+         ]
+       }}
+    else
+      _ -> :error
+    end
   end
 
-  defp parse_release_checksums(_), do: :error
+  def parse_release_checksums(_), do: :error
+
+  defp valid_tag?(tag) when is_binary(tag) do
+    tag != "" and String.downcase(tag) != "latest" and
+      Regex.match?(~r/\A[A-Za-z0-9][A-Za-z0-9._-]{0,63}\z/, tag)
+  end
+
+  defp valid_tag?(_), do: false
+
+  defp valid_release?(release) when is_binary(release) do
+    Regex.match?(~r/\A[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-[A-Za-z0-9._-]+)?\z/, release)
+  end
+
+  defp valid_release?(_), do: false
+
+  defp valid_dmg_filename?(name) when is_binary(name) do
+    Regex.match?(~r/\A[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.dmg\z/, name)
+  end
+
+  defp valid_dmg_filename?(_), do: false
+
+  defp valid_sha256?(hash) when is_binary(hash) do
+    Regex.match?(~r/\A[0-9a-fA-F]{64}\z/, hash)
+  end
+
+  defp valid_sha256?(_), do: false
+
+  defp valid_team_id(id) when is_binary(id) do
+    if Regex.match?(~r/\A[A-Z0-9]{10}\z/, id), do: id, else: @release_checksums.team_id
+  end
+
+  defp valid_team_id(_), do: @release_checksums.team_id
 
   defp maybe_add_hash(list, label, value) when is_binary(value) and value != "",
     do: list ++ [{label, value}]
@@ -653,25 +748,30 @@ defmodule RegentsWeb.Cloak do
   def releases_url, do: @releases_url
   def download_page_path, do: @download_page_path
 
-  def download_url do
-    rel = latest_release()
-    "https://github.com/regents-ai/cloak/releases/download/#{rel.tag}/#{rel.dmg_filename}"
-  end
+  def download_url, do: download_url(latest_release())
+  def download_url(%{dmg_url: url}) when is_binary(url), do: url
+
+  def download_url(%{tag: tag, dmg_filename: dmg_filename}),
+    do: "https://github.com/regents-ai/cloak/releases/download/#{tag}/#{dmg_filename}"
 
   def source_url, do: @source_url
   def docs_path, do: @docs_path
   def menubar_callouts, do: @menubar_callouts
   def menubar_modes, do: @menubar_modes
   def boundaries, do: @boundaries
+  def privacy_layers, do: @privacy_layers
   def mode_cards, do: @mode_cards
   def api_bullets, do: @api_bullets
   def curl_example, do: @curl_example
   def agent, do: @agent
 
-  def facts do
-    rel = latest_release()
-    "v#{rel.release} Beta · Apple silicon · macOS 26+ · Open-source (MIT)"
-  end
+  def version_label, do: version_label(latest_release())
+  def version_label(%{release: release}), do: "v#{release} Beta"
+
+  def facts, do: facts(latest_release())
+
+  def facts(rel),
+    do: "#{version_label(rel)} · Apple silicon · macOS 26+ · Open-source (MIT)"
 
   def ecosystem_heading, do: @ecosystem_heading
   def ecosystem, do: @ecosystem
@@ -687,9 +787,9 @@ defmodule RegentsWeb.Cloak do
   def install_path, do: @install_path
   def install_heading, do: @install_heading
 
-  def install_steps do
-    dmg = latest_release().dmg_filename
+  def install_steps, do: install_steps(latest_release())
 
+  def install_steps(%{dmg_filename: dmg}) do
     Enum.map(@install_steps, fn {title, sentence} ->
       {title, String.replace(sentence, "%{dmg_filename}", dmg)}
     end)
@@ -697,6 +797,109 @@ defmodule RegentsWeb.Cloak do
 
   def updates, do: @updates
   def release_checksums, do: latest_release()
+
+  @doc """
+  Shared metadata for `/api/v1/products/cloak` (`RegentsWeb.ProductDirectory`),
+  generated from the exact same 3-pillar taxonomy, privacy boundaries, and live
+  release metadata that `/cloak` renders.
+  """
+  def directory_entry do
+    rel = release_checksums()
+    page_url = RegentsWeb.PublicDocuments.url("/cloak")
+    install_url = RegentsWeb.PublicDocuments.url(@install_path)
+    docs_url = RegentsWeb.PublicDocuments.url(@docs_path)
+    version = version_label(rel)
+
+    cards =
+      Enum.map(@mode_cards, fn card ->
+        %{
+          name: card.name,
+          headline: card.ram,
+          line: card.body,
+          action: mode_card_action(card.id),
+          href: mode_card_href(card.id, page_url, docs_url)
+        }
+      end)
+
+    privacy_summary =
+      Enum.map_join(@privacy_layers, " ", fn layer ->
+        "#{layer.name} (#{layer.scope}): #{layer.does}"
+      end)
+
+    %{
+      name: "Cloak",
+      domain: "regents.sh/cloak",
+      site: page_url,
+      github: @source_url,
+      kicker: "regents.sh/cloak · #{version} · Private AI for macOS",
+      headline: Enum.join(@heading, " "),
+      summary: @subtitle,
+      cards: cards,
+      what_it_does: [
+        %{
+          title: "Three modes: #{Enum.map_join(@mode_cards, ", ", & &1.name)}",
+          copy:
+            Enum.map_join(@modes, " ", fn {name, _credit, sentence} -> "#{name}: #{sentence}" end),
+          status: "live",
+          link: %{label: "Install Cloak", href: install_url}
+        },
+        %{
+          title: "Honest privacy boundaries (Local Rewriter, Privacy Shield & Local Access)",
+          copy:
+            "#{privacy_summary} CloakDoor Privacy Shield uses deterministic rules and explicit Private Terms — not yet neural NER.",
+          status: "live",
+          link: %{label: "Read Cloak docs", href: docs_url}
+        },
+        %{
+          title: @agent.title,
+          copy: "#{@agent.summary} #{Enum.join(@agent.bullets, " ")}",
+          status: "live",
+          link: %{label: "See Agent mode", href: page_url <> "#agent"}
+        }
+      ],
+      about: [
+        "#{facts(rel)}. #{@subtitle}",
+        "Latest published release: #{rel.tag} (#{rel.dmg_filename}, SHA-256 #{rel.dmg_sha256}, pinned at #{rel.sums_url}).",
+        "Privacy boundaries are kept strictly separate: Local Rewriter paraphrases user writing style only, CloakDoor Privacy Shield runs a deterministic < 1 ms secret tripwire plus deterministic and Private-Terms alias masking (not yet neural NER), and Local Access is strictly Local Mode only."
+      ],
+      audience: [
+        "Mac users who want fast offline Local AI on Apple silicon with optional Local Access that never touches a cloud provider.",
+        "Developers and researchers who want Private Cloud Inference with hardware-verified NEAR TEEs, per-chat Tor circuits, local style paraphrasing, or unlinkable zkAPI payments.",
+        "Teams running coding agents or OpenAI-compatible tools who want explicit sandbox and deterministic Privacy Shield boundaries, or idle Apple silicon Inference Serving via Darkbloom."
+      ],
+      family:
+        "Cloak is Regents Labs' native macOS private AI client (#{version}). Its source code and signed, tag-pinned releases are open on GitHub, and its privacy protections have not yet been independently audited.",
+      agent_line:
+        "Read regents.sh/docs/cloak/reference as Markdown and help me choose between Local AI, Private Cloud Inference, and Inference Serving for my Mac.",
+      launch_notice: "#{version} (#{rel.tag}) · #{@needs} #{@caution}",
+      tech_stack: [
+        "Apple MLX (Inkling 2 Mini)",
+        "Metal llama.cpp (Qwen 3.5 9B rewriter)",
+        "NEAR AI Cloud (Intel TDX + NVIDIA TEE)",
+        "Venice AI (Base USDC x402)",
+        "Boundless (Tempo USDC.e MPP)",
+        "zkAPI (Ethereum ETH)",
+        "Tor (IsolateSOCKSAuth)",
+        "EigenLayer Darkbloom"
+      ],
+      start: %{label: "Install Cloak", href: install_url}
+    }
+  end
+
+  defp mode_card_action("local"), do: "Explore Local AI"
+  defp mode_card_action("private-cloud"), do: "Compare cloud rails"
+  defp mode_card_action("serving"), do: "See Darkbloom serving"
+  defp mode_card_action(_), do: "Explore Cloak"
+
+  defp mode_card_href("local", page_url, _docs_url), do: page_url <> "#modes"
+
+  defp mode_card_href("private-cloud", _page_url, docs_url),
+    do: docs_url <> "#mode-2-private-cloud-inference-near-venice-boundless-zkapi"
+
+  defp mode_card_href("serving", _page_url, docs_url),
+    do: docs_url <> "#inference-serving-darkbloom"
+
+  defp mode_card_href(_, page_url, _docs_url), do: page_url <> "#modes"
 
   @doc "The page as Markdown, what `/cloak` answers when Markdown is asked for."
   def markdown do
@@ -721,6 +924,16 @@ defmodule RegentsWeb.Cloak do
         "- #{names} — #{group.note}"
       end)
 
+    privacy_layers =
+      Enum.map_join(@privacy_layers, "\n\n", fn layer ->
+        """
+        ### #{layer.name} (#{layer.scope})
+
+        - **What it does:** #{layer.does}
+        - **Boundary / limit:** #{layer.limit}\
+        """
+      end)
+
     agent_docs =
       Enum.map_join(@agent_docs, "\n\n", fn doc ->
         "### #{doc.summary}\n\n#{doc.body}"
@@ -728,7 +941,7 @@ defmodule RegentsWeb.Cloak do
 
     film = RegentsWeb.Endpoint.static_url() <> RegentsWeb.Endpoint.static_path(@film)
     checksums = release_checksums()
-    dl_url = download_url()
+    dl_url = download_url(checksums)
 
     """
     #{@pill}
@@ -743,12 +956,12 @@ defmodule RegentsWeb.Cloak do
     - [Download for Mac (#{checksums.dmg_filename})](#{dl_url})
     - [#{@watch_label} (#{@watch_time})](#{film})
     - [Install & checksums](#{RegentsWeb.PublicDocuments.url(@install_path)})
-    - [View releases](#{@releases_url})
+    - [Release #{checksums.tag}](#{checksums.release_url})
     - [Read docs](#{RegentsWeb.PublicDocuments.url(@docs_path)})
     - [#{@forum_label}](#{RegentsWeb.PublicDocuments.url(@forum_path)})
     - [View source](#{@source_url})
 
-    #{facts()}
+    #{facts(checksums)}
 
     ## #{@ecosystem_heading}
 
@@ -759,6 +972,10 @@ defmodule RegentsWeb.Cloak do
     | Mode | Where the prompt is handled | What you need |
     | --- | --- | --- |
     #{modes}
+
+    ## Privacy boundaries (what each layer actually does)
+
+    #{privacy_layers}
 
     ## #{@agent.title}
 
@@ -784,8 +1001,8 @@ defmodule RegentsWeb.Cloak do
 
     ## Verify your download
 
-    - **Latest published release:** `#{checksums.tag}` ([GitHub Releases](#{checksums.release_url}) · [SHA256SUMS.txt](#{checksums.sums_url}))
-    - **DMG (`#{checksums.dmg_filename}` / `Regents-Cloak.dmg`) SHA-256:** `#{checksums.dmg_sha256}`
+    - **Pinned release:** `#{checksums.tag}` ([GitHub Release](#{checksums.release_url}) · [SHA256SUMS.txt](#{checksums.sums_url}))
+    - **DMG (`#{checksums.dmg_filename}`):** [Download](#{dl_url}) · SHA-256 `#{checksums.dmg_sha256}`
     - **Apple Developer ID Team:** `#{checksums.team_id}`
     - Full macOS verification commands (`shasum`, `codesign`, `spctl`) are listed on [Install & requirements](#{RegentsWeb.PublicDocuments.url(@install_path <> "#verify-your-download")}) and live inside Cloak's **Settings → Status** pane.
 
@@ -805,20 +1022,22 @@ defmodule RegentsWeb.Cloak do
 
   @doc "The install page as Markdown, what `/cloak/install` answers when Markdown is asked for."
   def install_markdown do
+    checksums = release_checksums()
+    dl_url = download_url(checksums)
+
     steps =
-      install_steps()
+      checksums
+      |> install_steps()
       |> Enum.with_index(1)
       |> Enum.map_join("\n", fn {{title, sentence}, n} -> "#{n}. **#{title}.** #{sentence}" end)
-
-    checksums = release_checksums()
 
     extra_lines =
       Enum.map(checksums.extra_hashes, fn {label, value} -> "- **#{label}:** `#{value}`" end)
 
     verify_lines =
       ([
-         "- **Latest published release:** `#{checksums.tag}` ([GitHub Releases](#{checksums.release_url}) · [SHA256SUMS.txt](#{checksums.sums_url}))",
-         "- **DMG (`#{checksums.dmg_filename}` / `Regents-Cloak.dmg`) SHA-256:** `#{checksums.dmg_sha256}`"
+         "- **Pinned release:** `#{checksums.tag}` ([GitHub Release](#{checksums.release_url}) · [SHA256SUMS.txt](#{checksums.sums_url}))",
+         "- **DMG (`#{checksums.dmg_filename}`):** [Download](#{dl_url}) · SHA-256 `#{checksums.dmg_sha256}`"
        ] ++
          extra_lines ++
          ["- **Apple Developer ID Team:** `#{checksums.team_id}`"])
@@ -832,16 +1051,18 @@ defmodule RegentsWeb.Cloak do
     """
     # #{@install_heading}
 
-    #{facts()}
+    #{facts(checksums)}
 
-    - [View releases](#{@releases_url})
+    - [Download #{checksums.dmg_filename}](#{dl_url})
+    - [Release #{checksums.tag}](#{checksums.release_url})
+    - [SHA256SUMS.txt (#{checksums.tag})](#{checksums.sums_url})
     - [View source](#{@source_url})
 
     #{steps}
 
     ## Verify your download
 
-    Compare checksums across three independent places — this page, [GitHub Releases](#{checksums.release_url}), and Cloak's **Settings → Status** pane — using macOS's built-in Terminal tools:
+    Compare checksums across three independent places — this page, [GitHub Release #{checksums.tag}](#{checksums.release_url}), and Cloak's **Settings → Status** pane — using macOS's built-in Terminal tools:
 
     #{verify_lines}
 

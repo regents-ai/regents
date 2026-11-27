@@ -272,6 +272,7 @@ defmodule RegentsWeb.HomeLive do
                     <span class="copy__words">
                       <span class="copy__idle">Copy</span>
                       <span class="copy__done">Copied</span>
+                      <span class="copy__selected">Selected</span>
                       <span class="copy__failed">Couldn't copy</span>
                     </span>
                   </button>

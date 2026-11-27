@@ -102,6 +102,25 @@ defmodule RegentsWeb.SearchLive do
 
   defp normalize_product(_product), do: "regents"
 
+  defp product_homes do
+    for {product, name, _, [{_first_label, first_path} | _]} <- AppSidebar.groups() do
+      %{
+        kind: :product,
+        label: name,
+        path: first_path,
+        product: product,
+        detail: product_tagline(product)
+      }
+    end
+  end
+
+  defp product_tagline("cloak"), do: "Private AI for macOS · Local AI, Private Cloud & Serving"
+  defp product_tagline("techtree"), do: "Skills, evaluations, training environments & models"
+  defp product_tagline("keyfleet"), do: "Long-lived agent fleets & shared treasuries"
+  defp product_tagline("autolaunch"), do: "Onchain stock offerings & fair token auctions"
+  defp product_tagline("patchbay"), do: "Agent support, HTTP 402 diagnostics & CVE terminal"
+  defp product_tagline(_), do: "Regents Labs workspace"
+
   defp shortcuts do
     products =
       for {product, name, _, links} <- AppSidebar.groups(),
@@ -117,11 +136,17 @@ defmodule RegentsWeb.SearchLive do
     products ++ account
   end
 
+  @doc false
+  def rank(q, product, others \\ []), do: results(q, normalize_product(product), others)
+
   defp results(q, product, others) do
     needle = String.downcase(q)
     words = String.split(needle)
 
-    (shortcuts() ++ others)
+    candidates =
+      if(needle == "", do: shortcuts() ++ others, else: product_homes() ++ shortcuts() ++ others)
+
+    candidates
     |> Enum.flat_map(fn item ->
       case score(item, needle, words) do
         nil -> []
@@ -138,13 +163,17 @@ defmodule RegentsWeb.SearchLive do
 
   defp score(item, needle, words) do
     label = String.downcase(item.label)
-    context = String.downcase(Enum.join([label, item.detail, item.path], " "))
+    product = String.downcase(to_string(item.product))
+    detail = String.downcase(item.detail)
+    context = String.downcase(Enum.join([label, detail, product, item.path], " "))
 
     cond do
-      label == needle -> 30
-      String.starts_with?(label, needle) -> 18
-      Enum.all?(words, &String.contains?(label, &1)) -> 12
-      Enum.all?(words, &String.contains?(context, &1)) -> 8
+      label == needle -> 40
+      String.starts_with?(label, needle) -> 26
+      item.kind == :page and product == needle -> 20
+      Enum.all?(words, &String.contains?(label, &1)) -> 18
+      product == needle -> 16
+      Enum.all?(words, &String.contains?(context, &1)) -> 10
       true -> item[:fallback]
     end
   end
@@ -232,6 +261,7 @@ defmodule RegentsWeb.SearchLive do
     """
   end
 
+  defp icon(:product), do: "sparkles"
   defp icon(:question), do: "message-square"
   defp icon(:doc), do: "book-open"
   defp icon(:market), do: "chart-line"

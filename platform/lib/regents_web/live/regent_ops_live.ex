@@ -66,9 +66,9 @@ defmodule RegentsWeb.RegentOpsLive do
     %{
       id: "cloak/rewrite",
       name: "Cloak",
-      headline: "Choose what leaves your Mac.",
+      headline: "Your agents want privacy.",
       line:
-        "Run AI locally on Apple Silicon, or control how prompts reach cloud models with enclaves, Tor, and crypto payments.",
+        "MacOS menu bar app for Local AI, Private Cloud Inference (NEAR, Venice, Boundless, zkAPI), and Darkbloom Inference Serving.",
       tint: "#a97bf0",
       action: "Open Cloak"
     }
@@ -160,6 +160,62 @@ defmodule RegentsWeb.RegentOpsLive do
       sentence: "Techtree's revenue is converted to USDC and split with $REGENT stakers."
     }
   ]
+
+  @doc """
+  Public Markdown directory for `/app` when requested with `Accept: text/markdown`.
+  Never includes signed-in account state, wallet balances, or database reads.
+  """
+  def markdown do
+    url = &RegentsWeb.PublicDocuments.url/1
+
+    product_rows =
+      Enum.map_join(@products, "\n", fn product ->
+        "| [#{product.name}](#{url.(product.href)}) | #{product.headline} | #{product.line} |"
+      end)
+
+    connections =
+      Enum.map_join(@map_links, "\n", fn %{from: from, to: to, sentence: sentence} ->
+        "- **#{from} → #{to}:** #{sentence}"
+      end)
+
+    """
+    # Regents Labs — App Overview
+
+    The product lab for agents, designed to be owned by agents. All revenue is split off to $REGENT stakers.
+
+    ## Products
+
+    | Product | Summary | Details |
+    | --- | --- | --- |
+    #{product_rows}
+
+    ## How products connect
+
+    #{connections}
+
+    ## About
+
+    Regents provides the community and shared identity. Patchbay connects agents working through tool problems. Autolaunch provides a path to capital formation and configured revenue sharing. Techtree builds Skills, evaluations, environments and models around a team's own workflows. Keyfleet gives personal agents a long-lived swarm to work with. Cloak is a native macOS app for Local AI, Private Cloud Inference, and Inference Serving.
+
+    Each product documents its own agent tools. Patchbay offers WebMCP tools on its pages and hosted MCP tools; Autolaunch offers WebMCP tools on its pages that read and save drafts but never launch, trade or move funds; Techtree offers a command-line tool and a Hermes plugin; Keyfleet offers WebMCP tools on every page, a hosted MCP server and `regents-cli` commands. Regents itself offers the public reads in its developer documentation. Connecting a tool gives your agent no new permissions.
+
+    Optional x402 stablecoin payments support explicitly priced services. Capable agents can pursue revenue by solving valuable problems and contributing useful improvements; paid requests and wallet transactions still require approval, and earnings are not guaranteed.
+
+    Staking shares USDC as it is actually deposited into the staking contract, so rewards depend on deposits received. Current balances and rewards are live browser readings on [Stake](#{url.("/stake")}); signed-in account and wallet views are private and omitted from this public directory.
+
+    ## Public directories & agent entry points
+
+    - Developer documentation: [#{url.("/docs")}](#{url.("/docs")})
+    - Product directory JSON: [#{url.("/api/v1/products")}](#{url.("/api/v1/products")})
+    - Capabilities & WebMCP tool manifest: [#{url.("/capabilities.json")}](#{url.("/capabilities.json")})
+    - OpenAPI specification: [#{url.("/openapi.json")}](#{url.("/openapi.json")})
+    - Machine-readable site guide: [#{url.("/llms.txt")}](#{url.("/llms.txt")})
+    - Agent setup guide: [#{url.("/agents.md")}](#{url.("/agents.md")})
+    - Hosted MCP server: `POST #{url.("/mcp")}` ([server card](#{url.("/mcp/server-card")}))
+    - Cloak product & install guides: [#{url.("/cloak")}](#{url.("/cloak")}) · [#{url.("/cloak/install")}](#{url.("/cloak/install")}) · [#{url.("/docs/cloak/reference")}](#{url.("/docs/cloak/reference")})
+    - Stake REGENT & Redeem Animata: [#{url.("/stake")}](#{url.("/stake")}) · [#{url.("/redeem")}](#{url.("/redeem")})
+    """
+  end
 
   attr :staking, :map, default: nil
   attr :status, :atom, required: true

@@ -28,7 +28,7 @@ On [Redeem]({{origin}}/redeem), holders of an Animata I or II Pass turn it into 
 
 ### Cloak
 
-[Regents Cloak]({{origin}}/cloak) is a native Mac app (Apple silicon, macOS 26+) that lets you choose where an AI conversation runs, see what leaves your Mac, and understand what can link one request to another—across Local (Apple MLX / llama.cpp), NEAR AI Gateway (hardware-verified enclaves), Token Inference (Venice AI / Boundless over Tor), and zkAPI Anon Inference (one-time zkAPI credentials over Tor), plus a sandboxed Pi agent and a local OpenAI-compatible gateway for existing Mac apps. Cloak's privacy protections have not been independently audited yet.
+[Regents Cloak]({{origin}}/cloak) (`{{cloak_version}}`) is a native Mac app (Apple silicon, macOS 26+) built around three modes: **Local AI** (offline Apple MLX / llama.cpp with Local Mode-only Local Access), **Private Cloud Inference** (hardware-verified NEAR AI Cloud enclaves, Venice AI on Base USDC, Boundless on Tempo USDC.e, and unlinkable zkAPI one-time keys over Tor), and **Inference Serving** (EigenLayer's Darkbloom on macOS 27+), alongside a sealed NIC-less Linux Pi coding agent and the localhost CloakDoor API (`127.0.0.1:8742/v1`). Each privacy layer has explicit boundaries: the **Local Rewriter** (`Qwen 3.5 9B`) paraphrases user writing style only (preserving identifiers, paths, and code verbatim), **CloakDoor Privacy Shield** enforces a deterministic `< 1 ms` secret tripwire plus deterministic and user-defined Private-Terms alias masking (not yet neural NER), and **Local Access** stays strictly offline inside Local Mode. Cloak's privacy protections have not been independently audited yet.
 
 ### Regents Mobile
 

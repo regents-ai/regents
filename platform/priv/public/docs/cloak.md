@@ -4,7 +4,7 @@ Regents Cloak is a native macOS app (Swift 6.2, Apple silicon, macOS 26 or later
 
 Cloak does not support normal account-based cloud AI. You can run models locally on Apple silicon with zero accounts and zero payment, or step up explicitly to hardware-verified enclaves, local prompt rephrasing, per-conversation Tor routing, and crypto payments.
 
-> **Beta & audit status (`v0.2.6 Beta`):** Cloak is beta software and its privacy protections have not been independently audited yet. Keep wallet balances small, back up or withdraw funds before wiping your Mac, and read [Wallet Security, Failure Modes & 30-Day zkAPI Limit](/docs/cloak/wallets) before transferring or depositing crypto.
+> **Beta & audit status (`{{cloak_version}}`, tag `{{cloak_tag}}`):** Cloak is beta software and its privacy protections have not been independently audited yet. Keep wallet balances small, back up or withdraw funds before wiping your Mac, and read [Wallet Security, Failure Modes & 30-Day zkAPI Limit](/docs/cloak/wallets) before transferring or depositing crypto.
 
 ## Architecture & Isolation
 
@@ -78,12 +78,22 @@ Inspired by [Vitalik Buterin's private AI architecture](https://x.com/VitalikBut
 
 Serve local models on Apple silicon for your own Mac apps or earn payouts on idle compute with [EigenLayer](https://eigenlayer.xyz)'s [Darkbloom](https://darkbloom.dev) (`Off` / `Local Only` / `Network + Local`, macOS 27+). See [Inference Serving (Darkbloom)](#inference-serving-darkbloom) below for verification and telemetry details.
 
+## Privacy Boundaries: What Each Layer Actually Does
+
+Cloak separates its local protections into three explicit layers so you know what each layer does—and what it does not claim to do:
+
+| Layer | Where it runs | What it actually does | Honest limit |
+| --- | --- | --- | --- |
+| **Local Rewriter (`Qwen 3.5 9B`)** | On-device (`llama.cpp`), before Private Cloud (Venice, Boundless, zkAPI), Pi Agent, and Connected Apps | Paraphrases user writing style, filler, politeness, and irrelevant personal framing; **fails closed** on error | Does **not** redact secrets or PII by itself — preserves names, identifiers, file paths, URLs, numbers, code, and exact quotes verbatim |
+| **CloakDoor Privacy Shield** | On-device pre-send (`< 1 ms`) on `http://127.0.0.1:8742/v1` | Deterministic **Secret Tripwire** hard-blocks PEM private keys, API keys/tokens, JWTs, wallet private keys, and `.env` secrets before any remote call or payment; reversible deterministic and user-configured **Private-Terms** alias masking for local paths, emails, Ethereum addresses, ENS names, non-loopback IPs, and custom terms | Deterministic pattern rules and explicit user-configured Private Terms only — **not yet neural NER**. Aliases restore only in human-facing reply text, never in tool-call arguments, and unconfigured free-form sensitive prose can still pass through |
+| **Local Access** | Strictly **Local Mode only** (100% offline) | Supplies opt-in approved local folders, PDFs, image OCR, Hermes `USER.md`/`MEMORY.md` memory, and macOS Calendar/Reminders/Contacts to local models | Never available in Private Cloud Inference, the Pi Agent microVM, or Connected Apps — zero code path exists from Local Access to any remote provider |
+
 ## Local Prompt Rephrasing
 
 Before any prompt leaves in Token Inference, zkAPI Anon Inference, Local Agent Box, or Connected Apps, Cloak runs a sandboxed local rewriter ([Qwen 3.5 9B](https://huggingface.co/unsloth/Qwen3.5-9B-GGUF), 5.69 GB) on Metal `llama.cpp` with GBNF grammar constraints.
 
-- **What it changes:** Strips writing style, filler, politeness, and irrelevant personal framing, and **fails closed** if rewriting errors (the original text is never sent automatically on failure).
-- **What it preserves verbatim:** By design (`Rewrite.swift`), it keeps **names, identifiers, file paths, URLs, numbers, code, and exact quotations verbatim** so technical requests remain accurate—do not paste secrets you do not want transmitted.
+- **What it changes:** Paraphrases writing style, filler, politeness, and irrelevant personal framing, and **fails closed** if rewriting errors (the original text is never sent automatically on failure).
+- **What it preserves verbatim:** By design (`Rewrite.swift`), it keeps **names, identifiers, file paths, URLs, numbers, code, and exact quotations verbatim** so technical requests remain accurate—rely on CloakDoor Privacy Shield's deterministic Secret Tripwire and Private Terms (or stay in Local Mode) rather than expecting the rewriter to redact sensitive facts.
 - **Memory management:** Automatically unloads from unified memory after 15 minutes of idle time and wakes transparently on the next request.
 
 ## Tor Network, MicroVM & Live Cover Traffic
@@ -145,7 +155,7 @@ client.chat.completions.create(
 - **zkAPI-only for external Mac apps:** External apps calling `http://127.0.0.1:8742/v1` bill exclusively via **zkAPI Anon Inference** (a funded Boundless or Venice balance does not pay Connected Apps yet).
 - **No `/v1/messages` or `/v1/responses` yet:** Clients speaking Anthropic `POST /v1/messages` (such as Claude Code) or defaulting to OpenAI `POST /v1/responses` will receive `404` unless configured for Chat Completions. Anthropic `/v1/messages` and Token Inference billing for Connected Apps are planned for `v0.3`.
 
-**What `CloakDoor` rewrites:** Only `role == "user"` text parts are locally rephrased. System/developer instructions, tool definitions, tool results (including source code), assistant turns, and accepted image/audio/file parts pass through unchanged. An in-memory Activity log lets you inspect Original vs. Sent user text for the latest 20 requests without writing request contents to disk.
+**What `CloakDoor` checks & rewrites:** Before any remote call or payment, **CloakDoor Privacy Shield** runs a deterministic `< 1 ms` Secret Tripwire (hard-blocking PEM keys, API tokens, JWTs, wallet private keys, and `.env` secrets) and applies reversible deterministic + user-configured **Private-Terms** alias masking (paths, emails, ETH addresses, ENS names, non-loopback IPs, custom terms — explicitly deterministic/Private-Terms matching, **not yet neural NER**; aliases restore only in human-facing reply text, never in tool-call arguments). After Privacy Shield, the **Local Rewriter** paraphrases only `role == "user"` text parts for writing style while system/developer instructions, tool definitions, tool results (including source code), assistant turns, and accepted image/audio/file parts pass through unchanged. An in-memory Activity log lets you inspect Original vs. Sent user text for the latest 20 requests without writing request contents to disk.
 
 ## Inference Serving (Darkbloom)
 
@@ -167,7 +177,7 @@ Cloak integrates **Inference Serving** via [Darkbloom](https://darkbloom.dev) ([
 - **Menu bar, Quick Prompt, Widgets & CLI:** Native Liquid Glass menu bar panel, Carbon-hotkey Quick Prompt (zero Accessibility permission required), Control Center toggles, Desktop widgets, `cloak` CLI over an owner-only Unix socket, and EdDSA-signed updates via [Sparkle 2.8.1](https://sparkle-project.org).
 - **Offline Data:** **Settings → Offline Data** provides progressive **Minimum → Maximum** downloads for **Kiwix Library** (`174 MB → 61 GB`), **DevDocs** (`15 MB → 240 MB`, 1-click linkable into Local Mode), **CourtListener Bulk Data** (`540 KB → 58.3 GB`), **PubMed Central Open Access** (AWS S3 CLI), and [Tinfoil Kit](https://github.com/tudor-city-ventures/tinfoil-kit).
 
-- **Release verification:** Every release publishes SHA-256 checksums for the `.dmg` and installed `Cloak.app/Contents/MacOS/RegentsCloak` binary plus its Apple Developer ID `CDHash` (Team `367G3Z7G3J`) on GitHub Releases (`SHA256SUMS.txt` and `checksums.json`) and at [regents.sh/cloak/install]({{origin}}/cloak/install#verify-your-download). Cloak's **Settings → Status** pane displays the running bundle's live SHA-256 and `CDHash` alongside copy-paste `shasum`, `codesign`, and `spctl` commands so you can verify independently using built-in macOS tools.
+- **Release verification (pinned to `{{cloak_tag}}`):** Every release publishes immutable per-tag SHA-256 checksums for the `.dmg` (`{{cloak_dmg_filename}}`, SHA-256 `{{cloak_dmg_sha256}}`) and installed `Cloak.app/Contents/MacOS/RegentsCloak` binary plus its Apple Developer ID `CDHash` (Team `367G3Z7G3J`) at [Release {{cloak_tag}}]({{cloak_release_url}}) ([SHA256SUMS.txt]({{cloak_sums_url}})) and at [regents.sh/cloak/install]({{origin}}/cloak/install#verify-your-download). Cloak's **Settings → Status** pane displays the running bundle's live SHA-256 and `CDHash` alongside copy-paste `shasum`, `codesign`, and `spctl` commands so you can verify independently using built-in macOS tools.
 
 ## Links & Source Code
 

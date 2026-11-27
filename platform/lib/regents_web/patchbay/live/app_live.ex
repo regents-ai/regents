@@ -1314,15 +1314,70 @@ defmodule RegentsWeb.Patchbay.AppLive do
               if (!btn) return
               const text = btn.getAttribute("data-copy-text")
               if (!text) return
+              const tag = btn.querySelector(".pbt-copy-pill__tag")
+              const prev = tag ? (btn.dataset.copyIdle || tag.textContent) : ""
+              if (tag && !btn.dataset.copyIdle) btn.dataset.copyIdle = prev
+              let state = "copied"
               try {
-                await navigator.clipboard.writeText(text)
-                const tag = btn.querySelector(".pbt-copy-pill__tag")
-                if (tag) {
-                  const prev = tag.textContent
-                  tag.textContent = "Copied"
-                  setTimeout(() => { tag.textContent = prev }, 1500)
+                if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+                  await navigator.clipboard.writeText(text)
+                } else {
+                  throw new Error("clipboard_unavailable")
                 }
-              } catch (_err) {}
+              } catch (_err) {
+                const scratch = document.createElement("textarea")
+                scratch.value = text
+                scratch.setAttribute("readonly", "")
+                scratch.style.position = "fixed"
+                scratch.style.top = "-9999px"
+                scratch.style.opacity = "0"
+                document.body.appendChild(scratch)
+                scratch.focus({preventScroll: true})
+                scratch.select()
+                let ok = false
+                try { ok = typeof document.execCommand === "function" && document.execCommand("copy") } catch (_) { ok = false }
+                scratch.remove()
+                if (!ok) {
+                  const host = btn.parentElement
+                  if (host) {
+                    let box = host.querySelector("[data-copy-fallback]")
+                    if (!box) {
+                      box = document.createElement("div")
+                      box.className = "rg-copy-fallback"
+                      box.dataset.copyFallback = ""
+                      const input = document.createElement("input")
+                      input.type = "text"
+                      input.readOnly = true
+                      input.className = "rg-copy-fallback__field"
+                      input.setAttribute("aria-label", "Copy command manually")
+                      input.addEventListener("focus", () => input.select())
+                      input.addEventListener("click", () => input.select())
+                      box.appendChild(input)
+                      host.appendChild(box)
+                    }
+                    const input = box.querySelector("input")
+                    if (input) {
+                      input.value = text
+                      input.focus()
+                      input.select()
+                      state = "selected"
+                    } else {
+                      state = "failed"
+                    }
+                  } else {
+                    state = "failed"
+                  }
+                }
+              }
+              btn.dataset.copyState = state
+              if (tag) {
+                tag.textContent = state === "copied" ? "Copied" : (state === "selected" ? "Select & copy" : "Couldn't copy")
+                clearTimeout(btn._copyTimer)
+                btn._copyTimer = setTimeout(() => {
+                  delete btn.dataset.copyState
+                  tag.textContent = prev
+                }, state === "selected" ? 3200 : 1500)
+              }
             }
             window.addEventListener("keydown", this.onKeyDown)
             this.el.addEventListener("click", this.onClick)

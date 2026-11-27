@@ -18,6 +18,10 @@ defmodule RegentsWeb.PublicDocuments do
   @external_resource @tool_manifest_path
   @manifest @tool_manifest_path |> File.read!() |> Jason.decode!()
   @tools Map.fetch!(@manifest, "tools")
+  @private_write_available Enum.any?(@tools, fn tool ->
+                             (tool["state_changing"] == true or tool["effect"] == "write") and
+                               tool["authentication"] != "public"
+                           end)
   @needs %{
     "none" => "Nothing",
     "session" => "The person's sign-in",
@@ -29,7 +33,7 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /about /changelog /privacy /terms /start /cloak /cloak/install /siwa) ++
+  @documents ~w(/ /app /about /changelog /privacy /terms /start /cloak /cloak/install /siwa) ++
                RegentsWeb.Docs.Pages.paths()
   alias RegentsWeb.AgentGuides
   alias RegentsWeb.Autolaunch.PublicDocuments, as: AutolaunchDocuments
@@ -137,6 +141,7 @@ defmodule RegentsWeb.PublicDocuments do
   def paper_share_heading, do: @paper_share_heading
 
   def document("/"), do: %{markdown: RegentsWeb.HomeLive.agent_markdown()}
+  def document("/app"), do: %{title: "Overview", markdown: RegentsWeb.RegentOpsLive.markdown()}
   def document("/privacy"), do: %{markdown: Regents.Legal.markdown(:privacy)}
   def document("/terms"), do: %{markdown: Regents.Legal.markdown(:terms)}
   def document("/start"), do: %{markdown: RegentsWeb.Account.AgentStart.markdown()}
@@ -250,7 +255,12 @@ defmodule RegentsWeb.PublicDocuments do
   end
 
   @doc "The tool manifest, with the commit and Fly image this machine runs."
-  def capabilities, do: Map.put(@manifest, "build", Application.fetch_env!(:regents, :build))
+  def capabilities do
+    @manifest
+    |> Map.put("private_write_available", @private_write_available)
+    |> Map.put("build", Application.fetch_env!(:regents, :build))
+  end
+
   def llms, do: source("llms")
   def agents, do: source("agents")
   def skill, do: source("skill")
@@ -721,14 +731,33 @@ defmodule RegentsWeb.PublicDocuments do
 
   @doc """
   Committed Markdown with its placeholders filled: `{{key_facts}}` is the About
-  page's Key facts section and `{{tools}}` the browser tools table; `{{origin}}`
-  goes last, since they name it.
+  page's Key facts section, `{{tools}}` the browser tools table, `{{cloak_*}}`
+  the pinned Cloak release metadata, and `{{origin}}` goes last, since they name it.
   """
   def fill(markdown) do
-    markdown
-    |> String.replace("{{key_facts}}", @key_facts)
-    |> String.replace("{{tools}}", @tool_table)
-    |> String.replace("{{origin}}", url(""))
+    filled =
+      markdown
+      |> String.replace("{{key_facts}}", @key_facts)
+      |> String.replace("{{tools}}", @tool_table)
+
+    filled =
+      if String.contains?(filled, "{{cloak_") do
+        rel = RegentsWeb.Cloak.release_checksums()
+
+        filled
+        |> String.replace("{{cloak_version}}", RegentsWeb.Cloak.version_label(rel))
+        |> String.replace("{{cloak_release}}", rel.release)
+        |> String.replace("{{cloak_tag}}", rel.tag)
+        |> String.replace("{{cloak_dmg_filename}}", rel.dmg_filename)
+        |> String.replace("{{cloak_dmg_url}}", RegentsWeb.Cloak.download_url(rel))
+        |> String.replace("{{cloak_sums_url}}", rel.sums_url)
+        |> String.replace("{{cloak_release_url}}", rel.release_url)
+        |> String.replace("{{cloak_dmg_sha256}}", rel.dmg_sha256)
+      else
+        filled
+      end
+
+    String.replace(filled, "{{origin}}", url(""))
   end
 
   def recovery_links do

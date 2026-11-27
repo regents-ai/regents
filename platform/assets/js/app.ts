@@ -30,6 +30,7 @@ import {
 } from "./shell_state"
 import {installAppSidebar} from "./app_sidebar"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
+import {CopyCommand} from "./hooks/copy_command"
 import {DatascapeHero} from "./hooks/datascape_hero"
 import {HeroChevron} from "./hooks/hero_chevron"
 import {installPublicHeader, MarketingPage} from "./hooks/marketing_page"
@@ -309,6 +310,7 @@ const hooks = {
   ...autolaunchHooks,
   WorkspaceSearch,
   AgentVersions,
+  CopyCommand,
   CopyCommandPage,
   CopyCommandPageView,
   DatascapeHero,

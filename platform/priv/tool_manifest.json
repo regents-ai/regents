@@ -823,5 +823,5 @@
     "x-agent-chain-id",
     "content-digest"
   ],
-  "private_write_available": false
+  "private_write_available": true
 }

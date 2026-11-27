@@ -1,8 +1,8 @@
 import {deny} from "./hooks/motion/press"
+import {copyStatusMessage, copyWithFallback, type CopyOutcome} from "./copy_fallback"
 
-type Outcome = "copied" | "selected" | "failed"
+type Outcome = CopyOutcome
 
-const WORDS: Record<Outcome, string> = {copied: "Copied", selected: "Selected", failed: "Couldn't copy"}
 const SHOWN_MS = 1600
 
 const timers = new WeakMap<HTMLElement, number>()
@@ -13,10 +13,11 @@ const timers = new WeakMap<HTMLElement, number>()
  * text of the element `data-copy-target` names, or the page at `data-copy-url`,
  * fetched only when pressed because it is long. Then for a moment the button
  * says "Copied", or "Couldn't copy" with a shake when the browser refuses, and
- * its polite status says the same for screen readers. When the browser refuses
- * and there is a target, the target's text is selected for the person to copy
- * themselves and the button says "Selected". The button tells LiveView to leave
- * `data-copy-state` alone, so a redraw meanwhile keeps the answer on screen.
+ * its polite status says the same for screen readers. When the browser refuses,
+ * the target's text (or an inline selectable fallback field) is selected for
+ * the person to copy themselves and the button says "Selected". The button tells
+ * LiveView to leave `data-copy-state` alone, so a redraw meanwhile keeps the
+ * answer on screen.
  */
 export function installCopyButtons() {
   document.addEventListener("click", event => {
@@ -31,46 +32,33 @@ async function copy(button: HTMLButtonElement) {
   const url = button.dataset.copyUrl
   const text = target ? textOf(target) : (button.dataset.copyText ?? "")
   let outcome: Outcome = "copied"
-  try {
-    if (url) await navigator.clipboard.write([new ClipboardItem({"text/plain": fetched(url)})])
-    else await navigator.clipboard.writeText(text)
-  } catch {
-    outcome = url ? "failed" : fallbackCopy(text, target)
+  if (url) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({"text/plain": fetched(url)})])
+    } catch {
+      try {
+        const fetchedText = await (await fetched(url)).text()
+        outcome = await copyWithFallback(fetchedText, {
+          anchor: button,
+          label: button.getAttribute("aria-label") ?? "Copy text",
+        })
+      } catch {
+        outcome = "failed"
+      }
+    }
+  } else {
+    outcome = await copyWithFallback(text, {
+      target,
+      anchor: button,
+      label: button.getAttribute("aria-label") ?? "Copy text",
+    })
   }
   if (!button.isConnected) return
 
   answer(button, outcome)
   if (outcome === "failed") deny(button)
   window.clearTimeout(timers.get(button))
-  timers.set(button, window.setTimeout(() => answer(button, undefined), SHOWN_MS))
-}
-
-function fallbackCopy(text: string, target: HTMLElement | null): Outcome {
-  if (target) {
-    const selected = select(target)
-    if (selected === "selected" && tryExecCopy()) return "copied"
-    return selected
-  }
-
-  const scratch = document.createElement("textarea")
-  scratch.value = text
-  scratch.setAttribute("readonly", "")
-  scratch.style.position = "fixed"
-  scratch.style.top = "-9999px"
-  scratch.style.opacity = "0"
-  document.body.append(scratch)
-  scratch.select()
-  const ok = tryExecCopy()
-  scratch.remove()
-  return ok ? "copied" : "failed"
-}
-
-function tryExecCopy(): boolean {
-  try {
-    return typeof document.execCommand === "function" && document.execCommand("copy")
-  } catch {
-    return false
-  }
+  timers.set(button, window.setTimeout(() => answer(button, undefined), outcome === "selected" ? 3200 : SHOWN_MS))
 }
 
 // Handed to the clipboard unfinished: a browser only allows a write begun by the
@@ -87,29 +75,11 @@ function textOf(target: HTMLElement): string {
     : (target.textContent ?? "")
 }
 
-// A field selects its own text; anything else, like a prompt shown on the page,
-// is selected as a range.
-function select(target: HTMLElement): Outcome {
-  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
-    target.focus()
-    target.select()
-    return "selected"
-  }
-
-  const selection = document.getSelection()
-  if (!selection) return "failed"
-  const range = document.createRange()
-  range.selectNodeContents(target)
-  selection.removeAllRanges()
-  selection.addRange(range)
-  return "selected"
-}
-
 function answer(button: HTMLButtonElement, outcome: Outcome | undefined) {
   if (outcome) {
     if (!("copyOriginalTitle" in button.dataset)) button.dataset.copyOriginalTitle = button.title
     button.dataset.copyState = outcome
-    button.title = WORDS[outcome]
+    button.title = copyStatusMessage(outcome)
   } else {
     delete button.dataset.copyState
     if ("copyOriginalTitle" in button.dataset) {
@@ -118,5 +88,5 @@ function answer(button: HTMLButtonElement, outcome: Outcome | undefined) {
     }
   }
   const status = document.getElementById(button.dataset.copyStatus ?? "")
-  if (status) status.textContent = outcome ? WORDS[outcome] : ""
+  if (status) status.textContent = outcome ? copyStatusMessage(outcome) : ""
 }

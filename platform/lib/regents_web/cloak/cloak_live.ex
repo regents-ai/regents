@@ -16,6 +16,8 @@ defmodule RegentsWeb.Cloak.CloakLive do
   alias RegentsWeb.Cloak
 
   def page(assigns) do
+    checksums = Cloak.release_checksums()
+
     assigns =
       assign(assigns,
         ecosystem: Cloak.ecosystem(),
@@ -23,10 +25,12 @@ defmodule RegentsWeb.Cloak.CloakLive do
         menubar_callouts: Cloak.menubar_callouts(),
         menubar_modes: Cloak.menubar_modes(),
         boundaries: Cloak.boundaries(),
+        privacy_layers: Cloak.privacy_layers(),
         mode_cards: Cloak.mode_cards(),
         api_bullets: Cloak.api_bullets(),
         curl_example: Cloak.curl_example(),
-        checksums: Cloak.release_checksums()
+        checksums: checksums,
+        facts: Cloak.facts(checksums)
       )
 
     ~H"""
@@ -90,7 +94,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
             <span class="cloak-button__time">{Cloak.watch_time()}</span>
           </button>
         </div>
-        <p class="cloak-hero__facts">{Cloak.facts()}</p>
+        <p class="cloak-hero__facts">{@facts}</p>
       </header>
 
       <%!-- Integrations banner: logos + company names for Cloak's modes --%>
@@ -330,9 +334,9 @@ defmodule RegentsWeb.Cloak.CloakLive do
               <div class="cloak-app-row">
                 <span class="cloak-app-row__left">
                   <span class="cloak-app-row__icon" aria-hidden="true">[]</span>
-                  <span>Local Access</span>
+                  <span>Privacy Shield</span>
                 </span>
-                <span class="cloak-app-row__right">PDFs, OCR, folders (offline)</span>
+                <span class="cloak-app-row__right">Secret tripwire + Private Terms</span>
               </div>
               <div class="cloak-app-row">
                 <span class="cloak-app-row__left">
@@ -572,7 +576,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
                 id="cloak-copy-curl"
                 type="button"
                 class="cloak-copy-btn"
-                phx-hook=".CopyCommand"
+                phx-hook="CopyCommand"
                 data-copy={@curl_example}
                 aria-label="Copy curl command"
               >
@@ -590,10 +594,23 @@ defmodule RegentsWeb.Cloak.CloakLive do
         </div>
 
         <div class="cloak-compare-wrap">
-          <h3>Keep your identity out of every prompt</h3>
+          <h3>Separate style, secrets, and local files</h3>
           <p class="cloak-compare-wrap__sub">
-            Instead of sending your IP address, account key, and raw writing style to every cloud model, Cloak inserts a local privacy pipeline shared by Chat, the sandboxed Pi agent, and Connected Apps.
+            Instead of sending your IP address, account key, and raw writing style to every cloud model, Cloak splits protection into three explicit layers: Local Rewriter (paraphrases user style), CloakDoor Privacy Shield (deterministic secret blocking + Private-Terms alias masking, not yet neural NER), and Local Access (Local Mode only).
           </p>
+
+          <div class="cloak-mode-grid cloak-layers-grid" aria-label="Privacy layer boundaries">
+            <article
+              :for={layer <- @privacy_layers}
+              class="cloak-card cloak-mode-card cloak-layer-card"
+              data-layer={layer.id}
+            >
+              <span class="cloak-mode-card__ram">{layer.scope}</span>
+              <h4>{layer.name}</h4>
+              <p>{layer.does}</p>
+              <p class="cloak-layer-card__limit"><strong>Boundary:</strong> {layer.limit}</p>
+            </article>
+          </div>
 
           <figure class="cloak-compare">
             <div class="cloak-card cloak-compare__side">
@@ -628,7 +645,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
             <div class="cloak-card cloak-compare__side">
               <div class="cloak-compare__top">
                 <span>With Cloak</span>
-                <span>Rewritten · Tor · Unlinked</span>
+                <span>Shield · Rewritten · Tor</span>
               </div>
               <div class="cloak-compare__apps">
                 <span>Chat</span>
@@ -642,7 +659,12 @@ defmodule RegentsWeb.Cloak.CloakLive do
                 </div>
                 <div class="cloak-compare__pipe">
                   <div>
-                    <span>Local Qwen 3.5 9B rewrite</span>
+                    <span>Privacy Shield (secret tripwire + Private Terms · deterministic)</span>
+                    <span class="cloak-compare__tag">&lt; 1 ms</span>
+                  </div>
+                  <hr />
+                  <div>
+                    <span>Local Rewriter (Qwen 3.5 9B style paraphrase)</span>
                     <span class="cloak-compare__tag">On-device</span>
                   </div>
                   <hr />
@@ -664,7 +686,9 @@ defmodule RegentsWeb.Cloak.CloakLive do
             <h2 id="cloak-verify-heading">Verify your download</h2>
             <p>
               Compare checksums across this page,
-              <a href={@checksums.release_url} target="_blank" rel="noopener noreferrer">GitHub Releases</a>
+              <a href={@checksums.release_url} target="_blank" rel="noopener noreferrer">
+                GitHub Release {@checksums.tag}
+              </a>
               (<a href={@checksums.sums_url} target="_blank" rel="noopener noreferrer">SHA256SUMS.txt</a>),
               and <strong>Settings → Status</strong>.
             </p>
@@ -672,7 +696,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
 
           <dl class="cloak-verify__facts">
             <div>
-              <dt>Published release</dt>
+              <dt>Pinned release</dt>
               <dd><code>{@checksums.tag}</code></dd>
             </div>
             <div>
@@ -690,9 +714,25 @@ defmodule RegentsWeb.Cloak.CloakLive do
           </dl>
 
           <div class="cloak-verify__commands">
-            <div :for={{label, cmd} <- @checksums.commands} class="cloak-verify__cmd">
-              <span class="cloak-verify__cmd-label">{label}</span>
-              <pre><code>{cmd}</code></pre>
+            <div
+              :for={{{label, cmd}, idx} <- Enum.with_index(@checksums.commands)}
+              class="cloak-verify__cmd"
+            >
+              <div class="cloak-verify__cmd-head">
+                <span class="cloak-verify__cmd-label">{label}</span>
+                <button
+                  id={"cloak-verify-copy-#{idx}"}
+                  type="button"
+                  class="cloak-copy-icon"
+                  phx-hook="CopyCommand"
+                  data-copy={cmd}
+                  data-copy-target={"cloak-verify-code-#{idx}"}
+                  aria-label={"Copy #{label} command"}
+                >
+                  Copy
+                </button>
+              </div>
+              <pre><code id={"cloak-verify-code-#{idx}"}>{cmd}</code></pre>
             </div>
           </div>
         </div>
@@ -732,14 +772,15 @@ defmodule RegentsWeb.Cloak.CloakLive do
         <div class="cloak-closing__pill-row">
           <span class="cloak-closing__or">verify</span>
           <span class="cloak-cmd-pill">
-            <code><span class="cloak-tok-cmd">shasum</span>
+            <code id="cloak-closing-shasum-code"><span class="cloak-tok-cmd">shasum</span>
             -a 256 ~/Downloads/{@checksums.dmg_filename}</code>
             <button
               id="cloak-copy-shasum"
               type="button"
               class="cloak-copy-icon"
-              phx-hook=".CopyCommand"
+              phx-hook="CopyCommand"
               data-copy={"shasum -a 256 ~/Downloads/#{@checksums.dmg_filename}"}
+              data-copy-target="cloak-closing-shasum-code"
               aria-label="Copy shasum command"
             >
               Copy
@@ -798,29 +839,6 @@ defmodule RegentsWeb.Cloak.CloakLive do
           }
         }
       </script>
-      <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyCommand">
-        export default {
-          mounted() {
-            this.idle = this.el.textContent
-            this.onClick = () => {
-              const text = this.el.dataset.copy || ""
-              if (!text || !navigator.clipboard) return
-              navigator.clipboard.writeText(text).then(() => {
-                this.el.textContent = "Copied"
-                clearTimeout(this.timer)
-                this.timer = setTimeout(() => {
-                  this.el.textContent = this.idle
-                }, 1600)
-              }).catch(() => {})
-            }
-            this.el.addEventListener("click", this.onClick)
-          },
-          destroyed() {
-            clearTimeout(this.timer)
-            this.el.removeEventListener("click", this.onClick)
-          }
-        }
-      </script>
     </section>
     """
   end
@@ -831,7 +849,8 @@ defmodule RegentsWeb.Cloak.CloakLive do
   attr :release_tag, :string, default: nil
 
   def download(assigns) do
-    assigns = assign(assigns, checksums: Cloak.release_checksums())
+    checksums = Cloak.release_checksums()
+    assigns = assign(assigns, checksums: checksums, download_url: Cloak.download_url(checksums))
 
     ~H"""
     <section
@@ -839,7 +858,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
       class="cloak cloak-dl"
       aria-labelledby="cloak-dl-heading"
       phx-hook=".AutoDownload"
-      data-download-url={Cloak.download_url()}
+      data-download-url={@download_url}
     >
       <header class="cloak-dl__head">
         <h1 id="cloak-dl-heading" tabindex="-1">Your download is starting</h1>
@@ -848,7 +867,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
           <a
             id="cloak-download-direct"
             class="cloak-dl__direct"
-            href={Cloak.download_url()}
+            href={@download_url}
           >Download it directly</a>
         </p>
       </header>
@@ -1025,19 +1044,26 @@ defmodule RegentsWeb.Cloak.CloakLive do
 
         <section class="cloak-dl__verify" aria-label="Verify your download">
           <div class="cloak-dl__verify-row">
-            <span class="cloak-dl__verify-label">Verify SHA-256 ({@checksums.tag})</span>
+            <span class="cloak-dl__verify-label">
+              Verify SHA-256 ({@checksums.tag} · <a
+                href={@checksums.sums_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >SHA256SUMS.txt</a>)
+            </span>
             <code class="cloak-dl__verify-hash">{@checksums.dmg_sha256}</code>
           </div>
           <div class="cloak-dl__verify-actions">
             <span class="cloak-cmd-pill">
-              <code><span class="cloak-tok-cmd">shasum</span>
+              <code id="cloak-dl-shasum-code"><span class="cloak-tok-cmd">shasum</span>
               -a 256 ~/Downloads/{@checksums.dmg_filename}</code>
               <button
                 id="cloak-dl-copy-shasum"
                 type="button"
                 class="cloak-copy-icon"
-                phx-hook=".CopyDownloadCommand"
+                phx-hook="CopyCommand"
                 data-copy={"shasum -a 256 ~/Downloads/#{@checksums.dmg_filename}"}
+                data-copy-target="cloak-dl-shasum-code"
                 aria-label="Copy shasum command"
               >
                 Copy
@@ -1076,38 +1102,18 @@ defmodule RegentsWeb.Cloak.CloakLive do
           }
         }
       </script>
-      <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyDownloadCommand">
-        export default {
-          mounted() {
-            this.idle = this.el.textContent
-            this.onClick = () => {
-              const text = this.el.dataset.copy || ""
-              if (!text || !navigator.clipboard) return
-              navigator.clipboard.writeText(text).then(() => {
-                this.el.textContent = "Copied"
-                clearTimeout(this.timer)
-                this.timer = setTimeout(() => {
-                  this.el.textContent = this.idle
-                }, 1600)
-              }).catch(() => {})
-            }
-            this.el.addEventListener("click", this.onClick)
-          },
-          destroyed() {
-            clearTimeout(this.timer)
-            this.el.removeEventListener("click", this.onClick)
-          }
-        }
-      </script>
     </section>
     """
   end
 
   def install(assigns) do
+    checksums = Cloak.release_checksums()
+
     assigns =
       assign(assigns,
-        steps: Enum.with_index(Cloak.install_steps(), 1),
-        checksums: Cloak.release_checksums()
+        steps: Enum.with_index(Cloak.install_steps(checksums), 1),
+        checksums: checksums,
+        facts: Cloak.facts(checksums)
       )
 
     ~H"""
@@ -1131,7 +1137,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
             <span class="rg-button__label">Back to Cloak</span>
           </.link>
         </div>
-        <p class="cloak-hero__facts">{Cloak.facts()}</p>
+        <p class="cloak-hero__facts">{@facts}</p>
       </header>
 
       <section class="cloak-show cloak-show--steps" aria-label="Steps">
@@ -1169,7 +1175,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
           <p>
             Compare checksums across this page,
             <a href={@checksums.release_url} target="_blank" rel="noopener noreferrer">
-              GitHub Releases
+              GitHub Release {@checksums.tag}
             </a>
             (<a href={@checksums.sums_url} target="_blank" rel="noopener noreferrer">SHA256SUMS.txt</a>),
             and <strong>Settings → Status</strong>.
@@ -1178,7 +1184,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
 
         <dl class="cloak-verify__facts">
           <div>
-            <dt>Published release</dt>
+            <dt>Pinned release</dt>
             <dd><code>{@checksums.tag}</code></dd>
           </div>
           <div>
@@ -1196,9 +1202,25 @@ defmodule RegentsWeb.Cloak.CloakLive do
         </dl>
 
         <div class="cloak-verify__commands">
-          <div :for={{label, cmd} <- @checksums.commands} class="cloak-verify__cmd">
-            <span class="cloak-verify__cmd-label">{label}</span>
-            <pre><code>{cmd}</code></pre>
+          <div
+            :for={{{label, cmd}, idx} <- Enum.with_index(@checksums.commands)}
+            class="cloak-verify__cmd"
+          >
+            <div class="cloak-verify__cmd-head">
+              <span class="cloak-verify__cmd-label">{label}</span>
+              <button
+                id={"cloak-install-verify-copy-#{idx}"}
+                type="button"
+                class="cloak-copy-icon"
+                phx-hook="CopyCommand"
+                data-copy={cmd}
+                data-copy-target={"cloak-install-verify-code-#{idx}"}
+                aria-label={"Copy #{label} command"}
+              >
+                Copy
+              </button>
+            </div>
+            <pre><code id={"cloak-install-verify-code-#{idx}"}>{cmd}</code></pre>
           </div>
         </div>
       </section>
