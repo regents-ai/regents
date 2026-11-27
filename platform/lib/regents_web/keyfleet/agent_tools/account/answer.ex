@@ -71,6 +71,8 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Account.Answer do
     end
   end
 
+  def answer(:join, _params, _actor, _waiter), do: refusal(422, "invalid_profile")
+
   def answer(:profile, _params, actor, _waiter) do
     case Agents.get_my_profile(actor: actor) do
       {:ok, nil} -> refusal(404, "profile_not_found")

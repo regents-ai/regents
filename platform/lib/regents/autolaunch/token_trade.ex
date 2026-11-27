@@ -117,7 +117,7 @@ defmodule Regents.Autolaunch.TokenTrade do
     end
 
     policy action([:record, :by_pool_log]) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
   end
 

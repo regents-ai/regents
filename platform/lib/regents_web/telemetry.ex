@@ -26,6 +26,7 @@ defmodule RegentsWeb.Telemetry do
   total stays exact.
   """
 
+  import Ecto.Query, only: [from: 2]
   import Telemetry.Metrics
 
   require Logger
@@ -75,11 +76,53 @@ defmodule RegentsWeb.Telemetry do
   def site_poller do
     {:telemetry_poller,
      measurements: [
+       {__MODULE__, :oldest_waiting_jobs, []},
        {__MODULE__, :operator_wallet_waiting, []},
        {__MODULE__, :oldest_unconfirmed_sends, []}
      ],
      period: 10_000,
      name: :regents_site_poller}
+  end
+
+  # Age in seconds of the oldest available, running or retrying job per running
+  # (non-paused) Oban queue; 0.0 when a running queue has none. Paused queues
+  # are omitted per Sentinel's metrics contract.
+  @doc false
+  def oldest_waiting_jobs do
+    running_queues =
+      Oban.check_all_queues()
+      |> Enum.reject(& &1.paused)
+      |> Enum.map(& &1.queue)
+
+    if running_queues != [] do
+      ages = query_oldest_job_ages(running_queues)
+
+      for queue <- running_queues do
+        age = max(Map.get(ages, queue, 0.0), 0.0)
+        :telemetry.execute([:regents, :oban, :oldest_job], %{age_seconds: age}, %{queue: queue})
+      end
+    end
+
+    :ok
+  rescue
+    error -> not_measured("oldest waiting job ages", Exception.message(error))
+  catch
+    :exit, reason -> not_measured("oldest waiting job ages", Exception.format_exit(reason))
+  end
+
+  defp query_oldest_job_ages(queues) do
+    now = DateTime.utc_now()
+
+    # Oban.Job is Oban's internal queue table, not an Ash resource.
+    from(j in Oban.Job,
+      where: j.state in ["available", "executing", "retryable"] and j.queue in ^queues,
+      group_by: j.queue,
+      select: {j.queue, min(j.scheduled_at)}
+    )
+    |> Regents.Repo.all(prefix: "regents_app")
+    |> Map.new(fn {queue, scheduled_at} ->
+      {queue, max(DateTime.diff(now, scheduled_at, :millisecond) / 1000.0, 0.0)}
+    end)
   end
 
   # The poller drops for good a measurement that raises or exits, so whatever
@@ -217,6 +260,13 @@ defmodule RegentsWeb.Telemetry do
         event_name: [:regents, :wallet, :failure],
         tags: [:flow, :reason],
         description: "Wallet presses that were not sent, not confirmed or refused"
+      ),
+      last_value("health.job_oldest_age.seconds",
+        event_name: [:regents, :oban, :oldest_job],
+        measurement: :age_seconds,
+        tags: [:queue],
+        description:
+          "Age in seconds of the oldest available, running or retrying background job in each running queue"
       ),
       last_value("health.wallet_unconfirmed_oldest.seconds",
         event_name: [:patchbay, :wallet, :unconfirmed_oldest],

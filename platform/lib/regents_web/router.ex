@@ -504,6 +504,7 @@ defmodule RegentsWeb.Router do
     get "/.well-known/mcp/server-card.json", PublicPagesController, :mcp_server_card
     get "/.well-known/agent-skills/index.json", PublicPagesController, :agent_skills_index
     get "/.well-known/agent-skills/regents/SKILL.md", PublicPagesController, :agent_skills_regents
+    get "/.well-known/hub-jwks.json", Keyfleet.HubJwksController, :show
     get "/paper-pro-daily.md", PaperPageController, :show
     get "/paper-pro-daily/pictures/:id", PaperPictureController, :show
     get "/paper-pro-daily/share.png", PaperPictureController, :page_share
@@ -1716,7 +1717,6 @@ defmodule RegentsWeb.Router do
     get "/capabilities.json", PublicPagesController, :capabilities
     get "/openapi.json", PublicPagesController, :openapi
     get "/api-contract.openapiv3.yaml", PublicPagesController, :api_contract
-    match :*, "/mcp", PublicPagesController, :redirect_mcp
     match :*, "/oauth/*rest", PublicPagesController, :redirect_oauth
     get "/fleets/:fleet_id/rooms", DirectoryController, :rooms
     get "/metadata/collection.json", MetadataController, :collection

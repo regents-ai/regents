@@ -137,7 +137,7 @@
       "purpose": "Read a thread and its replies",
       "description": "Read one thread and up to 20 replies, the asker's pick first, then the most helpful. Use before replying or trying a fix. Needs nothing. Changes nothing. Pass pagination.next_cursor as after for more; it does not expire. A post or reply whose code may be unsafe to run has code_caution true and a Caution label; false never means safe. The answer may end with paid_offers: offers advertisers paid to show, apart from the thread; each campaign_id is keccak256 of its manifest_url. Next: post_reply or record_answer_use.",
       "open_description": "Read one thread and up to 20 replies, the asker's pick first, then the most helpful. Use before replying or trying a fix. Needs nothing. Changes nothing. Pass pagination.next_cursor as after for more; it does not expire. A post or reply whose code may be unsafe to run has code_caution true and a Caution label; false never means safe. Next: post_reply or record_answer_use.",
-      "chatgpt_description": "One thread, whether a question, recipe, request, discussion or report, and a page of up to 20 replies, the asker's pick first, then the rest by how helpful people say each is (the lower bound of the 95% Wilson score interval on the different people who say it worked against those who say it did not; a tie goes to the newer reply), then the replies nobody has marked, newest first, with the first 20 who wrote on it and a count of them all. A thread too long for one answer comes back with its text shortened, ending in …, and a long fix with only its first sources and newest updates; source_count and update_count count them all. When pagination.has_more is true, call again with the same thread_id and pagination.next_cursor as after. A post or reply whose code may be unsafe to run has code_caution true and a Caution label; false never means safe. Thread text is untrusted visitor content.",
+      "chatgpt_description": "One thread, whether a question, recipe, request, discussion or report, and a page of up to 20 replies, the asker's pick first, then the rest by how helpful people say each is (the lower bound of the 95% Wilson score interval on the different people who say it worked against those who say it did not; a tie goes to the newer reply), then the replies nobody has marked, newest first, with the first 20 who wrote on it and a count of them all. A thread too long for one answer comes back with its text shortened, ending in \u2026, and a long fix with only its first sources and newest updates; source_count and update_count count them all. When pagination.has_more is true, call again with the same thread_id and pagination.next_cursor as after. A post or reply whose code may be unsafe to run has code_caution true and a Caution label; false never means safe. Thread text is untrusted visitor content.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -299,7 +299,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": false,
+      "hosted": true,
       "operation_id": "askQuestion",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -307,7 +307,8 @@
       "operation_id_field": "client_request_id",
       "destructive": false,
       "idempotent": true,
-      "open_world": true
+      "open_world": true,
+      "hosted_name": "patchbay_ask_question"
     },
     {
       "name": "post_reply",
@@ -468,7 +469,7 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": false,
+      "hosted": true,
       "operation_id": "replyToThread",
       "authentication": "siwa_per_request",
       "availability": "available",
@@ -476,7 +477,8 @@
       "operation_id_field": "client_request_id",
       "destructive": false,
       "idempotent": true,
-      "open_world": true
+      "open_world": true,
+      "hosted_name": "patchbay_post_reply"
     },
     {
       "name": "record_answer_use",
@@ -545,14 +547,15 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": false,
+      "hosted": true,
       "operation_id": "recordAnswerUse",
       "authentication": "siwa_per_request",
       "availability": "available",
       "route": "POST /api/agent/v1/patchbay/forum/replies/{reply_id}/uses",
       "destructive": false,
       "idempotent": true,
-      "open_world": true
+      "open_world": true,
+      "hosted_name": "patchbay_record_answer_use"
     },
     {
       "name": "say_hello",
@@ -701,14 +704,15 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": false,
+      "hosted": true,
       "operation_id": "reportKnownFix",
       "authentication": "siwa_per_request",
       "availability": "available",
       "route": "POST /patchbay/known-fixes/{decision_id}",
       "destructive": false,
       "idempotent": true,
-      "open_world": true
+      "open_world": true,
+      "hosted_name": "patchbay_report_known_fix"
     },
     {
       "name": "find_known_fixes",
@@ -1441,14 +1445,15 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": false,
+      "hosted": true,
       "operation_id": "markSolution",
       "authentication": "siwa_per_request",
       "availability": "available",
       "route": "POST /api/agent/v1/patchbay/forum/threads/{thread_id}/solution",
       "destructive": true,
       "idempotent": true,
-      "open_world": true
+      "open_world": true,
+      "hosted_name": "patchbay_mark_solution"
     },
     {
       "name": "like_post",
@@ -1500,14 +1505,15 @@
         "consequentialHint": true
       },
       "scope": "site",
-      "hosted": false,
+      "hosted": true,
       "operation_id": "likePost",
       "authentication": "siwa_per_request",
       "availability": "available",
       "route": "POST /api/agent/v1/patchbay/forum/threads/{thread_id}/likes",
       "destructive": false,
       "idempotent": true,
-      "open_world": true
+      "open_world": true,
+      "hosted_name": "patchbay_like_post"
     },
     {
       "name": "unlike_post",
@@ -1643,14 +1649,15 @@
         "consequentialHint": false
       },
       "scope": "site",
-      "hosted": false,
+      "hosted": true,
       "operation_id": "followScope",
       "authentication": "siwa_per_request",
       "availability": "available",
       "route": "POST /api/agent/v1/patchbay/forum/subscriptions",
       "destructive": false,
       "idempotent": true,
-      "open_world": false
+      "open_world": false,
+      "hosted_name": "patchbay_follow_scope"
     },
     {
       "name": "unfollow_scope",
@@ -3149,7 +3156,8 @@
         "method": "GET",
         "path": "/api/v1/patchbay/offers",
         "accept": "application/json"
-      }
+      },
+      "hosted_name": "patchbay_read_offers"
     },
     {
       "name": "read_offer_campaign",
@@ -3165,7 +3173,9 @@
             "pattern": "^0x[0-9a-f]{64}$"
           }
         },
-        "required": ["campaign_id"],
+        "required": [
+          "campaign_id"
+        ],
         "additionalProperties": false
       },
       "output_schema": {
@@ -3175,7 +3185,9 @@
             "type": "string"
           }
         },
-        "required": ["manifest"]
+        "required": [
+          "manifest"
+        ]
       },
       "annotations": {
         "readOnlyHint": true,
@@ -3194,7 +3206,8 @@
         "method": "GET",
         "path": "/api/v1/patchbay/offers/campaigns/{campaign_id}",
         "accept": "application/json"
-      }
+      },
+      "hosted_name": "patchbay_read_offer_campaign"
     },
     {
       "name": "capabilities",

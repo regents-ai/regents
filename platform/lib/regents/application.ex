@@ -52,6 +52,7 @@ defmodule Regents.Application do
         {Task.Supervisor, name: Regents.Products.Health},
         database_child(),
         {Phoenix.PubSub, name: Regents.PubSub},
+        cluster_child(),
         # After PubSub: tracks which folded products have active route traffic so
         # background DB/RPC/HTTP readers stay dormant for inactive products.
         Regents.ProductActivity,
@@ -102,6 +103,13 @@ defmodule Regents.Application do
   defp database_child do
     if Application.get_env(:regents, :database_startup_enabled, false),
       do: Regents.Repo
+  end
+
+  defp cluster_child do
+    if serving?() and System.get_env("FLY_APP_NAME", "") != "" and
+         System.get_env("FLY_PRIVATE_IP", "") != "" do
+      Regents.Cluster
+    end
   end
 
   defp shared_changes_child do

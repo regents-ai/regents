@@ -30,7 +30,7 @@ defmodule Regents.Stake.ProtocolReading do
     end
 
     policy action([:read, :record, :replace]) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
   end
 

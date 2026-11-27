@@ -212,7 +212,7 @@ defmodule Regents.Autolaunch.Bid do
     end
 
     policy action([:mine, :mine_by_wallets, :to_settle_by_wallets, :owned_by_bid_id]) do
-      authorize_if Regents.Account.Accounts.Checks.HumanActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.Human)
     end
 
     policy action([:mine, :mine_by_wallets, :to_settle_by_wallets, :owned_by_bid_id]) do
@@ -220,7 +220,7 @@ defmodule Regents.Autolaunch.Bid do
     end
 
     policy action([:project_lab, :record_from_chain, :by_id]) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
   end
 

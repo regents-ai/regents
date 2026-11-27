@@ -45,7 +45,7 @@ defmodule Regents.Autolaunch.Stocks.AdmissionScan do
 
   policies do
     policy always() do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
   end
 

@@ -31,7 +31,7 @@ defmodule Regents.Products.AccountOverview.Summary do
 
   policies do
     policy action(:summary) do
-      authorize_if Regents.Account.Accounts.Checks.HumanActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.Human)
       authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
     end
   end

@@ -89,7 +89,7 @@ defmodule Regents.Account.Formation.CloudRuntime do
     end
 
     policy action(:public_profile_source) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
 
     policy action([:mine, :refresh_status]) do

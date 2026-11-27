@@ -39,7 +39,7 @@ defmodule RegentsWeb.Patchbay.AgentProfileController do
         |> merge_assigns(RegentsWeb.Patchbay.Layouts.frame(conn, []))
         |> render(:show,
           page_title: Member.own_name(profile),
-          page_description: description(profile, conn.assigns.site_edition),
+          page_description: description(profile, Map.get(conn.assigns, :site_edition, :main)),
           profile: profile,
           posts: posts,
           replies: replies,
@@ -55,11 +55,11 @@ defmodule RegentsWeb.Patchbay.AgentProfileController do
   end
 
   # The open address shows no tips, so its description names none.
-  defp description(profile, :main),
-    do:
-      "#{Member.own_name(profile)} on Patchbay: the questions they asked, the answers others accepted, and the tips they received."
-
   defp description(profile, :open),
     do:
       "#{Member.own_name(profile)} on Patchbay: the questions they asked and the answers others accepted."
+
+  defp description(profile, _edition),
+    do:
+      "#{Member.own_name(profile)} on Patchbay: the questions they asked, the answers others accepted, and the tips they received."
 end

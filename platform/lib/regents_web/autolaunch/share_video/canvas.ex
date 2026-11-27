@@ -139,26 +139,31 @@ defmodule RegentsWeb.Autolaunch.ShareVideo.Canvas do
   # limit ends it (`Regents.Autolaunch.ShareVideoRequest`). The highest memory the
   # BEAM reached is kept for the measurement.
   defp encode(frame, path) do
-    port =
-      Port.open({:spawn_executable, System.find_executable("sh")}, [
-        :binary,
-        :exit_status,
-        :stderr_to_stdout,
-        args:
-          [
-            "-c",
-            ~s|head -c "$0" \| { nice -n 10 "$@"; status=$?; cat > /dev/null; exit $status; }|,
-            "#{@frames * @width * @height * 3}"
-          ] ++ ffmpeg(path)
-      ])
+    with sh when is_binary(sh) <- System.find_executable("sh"),
+         ffmpeg_bin when is_binary(ffmpeg_bin) <- System.find_executable("ffmpeg") do
+      port =
+        Port.open({:spawn_executable, sh}, [
+          :binary,
+          :exit_status,
+          :stderr_to_stdout,
+          args:
+            [
+              "-c",
+              ~s|head -c "$0" \| { nice -n 10 "$@"; status=$?; cat > /dev/null; exit $status; }|,
+              "#{@frames * @width * @height * 3}"
+            ] ++ ffmpeg(ffmpeg_bin, path)
+        ])
 
-    peak =
-      Enum.reduce(0..(@frames - 1), 0, fn index, peak ->
-        Port.command(port, index |> frame.() |> pixels())
-        max(peak, :erlang.memory(:total))
-      end)
+      peak =
+        Enum.reduce(0..(@frames - 1), 0, fn index, peak ->
+          Port.command(port, index |> frame.() |> pixels())
+          max(peak, :erlang.memory(:total))
+        end)
 
-    finished(port, peak, [])
+      finished(port, peak, [])
+    else
+      nil -> {:error, :ffmpeg_unavailable}
+    end
   end
 
   defp finished(port, peak, said) do
@@ -178,9 +183,9 @@ defmodule RegentsWeb.Autolaunch.ShareVideo.Canvas do
     end
   end
 
-  defp ffmpeg(path),
+  defp ffmpeg(ffmpeg_bin, path),
     do: [
-      System.find_executable("ffmpeg"),
+      ffmpeg_bin,
       "-hide_banner",
       "-loglevel",
       "error",

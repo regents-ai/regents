@@ -61,7 +61,7 @@ defmodule Regents.Account.Accounts.EnsIdentity do
 
   policies do
     policy action(:put_resolved) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
 
     # Chain state anyone can read for themselves, so the account it belongs to

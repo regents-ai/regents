@@ -109,7 +109,7 @@ defmodule Regents.Autolaunch.CoveredCalls.Sale do
 
   policies do
     policy action([:by_id, :seen, :record]) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
   end
 

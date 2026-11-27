@@ -64,7 +64,7 @@ defmodule Regents.Autolaunch.Stocks.StockCandidate do
         worker_read_action(:read)
         # GeckoTerminal's queue, one read at a time: its free service counts
         # these reads and the weekly volume reads together.
-        queue(:autolaunch_stock_volume)
+        queue(:autolaunch_stock_candidates)
         scheduler_queue(:autolaunch_default)
         # Three rows every ten minutes, those tried longest ago first and
         # never-tried ones before them. GeckoTerminal refuses a burst of
@@ -164,7 +164,7 @@ defmodule Regents.Autolaunch.Stocks.StockCandidate do
     end
 
     policy always() do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
   end
 

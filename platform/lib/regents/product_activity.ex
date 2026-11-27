@@ -118,12 +118,16 @@ defmodule Regents.ProductActivity do
   defp products_for_segments(_other), do: []
 
   @doc "True when `product` has had route activity within `ttl_ms` (default 15 minutes)."
-  @spec active?(product(), pos_integer()) :: boolean()
-  def active?(product, ttl \\ ttl_ms()) when product in @products do
+  @spec active?(atom(), pos_integer()) :: boolean()
+  def active?(product, ttl \\ ttl_ms())
+
+  def active?(product, ttl) when product in @products do
     active_at?(product, now_ms(), ttl)
   rescue
     ArgumentError -> false
   end
+
+  def active?(_product, _ttl), do: false
 
   @doc """
   True when an Oban job is allowed to run for `product`: explicitly enqueued

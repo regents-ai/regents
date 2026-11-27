@@ -188,7 +188,7 @@ defmodule Regents.Autolaunch.Stocks.Stock do
              :read_weekly_volume,
              :sync_admissions
            ]) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
   end
 

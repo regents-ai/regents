@@ -287,7 +287,7 @@ defmodule Regents.Autolaunch.LaunchDraft do
              :confirm_agent_treasury,
              :attach_image
            ]) do
-      authorize_if Regents.Account.Accounts.Checks.HumanActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.Human)
     end
 
     policy action([
@@ -304,7 +304,7 @@ defmodule Regents.Autolaunch.LaunchDraft do
     end
 
     policy action([:naming_listed_launch, :clear]) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
   end
 

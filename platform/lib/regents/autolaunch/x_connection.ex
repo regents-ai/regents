@@ -216,7 +216,7 @@ defmodule Regents.Autolaunch.XConnection do
     end
 
     policy action([:connected_profile, :profiles_connected_before]) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
 
     policy action([
@@ -226,7 +226,7 @@ defmodule Regents.Autolaunch.XConnection do
              :mine_by_role,
              :mine_by_role_for_update
            ]) do
-      authorize_if Regents.Account.Accounts.Checks.HumanActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.Human)
     end
 
     policy action([:mine, :mine_by_role, :mine_by_role_for_update]) do

@@ -227,10 +227,14 @@ defmodule Regents.MixProject do
         # Keyfleet's full hosted MCP surface adds twenty-six intentional links: twelve new
         # Keyfleet.AgentTools domain-to-resource links, thirteen resource-to-Run action links,
         # and Keyfleet.Graph reading Keyfleet.Capabilities for AshAi tool descriptions.
-        "xref graph --label compile-connected --fail-above 351",
+        # Replaced compile-time SystemActor (42 edges) and cross-product Autolaunch/Summary
+        # HumanActor (8 edges) policy checks with Ash built-in actor_attribute_equals/2,
+        # cutting compile-connected edges from 351 to 301 and cross-product edges from 57 to 7.
+        "xref graph --label compile-connected --fail-above 301",
         "ash.codegen --check",
         "usage_rules.sync --check",
-        "regents.route_handoff --check"
+        "regents.route_handoff --check",
+        "regents.verify_contracts"
       ]
     ]
   end

@@ -433,7 +433,7 @@ defmodule Regents.Autolaunch.Auction do
     end
 
     policy action([:activity, :refresh_activity]) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
 
     policy action([
@@ -458,28 +458,28 @@ defmodule Regents.Autolaunch.Auction do
              :lab_by_id_for_update,
              :refresh_lab_market
            ]) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
 
     policy action(:set_bid_terms) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
 
     policy action([:hide, :show]) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
 
     policy action(:set_treasury_security_report) do
-      authorize_if Regents.Checks.SystemActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.System)
     end
 
     policy action(:by_creator) do
-      authorize_if Regents.Account.Accounts.Checks.HumanActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.Human)
       authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
     end
 
     policy action(:bid_position) do
-      authorize_if Regents.Account.Accounts.Checks.HumanActor
+      authorize_if actor_attribute_equals(:__struct__, Regents.Account.Actors.Human)
     end
   end
 

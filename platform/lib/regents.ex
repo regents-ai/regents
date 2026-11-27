@@ -12,6 +12,7 @@ defmodule Regents do
       Alert,
       Blog,
       Blog.PostFile,
+      Cluster,
       DatabaseConfig,
       Health,
       Legal,
