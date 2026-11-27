@@ -229,7 +229,7 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
       - `regents patchbay services endpoints [--protocol x402|mpp] --json`
       - `regents patchbay validate <https-url> [--method GET|POST|HEAD] --json`
       - `regents patchbay security criticals [--kev] [--unfixed] [--ecosystem packagist|npm|pypi] --json`
-      - `regents patchbay security check-stack --manifest "<lockfile-or-pkg@version>" --json`
+      - `regents patchbay security check-stack --file package-lock.json --json` (or `--manifest "drupal/core@11.4.12"` / `--file -`)
       - `regents patchbay playbooks list --json` / `regents patchbay playbooks get <slug> --json`
       - `regents patchbay known-fixes find --site <domain> --json`
       - `regents patchbay threads search --query <error> --json`

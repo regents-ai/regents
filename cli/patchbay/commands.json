@@ -1597,7 +1597,7 @@
     },
     {
       "command": "security check-stack",
-      "description": "Version-accurately scan a dependency manifest or lockfile text (package.json, package-lock.json, composer.lock, mix.lock, requirements.txt, uv.lock, Cargo.toml, Cargo.lock, go.mod, or pkg@version list) against live cve.now active criticals and Patchbay mitigations. Patched version pins are explicitly cleared.",
+      "description": "Version-accurately scan a dependency manifest or lockfile (package.json, package-lock.json, composer.lock, mix.lock, requirements.txt, uv.lock, Cargo.toml, Cargo.lock, go.mod, or pkg@version list) against live cve.now active criticals and Patchbay mitigations. Pass --file <path> (or --file - for stdin) or --manifest <text>. Patched version pins are explicitly cleared.",
       "operation_id": "checkStackSecurity",
       "webmcp": "patchbay_check_stack",
       "method": "POST",
@@ -1610,9 +1610,20 @@
           "type": "string",
           "in": "body",
           "field": "manifest",
-          "required": true,
-          "description": "Raw lockfile/manifest contents or comma/newline list of packages (e.g. drupal/core@11.4.12 or $(cat package.json))."
+          "description": "Inline lockfile/manifest contents or comma/newline list of packages (e.g. drupal/core@11.4.12)."
+        },
+        {
+          "name": "file",
+          "type": "text_file",
+          "in": "body",
+          "field": "manifest",
+          "maximum": 65536,
+          "description": "Path to a local lockfile/manifest (package.json, package-lock.json, mix.lock, composer.lock, Cargo.lock, uv.lock, requirements.txt, go.mod) or '-' to read stdin (max 64 KB)."
         }
+      ],
+      "required_one_of": [
+        "manifest",
+        "file"
       ]
     },
     {
