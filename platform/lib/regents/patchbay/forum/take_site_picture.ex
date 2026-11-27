@@ -19,7 +19,6 @@ defmodule Regents.Patchbay.Forum.TakeSitePicture do
 
   use Ash.Resource.ManualUpdate
 
-  require Ash.Query
   require Logger
 
   alias Regents.Patchbay.Forum.PictureNotTaken
@@ -107,23 +106,15 @@ defmodule Regents.Patchbay.Forum.TakeSitePicture do
   end
 
   # As in keep/2: Patchbay's own job, with no actor for policies to check.
+  # `patchbay_app.forum_site_screenshots` is delete-protected in Postgres, so
+  # keep it append/upsert-only and clear the site's active screenshot pointer
+  # (`:forget_picture`); `SiteScreenshotController` refuses forgotten pointers.
   defp refused(site, reason) do
     warn(site, reason)
 
-    forgotten =
-      SiteScreenshot
-      |> Ash.Query.filter(site_id == ^site.id)
-      |> Ash.bulk_destroy(:forget, %{}, authorize?: false, return_errors?: true)
-
-    case forgotten do
-      %Ash.BulkResult{status: :success} ->
-        site
-        |> Ash.Changeset.for_update(:forget_picture, %{})
-        |> Ash.update(authorize?: false)
-
-      %Ash.BulkResult{errors: errors} ->
-        {:error, Ash.Error.to_error_class(errors)}
-    end
+    site
+    |> Ash.Changeset.for_update(:forget_picture, %{})
+    |> Ash.update(authorize?: false)
   end
 
   # As in keep/2.

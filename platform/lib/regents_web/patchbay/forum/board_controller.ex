@@ -797,6 +797,10 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
         first_posts_page(conn, BoardHTML.tool_path(site, name))
 
       {:error, reason} ->
+        if reason != :invalid_cursor do
+          Logger.warning("Tool page unavailable: " <> inspect(Board.failure_kind(reason)))
+        end
+
         conn
         |> put_status(if reason == :invalid_cursor, do: :bad_request, else: :service_unavailable)
         |> page(:tool_history_unavailable)

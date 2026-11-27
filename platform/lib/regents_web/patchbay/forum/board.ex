@@ -275,7 +275,7 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
           | {:error, term()}
   def ranked_posts(site, name, cursor) do
     site.id
-    |> Forum.list_ranked_posts_for_tool(name, load: @post_loads, page: post_page(cursor))
+    |> Forum.list_ranked_posts_for_tool(name, true, load: @post_loads, page: post_page(cursor))
     |> post_page_result()
   end
 
