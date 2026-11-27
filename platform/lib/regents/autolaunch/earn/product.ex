@@ -35,11 +35,12 @@ defmodule Regents.Autolaunch.Earn.Product do
 
   alias Regents.Autolaunch.CoveredCalls.Signer
   alias Regents.Autolaunch.Earn
-  alias Regents.Autolaunch.Earn.{Answer, Catalog, Chain, Refused, SharedTerms, States, Steps}
+  alias Regents.Autolaunch.Earn.{Answer, Catalog, Chain, Refused, SharedTerms, Steps}
 
   # An amount far beyond any real one: the largest whole number a JSON reader
   # holds exactly, as the agent tools' schemas say (priv/earn_tools.json) and
   # the page's field reads (`Regents.Autolaunch.Earn.Amount`).
+  @kinds [:deposit, :withdraw]
   @amount [min: 1, max: 9_007_199_254_740_991]
 
   # What each input of the hosted tools is, in the browser tools' words
@@ -81,7 +82,7 @@ defmodule Regents.Autolaunch.Earn.Product do
 
     action :prepare, :map do
       argument :product, :string, allow_nil?: false
-      argument :kind, :atom, allow_nil?: false, constraints: [one_of: States.kinds()]
+      argument :kind, :atom, allow_nil?: false, constraints: [one_of: @kinds]
       argument :signer, :string
       argument :amount, :integer, constraints: @amount
       argument :everything, :boolean
@@ -122,7 +123,7 @@ defmodule Regents.Autolaunch.Earn.Product do
 
       argument :kind, :atom,
         allow_nil?: false,
-        constraints: [one_of: States.kinds()],
+        constraints: [one_of: @kinds],
         description: @kind
 
       argument :amount, :integer, constraints: @amount, description: @units
@@ -147,7 +148,7 @@ defmodule Regents.Autolaunch.Earn.Product do
 
       argument :kind, :atom,
         allow_nil?: false,
-        constraints: [one_of: States.kinds()],
+        constraints: [one_of: @kinds],
         description: @kind
 
       argument :amount, :integer, constraints: @amount, description: @units

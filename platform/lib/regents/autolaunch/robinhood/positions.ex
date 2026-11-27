@@ -25,13 +25,13 @@ defmodule Regents.Autolaunch.Robinhood.Positions do
   alias RegentChain.Address
   alias Regents.Account.Actors.System
   alias Regents.Autolaunch.{AuctionBook, LabAbi}
-  alias Regents.Autolaunch.Chain.{Abi, CcaSettlement, Rpc}
+  alias Regents.Autolaunch.Chain.{Abi, CcaSettlement, Multicall, Rpc}
   alias Regents.Autolaunch.Robinhood.{Lab, Launchpad}
-  alias Regents.Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Regents.Autolaunch.Stocks.Amounts
 
   @bid_record_words 7
   @token_decimals 18
+  @q96_bits 96
 
   @type standing ::
           Regents.Autolaunch.AuctionBook.standing()
@@ -129,8 +129,8 @@ defmodule Regents.Autolaunch.Robinhood.Positions do
   end
 
   defp wallet_positions(auction, wallet, venue) do
-    with {:ok, logs} <- bid_logs(auction.auction, wallet, venue),
-         do: bid_positions(logs, auction, wallet, venue)
+    with {:ok, bids} <- wallet_bids(auction.auction, wallet, venue),
+         do: bid_positions(bids, auction, wallet, venue)
   end
 
   # Every list in order, or the first read that failed.
@@ -143,69 +143,93 @@ defmodule Regents.Autolaunch.Robinhood.Positions do
     end)
   end
 
-  defp bid_logs(auction, wallet, venue) do
-    filter = %{
-      address: auction,
-      fromBlock: "0x0",
-      toBlock: "0x" <> Integer.to_string(venue.block.number, 16),
-      topics: [
-        LabAbi.topic(RobinhoodLabAbi.bid_submitted_signature()),
-        nil,
-        "0x" <> String.pad_leading(String.slice(wallet, 2..-1//1), 64, "0")
-      ]
-    }
+  # Read every bid issued by the auction directly from storage via Multicall3
+  # at the pinned block hash instead of scanning `eth_getLogs` from block 0
+  # (Robinhood mainnet rejects log spans above 10M blocks and rate-limits
+  # multi-chunk scans).
+  defp wallet_bids(auction, wallet, venue) do
+    with {:ok, next_bid_id} <-
+           Rpc.call_uint(
+             auction,
+             LabAbi.encode(venue.abi, "nextBidId()", []),
+             venue.block,
+             venue.opts
+           ) do
+      read_bids(auction, next_bid_id, wallet, venue)
+    end
+  end
 
-    case Rpc.request("eth_getLogs", [filter], venue.opts) do
-      {:ok, logs} when is_list(logs) -> {:ok, logs}
-      {:ok, _other} -> {:error, :invalid_chain_response}
+  defp read_bids(_auction, 0, _wallet, _venue), do: {:ok, []}
+
+  defp read_bids(auction, next_bid_id, wallet, venue) do
+    reads =
+      for bid_id <- 0..(next_bid_id - 1) do
+        {auction, LabAbi.encode(venue.abi, "bids(uint256)", [bid_id])}
+      end
+
+    with {:ok, raw_bids} <- Multicall.read(reads, venue.block, venue.opts) do
+      decode_wallet_bids(raw_bids, wallet)
+    end
+  end
+
+  defp decode_wallet_bids(raw_bids, wallet) do
+    raw_bids
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, []}, fn {raw, bid_id}, {:ok, kept} ->
+      keep_wallet_bid(raw, bid_id, wallet, kept)
+    end)
+    |> case do
+      {:ok, bids} -> {:ok, Enum.reverse(bids)}
       error -> error
     end
   end
 
-  defp bid_positions(logs, auction, wallet, venue) do
-    Enum.reduce_while(logs, {:ok, []}, fn log, {:ok, found} ->
-      with {:ok, submitted} <- bid_submitted(log, auction.auction, wallet, venue),
-           {:ok, bid} <- bid_record(submitted, auction.auction, venue),
-           {:ok, position} <- position(bid, auction, wallet, venue) do
-        {:cont, {:ok, [position | found]}}
-      else
-        :error -> {:halt, {:error, :invalid_chain_response}}
-        error -> {:halt, error}
-      end
-    end)
-  end
+  defp keep_wallet_bid(raw, bid_id, wallet, kept) do
+    case decode_bid_record(raw, bid_id) do
+      {:ok, %{owner: owner} = bid} ->
+        if Address.equal?(owner, wallet),
+          do: {:cont, {:ok, [bid | kept]}},
+          else: {:cont, {:ok, kept}}
 
-  # One `BidSubmitted(bidId, owner, priceQ96, amount)` log for this wallet.
-  defp bid_submitted(log, auction, wallet, venue) do
-    with {:ok, {[bid_id, owner_word], [price_q96, amount]}} <-
-           LabAbi.event_words(
-             venue.abi,
-             RobinhoodLabAbi.bid_submitted_signature(),
-             [log],
-             auction
-           ),
-         {:ok, owner} <- Abi.word_address(owner_word),
-         true <- Address.equal?(owner, wallet) do
-      {:ok, %{bid_id: bid_id, owner: owner, max_price_q96: price_q96, amount: amount}}
-    else
-      _ -> :error
+      error ->
+        {:halt, error}
     end
   end
 
   # `bids(bidId)`: startBlock, startCumulativeMps, exitedBlock, maxPrice, owner,
-  # amountQ96, tokensFilled. The exit block and the tokens filled are the bid's
-  # current state.
-  defp bid_record(submitted, auction, venue) do
-    with {:ok, [_start, _mps, exited_block, _max_price, _owner, _amount_q96, tokens_filled]} <-
-           Rpc.call_words(
-             auction,
-             LabAbi.encode(venue.abi, "bids(uint256)", [submitted.bid_id]),
-             venue.block,
-             @bid_record_words,
-             venue.opts
-           ) do
-      {:ok, Map.merge(submitted, %{exited_block: exited_block, tokens_filled: tokens_filled})}
+  # amountQ96, tokensFilled.
+  defp decode_bid_record(raw, bid_id)
+       when is_binary(raw) and byte_size(raw) == @bid_record_words * 32 do
+    [_start, _mps, exited_block, max_price, owner_word, amount_q96, tokens_filled] =
+      for <<word::256 <- raw>>, do: word
+
+    case Abi.word_address(owner_word) do
+      {:ok, owner} ->
+        {:ok,
+         %{
+           bid_id: bid_id,
+           owner: owner,
+           max_price_q96: max_price,
+           amount: Bitwise.bsr(amount_q96, @q96_bits),
+           exited_block: exited_block,
+           tokens_filled: tokens_filled
+         }}
+
+      :error ->
+        {:error, :invalid_chain_response}
     end
+  end
+
+  defp decode_bid_record(:reverted, _bid_id), do: {:error, :chain_unavailable}
+  defp decode_bid_record(_raw, _bid_id), do: {:error, :invalid_chain_response}
+
+  defp bid_positions(bids, auction, wallet, venue) do
+    Enum.reduce_while(bids, {:ok, []}, fn bid, {:ok, found} ->
+      case position(bid, auction, wallet, venue) do
+        {:ok, position} -> {:cont, {:ok, [position | found]}}
+        error -> {:halt, error}
+      end
+    end)
   end
 
   defp position(bid, auction, wallet, venue) do
@@ -271,20 +295,14 @@ defmodule Regents.Autolaunch.Robinhood.Positions do
   end
 
   defp claimed?(bid, auction, venue) do
-    filter = %{
-      address: auction,
-      fromBlock: "0x0",
-      toBlock: "0x" <> Integer.to_string(venue.block.number, 16),
-      topics: [
-        LabAbi.topic(CcaSettlement.tokens_claimed_signature()),
-        "0x" <> String.pad_leading(Integer.to_string(bid.bid_id, 16), 64, "0"),
-        "0x" <> String.pad_leading(String.slice(bid.owner, 2..-1//1), 64, "0")
-      ]
-    }
+    topics = [
+      LabAbi.topic(CcaSettlement.tokens_claimed_signature()),
+      "0x" <> String.pad_leading(Integer.to_string(bid.bid_id, 16), 64, "0"),
+      "0x" <> String.pad_leading(String.slice(bid.owner, 2..-1//1), 64, "0")
+    ]
 
-    case Rpc.request("eth_getLogs", [filter], venue.opts) do
-      {:ok, logs} when is_list(logs) -> claimed_in?(logs, bid, auction, venue)
-      {:ok, _other} -> {:error, :invalid_chain_response}
+    case Rpc.logs(auction, topics, 0, venue.block.number, venue.opts) do
+      {:ok, logs} -> claimed_in?(logs, bid, auction, venue)
       error -> error
     end
   end

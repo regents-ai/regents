@@ -54,6 +54,7 @@ defmodule Regents.Autolaunch.Auction do
 
       index(["inserted_at DESC", "id"], name: "auctions_home_newest_index")
       index([:kind, :state], name: "auctions_kind_state_index")
+      index(["lower(token_symbol)"], name: "auctions_lower_token_symbol_index")
     end
   end
 

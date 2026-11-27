@@ -109,7 +109,7 @@ defmodule RegentsWeb.Cloak do
       ram: "16 GB Mac or more · Offline",
       name: "Local AI",
       body:
-        "Local, offline models just had an upgrade: your MacBook can run Inkling 2 Mini on Apple MLX at 56–64 tok/s (outperforming GPT-5) or Metal llama.cpp with offline Local Access for PDFs, OCR, and approved folders. Free, no account.",
+        "Local, offline models just had an upgrade: your MacBook can run Inkling 2 Mini (JANGH2) on Apple MLX at ~56–64 tok/s (measured on M4 Max 48 GB; ahead of GPT-5 on BenchLM) or Metal llama.cpp with offline Local Access for PDFs, OCR, and approved folders. Free, no account.",
       credit: [
         {:text, "Powered by "},
         {:link, "Thinking Machines", "https://thinkingmachines.ai"},
@@ -380,8 +380,8 @@ defmodule RegentsWeb.Cloak do
       {"Apple Code Signature CDHash", "0d03fead04e846f8bb99ab2620fcf730c2629a3f"}
     ],
     team_id: "367G3Z7G3J",
-    release_url: "https://github.com/regents-ai/cloak/releases/latest",
-    sums_url: "https://github.com/regents-ai/cloak/releases/latest/download/SHA256SUMS.txt",
+    release_url: "https://github.com/regents-ai/cloak/releases/tag/0.2.6-304",
+    sums_url: "https://github.com/regents-ai/cloak/releases/download/0.2.6-304/SHA256SUMS.txt",
     commands: [
       {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/Regents-Cloak-0.2.6-304.dmg"},
       {"Verify app binary SHA-256",
@@ -619,8 +619,8 @@ defmodule RegentsWeb.Cloak do
        dmg_sha256: dmg_sha256,
        extra_hashes: extra_hashes,
        team_id: team_id,
-       release_url: "https://github.com/regents-ai/cloak/releases/latest",
-       sums_url: "https://github.com/regents-ai/cloak/releases/latest/download/SHA256SUMS.txt",
+       release_url: "https://github.com/regents-ai/cloak/releases/tag/#{tag}",
+       sums_url: "https://github.com/regents-ai/cloak/releases/download/#{tag}/SHA256SUMS.txt",
        commands: [
          {"Verify DMG SHA-256", "shasum -a 256 ~/Downloads/#{dmg_filename}"},
          {"Verify app binary SHA-256",

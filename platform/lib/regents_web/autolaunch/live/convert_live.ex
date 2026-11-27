@@ -160,7 +160,7 @@ defmodule RegentsWeb.Autolaunch.ConvertLive do
     rows =
       tokens
       |> Enum.filter(&match?(%{auction: %{kind: :stocks, state: :graduated}}, &1))
-      |> read_rows(&Regents.Autolaunch.Pool.read(&1.auction), fn token, pool ->
+      |> read_rows(&Regents.Autolaunch.Pool.read(&1.auction, history?: false), fn token, pool ->
         %{
           id: "convert-base-#{token.auction.id}",
           name: token.name,
@@ -188,7 +188,7 @@ defmodule RegentsWeb.Autolaunch.ConvertLive do
     rows =
       tokens
       |> Enum.filter(&RobinhoodLab.chain?(&1.auction.chain_id))
-      |> read_rows(&RobinhoodPool.read(&1.auction), fn token, pool ->
+      |> read_rows(&RobinhoodPool.read(&1.auction, history?: false), fn token, pool ->
         %{
           id: "convert-robinhood-#{token.auction.auction_address}",
           name: token.name,

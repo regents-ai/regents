@@ -112,7 +112,8 @@ defmodule Regents.Autolaunch.TokenHoldings do
   end
 
   defp read_holding(token, venue, wallet) do
-    with {:ok, pool} <- Pool.read_at(token.auction, venue.config, venue.block, venue.opts),
+    with {:ok, pool} <-
+           Pool.read_at(token.auction, venue.config, venue.block, venue.opts, history?: false),
          {:ok, position} <- position(pool, wallet) do
       presentation = Token.presentation(token)
       {:ok, entry(presentation.name, presentation.symbol, pool, position, token)}
@@ -143,7 +144,8 @@ defmodule Regents.Autolaunch.TokenHoldings do
              %{auction_address: launch.auction, contracts_version: launch.contracts_version},
              venue.config,
              venue.block,
-             venue.opts
+             venue.opts,
+             history?: false
            ),
          {:ok, position} <- position(pool, wallet),
          {:ok, name} <-
@@ -174,7 +176,7 @@ defmodule Regents.Autolaunch.TokenHoldings do
   # The wallet's position in base units: what it holds, what it staked and
   # what the staking contract owes it per asset.
   defp position(pool, wallet) do
-    with {:ok, position} <- StakeActions.position(pool, wallet) do
+    with {:ok, position} <- StakeActions.position(pool, wallet, claimed?: false) do
       {:ok,
        %{
          held: position.balance.atomic,

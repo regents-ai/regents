@@ -204,7 +204,7 @@ defmodule Regents.Autolaunch.AuctionMarket.Read do
   # too slow to read them in a pass) shows here without anyone opening its page.
   defp page(auction, state, config, block, opts, ladder) do
     state = MarketState.join(auction.state, state)
-    pool = Pool.read_at(%{auction | state: state}, config, block, opts)
+    pool = Pool.read_at(%{auction | state: state}, config, block, opts, history?: false)
 
     case AuctionSnapshot.page(auction, state, pool, block, opts, ladder) do
       {:ok, page} ->

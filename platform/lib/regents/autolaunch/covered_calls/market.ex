@@ -41,6 +41,19 @@ defmodule Regents.Autolaunch.CoveredCalls.Market do
   # one, and an expiry as the contract's uint64.
   @amount [min: 1, max: 2 ** 128 - 1]
   @expiry [min: 0, max: 2 ** 64 - 1]
+  @kinds [
+    :list,
+    :fill,
+    :cancel,
+    :exercise,
+    :claim,
+    :collect_strike,
+    :bid,
+    :raise_bid,
+    :cancel_bid,
+    :refund_bid,
+    :sell_to_bid
+  ]
 
   # What each input of the hosted tools is, in the browser tools' words
   # (priv/covered_calls_tools.json).
@@ -103,7 +116,7 @@ defmodule Regents.Autolaunch.CoveredCalls.Market do
 
     action :prepare, :map do
       argument :symbol, :string, allow_nil?: false
-      argument :kind, :atom, allow_nil?: false, constraints: [one_of: Steps.kinds()]
+      argument :kind, :atom, allow_nil?: false, constraints: [one_of: @kinds]
       argument :signer, :string
       argument :listing_id, :integer, constraints: @amount
       argument :bid_id, :integer, constraints: @amount
@@ -154,7 +167,7 @@ defmodule Regents.Autolaunch.CoveredCalls.Market do
 
       argument :kind, :atom,
         allow_nil?: false,
-        constraints: [one_of: Steps.kinds()],
+        constraints: [one_of: @kinds],
         description:
           "The action: list, fill, cancel, exercise, claim, collect_strike, bid, raise_bid, cancel_bid, refund_bid or sell_to_bid."
 

@@ -4,6 +4,10 @@ defmodule Regents.Autolaunch.Exposure.Chain do
   block. Exposure keeps no records of its own: every figure a page or an agent
   sees is read here, so it matches the chain after any reload.
 
+  Reads are batched through Multicall3 (`Regents.Autolaunch.Chain.Multicall`)
+  at the block's own hash so one series read takes at most three `eth_call`s
+  rather than dozens of concurrent individual requests.
+
   A series reading has the series' fixed terms (stock, legs, oracle, schedule,
   cap, terms hash), its state (status, how many prints are applied, the last
   price and both ledgers, the stock it accounts for and holds), every applied
@@ -12,7 +16,7 @@ defmodule Regents.Autolaunch.Exposure.Chain do
   """
 
   alias RegentChain.Call
-  alias Regents.Autolaunch.Chain.{Abi, Rpc}
+  alias Regents.Autolaunch.Chain.{Abi, Multicall, Rpc}
   alias Regents.Autolaunch.Exposure.Ledger
   alias Regents.Autolaunch.Lab
 
@@ -25,8 +29,6 @@ defmodule Regents.Autolaunch.Exposure.Chain do
     4 => :missing_print
   }
   @record_delay 3_600
-  @concurrency 8
-  @read_timeout 20_000
 
   @doc "The read options and latest block of the Base deployment Exposure runs on."
   def latest(lab) do
@@ -36,10 +38,36 @@ defmodule Regents.Autolaunch.Exposure.Chain do
 
   @doc "One series as it stands at `block`, with its legs' pool prices from `config`."
   def series(address, config, block, opts) do
-    with {:ok, terms} <- terms(address, block, opts),
-         {:ok, state} <- state(address, terms, block, opts),
-         {:ok, prints} <- prints(terms, state, block, opts),
-         {:ok, pools} <- pools(terms, config, block, opts) do
+    with {:ok, head} <- read_head(address, block, opts),
+         {:ok, details} <- read_details(address, head, config, block, opts),
+         {:ok, prints, pools} <- read_prints_and_pools(head, details, config, block, opts) do
+      terms = %{
+        asset: head.asset,
+        oracle: head.oracle,
+        feed_id: head.feed_id,
+        terms_hash: head.terms_hash,
+        max_report_delay: head.max_report_delay,
+        deposit_cap: head.deposit_cap,
+        boundaries: details.boundaries,
+        feed: details.feed,
+        phase: details.phase,
+        stock: details.stock,
+        overnight: details.overnight,
+        session: details.session
+      }
+
+      state = %{
+        status: head.status,
+        end_reason: head.end_reason,
+        settled: head.settled,
+        price: head.price,
+        night: head.night,
+        day: head.price - head.night,
+        accounted: head.accounted,
+        held: details.held,
+        supply: %{overnight: details.overnight_supply, session: details.session_supply}
+      }
+
       {:ok,
        terms
        |> Map.merge(state)
@@ -54,86 +82,206 @@ defmodule Regents.Autolaunch.Exposure.Chain do
     end
   end
 
-  # What never changes once the series exists.
-  defp terms(address, block, opts) do
+  # Batch 1: every direct view on the series contract itself (fixed terms + live state).
+  defp read_head(address, block, opts) do
     reads = [
-      asset: {:address, "asset()"},
-      overnight: {:address, "overnight()"},
-      session: {:address, "session()"},
-      oracle: {:address, "oracle()"},
-      feed_id: {:word, "feedId()"},
-      terms_hash: {:word, "termsHash()"},
-      max_report_delay: {:uint, "maxReportDelay()"},
-      deposit_cap: {:uint, "depositCap()"},
-      boundary_count: {:uint, "boundaryCount()"}
+      {address, Call.encode("asset()", [])},
+      {address, Call.encode("overnight()", [])},
+      {address, Call.encode("session()", [])},
+      {address, Call.encode("oracle()", [])},
+      {address, Call.encode("feedId()", [])},
+      {address, Call.encode("termsHash()", [])},
+      {address, Call.encode("maxReportDelay()", [])},
+      {address, Call.encode("depositCap()", [])},
+      {address, Call.encode("boundaryCount()", [])},
+      {address, Call.encode("status()", [])},
+      {address, Call.encode("endReason()", [])},
+      {address, Call.encode("settled()", [])},
+      {address, Call.encode("lastPriceWad()", [])},
+      {address, Call.encode("overnightLedgerWad()", [])},
+      {address, Call.encode("accountedAssets()", [])}
     ]
 
-    with {:ok, terms} <- read_all(address, reads, block, opts),
-         {:ok, boundaries} <- boundaries(address, terms.boundary_count, block, opts),
-         {:ok, feed} <- Rpc.call_address(terms.oracle, Call.encode("feed()", []), block, opts),
-         {:ok, phase} <- Rpc.call_uint(terms.oracle, Call.encode("phase()", []), block, opts),
-         {:ok, legs} <- legs([terms.overnight, terms.session], block, opts),
-         {:ok, stock} <- token(terms.asset, block, opts) do
-      [overnight, session] = legs
-
-      {:ok,
-       terms
-       |> Map.drop([:boundary_count, :overnight, :session])
-       |> Map.merge(%{
-         boundaries: boundaries,
-         feed: String.downcase(feed),
-         phase: phase,
-         stock: Map.put(stock, :address, terms.asset),
-         overnight: Map.put(overnight, :address, terms.overnight),
-         session: Map.put(session, :address, terms.session)
-       })}
-    end
-  end
-
-  # What the prints, mints and redemptions change.
-  defp state(address, terms, block, opts) do
-    reads = [
-      status: {:uint, "status()"},
-      end_reason: {:uint, "endReason()"},
-      settled: {:uint, "settled()"},
-      price: {:uint, "lastPriceWad()"},
-      night: {:uint, "overnightLedgerWad()"},
-      accounted: {:uint, "accountedAssets()"}
-    ]
-
-    with {:ok, state} <- read_all(address, reads, block, opts),
-         {:ok, held} <- balance(terms.asset, address, block, opts),
-         {:ok, overnight_supply} <- supply(terms.overnight.address, block, opts),
-         {:ok, session_supply} <- supply(terms.session.address, block, opts) do
+    with {:ok,
+          [
+            asset_raw,
+            overnight_raw,
+            session_raw,
+            oracle_raw,
+            feed_id_raw,
+            terms_hash_raw,
+            max_delay_raw,
+            deposit_cap_raw,
+            boundary_count_raw,
+            status_raw,
+            end_reason_raw,
+            settled_raw,
+            price_raw,
+            night_raw,
+            accounted_raw
+          ]} <- Multicall.read(reads, block, opts),
+         {:ok, asset} <- decode_address(asset_raw),
+         {:ok, overnight} <- decode_address(overnight_raw),
+         {:ok, session} <- decode_address(session_raw),
+         {:ok, oracle} <- decode_address(oracle_raw),
+         {:ok, feed_id} <- decode_word_hex(feed_id_raw),
+         {:ok, terms_hash} <- decode_word_hex(terms_hash_raw),
+         {:ok, max_report_delay} <- decode_uint(max_delay_raw),
+         {:ok, deposit_cap} <- decode_uint(deposit_cap_raw),
+         {:ok, boundary_count} <- decode_uint(boundary_count_raw),
+         {:ok, status_code} <- decode_uint(status_raw),
+         {:ok, status} <- fetch_enum(@statuses, status_code),
+         {:ok, end_reason_code} <- decode_uint(end_reason_raw),
+         {:ok, end_reason} <- fetch_enum(@end_reasons, end_reason_code),
+         {:ok, settled} <- decode_uint(settled_raw),
+         {:ok, price} <- decode_uint(price_raw),
+         {:ok, night} <- decode_uint(night_raw),
+         {:ok, accounted} <- decode_uint(accounted_raw) do
       {:ok,
        %{
-         status: Map.fetch!(@statuses, state.status),
-         end_reason: Map.fetch!(@end_reasons, state.end_reason),
-         settled: state.settled,
-         price: state.price,
-         night: state.night,
-         day: state.price - state.night,
-         accounted: state.accounted,
-         held: held,
-         supply: %{overnight: overnight_supply, session: session_supply}
+         asset: asset,
+         overnight: overnight,
+         session: session,
+         oracle: oracle,
+         feed_id: feed_id,
+         terms_hash: terms_hash,
+         max_report_delay: max_report_delay,
+         deposit_cap: deposit_cap,
+         boundary_count: boundary_count,
+         status: status,
+         end_reason: end_reason,
+         settled: settled,
+         price: price,
+         night: night,
+         accounted: accounted
        }}
     end
   end
 
-  # Each applied print with the feed round it came from, and the ledgers it
-  # left, worked out from the prices exactly as the contract does.
-  defp prints(terms, state, block, opts) do
-    terms.boundaries
-    |> Enum.take(state.settled)
-    |> Enum.with_index()
-    |> read_concurrently(fn {at, index} -> recorded(terms, at, index, block, opts) end)
-    |> case do
-      {:ok, recorded} ->
-        steps = recorded |> Enum.map(& &1.price) |> Ledger.path()
-        {:ok, Enum.zip_with(recorded, steps, &Map.merge(&1, Map.take(&2, [:night, :day])))}
+  # Batch 2: boundary timestamps, oracle feed/phase, ERC-20 metadata, supplies, held stock,
+  # and both Aerodrome pool addresses in one Multicall3 request.
+  defp read_details(address, head, config, block, opts) do
+    boundary_reads =
+      if head.boundary_count == 0 do
+        []
+      else
+        for index <- 0..(head.boundary_count - 1) do
+          {address, Call.encode("boundaries(uint256)", [index])}
+        end
+      end
 
-      error ->
-        error
+    meta_reads = [
+      {head.oracle, Call.encode("feed()", [])},
+      {head.oracle, Call.encode("phase()", [])},
+      {head.asset, Call.encode("symbol()", [])},
+      {head.asset, Call.encode("name()", [])},
+      {head.asset, Call.encode("decimals()", [])},
+      {head.overnight, Call.encode("symbol()", [])},
+      {head.overnight, Call.encode("name()", [])},
+      {head.overnight, Call.encode("decimals()", [])},
+      {head.session, Call.encode("symbol()", [])},
+      {head.session, Call.encode("name()", [])},
+      {head.session, Call.encode("decimals()", [])},
+      {head.asset, Abi.encode_erc20("balance_of", [address])},
+      {head.overnight, Call.encode("totalSupply()", [])},
+      {head.session, Call.encode("totalSupply()", [])},
+      {config.pool_factory,
+       Call.encode("getPool(address,address,bool)", [head.overnight, config.usdc, false])},
+      {config.pool_factory,
+       Call.encode("getPool(address,address,bool)", [head.session, config.usdc, false])}
+    ]
+
+    with {:ok, answers} <- Multicall.read(boundary_reads ++ meta_reads, block, opts),
+         {boundary_raws,
+          [
+            feed_raw,
+            phase_raw,
+            stock_sym,
+            stock_name,
+            stock_dec,
+            on_sym,
+            on_name,
+            on_dec,
+            ses_sym,
+            ses_name,
+            ses_dec,
+            held_raw,
+            on_supply_raw,
+            ses_supply_raw,
+            on_pool_raw,
+            ses_pool_raw
+          ]} = Enum.split(answers, head.boundary_count),
+         {:ok, boundaries} <- decode_each(boundary_raws, &decode_uint/1),
+         {:ok, feed} <- decode_address(feed_raw),
+         {:ok, phase} <- decode_uint(phase_raw),
+         {:ok, stock} <- decode_token(head.asset, stock_sym, stock_name, stock_dec),
+         {:ok, overnight} <- decode_token(head.overnight, on_sym, on_name, on_dec),
+         {:ok, session} <- decode_token(head.session, ses_sym, ses_name, ses_dec),
+         {:ok, held} <- decode_uint(held_raw),
+         {:ok, overnight_supply} <- decode_uint(on_supply_raw),
+         {:ok, session_supply} <- decode_uint(ses_supply_raw),
+         {:ok, overnight_pool} <- decode_optional_address(on_pool_raw),
+         {:ok, session_pool} <- decode_optional_address(ses_pool_raw) do
+      {:ok,
+       %{
+         boundaries: boundaries,
+         feed: feed,
+         phase: phase,
+         stock: stock,
+         overnight: overnight,
+         session: session,
+         held: held,
+         overnight_supply: overnight_supply,
+         session_supply: session_supply,
+         overnight_pool: overnight_pool,
+         session_pool: session_pool
+       }}
+    end
+  end
+
+  # Batch 3: every applied print (`getPrint` + `sourceOf`) and `getReserves()` for existing pools.
+  defp read_prints_and_pools(head, details, config, block, opts) do
+    applied = details.boundaries |> Enum.take(head.settled) |> Enum.with_index()
+
+    print_reads =
+      Enum.flat_map(applied, fn {at, index} ->
+        open? = rem(index, 2) == 1
+
+        [
+          {head.oracle, Call.encode("getPrint(bytes32,uint64,bool)", [head.feed_id, at, open?])},
+          {head.oracle, Call.encode("sourceOf(uint64,bool)", [at, open?])}
+        ]
+      end)
+
+    pool_specs =
+      [
+        {:overnight, details.overnight_pool, details.overnight},
+        {:session, details.session_pool, details.session}
+      ]
+
+    existing_pools = Enum.filter(pool_specs, fn {_leg, addr, _tok} -> not is_nil(addr) end)
+
+    reserve_reads =
+      Enum.map(existing_pools, fn {_leg, pool_addr, _tok} ->
+        {pool_addr, Call.encode("getReserves()", [])}
+      end)
+
+    all_reads = print_reads ++ reserve_reads
+
+    with {:ok, answers} <-
+           if(all_reads == [], do: {:ok, []}, else: Multicall.read(all_reads, block, opts)),
+         {print_raws, reserve_raws} = Enum.split(answers, length(print_reads)),
+         {:ok, recorded} <- decode_prints(applied, print_raws),
+         {:ok, pool_prices} <- decode_pool_prices(existing_pools, reserve_raws, config.usdc) do
+      steps = recorded |> Enum.map(& &1.price) |> Ledger.path()
+      prints = Enum.zip_with(recorded, steps, &Map.merge(&1, Map.take(&2, [:night, :day])))
+
+      pools =
+        Map.new(pool_specs, fn {leg, addr, _tok} ->
+          {leg, addr && %{address: addr, usdc_per_token: Map.get(pool_prices, leg)}}
+        end)
+
+      {:ok, prints, pools}
     end
   end
 
@@ -144,22 +292,14 @@ defmodule Regents.Autolaunch.Exposure.Chain do
   def recorded(terms, at, index, block, opts) do
     open? = rem(index, 2) == 1
 
-    with {:ok, [price, observed_at, finalized_at]} <-
-           Rpc.call_words(
-             terms.oracle,
-             Call.encode("getPrint(bytes32,uint64,bool)", [terms.feed_id, at, open?]),
-             block,
-             3,
-             opts
-           ),
-         {:ok, [round_id, updated_at]} <-
-           Rpc.call_words(
-             terms.oracle,
-             Call.encode("sourceOf(uint64,bool)", [at, open?]),
-             block,
-             2,
-             opts
-           ) do
+    reads = [
+      {terms.oracle, Call.encode("getPrint(bytes32,uint64,bool)", [terms.feed_id, at, open?])},
+      {terms.oracle, Call.encode("sourceOf(uint64,bool)", [at, open?])}
+    ]
+
+    with {:ok, [print_raw, source_raw]} <- Multicall.read(reads, block, opts),
+         {:ok, [price, observed_at, finalized_at]} <- decode_words(print_raw, 3),
+         {:ok, [round_id, updated_at]} <- decode_words(source_raw, 2) do
       {:ok,
        %{
          index: index,
@@ -196,51 +336,38 @@ defmodule Regents.Autolaunch.Exposure.Chain do
   before any trade moves it. Nil where there is no pool or a side is empty.
   """
   def pools(terms, config, block, opts) do
-    [overnight: terms.overnight, session: terms.session]
-    |> read_concurrently(fn {leg, token} ->
-      with {:ok, pool} <- pool(token.address, config, block, opts),
-           {:ok, price} <- price(pool, token, config.usdc, block, opts) do
-        {:ok, {leg, pool && %{address: pool, usdc_per_token: price}}}
-      end
-    end)
-    |> case do
-      {:ok, pools} -> {:ok, Map.new(pools)}
-      error -> error
+    reads = [
+      {config.pool_factory,
+       Call.encode("getPool(address,address,bool)", [terms.overnight.address, config.usdc, false])},
+      {config.pool_factory,
+       Call.encode("getPool(address,address,bool)", [terms.session.address, config.usdc, false])}
+    ]
+
+    with {:ok, [on_raw, ses_raw]} <- Multicall.read(reads, block, opts),
+         {:ok, on_pool} <- decode_optional_address(on_raw),
+         {:ok, ses_pool} <- decode_optional_address(ses_raw) do
+      specs = [{:overnight, on_pool, terms.overnight}, {:session, ses_pool, terms.session}]
+      read_pool_reserves(specs, config.usdc, block, opts)
     end
   end
 
-  defp pool(token, config, block, opts) do
-    data = Call.encode("getPool(address,address,bool)", [token, config.usdc, false])
+  defp read_pool_reserves(specs, usdc, block, opts) do
+    existing = Enum.filter(specs, fn {_leg, addr, _tok} -> not is_nil(addr) end)
 
-    # The factory answers the zero address for a pair with no pool.
-    case Rpc.call_uint(config.pool_factory, data, block, opts) do
-      {:ok, 0} ->
-        {:ok, nil}
+    reserve_reads =
+      Enum.map(existing, fn {_leg, addr, _tok} -> {addr, Call.encode("getReserves()", [])} end)
 
-      {:ok, word} ->
-        {:ok,
-         "0x" <>
-           (word |> Integer.to_string(16) |> String.pad_leading(40, "0") |> String.downcase())}
-
-      error ->
-        error
+    with {:ok, reserve_raws} <- read_optional_batch(reserve_reads, block, opts),
+         {:ok, prices} <- decode_pool_prices(existing, reserve_raws, usdc) do
+      {:ok,
+       Map.new(specs, fn {leg, addr, _tok} ->
+         {leg, addr && %{address: addr, usdc_per_token: Map.get(prices, leg)}}
+       end)}
     end
   end
 
-  defp price(nil, _token, _usdc, _block, _opts), do: {:ok, nil}
-
-  defp price(pool, token, usdc, block, opts) do
-    with {:ok, [reserve0, reserve1, _last]} <-
-           Rpc.call_words(pool, Call.encode("getReserves()", []), block, 3, opts) do
-      # Aerodrome orders a pool's two tokens by address.
-      {held, dollars} =
-        if String.downcase(token.address) < String.downcase(usdc),
-          do: {reserve0, reserve1},
-          else: {reserve1, reserve0}
-
-      {:ok, per_token(held, dollars, token.decimals)}
-    end
-  end
+  defp read_optional_batch([], _block, _opts), do: {:ok, []}
+  defp read_optional_batch(reads, block, opts), do: Multicall.read(reads, block, opts)
 
   defp per_token(held, dollars, decimals) when held > 0 and dollars > 0,
     do: div(dollars * Integer.pow(10, decimals), held)
@@ -253,16 +380,18 @@ defmodule Regents.Autolaunch.Exposure.Chain do
   pairs before the end, every leg after it.
   """
   def holdings(series, wallet, block, opts) do
-    with {:ok, overnight} <- balance(series.overnight.address, wallet, block, opts),
-         {:ok, session} <- balance(series.session.address, wallet, block, opts),
-         {:ok, stock} <- balance(series.stock.address, wallet, block, opts),
-         {:ok, allowance} <-
-           Rpc.call_uint(
-             series.stock.address,
-             Abi.encode_erc20("allowance", [wallet, series.address]),
-             block,
-             opts
-           ) do
+    reads = [
+      {series.overnight.address, Abi.encode_erc20("balance_of", [wallet])},
+      {series.session.address, Abi.encode_erc20("balance_of", [wallet])},
+      {series.stock.address, Abi.encode_erc20("balance_of", [wallet])},
+      {series.stock.address, Abi.encode_erc20("allowance", [wallet, series.address])}
+    ]
+
+    with {:ok, [on_raw, ses_raw, stock_raw, allow_raw]} <- Multicall.read(reads, block, opts),
+         {:ok, overnight} <- decode_uint(on_raw),
+         {:ok, session} <- decode_uint(ses_raw),
+         {:ok, stock} <- decode_uint(stock_raw),
+         {:ok, allowance} <- decode_uint(allow_raw) do
       {:ok,
        %{
          wallet: wallet,
@@ -361,22 +490,6 @@ defmodule Regents.Autolaunch.Exposure.Chain do
          do: {:ok, updated_at}
   end
 
-  defp boundaries(address, count, block, opts) do
-    0..(count - 1)//1
-    |> read_concurrently(fn index ->
-      Rpc.call_uint(address, Call.encode("boundaries(uint256)", [index]), block, opts)
-    end)
-  end
-
-  defp legs(addresses, block, opts), do: read_concurrently(addresses, &token(&1, block, opts))
-
-  defp token(address, block, opts) do
-    with {:ok, symbol} <- Rpc.call_string(address, Call.encode("symbol()", []), block, opts),
-         {:ok, name} <- Rpc.call_string(address, Call.encode("name()", []), block, opts),
-         {:ok, decimals} <- Rpc.call_uint(address, Call.encode("decimals()", []), block, opts),
-         do: {:ok, %{symbol: symbol, name: name, decimals: decimals}}
-  end
-
   @doc """
   What trading one leg against USDC through the Aerodrome router takes from
   `wallet` now: its USDC and leg balances and what each lets the router take,
@@ -385,11 +498,22 @@ defmodule Regents.Autolaunch.Exposure.Chain do
   def trade_position(series, config, leg, wallet, block, opts) do
     token = Map.fetch!(series, leg).address
 
-    with {:ok, pool} <- pool(token, config, block, opts),
-         {:ok, usdc} <- balance(config.usdc, wallet, block, opts),
-         {:ok, usdc_allowance} <- allowance(config.usdc, wallet, config.router, block, opts),
-         {:ok, held} <- balance(token, wallet, block, opts),
-         {:ok, leg_allowance} <- allowance(token, wallet, config.router, block, opts) do
+    reads = [
+      {config.pool_factory,
+       Call.encode("getPool(address,address,bool)", [token, config.usdc, false])},
+      {config.usdc, Abi.encode_erc20("balance_of", [wallet])},
+      {config.usdc, Abi.encode_erc20("allowance", [wallet, config.router])},
+      {token, Abi.encode_erc20("balance_of", [wallet])},
+      {token, Abi.encode_erc20("allowance", [wallet, config.router])}
+    ]
+
+    with {:ok, [pool_raw, usdc_raw, usdc_allow_raw, held_raw, leg_allow_raw]} <-
+           Multicall.read(reads, block, opts),
+         {:ok, pool} <- decode_optional_address(pool_raw),
+         {:ok, usdc} <- decode_uint(usdc_raw),
+         {:ok, usdc_allowance} <- decode_uint(usdc_allow_raw),
+         {:ok, held} <- decode_uint(held_raw),
+         {:ok, leg_allowance} <- decode_uint(leg_allow_raw) do
       {:ok,
        %{
          pool: pool,
@@ -421,56 +545,130 @@ defmodule Regents.Autolaunch.Exposure.Chain do
   end
 
   @doc "What `holder` holds of `token` at `block`, in its raw units."
-  def token_balance(token, holder, block, opts), do: balance(token, holder, block, opts)
-
-  defp allowance(token, owner, spender, block, opts),
-    do: Rpc.call_uint(token, Abi.encode_erc20("allowance", [owner, spender]), block, opts)
-
-  defp balance(token, holder, block, opts),
+  def token_balance(token, holder, block, opts),
     do: Rpc.call_uint(token, Abi.encode_erc20("balance_of", [holder]), block, opts)
 
-  defp supply(token, block, opts),
-    do: Rpc.call_uint(token, Call.encode("totalSupply()", []), block, opts)
+  # Multicall3 decoders
 
-  defp read_all(address, reads, block, opts) do
-    reads
-    |> read_concurrently(fn {key, {kind, signature}} ->
-      with {:ok, value} <- read(kind, address, signature, block, opts), do: {:ok, {key, value}}
+  defp decode_token(address, symbol_raw, name_raw, decimals_raw) do
+    with {:ok, symbol} <- decode_string(symbol_raw),
+         {:ok, name} <- decode_string(name_raw),
+         {:ok, decimals} <- decode_uint(decimals_raw) do
+      {:ok, %{address: address, symbol: symbol, name: name, decimals: decimals}}
+    end
+  end
+
+  defp decode_prints(applied, print_raws) do
+    applied
+    |> Enum.zip(Enum.chunk_every(print_raws, 2))
+    |> Enum.reduce_while({:ok, []}, fn {{at, index}, [print_raw, source_raw]}, {:ok, acc} ->
+      open? = rem(index, 2) == 1
+
+      with {:ok, [price, observed_at, finalized_at]} <- decode_words(print_raw, 3),
+           {:ok, [round_id, updated_at]} <- decode_words(source_raw, 2) do
+        entry = %{
+          index: index,
+          at: at,
+          open?: open?,
+          price: price,
+          observed_at: observed_at,
+          finalized_at: finalized_at,
+          round_id: round_id,
+          updated_at: updated_at
+        }
+
+        {:cont, {:ok, [entry | acc]}}
+      else
+        error -> {:halt, error}
+      end
     end)
     |> case do
-      {:ok, values} -> {:ok, Map.new(values)}
+      {:ok, entries} -> {:ok, Enum.reverse(entries)}
       error -> error
     end
   end
 
-  defp read(:uint, to, signature, block, opts),
-    do: Rpc.call_uint(to, Call.encode(signature, []), block, opts)
+  defp decode_pool_prices(existing_pools, reserve_raws, usdc) do
+    existing_pools
+    |> Enum.zip(reserve_raws)
+    |> Enum.reduce_while({:ok, %{}}, fn {{leg, _pool_addr, token}, reserve_raw}, {:ok, acc} ->
+      case decode_words(reserve_raw, 3) do
+        {:ok, [reserve0, reserve1, _last]} ->
+          {:cont, {:ok, Map.put(acc, leg, pool_price(token, usdc, reserve0, reserve1))}}
 
-  defp read(:address, to, signature, block, opts) do
-    with {:ok, address} <- Rpc.call_address(to, Call.encode(signature, []), block, opts),
-         do: {:ok, String.downcase(address)}
+        error ->
+          {:halt, error}
+      end
+    end)
   end
 
-  defp read(:word, to, signature, block, opts) do
-    with {:ok, word} <- Rpc.call_uint(to, Call.encode(signature, []), block, opts),
-         do:
-           {:ok,
-            "0x" <>
-              (word |> Integer.to_string(16) |> String.pad_leading(64, "0") |> String.downcase())}
+  # Aerodrome orders a pool's two tokens by address.
+  defp pool_price(token, usdc, reserve0, reserve1) do
+    {held, dollars} =
+      if String.downcase(token.address) < String.downcase(usdc),
+        do: {reserve0, reserve1},
+        else: {reserve1, reserve0}
+
+    per_token(held, dollars, token.decimals)
   end
 
-  # Independent reads at one block, side by side; the first failure is the answer.
-  defp read_concurrently(items, read) do
+  defp decode_each(items, decoder) do
     items
-    |> Task.async_stream(read, max_concurrency: @concurrency, timeout: @read_timeout)
-    |> Enum.reduce_while({:ok, []}, fn
-      {:ok, {:ok, value}}, {:ok, kept} -> {:cont, {:ok, [value | kept]}}
-      {:ok, {:error, _reason} = error}, _kept -> {:halt, error}
-      {:exit, _reason}, _kept -> {:halt, {:error, :chain_unavailable}}
+    |> Enum.reduce_while({:ok, []}, fn item, {:ok, acc} ->
+      case decoder.(item) do
+        {:ok, value} -> {:cont, {:ok, [value | acc]}}
+        error -> {:halt, error}
+      end
     end)
     |> case do
-      {:ok, kept} -> {:ok, Enum.reverse(kept)}
+      {:ok, values} -> {:ok, Enum.reverse(values)}
       error -> error
     end
   end
+
+  defp fetch_enum(table, code) do
+    case Map.fetch(table, code) do
+      {:ok, value} -> {:ok, value}
+      :error -> {:error, :invalid_chain_response}
+    end
+  end
+
+  defp decode_uint(<<value::256>>), do: {:ok, value}
+  defp decode_uint(:reverted), do: {:error, :refused}
+  defp decode_uint(_other), do: {:error, :invalid_chain_response}
+
+  defp decode_address(<<0::96, bytes::binary-size(20)>>),
+    do: {:ok, "0x" <> Base.encode16(bytes, case: :lower)}
+
+  defp decode_address(:reverted), do: {:error, :refused}
+  defp decode_address(_other), do: {:error, :invalid_chain_response}
+
+  defp decode_optional_address(<<0::256>>), do: {:ok, nil}
+  defp decode_optional_address(other), do: decode_address(other)
+
+  defp decode_word_hex(<<bytes::binary-size(32)>>),
+    do: {:ok, "0x" <> Base.encode16(bytes, case: :lower)}
+
+  defp decode_word_hex(:reverted), do: {:error, :refused}
+  defp decode_word_hex(_other), do: {:error, :invalid_chain_response}
+
+  defp decode_words(bin, count) when is_binary(bin) and byte_size(bin) == count * 32,
+    do: {:ok, for(<<word::256 <- bin>>, do: word)}
+
+  defp decode_words(:reverted, _count), do: {:error, :refused}
+  defp decode_words(_other, _count), do: {:error, :invalid_chain_response}
+
+  defp decode_string(<<offset::256, _rest::binary>> = bin)
+       when offset <= byte_size(bin) - 32 do
+    case binary_part(bin, offset, byte_size(bin) - offset) do
+      <<len::256, bytes::binary-size(len), _tail::binary>> ->
+        if String.valid?(bytes), do: {:ok, bytes}, else: {:error, :invalid_chain_response}
+
+      _malformed ->
+        {:error, :invalid_chain_response}
+    end
+  end
+
+  defp decode_string(:reverted), do: {:error, :refused}
+  defp decode_string(_other), do: {:error, :invalid_chain_response}
 end

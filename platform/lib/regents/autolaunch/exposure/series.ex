@@ -30,6 +30,7 @@ defmodule Regents.Autolaunch.Exposure.Series do
   alias Regents.Autolaunch.Exposure.{Chain, Deployment, Steps}
 
   @uint256_max 2 ** 256 - 1
+  @kinds [:buy, :sell, :mint, :redeem, :update, :end]
 
   actions do
     action :list, {:array, :map} do
@@ -58,7 +59,7 @@ defmodule Regents.Autolaunch.Exposure.Series do
 
     action :prepare, :map do
       argument :series, :string, allow_nil?: false
-      argument :kind, :atom, allow_nil?: false, constraints: [one_of: Steps.kinds()]
+      argument :kind, :atom, allow_nil?: false, constraints: [one_of: @kinds]
       argument :signer, :string
       argument :leg, :atom, constraints: [one_of: [:overnight, :session]]
       argument :amount, :integer, constraints: [min: 1, max: @uint256_max]

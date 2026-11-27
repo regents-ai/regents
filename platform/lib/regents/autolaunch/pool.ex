@@ -44,37 +44,46 @@ defmodule Regents.Autolaunch.Pool do
 
   @type t :: map()
 
-  @doc "The lab's pool facts for one graduated auction row, or why they cannot be read."
-  @spec read(map()) :: {:ok, t()} | {:error, atom()}
-  def read(%{state: state}) when state != :graduated, do: {:error, :not_graduated}
+  @doc """
+  The lab's pool facts for one graduated auction row, or why they cannot be read.
 
-  def read(%{kind: :agent} = auction) do
+  Pass `history?: false` for callers that need live pool, position, lane, and
+  splitter state without scanning historical swap or fee logs.
+  """
+  @spec read(map(), keyword()) :: {:ok, t()} | {:error, atom()}
+  def read(auction, read_opts \\ [])
+
+  def read(%{state: state}, _read_opts) when state != :graduated, do: {:error, :not_graduated}
+
+  def read(%{kind: :agent} = auction, read_opts) do
     with {:ok, config} <- Lab.current(),
          opts <- LabRpc.opts(config, "autolaunch pool page"),
          {:ok, block} <- Rpc.latest_block(opts),
-         do: read_agent(auction, config, block, opts)
+         do: read_agent(auction, config, block, opts, Keyword.get(read_opts, :history?, true))
   end
 
-  def read(%{kind: :stocks} = auction) do
+  def read(%{kind: :stocks} = auction, read_opts) do
     with {:ok, config} <- StocksLab.current(),
          opts <- StocksLab.rpc_opts(config, "autolaunch pool page"),
          {:ok, block} <- Rpc.latest_block(opts),
-         do: read_stocks(auction, config, block, opts)
+         do: read_stocks(auction, config, block, opts, Keyword.get(read_opts, :history?, true))
   end
 
   @doc """
   The same facts at a block already read, on the deployment it was read with:
   for a page that reads several pools at one moment.
   """
-  @spec read_at(map(), map(), Rpc.block(), keyword()) :: {:ok, t()} | {:error, atom()}
-  def read_at(%{state: state}, _config, _block, _opts) when state != :graduated,
+  @spec read_at(map(), map(), Rpc.block(), keyword(), keyword()) :: {:ok, t()} | {:error, atom()}
+  def read_at(auction, config, block, opts, read_opts \\ [])
+
+  def read_at(%{state: state}, _config, _block, _opts, _read_opts) when state != :graduated,
     do: {:error, :not_graduated}
 
-  def read_at(%{kind: :agent} = auction, config, block, opts),
-    do: read_agent(auction, config, block, opts)
+  def read_at(%{kind: :agent} = auction, config, block, opts, read_opts),
+    do: read_agent(auction, config, block, opts, Keyword.get(read_opts, :history?, true))
 
-  def read_at(%{kind: :stocks} = auction, config, block, opts),
-    do: read_stocks(auction, config, block, opts)
+  def read_at(%{kind: :stocks} = auction, config, block, opts, read_opts),
+    do: read_stocks(auction, config, block, opts, Keyword.get(read_opts, :history?, true))
 
   @doc """
   The pool's current price for the token record, from the words a reading job
@@ -368,7 +377,7 @@ defmodule Regents.Autolaunch.Pool do
   # Agent
 
   # The strategy, hook and LP locker are the launch's own version's.
-  defp read_agent(auction, config, block, opts) do
+  defp read_agent(auction, config, block, opts, history?) do
     with {:ok, config} <- Lab.contracts(config, auction.contracts_version),
          {:ok, distribution} <- agent_record(auction, config, block, opts),
          {:ok, fee} <- LabRpc.uint(config, :strategy, "POOL_FEE()", [], block, opts),
@@ -418,10 +427,11 @@ defmodule Regents.Autolaunch.Pool do
              opts
            ),
          {:ok, fees} <-
-           agent_fees(config, distribution, auction, block, opts),
+           agent_fees(config, distribution, auction, block, opts, history?),
          {:ok, treasury_vesting} <- treasury_vesting(config, distribution, block, opts),
          {:ok, prices} <-
-           PriceHistory.pool(
+           price_history(
+             history?,
              %{
                pool_manager: Lab.address!(config, :pool_manager),
                pool_id: distribution.pool_id,
@@ -537,11 +547,18 @@ defmodule Regents.Autolaunch.Pool do
   # The splitter's lane lands in it on the trade itself; the locked position's
   # own pool fees wait in the position until collected, and the position
   # carries what a collection would deposit now.
-  defp agent_fees(config, distribution, auction, block, opts) do
+  defp agent_fees(config, distribution, auction, block, opts, history?) do
     hook = Lab.address!(config, :hook)
 
     with {:ok, logs} <-
-           logs(hook, distribution.migration_block, block, [nil, distribution.pool_id], opts),
+           optional_logs(
+             history?,
+             hook,
+             distribution.migration_block,
+             block,
+             [nil, distribution.pool_id],
+             opts
+           ),
          {:ok, splitter} <-
            splitter_facts(
              Lab.abi!(config, :splitter),
@@ -649,7 +666,7 @@ defmodule Regents.Autolaunch.Pool do
 
   # Stocks
 
-  defp read_stocks(auction, config, block, opts) do
+  defp read_stocks(auction, config, block, opts, history?) do
     with {:ok, launch} <- stocks_record(auction, config, block, opts),
          decimals <- auction.quote_token_decimals,
          token_is_currency0? <- currency0?(launch.new_token, launch.stock),
@@ -671,9 +688,10 @@ defmodule Regents.Autolaunch.Pool do
              opts
            ),
          {:ok, positions} <- stocks_positions(config, launch, current, decimals, block, opts),
-         {:ok, fees} <- stocks_fees(config, launch, decimals, block, opts),
+         {:ok, fees} <- stocks_fees(config, launch, decimals, block, opts, history?),
          {:ok, prices} <-
-           PriceHistory.pool(
+           price_history(
+             history?,
              %{
                pool_manager: StocksLab.address!(config, :pool_manager),
                pool_id: launch.pool_id,
@@ -859,7 +877,7 @@ defmodule Regents.Autolaunch.Pool do
   # every accrual and settlement it emitted since graduation, the wallet the
   # Safe named to convert Regent's lane, and the splitter the staker lane and
   # the locker's LP fees flow to.
-  defp stocks_fees(config, launch, decimals, block, opts) do
+  defp stocks_fees(config, launch, decimals, block, opts, history?) do
     %{hook: hook, abis: %{"hook" => abi}} = contracts = launch.contracts
 
     with {:ok, figures} <-
@@ -874,7 +892,15 @@ defmodule Regents.Autolaunch.Pool do
              block,
              opts
            ),
-         {:ok, logs} <- logs(hook, launch.migration_block, block, [nil, launch.pool_id], opts) do
+         {:ok, logs} <-
+           optional_logs(
+             history?,
+             hook,
+             launch.migration_block,
+             block,
+             [nil, launch.pool_id],
+             opts
+           ) do
       accrued_topic = LabAbi.topic(contracts.fee_accrued)
       settled_topics = Map.new(contracts.lane_settled, &{LabAbi.topic(elem(&1, 1)), elem(&1, 0)})
       accrued_logs = Enum.filter(logs, &(topic_at(&1, 0) == accrued_topic))
@@ -1126,7 +1152,14 @@ defmodule Regents.Autolaunch.Pool do
     )
   end
 
-  defp logs(address, from_block, block, topics, opts),
+  defp price_history(false, _pool, _from_block, _block, _opts), do: {:ok, nil}
+
+  defp price_history(true, pool, from_block, block, opts),
+    do: PriceHistory.pool(pool, from_block, block, opts)
+
+  defp optional_logs(false, _address, _from_block, _block, _topics, _opts), do: {:ok, []}
+
+  defp optional_logs(true, address, from_block, block, topics, opts),
     do: Rpc.logs(address, topics, from_block, block.number, opts)
 
   defp launchpad_uint(contracts, signature, arguments, block, opts) do

@@ -89,12 +89,16 @@ defmodule Regents.Autolaunch.Stocks.StakeActions do
   and the currency it trades against) and what it has already claimed of each
   since the pool opened. A public read of public figures; nothing is bound to it.
   """
-  @spec position(map(), String.t()) :: {:ok, map()} | {:error, term()}
-  def position(pool, address) do
+  @spec position(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def position(pool, address, opts \\ []) do
     with {:ok, holder} <- address(address),
          {:ok, config} <- lab(venue(pool)),
          {:ok, holding} <- holding(pool, holder, config),
-         {:ok, claimed} <- claimed_so_far(pool, holder, config),
+         {:ok, claimed} <-
+           if(Keyword.get(opts, :claimed?, true),
+             do: claimed_so_far(pool, holder, config),
+             else: {:ok, nil}
+           ),
          do: {:ok, Map.put(holding, :claimed, claimed)}
   end
 
@@ -335,10 +339,11 @@ defmodule Regents.Autolaunch.Stocks.StakeActions do
 
   # The pool and its venue
 
-  defp pool(%{chain: :base, auction: auction}), do: auction |> Pool.read() |> pooled()
+  defp pool(%{chain: :base, auction: auction}),
+    do: auction |> Pool.read(history?: false) |> pooled()
 
   defp pool(%{chain: :robinhood, auction: auction}),
-    do: auction |> RobinhoodPool.read() |> pooled()
+    do: auction |> RobinhoodPool.read(history?: false) |> pooled()
 
   defp pooled({:ok, pool}), do: {:ok, pool}
   defp pooled({:error, reason}) when reason in @unreadable, do: unavailable(:chain_unavailable)

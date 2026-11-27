@@ -258,10 +258,11 @@ defmodule Regents.Autolaunch.SwapActions do
 
   # The pool and the two sides of the trade
 
-  defp pool(%{chain: :base, auction: auction}), do: auction |> Pool.read() |> pooled()
+  defp pool(%{chain: :base, auction: auction}),
+    do: auction |> Pool.read(history?: false) |> pooled()
 
   defp pool(%{chain: :robinhood, auction: auction}),
-    do: auction |> RobinhoodPool.read() |> pooled()
+    do: auction |> RobinhoodPool.read(history?: false) |> pooled()
 
   defp pool(_launch), do: unavailable(:swap_unavailable)
 

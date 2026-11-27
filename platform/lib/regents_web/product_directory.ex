@@ -93,9 +93,9 @@ defmodule RegentsWeb.ProductDirectory do
       ],
       what_it_does: [
         %{
-          title: "Four isolated chat modes",
+          title: "Three core modes: Local AI, Private Cloud & Inference Serving",
           copy:
-            "Every chat thread is self-contained and locks its mode on turn 1: Local, NEAR AI Gateway, Token Inference (Venice or Boundless), or zkAPI Anon Inference.",
+            "Run Inkling 2 Mini offline on Apple Silicon, route Private Cloud threads through NEAR AI hardware enclaves, Venice AI (Base USDC), Boundless (Tempo USDC.e), or unlinkable zkAPI Anon Inference (ETH), or serve inference on EigenLayer Darkbloom (macOS 27+).",
           status: "live",
           link: %{label: "Install Cloak", href: install_url}
         },
@@ -116,7 +116,7 @@ defmodule RegentsWeb.ProductDirectory do
       ],
       about: [
         "Cloak lets you choose where an AI conversation runs, see what leaves your Mac, and understand what can link one request to another.",
-        "It combines on-device Apple Silicon inference, client-verified NEAR hardware enclaves, Tor-routed Token Inference (Venice AI and Boundless), unlinkable zkAPI Anon Inference payments, opt-in offline Local Access, and a sealed Linux microVM agent in one native macOS app."
+        "It combines on-device Apple Silicon inference, Private Cloud Inference across client-verified NEAR hardware enclaves, Venice AI (Base USDC), Boundless (Tempo USDC.e), and unlinkable zkAPI Anon Inference (ETH), optional EigenLayer Darkbloom Inference Serving (macOS 27+), opt-in offline Local Access, and a sealed Linux microVM agent in one native macOS app."
       ],
       audience: [
         "Mac users who want fast local AI with optional offline context that never touches a cloud provider.",

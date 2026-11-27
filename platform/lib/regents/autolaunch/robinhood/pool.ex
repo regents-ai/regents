@@ -35,19 +35,22 @@ defmodule Regents.Autolaunch.Robinhood.Pool do
   The lab's staking facts for one graduated auction, or why they cannot be
   read. The auction is its stored row, or any map naming its
   `auction_address` and `contracts_version`: a launch reads only the
-  launchpad, hook and locker of its own version.
+  launchpad, hook and locker of its own version. Pass `history?: false` when
+  the caller does not need historical price or hook-log scans.
   """
-  @spec read(map()) :: {:ok, t()} | {:error, atom()}
-  def read(auction) do
+  @spec read(map(), keyword()) :: {:ok, t()} | {:error, atom()}
+  def read(auction, read_opts \\ []) do
     with {:ok, config} <- Lab.current(),
          opts <- Lab.rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
-         do: read_at(auction, config, block, opts)
+         do: read_at(auction, config, block, opts, read_opts)
   end
 
   @doc "The same facts at a block already read, on the deployment it was read with."
-  @spec read_at(map(), map(), Rpc.block(), keyword()) :: {:ok, t()} | {:error, atom()}
-  def read_at(auction, config, block, opts) do
+  @spec read_at(map(), map(), Rpc.block(), keyword(), keyword()) :: {:ok, t()} | {:error, atom()}
+  def read_at(auction, config, block, opts, read_opts \\ []) do
+    history? = Keyword.get(read_opts, :history?, true)
+
     with {:ok, launch} <- launch_record(auction, config, block, opts),
          {:ok, stock} <- Assets.fetch(Lab.chain_id(), launch.stock),
          {:ok, symbol} <-
@@ -63,16 +66,16 @@ defmodule Regents.Autolaunch.Robinhood.Pool do
              opts
            ),
          {:ok, positions} <- positions(config, launch, stock, current, block, opts),
-         {:ok, fees} <- fees(config, launch, stock, block, opts),
+         {:ok, fees} <- fees(config, launch, stock, block, opts, history?),
          {:ok, prices} <-
-           PriceHistory.pool(
+           price_history(
+             history?,
              %{
                pool_manager: Lab.address!(config, :pool_manager),
                pool_id: launch.pool_id,
                token_is_currency0?: currency0?(launch.new_token, launch.stock),
                currency_decimals: stock.decimals
              },
-             0,
              block,
              opts
            ) do
@@ -392,7 +395,7 @@ defmodule Regents.Autolaunch.Robinhood.Pool do
   # Safe named to convert Regent's lane, and the splitter the staker lane and
   # the locker's LP fees flow to. Like the price history, the hook's logs are
   # read from the chain's start.
-  defp fees(config, launch, stock, block, opts) do
+  defp fees(config, launch, stock, block, opts, history?) do
     %{hook: hook, abis: %{"hook" => abi}} = contracts = launch.contracts
 
     with {:ok, figures} <-
@@ -400,7 +403,7 @@ defmodule Regents.Autolaunch.Robinhood.Pool do
          {:ok, converter} <-
            Rpc.call_address(hook, LabAbi.encode(abi, "executor()", []), block, opts),
          {:ok, splitter} <- splitter_facts(config, launch.splitter, block, opts),
-         {:ok, logs} <- hook_logs(contracts, launch.pool_id, block, opts) do
+         {:ok, logs} <- optional_hook_logs(history?, contracts, launch.pool_id, block, opts) do
       accrued_topic = LabAbi.topic(contracts.fee_accrued)
       settled_topics = Map.new(contracts.lane_settled, &{LabAbi.topic(elem(&1, 1)), elem(&1, 0)})
       accrued_logs = Enum.filter(logs, &(event_topic(&1) == accrued_topic))
@@ -443,20 +446,14 @@ defmodule Regents.Autolaunch.Robinhood.Pool do
     end
   end
 
-  defp hook_logs(contracts, pool_id, block, opts) do
-    filter = %{
-      address: contracts.hook,
-      fromBlock: "0x0",
-      toBlock: "0x" <> Integer.to_string(block.number, 16),
-      topics: [nil, pool_id]
-    }
+  defp price_history(false, _pool, _block, _opts), do: {:ok, nil}
 
-    case Rpc.request("eth_getLogs", [filter], opts) do
-      {:ok, logs} when is_list(logs) -> {:ok, logs}
-      {:ok, _other} -> {:error, :invalid_chain_response}
-      error -> error
-    end
-  end
+  defp price_history(true, pool, block, opts), do: PriceHistory.pool(pool, 0, block, opts)
+
+  defp optional_hook_logs(false, _contracts, _pool_id, _block, _opts), do: {:ok, []}
+
+  defp optional_hook_logs(true, contracts, pool_id, block, opts),
+    do: Rpc.logs(contracts.hook, [nil, pool_id], 0, block.number, opts)
 
   defp event_topic(%{"topics" => [topic | _rest]}), do: String.downcase(topic)
 
