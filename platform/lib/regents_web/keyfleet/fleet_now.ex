@@ -313,7 +313,7 @@ defmodule RegentsWeb.Keyfleet.FleetNow do
     do: item.type |> WorkspacePage.type_name() |> elem(0) |> String.capitalize()
 
   defp kind(%{kind: :posts}), do: "Posts"
-  defp kind(%{kind: :page}), do: "Notebook page"
+  defp kind(%{kind: :page}), do: "Saved run"
   defp kind(%{kind: :commit}), do: "Code"
 
   defp words(%{kind: :item, item: item}), do: item.title

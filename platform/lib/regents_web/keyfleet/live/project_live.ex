@@ -81,6 +81,45 @@ defmodule RegentsWeb.Keyfleet.ProjectLive do
       </p>
 
       <section
+        :if={@project.demonstrations != []}
+        id="project-demonstrations"
+        class="project-part project-demonstrations"
+        aria-labelledby="project-demonstrations-title"
+      >
+        <h2 id="project-demonstrations-title">
+          Demonstrations <span class="project-count">{length(@project.demonstrations)}</span>
+        </h2>
+        <p class="project-demo-note">
+          Saved notebook runs made public by a Key. Opens as a static snapshot with no sign-in; live marimo notebooks stay members-only.
+        </p>
+        <ul class="project-items">
+          <li :for={demo <- @project.demonstrations} id={"project-demo-#{demo.id}"}>
+            <div class="project-item">
+              <span class="project-type">Saved run</span>
+              <span class="project-title">{demo.key}</span>
+              <span class="project-by">
+                Published
+                <RegentsWeb.Keyfleet.Time.local
+                  id={"project-demo-#{demo.id}-at"}
+                  at={demo.at}
+                  as={:stamp}
+                />
+              </span>
+            </div>
+            <a
+              id={"project-demo-#{demo.id}-open"}
+              href={demo.page_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="rg-button rg-button--secondary project-demo-open"
+            >
+              <span class="rg-button__label">View demonstration</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <section
         :if={@project.goals}
         id="project-goals"
         class="project-part"
@@ -92,7 +131,8 @@ defmodule RegentsWeb.Keyfleet.ProjectLive do
         </ul>
         <p :if={@project.goals == []} class="project-empty">No open goals yet.</p>
         <p id="project-members-only" class="project-note">
-          Its work is shown to the fleet's members.
+          <span :if={@project.demonstrations == []}>No public demonstrations published yet.</span>
+          Full workspace tasks, live marimo notebooks, and member chat are for the fleet's Key holders.
         </p>
       </section>
 

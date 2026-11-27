@@ -17,6 +17,7 @@ let timer: number | undefined
 
 /** This visit's id, from the page's `regent-visit` tag, for the page's own tool calls. */
 export function visitId(): string | undefined {
+  if (typeof document === "undefined") return undefined
   return document.querySelector<HTMLMetaElement>('meta[name="regent-visit"]')?.content || undefined
 }
 

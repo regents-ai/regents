@@ -4,7 +4,7 @@
 // product's canonical `priv/<product>/tool_manifest.json` via
 // `GET /api/v1/<product>/capabilities`, with a safe built-in route table so
 // public GET tools never drift from the canonical manifest.
-import {visitId} from "./visit_log"
+import {visitId} from "./visit_log.ts"
 
 type Schema = {
   type: "object"
@@ -39,9 +39,10 @@ type ToolSpec = {
   description: string
   properties?: Schema["properties"]
   required?: string[]
+  annotations?: Partial<Annotations>
   accept?: "application/json" | "text/markdown"
   manifestText?: boolean
-  path: (input: Record<string, string>) => string
+  path: (input: Record<string, unknown>) => string
 }
 
 type ManifestHttp = {
@@ -78,7 +79,7 @@ const UNTRUSTED_READ_ANNOTATIONS: Annotations = {
   consequentialHint: false,
 }
 
-const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
+export const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
   techtree: [
     {
       name: "techtree_catalog",
@@ -104,7 +105,7 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
       description: "Read the fixed task contract for one Techtree Climb by slug.",
       properties: {slug: {type: "string", description: "Climb slug"}},
       required: ["slug"],
-      path: input => `/api/v1/techtree/climbs/${encodeURIComponent(input.slug)}`,
+      path: input => `/api/v1/techtree/climbs/${encodeURIComponent(String(input.slug ?? ""))}`,
     },
     {
       name: "techtree_docs_markdown",
@@ -129,25 +130,44 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
       description: "Read one Keyfleet fleet directory record by fleet_id (e.g. fleet_tech_classic).",
       properties: {fleet_id: {type: "string", description: "Fleet id"}},
       required: ["fleet_id"],
-      path: input => `/api/v1/keyfleet/fleets/${encodeURIComponent(input.fleet_id)}`,
+      path: manifestPathBuilder("/api/v1/keyfleet/fleets/{fleet_id}"),
     },
     {
       name: "keyfleet_workspace_pulse",
       manifestName: "workspace_pulse",
       title: "Read Keyfleet workspace pulse",
-      description: "Read recent public workspace pulse activity for a Keyfleet fleet.",
-      properties: {fleet_id: {type: "string", description: "Fleet id"}},
+      description:
+        "Read an open fleet's latest thirty workspace changes (Key, paired agent name if any, and project title — never item titles, notes, or wallet addresses). Pass next_after unchanged as after to poll only newer changes.",
+      properties: {
+        fleet_id: {type: "string", description: "Fleet id"},
+        after: {
+          type: "string",
+          description:
+            "Pass next_after from your last read unchanged to read only changes since; omit for the latest.",
+          pattern: "^(0|[1-9][0-9]{0,18})$",
+        },
+      },
       required: ["fleet_id"],
-      path: input => `/api/v1/keyfleet/fleets/${encodeURIComponent(input.fleet_id)}/workspace/pulse`,
+      annotations: {untrustedContentHint: true},
+      path: manifestPathBuilder("/api/v1/keyfleet/fleets/{fleet_id}/workspace/pulse"),
     },
     {
       name: "keyfleet_fleet_proposals",
       manifestName: "proposals_list",
       title: "List Keyfleet proposals",
       description: "Read public governance proposals for a Keyfleet fleet.",
-      properties: {fleet_id: {type: "string", description: "Fleet id"}},
+      properties: {
+        fleet_id: {type: "string", description: "Fleet id"},
+        before: {
+          type: "string",
+          description:
+            "Pass next_before from your last page unchanged for older proposals; omit for the newest.",
+          pattern: "^[1-9][0-9]{0,18}$",
+        },
+      },
       required: ["fleet_id"],
-      path: input => `/api/v1/keyfleet/fleets/${encodeURIComponent(input.fleet_id)}/proposals`,
+      annotations: {untrustedContentHint: true},
+      path: manifestPathBuilder("/api/v1/keyfleet/fleets/{fleet_id}/proposals"),
     },
     {
       name: "keyfleet_fleet_treasury",
@@ -156,16 +176,23 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
       description: "Read public treasury balance and history for a Keyfleet fleet.",
       properties: {fleet_id: {type: "string", description: "Fleet id"}},
       required: ["fleet_id"],
-      path: input => `/api/v1/keyfleet/fleets/${encodeURIComponent(input.fleet_id)}/treasury`,
+      path: manifestPathBuilder("/api/v1/keyfleet/fleets/{fleet_id}/treasury"),
     },
     {
       name: "keyfleet_fleet_seasons",
       manifestName: "fleet_seasons",
       title: "List Keyfleet seasons",
       description: "Read public trading seasons for a Keyfleet fleet.",
-      properties: {fleet_id: {type: "string", description: "Fleet id"}},
+      properties: {
+        fleet_id: {type: "string", description: "Fleet id"},
+        before: {
+          type: "string",
+          description:
+            "Pass next_before from your last page unchanged for older seasons; omit for the newest.",
+        },
+      },
       required: ["fleet_id"],
-      path: input => `/api/v1/keyfleet/fleets/${encodeURIComponent(input.fleet_id)}/seasons`,
+      path: manifestPathBuilder("/api/v1/keyfleet/fleets/{fleet_id}/seasons"),
     },
   ],
   autolaunch: [
@@ -209,7 +236,7 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
       description: "Read one Patchbay forum thread and its replies by ID.",
       properties: {id: {type: "string", description: "Thread ID"}},
       required: ["id"],
-      path: input => `/api/v1/patchbay/forum/threads/${encodeURIComponent(input.id)}`,
+      path: input => `/api/v1/patchbay/forum/threads/${encodeURIComponent(String(input.id ?? ""))}`,
     },
     {
       name: "patchbay_help",
@@ -257,7 +284,7 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
       },
       required: ["campaign_id"],
       manifestText: true,
-      path: input => `/api/v1/patchbay/offers/campaigns/${encodeURIComponent(input.campaign_id)}`,
+      path: input => `/api/v1/patchbay/offers/campaigns/${encodeURIComponent(String(input.campaign_id ?? ""))}`,
     },
     {
       name: "patchbay_services",
@@ -270,8 +297,10 @@ const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
       },
       path: input => {
         const params = new URLSearchParams()
-        if (input.q) params.set("q", input.q)
-        if (input.protocol) params.set("protocol", input.protocol)
+        if (typeof input.q === "string" && input.q.trim() !== "") params.set("q", input.q)
+        if (typeof input.protocol === "string" && input.protocol.trim() !== "") {
+          params.set("protocol", input.protocol)
+        }
         const qs = params.toString()
         return qs ? `/api/v1/patchbay/services?${qs}` : "/api/v1/patchbay/services"
       },
@@ -323,26 +352,43 @@ async function fetchManifestTools(
   return byName
 }
 
-function buildAnnotations(product: string, entry?: ManifestTool): Annotations {
+export function buildAnnotations(
+  product: string,
+  spec?: Pick<ToolSpec, "annotations">,
+  entry?: ManifestTool,
+): Annotations {
   const defaults = product === "patchbay" ? UNTRUSTED_READ_ANNOTATIONS : READ_ANNOTATIONS
+  const fallback = spec?.annotations
   const ann = entry?.annotations
-  if (!ann) return defaults
   return {
-    readOnlyHint: typeof ann.readOnlyHint === "boolean" ? ann.readOnlyHint : defaults.readOnlyHint,
+    readOnlyHint:
+      typeof ann?.readOnlyHint === "boolean"
+        ? ann.readOnlyHint
+        : typeof fallback?.readOnlyHint === "boolean"
+          ? fallback.readOnlyHint
+          : defaults.readOnlyHint,
     untrustedContentHint:
-      typeof ann.untrustedContentHint === "boolean"
+      typeof ann?.untrustedContentHint === "boolean"
         ? ann.untrustedContentHint
-        : defaults.untrustedContentHint,
+        : typeof fallback?.untrustedContentHint === "boolean"
+          ? fallback.untrustedContentHint
+          : defaults.untrustedContentHint,
     consequentialHint:
-      typeof ann.consequentialHint === "boolean"
+      typeof ann?.consequentialHint === "boolean"
         ? ann.consequentialHint
-        : defaults.consequentialHint,
+        : typeof fallback?.consequentialHint === "boolean"
+          ? fallback.consequentialHint
+          : defaults.consequentialHint,
   }
 }
 
-function buildSchema(spec: ToolSpec, entry?: ManifestTool): Schema {
-  const props = spec.properties ?? entry?.input_schema?.properties ?? {}
-  const required = spec.required ?? entry?.input_schema?.required ?? []
+export function buildSchema(spec: ToolSpec, entry?: ManifestTool): Schema {
+  const manifestProps = entry?.input_schema?.properties
+  const props =
+    manifestProps && Object.keys(manifestProps).length > 0
+      ? {...(spec.properties ?? {}), ...manifestProps}
+      : (spec.properties ?? manifestProps ?? {})
+  const required = entry?.input_schema?.required ?? spec.required ?? []
   return {
     type: "object",
     properties: props,
@@ -351,17 +397,20 @@ function buildSchema(spec: ToolSpec, entry?: ManifestTool): Schema {
   }
 }
 
-function manifestPathBuilder(template: string): (input: Record<string, string>) => string {
+export function manifestPathBuilder(template: string): (input: Record<string, unknown>) => string {
   return input => {
     const routeKeys = new Set<string>()
     const path = template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_match, key: string) => {
       routeKeys.add(key)
-      return encodeURIComponent(input[key] ?? "")
+      const raw = input[key]
+      return encodeURIComponent(raw == null ? "" : String(raw))
     })
     const query = new URLSearchParams()
     for (const [key, value] of Object.entries(input)) {
       if (routeKeys.has(key)) continue
-      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      if (typeof value === "string") {
+        if (value.trim() !== "") query.set(key, value)
+      } else if (typeof value === "number" || typeof value === "boolean") {
         query.set(key, String(value))
       }
     }
@@ -399,20 +448,26 @@ function extraManifestSpecs(
   return extras
 }
 
-async function runSpec(spec: ToolSpec, rawInput: unknown, signal: AbortSignal): Promise<unknown> {
+export async function runSpec(
+  spec: ToolSpec,
+  rawInput: unknown,
+  signal: AbortSignal,
+  fetchImpl: typeof fetch = fetch,
+): Promise<unknown> {
   const input =
     rawInput && typeof rawInput === "object" && !Array.isArray(rawInput)
-      ? (rawInput as Record<string, string>)
+      ? (rawInput as Record<string, unknown>)
       : {}
   for (const key of spec.required ?? []) {
-    if (typeof input[key] !== "string" || input[key].trim() === "") {
+    const val = input[key]
+    if (typeof val !== "string" || val.trim() === "") {
       return {ok: false, error: {code: "invalid_input", message: `Missing required string: ${key}`}}
     }
   }
   const accept = spec.accept ?? "application/json"
   const visit = visitId()
   try {
-    const response = await fetch(spec.path(input), {
+    const response = await fetchImpl(spec.path(input), {
       headers: {Accept: accept, ...(visit && {"x-regent-visit": visit})},
       credentials: "omit",
       cache: "no-store",
@@ -471,7 +526,7 @@ export function installProductWebMcpTools(documentRoot: Document = document): vo
             title: entry?.title ?? spec.title,
             description: entry?.description ?? spec.description,
             inputSchema: buildSchema(spec, entry),
-            annotations: buildAnnotations(product, entry),
+            annotations: buildAnnotations(product, spec, entry),
             execute: input => runSpec(spec, input, current.signal),
           }
           return Promise.resolve().then(() => context.registerTool(tool, {signal: current.signal}))

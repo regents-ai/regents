@@ -2470,7 +2470,7 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
             {type_label(record.item.type)} <span :if={record.label}>· {record.label}</span>
           </p>
           <p :if={record.kind == :page} id={"public-#{record.id}-kind"} class="workspace-kicker">
-            Notebook page <span :if={record.label}>· {record.label}</span>
+            Saved notebook run <span :if={record.label}>· {record.label}</span>
           </p>
           <p :if={record.kind == :commit} class="workspace-kicker">
             Code <span :if={record.label}>· {record.label}</span>
@@ -2520,6 +2520,9 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
             as={:stamp}
           />
         </p>
+        <p :if={record.kind == :page} class="workspace-detail">
+          Static saved snapshot · readable without sign-in.
+        </p>
         <p :if={record.kind == :page}>
           <a
             id={"public-#{record.id}-page"}
@@ -2529,7 +2532,7 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
             rel="noopener noreferrer"
             aria-describedby={"public-#{record.id}-kind"}
           >
-            Open
+            View demonstration
           </a>
         </p>
         <p :if={record.kind == :commit}>

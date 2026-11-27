@@ -29,7 +29,7 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Public do
     end
 
     action :pulse, :map do
-      description "An open fleet's latest thirty workspace changes, or those since a cursor, without their words."
+      description "An open fleet's latest thirty workspace changes (Key, paired agent name if any, and project title; never item titles, notes, or wallet addresses), or only newer changes after a cursor."
       argument :fleet_id, :string, allow_nil?: false, constraints: @fleet
 
       argument :after, :string,

@@ -231,5 +231,24 @@ a.project-title:hover {
   color: var(--color-fg-muted);
 }
 
+/* Public saved notebook runs surfaced at the top of a project page, clearly
+   separated from the members-only workspace. */
+.project-demonstrations {
+  padding: var(--space-4, 1rem);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-elevated, var(--color-surface));
+}
+
+.project-demo-note {
+  color: var(--color-fg-muted);
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.project-demo-open {
+  white-space: nowrap;
+}
+
 }
 }

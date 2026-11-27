@@ -18,7 +18,7 @@ defmodule RegentsWeb.Keyfleet.ProjectPage do
   doesn't exist.
   """
 
-  alias Regents.Keyfleet.{Fleets, Graph, Projects}
+  alias Regents.Keyfleet.{Fleets, Graph, Notebooks, Projects}
   alias Regents.Keyfleet.Graph.Object
   alias RegentsWeb.Keyfleet.{ActivityLines, DirectoryMD, WorkspacePage}
   alias RegentsWeb.NotFoundError
@@ -40,6 +40,7 @@ defmodule RegentsWeb.Keyfleet.ProjectPage do
 
   defp page(fleet_id, project) do
     path = path(fleet_id, project.name)
+    demos = demonstrations(fleet_id, project.name)
 
     %{
       fleet_id: fleet_id,
@@ -53,15 +54,35 @@ defmodule RegentsWeb.Keyfleet.ProjectPage do
       shown?: project.shown_to_everyone,
       pair_path: pair_path(path),
       workspace_path: WorkspacePage.place_path(fleet_id, :project, project.name),
-      public_path: public_path(fleet_id, project.name),
+      public_path: public_path(fleet_id, project.name, demos),
+      demonstrations: demos,
       goals: if(not project.shown_to_everyone, do: goal_titles(fleet_id, project.name)),
       parts: if(project.shown_to_everyone, do: parts(fleet_id, project.name))
     }
   end
 
+  # Saved notebook pages a Key made public in this project, newest first, shown
+  # directly on the project's public page so visitors can open demonstrations
+  # without signing in.
+  defp demonstrations(fleet_id, name) do
+    fleet_id
+    |> Projects.publications!(name, query: [filter: [kind: :page], limit: @shown])
+    |> Enum.map(fn pub ->
+      %{
+        id: pub.id,
+        key: ActivityLines.key_name(pub.key, nil),
+        page_url: Notebooks.url(fleet_id, pub.page),
+        at: pub.inserted_at
+      }
+    end)
+  end
+
   # The project's Public place, once one of the fleet's Keys has made
   # something public in it.
-  defp public_path(fleet_id, name) do
+  defp public_path(fleet_id, name, [_ | _]),
+    do: WorkspacePage.place_path(fleet_id, :public, name)
+
+  defp public_path(fleet_id, name, []) do
     if Projects.publications!(fleet_id, name, query: [limit: 1]) != [],
       do: WorkspacePage.place_path(fleet_id, :public, name)
   end

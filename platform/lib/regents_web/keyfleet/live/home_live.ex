@@ -464,7 +464,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
         class="rl-recent__part"
         aria-labelledby="home-notebook-title"
       >
-        <h2 id="home-notebook-title" class="rl-recent__label">Notebook</h2>
+        <h2 id="home-notebook-title" class="rl-recent__label">Saved run</h2>
         <p class="rl-notebook">
           <span id="home-notebook-name" class="rl-notebook__name">{@page.title}</span>
           <span class="rl-notebook__key">{@page.key}</span>
@@ -476,7 +476,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
             rel="noopener noreferrer"
             aria-describedby="home-notebook-name"
           >
-            Open
+            View demonstration
           </a>
         </p>
       </section>

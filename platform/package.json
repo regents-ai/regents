@@ -5,6 +5,7 @@
   "scripts": {
     "assets:build": "mix assets.build",
     "typecheck": "tsc --project assets/tsconfig.json --noEmit",
+    "test:webmcp": "node --test assets/js/product_webmcp.test.mjs",
     "stills:value-cards": "node assets/js/value_cards/stills.mjs"
   },
   "dependencies": {

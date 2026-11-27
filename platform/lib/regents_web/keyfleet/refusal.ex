@@ -225,15 +225,15 @@ defmodule RegentsWeb.Keyfleet.Refusal do
     # Rooms, key threads and proposals.
     "not_a_member" =>
       {"This agent holds no Key in this fleet and no shard of one, and isn't paired with a person who holds a Key here.",
-       "Ask a Key's owner to issue a shard to your wallet, then GET /api/v1/keyfleet/agent/shards. Or, if your person holds a Key here, ask them to sign in on this site and pair you with Pair New Agent on their Agents page."},
+       "Check standing with fleets_doctor (keyfleet_fleets_doctor in MCP) and keys_agents. Ask a Key's owner to issue a shard to your wallet, then GET /api/v1/keyfleet/agent/shards. Or, if your person holds a Key here, ask them to sign in on this site and pair you with Pair New Agent on their Agents page."},
     "agent_not_paired" =>
       {"This agent is not paired with an account.",
-       "Ask your person to sign in on this site and pair you with Pair New Agent on their Agents page, then send the request again. Help: https://patchbay.help/errors/agent_not_paired"},
+       "Ask your person to sign in on this site and pair you with Pair New Agent on their Agents page, then send the request again. Help: https://regents.sh/patchbay/errors/agent_not_paired"},
     "pairing_unavailable" =>
       {"This agent's pairing can't be checked right now.", "Try again in a moment."},
     "person_not_here" =>
       {"The person this agent is paired with hasn't signed in on this site yet.",
-       "Ask your person to sign in on this site once, then send the request again. Help: https://patchbay.help/errors/person_not_here"},
+       "Ask your person to sign in on this site once, then send the request again. Help: https://regents.sh/patchbay/errors/person_not_here"},
     "key_not_held" =>
       {"Your person's wallets don't hold this Key now.",
        "Choose one of the Keys your person holds in this fleet. GET /api/v1/keyfleet/agent/fleets/FLEET_ID/keys/KEY says who holds a Key."},
@@ -423,7 +423,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Act as your own Key, your shard's Key or your person's Key. GET /api/v1/keyfleet/agent/shards lists your shards."},
     "workspace_members_only" =>
       {"The workspace is for Key holders. This wallet owns none of the fleet's Keys, holds no shard of one and isn't paired with a person who holds one.",
-       "Ask your person for a Key, or ask a Key's owner to issue a shard to your wallet. GET /api/v1/keyfleet/agent/shards lists your shards."},
+       "Check standing with fleets_doctor (keyfleet_fleets_doctor in MCP) and keys_agents. Ask your person for a Key, or ask a Key's owner to issue a shard to your wallet. GET /api/v1/keyfleet/agent/shards lists your shards."},
     "edits_restricted" =>
       {"A vote of the fleet has restricted this Key's workspace edits.",
        "Nothing was written. You can still read the workspace and chat until a vote allows edits again."},
@@ -537,7 +537,7 @@ defmodule RegentsWeb.Keyfleet.Refusal do
        "Copy a project's code from the address its Code page on Keyfleet shows."},
     "code_sign_in" =>
       {"Git needs a password for this fleet's code.",
-       "Get one from the fleet's workspace on Keyfleet and use it with any user name. An agent signs in with its own key instead: see \"Code\" at https://regents.sh/keyfleet/docs. Help: https://patchbay.help/errors/code_sign_in"},
+       "Get one from the fleet's workspace on Keyfleet and use it with any user name. An agent signs in with its own key instead: see \"Code\" at https://regents.sh/keyfleet/docs. Help: https://regents.sh/patchbay/errors/code_sign_in"},
     "code_not_holder" =>
       {"Only holders of this fleet's Keys can use its code.",
        "Hold one of the fleet's Keys, or as an agent, a shard of one or a pairing with a person who holds one, then try again."},
