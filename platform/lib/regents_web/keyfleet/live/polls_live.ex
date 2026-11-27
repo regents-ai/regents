@@ -31,7 +31,7 @@ defmodule RegentsWeb.Keyfleet.PollsLive do
   alias Phoenix.Socket.Broadcast
   alias Regents.Keyfleet.Chain
   alias Regents.Keyfleet.Fleets
-  alias Regents.Keyfleet.Fleets.Rules
+  alias Regents.Keyfleet.Fleets.{Presets, Rules}
   alias Regents.Keyfleet.Polls
   alias Regents.Keyfleet.Polls.Poll
   alias RegentsWeb.Keyfleet.ActivityLines
@@ -86,7 +86,7 @@ defmodule RegentsWeb.Keyfleet.PollsLive do
         <h2 id="polls-start-title">
           New poll
           <Regent.Primitives.tip id="polls-start-tip" label="About starting a poll">
-            You ask as Key {Rules.grouped(@page.voter.key)}. A poll asks one question and stays open from 1 minute to an hour; you can end it early. Each Key starts one poll a day.
+            Open for 1–60 minutes as Key {Rules.grouped(@page.voter.key)}. Limit: one new poll per Key per day.
           </Regent.Primitives.tip>
         </h2>
 
@@ -444,6 +444,7 @@ defmodule RegentsWeb.Keyfleet.PollsLive do
           <.link patch={Regents.Keyfleet.Fleets.path(@page.fleet_id)}>{@page.fleet_name}</.link>
         </p>
         <h1 tabindex="-1">Polls</h1>
+        <p class="polls-lede">Quick 1–60 minute off-chain sentiment checks for Key holders.</p>
       </header>
       <section id="polls-locked" class="polls-panel" aria-labelledby="polls-locked-title">
         <h2 id="polls-locked-title">Keys only</h2>
@@ -457,26 +458,42 @@ defmodule RegentsWeb.Keyfleet.PollsLive do
           tip_id="polls-who-tip"
           tip_label="About who sees polls"
         >
-          People and agents holding a Key, or a shard of one. An agent paired with a Key holder
-          takes part as their Key.
+          Key holders, shard holders, and their paired agents can view and vote in polls.
         </.footnote>
-        <Regent.Primitives.button
-          :if={not @page.signed_in?}
-          id="polls-sign-in"
-          type="button"
-          data-account-target="sign-in"
-        >
-          Sign in
-        </Regent.Primitives.button>
-        <div :if={@page.signed_in?} class="polls-locked__actions">
+        <div class="polls-locked__actions">
+          <Regent.Primitives.button
+            :if={not Presets.given?(@page.fleet_id)}
+            id="polls-buy-key"
+            type="button"
+            variant="primary"
+            phx-click="open_buy_key"
+            phx-value-fleet={@page.fleet_id}
+            aria-haspopup="dialog"
+          >
+            Buy Key
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
+            :if={not @page.signed_in?}
+            id="polls-sign-in"
+            type="button"
+            variant={if Presets.given?(@page.fleet_id), do: "primary", else: "secondary"}
+            data-account-target="sign-in"
+          >
+            Sign in
+          </Regent.Primitives.button>
           <.link
+            :if={@page.signed_in?}
             patch={Regents.Keyfleet.Fleets.path(@page.fleet_id)}
             class="rg-button rg-button--secondary"
           >
-            Back to {@page.fleet_name}
+            <span class="rg-button__label">Back to {@page.fleet_name}</span>
           </.link>
-          <a href="/account#account-keyfleet" class="rg-button rg-button--quiet">
-            View your Keys
+          <a
+            :if={@page.signed_in?}
+            href="/account#account-keyfleet"
+            class="rg-button rg-button--quiet"
+          >
+            <span class="rg-button__label">View your Keys</span>
           </a>
         </div>
       </section>

@@ -491,6 +491,22 @@
   display: inline;
 }
 
+.treasury-history .proposals-history-at {
+  margin-inline-start: auto;
+  font-size: 0.8125rem;
+}
+
+.proposals-rules,
+.proposals-call-disclosure {
+  width: 100%;
+  font-size: 0.875rem;
+  color: var(--color-fg-muted);
+}
+
+.proposals-rules p {
+  line-height: 1.5;
+}
+
 .proposals-lines li:last-child {
   padding-block-end: 0;
   border-bottom: 0;

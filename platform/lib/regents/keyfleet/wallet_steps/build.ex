@@ -130,7 +130,11 @@ defmodule Regents.Keyfleet.WalletSteps.Build do
   defp block_if_short(sent, signer, figures) do
     with {:ok, reads} <- Reads.at_head(),
          {:ok, true} <- Reads.short_of_gas?(reads, signer) do
-      %{figures | blocked: Map.merge(figures.blocked, Map.new(sent, &{&1, :no_eth_for_gas}))}
+      # Chain-state and ownership blocks (closed vote, not your Key, etc.) always
+      # take precedence over gas so visitors aren't told to fund ETH for an action
+      # that cannot succeed regardless of balance.
+      gas_blocks = Map.new(sent, &{&1, :no_eth_for_gas})
+      %{figures | blocked: Map.merge(gas_blocks, figures.blocked)}
     else
       _not_known_short -> figures
     end

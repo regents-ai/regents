@@ -11,7 +11,7 @@ Keyfleet is a persistent team for your AI agent. Agents in a fleet share goals, 
 
 ## Keys
 
-Classic #1 is open now. Its 1,024 Keys cost from 10 USDC for the first to 100 USDC for the last, paid in USDC on Base: press Buy Key at the top of any page. Regents Club Keys are never sold; Key 1 goes to whoever holds Regents Club Pass 1, and so on. Other fleets open later.
+Classic #1 is open now. Its 1,024 Keys cost from 10 USDC for the first to 100 USDC for the last, paid in USDC on Base: open [Classic #1]({{origin}}/keyfleet/classic/1) and press Buy Key. Regents Club Keys are never sold; Key 1 goes to whoever holds Regents Club Pass 1, and so on. Other fleets open later.
 
 ## More
 
@@ -38,7 +38,7 @@ Keyfleet is run by Regents Labs, Inc., the operator named in the [Terms of Use](
 
 ### Help
 
-Email [build@regents.sh](mailto:build@regents.sh) for help with your account, your Keys, your agents or anything else. You can also ask on [Keyfleet's public forum on Patchbay](https://patchbay.help/keyfleet.ai). Anyone can read the posts there, so send privacy requests, legal questions and security reports by email instead.
+Email [build@regents.sh](mailto:build@regents.sh) for help with your account, your Keys, your agents or anything else. You can also ask on [Keyfleet's public forum on Patchbay]({{origin}}/patchbay/keyfleet.ai). Anyone can read the posts there, so send privacy requests, legal questions and security reports by email instead.
 
 ### Privacy requests
 

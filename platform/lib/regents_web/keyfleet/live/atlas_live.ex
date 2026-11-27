@@ -25,8 +25,9 @@ defmodule RegentsWeb.Keyfleet.AtlasLive do
   import Phoenix.LiveView,
     only: [connected?: 1, push_event: 3, stream: 3, stream: 4]
 
+  alias Regents.Keyfleet.Fleets.Presets
   alias RegentsWeb.Keyfleet.AtlasLive.Blocks
-  alias RegentsWeb.Keyfleet.{AtlasPage, PageRead, ShellLive}
+  alias RegentsWeb.Keyfleet.{AtlasPage, KeyLinks, PageRead, ShellLive}
 
   @kinds %{"graph" => :graph, "notebooks" => :notebook}
   @list_read 20
@@ -283,7 +284,12 @@ defmodule RegentsWeb.Keyfleet.AtlasLive do
     <article id="atlas-page" class="atlas-page">
       <section class="atlas-panel" aria-labelledby="atlas-title">
         <header class="atlas-head">
-          <h2 id="atlas-title">Atlas</h2>
+          <h2 id="atlas-title">
+            Atlas
+            <Regent.Primitives.tip id="atlas-title-tip" label="About Atlas">
+              Heatmap of active projects and notebooks by day, week, month, or year.
+            </Regent.Primitives.tip>
+          </h2>
         </header>
         <Regent.Primitives.empty_state
           id="atlas-members-only"
@@ -291,9 +297,17 @@ defmodule RegentsWeb.Keyfleet.AtlasLive do
           title="Only this fleet’s Key holders and their agents see its work over time."
         >
           <:action>
-            <.link patch={RegentsWeb.Keyfleet.KeyLinks.members_path(@atlas.fleet_id)}>
-              See this fleet’s Keys
-            </.link>
+            <Regent.Primitives.button
+              :if={not Presets.given?(@atlas.fleet_id)}
+              id="atlas-buy-key"
+              type="button"
+              variant="primary"
+              phx-click="open_buy_key"
+              phx-value-fleet={@atlas.fleet_id}
+              aria-haspopup="dialog"
+            >
+              Buy Key
+            </Regent.Primitives.button>
             <Regent.Primitives.button
               :if={@signed_out?}
               id="atlas-sign-in"
@@ -304,6 +318,12 @@ defmodule RegentsWeb.Keyfleet.AtlasLive do
             >
               Sign in
             </Regent.Primitives.button>
+            <.link
+              patch={KeyLinks.members_path(@atlas.fleet_id)}
+              class="rg-button rg-button--quiet"
+            >
+              <span class="rg-button__label">Browse Keys</span>
+            </.link>
           </:action>
         </Regent.Primitives.empty_state>
       </section>
@@ -316,7 +336,12 @@ defmodule RegentsWeb.Keyfleet.AtlasLive do
     <article id="atlas-page" class="atlas-page">
       <section class="atlas-panel" aria-labelledby="atlas-title">
         <header class="atlas-head">
-          <h2 id="atlas-title">Atlas</h2>
+          <h2 id="atlas-title">
+            Atlas
+            <Regent.Primitives.tip id="atlas-title-tip" label="About Atlas">
+              Heatmap of active projects and notebooks by day, week, month, or year.
+            </Regent.Primitives.tip>
+          </h2>
           <nav id="atlas-show" class="fleet-keys-switch" aria-label="Show the Atlas as">
             <.link
               id="atlas-show-blocks"
@@ -399,7 +424,7 @@ defmodule RegentsWeb.Keyfleet.AtlasLive do
           <dd>{grouped(@atlas.totals.changes)}</dd>
         </div>
         <div>
-          <dt>Things</dt>
+          <dt>Items</dt>
           <dd>{grouped(@atlas.totals.things)}</dd>
         </div>
         <div>
@@ -422,7 +447,7 @@ defmodule RegentsWeb.Keyfleet.AtlasLive do
             <tr>
               <th scope="col">Project</th>
               <th scope="col">Changes</th>
-              <th scope="col">Things</th>
+              <th scope="col">Items</th>
               <th scope="col">Keys</th>
             </tr>
           </thead>

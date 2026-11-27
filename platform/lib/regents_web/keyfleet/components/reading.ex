@@ -70,6 +70,14 @@ defmodule RegentsWeb.Keyfleet.Components.Reading do
         {PublicDocuments.html(opportunity.details)}
       </Regent.Primitives.disclosure>
     </section>
+    <div class="reading__cta">
+      <a href="/keyfleet/classic/1" class="rg-button rg-button--primary">
+        <span class="rg-button__label">Explore Classic #1</span>
+      </a>
+      <a href="/keyfleet/classic/1/proposals" class="rg-button rg-button--secondary">
+        <span class="rg-button__label">Open Proposals</span>
+      </a>
+    </div>
     """
   end
 

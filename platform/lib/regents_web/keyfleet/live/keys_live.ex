@@ -53,7 +53,10 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
         <div class="key-heading__words">
           <%!-- Refreshing sits in the kicker's own line, so it never moves the panels below. --%>
           <p class="key-kicker">
-            {@key.fleet_name}<span :if={@key.refreshing?} id="key-refreshing"> · Refreshing…</span>
+            <.link patch={Fleets.path(@key.fleet_id)}>{@key.fleet_name}</.link><span
+              :if={@key.refreshing?}
+              id="key-refreshing"
+            > · Refreshing…</span>
           </p>
           <h1 tabindex="-1">Key {Rules.grouped(@key.token_id)}</h1>
           <.link
@@ -82,7 +85,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
         <p :if={@key.edits_restricted?} id="key-edits-restricted" class="key-notice">
           Edits restricted
           <Regent.Primitives.tip id="key-edits-tip" label="About restricted edits">
-            A vote of the fleet stopped this Key and its shards changing the workspace. They can still read it and chat.
+            A fleet vote paused workspace edits for this Key and its shards. Reading and chat stay open.
           </Regent.Primitives.tip>
         </p>
 
@@ -111,6 +114,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
           :if={@key.deployed?}
           id="key-present"
           names_sender={false}
+          can_mark?={@key.owner? or @key.shard_holder?}
           class="key-panel"
           fleet={@key.fleet}
           actor={@actor}
@@ -132,7 +136,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
           <h2 id="key-shards-title">
             Shards
             <Regent.Primitives.tip id="key-shards-tip" label="About shards">
-              A shard lets an agent’s wallet chat, work in the workspace, mark the Key present and claim for it, for up to a year. With agent voting on, it can also vote and propose. The money always goes to the Key’s holder. Every shard ends when the Key changes hands.
+              Delegated access for an agent wallet. Rewards still pay to you; shards end if the Key transfers.
             </Regent.Primitives.tip>
           </h2>
 
@@ -171,6 +175,19 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
           </.live_component>
 
           <.shard_list :if={not @key.owner?} shards={@key.shards} panel={nil} />
+
+          <Regent.Primitives.disclosure
+            id="key-shard-rules"
+            summary="Shard permissions"
+            phx-mounted={JS.ignore_attributes(["open"])}
+          >
+            <p>
+              A shard lets an agent wallet chat, edit the workspace, mark this Key present, and claim
+              rewards for up to 365 days. Enable Agent voting below to also let shards vote and
+              propose. All payouts go to the Key holder, and every shard expires automatically if
+              the Key changes hands.
+            </p>
+          </Regent.Primitives.disclosure>
         </section>
 
         <section
@@ -182,7 +199,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
           <h2 id="key-issue-shard-title">
             New shard
             <Regent.Primitives.tip id="key-issue-tip" label="About issuing a shard">
-              An agent's press gives it a shard for 30 days, signed in your wallet.
+              Grants a 30-day shard to that agent, signed in your wallet.
             </Regent.Primitives.tip>
           </h2>
 
@@ -272,7 +289,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
           <h2 id="key-agent-voting-title">
             Agent voting
             <Regent.Primitives.tip id="key-agent-voting-tip" label="About agent voting">
-              Turned on, it lets the Key’s shards vote and propose with it. It stays as set until changed, even across new shards.
+              Lets this Key’s shards vote and propose. The setting persists across new shards.
             </Regent.Primitives.tip>
           </h2>
 
@@ -428,6 +445,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
       holder_ens: holder_ens,
       image: if(key, do: Metadata.image(key.fleet, token_id), else: Metadata.pass()),
       owner?: owner?,
+      shard_holder?: holds_shard?(actor, shards),
       refreshing?: not Chain.fresh?(fleet_id),
       edits_restricted?:
         match?([%{restricted: true}], Keys.latest_edits_restrictions!(fleet_id, [token_id])),
@@ -492,4 +510,9 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
     do: owner in wallets
 
   defp owns_key?(_actor, _key), do: false
+
+  defp holds_shard?(%Human{wallet_addresses: wallets}, shards),
+    do: Enum.any?(shards, &(&1.wallet in wallets))
+
+  defp holds_shard?(_actor, _shards), do: false
 end

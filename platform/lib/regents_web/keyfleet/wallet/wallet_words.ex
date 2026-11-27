@@ -69,7 +69,7 @@ defmodule RegentsWeb.Keyfleet.WalletWords do
     do: "Pays #{share_words(asset, share, amount)} to #{RegentFormat.short_address(to)}."
 
   defp action({:rate, bps}),
-    do: "Sets the Daily Treasury Slice to Keys to #{ProposalsPage.units(bps, 2)}%."
+    do: "Sets the Daily slice to #{ProposalsPage.units(bps, 2)}%."
 
   defp action({:edits, target, true}), do: "Restricts Key #{Rules.grouped(target)}’s edits."
   defp action({:edits, target, false}), do: "Allows Key #{Rules.grouped(target)}’s edits."
@@ -170,7 +170,7 @@ defmodule RegentsWeb.Keyfleet.WalletWords do
   def blocked(:only_no), do: "Only No while it waits"
   def blocked(:open), do: "Voting still open"
   def blocked(:rejected), do: "Not approved"
-  def blocked(:executed), do: "Already carried out"
+  def blocked(:executed), do: "Already executed"
   def blocked(:cancelled), do: "Cancelled"
   def blocked(:execution_expired), do: "Expired"
   def blocked(:no_keys_sold), do: "No Keys sold yet"
@@ -215,13 +215,13 @@ defmodule RegentsWeb.Keyfleet.WalletWords do
   def title(%{name: "abstain"}), do: "Abstain"
   def title(%{name: "propose"}), do: "Propose"
   def title(%{name: "cancel"}), do: "Cancel"
-  def title(%{name: "carry_out"}), do: "Carry it out"
-  def title(%{name: "run_split"}), do: "Release the Daily Treasury Slice to Keys"
+  def title(%{name: "carry_out"}), do: "Execute proposal"
+  def title(%{name: "run_split"}), do: "Release the Daily slice"
   def title(%{name: "return"}), do: "Return"
   def title(%{name: "send_share"}), do: "Send to REGENT staking"
   def title(%{name: "convert"}), do: "Turn USDC into REGENT"
   def title(%{name: "settle"}), do: "Settle the sale"
-  def title(%{name: "bind"}), do: "Add to the Daily Treasury Slice to Keys"
+  def title(%{name: "bind"}), do: "Add to the Daily slice"
   def title(%{name: "release"}), do: "Release tokens"
   def title(%{name: "collect"}), do: "Collect pool fees"
   def title(_unknown), do: "Transaction"
@@ -258,7 +258,7 @@ defmodule RegentsWeb.Keyfleet.WalletWords do
   defp reverted(choice) when choice in ["yes", "no", "abstain"],
     do: "Not counted. Voting may have closed."
 
-  defp reverted("carry_out"), do: "Not carried out. Nothing moved."
+  defp reverted("carry_out"), do: "Not executed. Nothing moved."
   defp reverted("run_split"), do: "Not released. It may have been released already today."
   defp reverted("return"), do: "Not returned. Nothing moved."
 

@@ -57,7 +57,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
     waiting: "Approved, waiting",
     approved: "Approved",
     rejected: "Not approved",
-    executed: "Carried out",
+    executed: "Executed",
     cancelled: "Cancelled",
     execution_expired: "Expired"
   }
@@ -66,7 +66,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
   @kinds [
     {"decision", "Decision"},
     {"pay", "Payment"},
-    {"rate", "Daily Treasury Slice to Keys rate"},
+    {"rate", "Daily slice rate"},
     {"edits", "A Key’s edits"},
     {"launch", "Token launch"}
   ]
@@ -198,6 +198,21 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
           </.link>
           <.link :if={@page.older} id="proposals-older" patch={@page.older}>Older proposals</.link>
         </nav>
+
+        <Regent.Primitives.disclosure
+          id="proposals-voting-rules"
+          summary="Voting rules"
+          class="proposals-rules"
+          phx-mounted={JS.ignore_attributes(["open"])}
+        >
+          <p>
+            Each Key is one vote, changeable until voting closes 24 hours after opening. Approval
+            requires at least 60% Yes of counted Keys, rounded up (present Keys at open plus any
+            other Key that votes). Counted Keys that do not vote count against passing. Payment
+            proposals wait 24 hours after passing before execution, during which only No votes can
+            cancel them.
+          </p>
+        </Regent.Primitives.disclosure>
       </section>
 
       <.propose
@@ -259,14 +274,14 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
               id="proposal-calls-tip"
               label="About these calls"
             >
-              Carrying it out makes exactly these calls, in this order. The words are Keyfleet’s reading of each one; the contract, function and data are what the network runs.
+              Exact onchain calls executed if approved. Expand Onchain call to verify raw contract data.
             </Regent.Primitives.tip>
           </h2>
           <p :if={@page.proposal.calls == []} id="proposal-no-calls">
             A decision. Nothing moves.
           </p>
           <ol :if={@page.proposal.calls != []} id="proposal-calls" class="proposals-lines">
-            <li :for={call <- @page.proposal.calls}>
+            <li :for={{call, index} <- Enum.with_index(@page.proposal.calls)}>
               <p class="proposals-call-words">
                 <span>{call.text}</span>
                 <code :if={call.address}>{call.address}</code>
@@ -274,20 +289,27 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
               <p :if={call.today} class="proposals-detail">
                 About {call.today.text} at today’s balance
               </p>
-              <dl class="proposals-call">
-                <div>
-                  <dt>Contract</dt>
-                  <dd>{call.contract} <code>{call.target}</code></dd>
-                </div>
-                <div>
-                  <dt>Function</dt>
-                  <dd><code>{call.function || "Unknown"}</code></dd>
-                </div>
-                <div>
-                  <dt>Data</dt>
-                  <dd><code class="proposals-call-data">{call.data}</code></dd>
-                </div>
-              </dl>
+              <Regent.Primitives.disclosure
+                id={"proposal-call-#{index}"}
+                summary="Onchain call"
+                class="proposals-call-disclosure"
+                phx-mounted={JS.ignore_attributes(["open"])}
+              >
+                <dl class="proposals-call">
+                  <div>
+                    <dt>Contract</dt>
+                    <dd>{call.contract} <code>{call.target}</code></dd>
+                  </div>
+                  <div>
+                    <dt>Function</dt>
+                    <dd><code>{call.function || "Unknown"}</code></dd>
+                  </div>
+                  <div>
+                    <dt>Data</dt>
+                    <dd><code class="proposals-call-data">{call.data}</code></dd>
+                  </div>
+                </dl>
+              </Regent.Primitives.disclosure>
             </li>
           </ol>
           <p :if={@page.proposal.text} id="proposal-text" class="proposals-words">
@@ -298,12 +320,12 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
             <.wallet id="proposal-proposer-wallet" address={@page.proposal.proposer} />
             <Regent.Primitives.tip id="proposal-content-tip" label="About the proposal’s text">
               {if @page.proposal.text,
-                do: "Its words match the fingerprint recorded on Base:",
-                else: "Its words weren’t saved on Keyfleet. Its fingerprint on Base is"} {@page.proposal.content_hash}.
+                do: "Text matches the onchain hash on Base.",
+                else: "Words were not saved on Keyfleet; only the Base hash is onchain."}
             </Regent.Primitives.tip>
           </p>
           <p :if={@page.proposal.executor} id="proposal-executor" class="proposals-detail">
-            Carried out by <.wallet id="proposal-executor-wallet" address={@page.proposal.executor} />
+            Executed by <.wallet id="proposal-executor-wallet" address={@page.proposal.executor} />
           </p>
           <p :if={@page.proposal.cancelled_by} id="proposal-canceller" class="proposals-detail">
             Cancelled by
@@ -320,7 +342,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
           <h2 id="proposal-vote-title">
             Vote
             <Regent.Primitives.tip id="proposal-vote-tip" label="About voting">
-              Every Key you hold votes together, and so does every Key you hold a shard of while its agent voting is on. Voting again changes the vote until voting closes. A proposal that moves money then waits a day, when only No can be voted; enough No votes cancel it.
+              Votes all Keys you hold together. You can change your vote until voting closes.
             </Regent.Primitives.tip>
           </h2>
           <.live_component
@@ -374,9 +396,9 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
           aria-labelledby="proposal-carry-out-title"
         >
           <h2 id="proposal-carry-out-title">
-            Execution
-            <Regent.Primitives.tip id="proposal-carry-out-tip" label="About carrying it out">
-              Anyone can carry out an approved proposal until its time runs out. A proposal that moves money waits a day after voting closes, then has 48 hours; any other can be carried out once voting closes. It makes exactly the calls below.
+            Execute
+            <Regent.Primitives.tip id="proposal-carry-out-tip" label="About executing">
+              Anyone can execute an approved proposal once its wait ends. Runs the exact calls above.
             </Regent.Primitives.tip>
           </h2>
           <.live_component
@@ -398,7 +420,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
                 id="proposal-carry-out-button"
                 variant="secondary"
               >
-                Execution
+                Execute proposal
               </WalletPanel.step_button>
             </:buttons>
           </.live_component>
@@ -552,11 +574,11 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
           <dd id="proposal-closes">{at(@proposal.closes_at)}</dd>
         </div>
         <div :if={@proposal.carry_out_from && not settled?(@on_chain)}>
-          <dt>Carry-out starts</dt>
+          <dt>Execution opens</dt>
           <dd id="proposal-carry-out-from">{at(@proposal.carry_out_from)}</dd>
         </div>
         <div :if={not settled?(@on_chain)}>
-          <dt>Carry-out ends</dt>
+          <dt>Execution expires</dt>
           <dd id="proposal-expiry">{at(@proposal.execution_expiry)}</dd>
         </div>
       </dl>
@@ -584,7 +606,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
       <h2 id="proposal-ballots-title">
         Votes
         <Regent.Primitives.tip id="proposal-ballots-tip" label="About votes">
-          Each Key’s latest vote: a Key may vote again, and only its latest counts. Keys present when the proposal opened that have not voted count against it, as a No does.
+          Latest vote per Key. Present Keys that do not vote count against passing.
         </Regent.Primitives.tip>
       </h2>
       <dl class="proposals-ballots">
@@ -623,7 +645,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
       <h2 id="propose-title">
         Propose
         <Regent.Primitives.tip id="propose-tip" label="About proposing">
-          Proposing with a Key you hold, or one you hold a shard of while its agent voting is on, opens a 24-hour vote. A payment names one token and a share of the treasury’s balance of it when it is carried out, a day after its vote passes. Approved proposals are carried out exactly as written.
+          Opens a 24-hour fleet vote. Payment proposals wait one extra day before execution.
         </Regent.Primitives.tip>
       </h2>
       <.live_component
@@ -711,7 +733,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
                 <.text_field
                   id="propose-rate"
                   name="rate"
-                  label="Daily Treasury Slice to Keys, %"
+                  label="Daily slice, %"
                   inputmode="decimal"
                   value={panel.inputs["rate"]}
                 >
@@ -832,8 +854,8 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
               <th scope="col">Treasury</th>
               <th scope="col">
                 Unclaimed rewards
-                <Regent.Primitives.tip id="proposals-backed-tip" label="About set aside">
-                  Held separately by the rewards contract, waiting for Key holders to claim. These amounts are not part of the treasury balance.
+                <Regent.Primitives.tip id="proposals-backed-tip" label="About unclaimed rewards">
+                  Held in the rewards contract for Key holders to claim. Separate from treasury balance.
                 </Regent.Primitives.tip>
               </th>
             </tr>
@@ -935,7 +957,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
       <h3 :if={@actor} id="proposals-share-title">
         Staking share
         <Regent.Primitives.tip id="proposals-share-tip" label="About the Staking share">
-          10% of every Key sale is set aside for REGENT staking. Anyone can send it.
+          10% of every Key sale goes to REGENT staking. Anyone can send it.
         </Regent.Primitives.tip>
       </h3>
       <p
@@ -968,7 +990,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
       <h3 :if={@actor} id="proposals-convert-title">
         REGENT conversion
         <Regent.Primitives.tip id="proposals-convert-tip" label="About converting USDC to REGENT">
-          Part of every Key sale is turned into REGENT for the treasury, up to 250 USDC at a time; after a full 250 the next waits 15 minutes. A piece that would move the price more than 1% can’t go through; the button then says how much can. Every fleet shares one line, so a press turns the next amount in line, which may be another fleet’s. Anyone can press it.
+          Turns waiting Key-sale USDC into REGENT for the treasury. Anyone can trigger the next batch.
         </Regent.Primitives.tip>
       </h3>
       <.live_component
@@ -999,6 +1021,20 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
             Buy REGENT
           </WalletPanel.step_button>
         </:buttons>
+        <:details>
+          <Regent.Primitives.disclosure
+            id="proposals-convert-rules"
+            summary="Batch rules"
+            class="proposals-rules"
+            phx-mounted={JS.ignore_attributes(["open"])}
+          >
+            <p>
+              Converts up to 250 USDC at a time, with a 15-minute wait after a full 250 USDC batch.
+              Batches moving price over 1% are capped automatically. All fleets share one queue, so
+              pressing Buy REGENT runs the next queued batch.
+            </p>
+          </Regent.Primitives.disclosure>
+        </:details>
       </.live_component>
 
       <section
@@ -1025,6 +1061,13 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
             <span :if={line.spent} class="proposals-detail">
               with <.amount id={"proposals-history-#{line.id}-spent"} value={line.spent} />
             </span>
+            <RegentsWeb.Keyfleet.Time.local
+              :if={line[:at]}
+              id={"proposals-history-#{line.id}-at"}
+              at={line.at}
+              as={:stamp}
+              class="proposals-detail proposals-history-at"
+            />
           </li>
         </ol>
         <p :if={@treasury.earlier?} class="proposals-detail">Earlier ones aren’t shown.</p>
@@ -1059,12 +1102,12 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
     >
       <:notes :let={panel}>
         <h3 id="proposals-split-title">
-          Daily Treasury Slice to Keys
+          Daily slice
           <Regent.Primitives.tip
             id="proposals-split-tip"
-            label="About the Daily Treasury Slice to Keys"
+            label="About the Daily slice"
           >
-            Once a day anyone can release it. Each asset at or above its minimum shares its balance times the rate, divided equally across the Keys sold at least 2 days ago.
+            Daily payout of eligible treasury balances, split equally across Keys older than 2 days.
           </Regent.Primitives.tip>
         </h3>
         <p :if={@treasury.read?} id="proposals-split-rate" class="proposals-detail">
@@ -1416,11 +1459,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
   @doc "How a proposal is approved, as the pages say it."
   def approval_rule,
     do:
-      "Each Key is one vote, and a vote can be changed until voting closes, 24 hours after " <>
-        "the proposal opened. It is approved if at least 60% of the Keys counted voted yes, " <>
-        "rounded up, so one Key counted can approve it alone. The Keys counted are those " <>
-        "present when it opened, and any other Key that voted. A counted Key that doesn’t " <>
-        "vote counts against it."
+      "Passes at 60% Yes of counted Keys after 24 hours. Counted Keys that stay silent count as No."
 
   attr :id, :string, required: true
 

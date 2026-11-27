@@ -82,12 +82,12 @@ defmodule RegentsWeb.Keyfleet.TreasuryLive do
         class="proposals-panel"
         aria-labelledby="treasury-carried-title"
       >
-        <h2 id="treasury-carried-title">Executed votes</h2>
+        <h2 id="treasury-carried-title">Executed proposals</h2>
         <Regent.Primitives.empty_state
           :if={@page.carried == []}
           id="treasury-carried-empty"
           class="kf-empty"
-          title="No votes have been carried out yet."
+          title="No proposals have been executed yet."
         >
           <:action>
             <.link
@@ -271,7 +271,7 @@ defmodule RegentsWeb.Keyfleet.TreasuryLive do
       <h3 id="fleet-launch-title">
         Token launch
         <Regent.Primitives.tip id="fleet-launch-tip" label="About the token launch">
-          A launch the fleet voted for sells its token through Autolaunch. Once the sale ends, anyone can settle it, add the token to the Daily Treasury Slice to Keys, release the tokens set aside for the treasury, and collect the pool’s fees for it.
+          Sells a fleet token via Autolaunch. After the sale, anyone can settle and collect fees.
         </Regent.Primitives.tip>
       </h3>
       <.live_component
@@ -303,7 +303,7 @@ defmodule RegentsWeb.Keyfleet.TreasuryLive do
               <dd id="fleet-launch-sale">{sale(panel)}</dd>
             </div>
             <div>
-              <dt>Daily Treasury Slice to Keys</dt>
+              <dt>Daily slice</dt>
               <dd id="fleet-launch-split">
                 {if WalletPanel.figures(panel).bound?, do: "Included", else: "Not yet"}
               </dd>

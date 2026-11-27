@@ -113,6 +113,29 @@ defmodule RegentsWeb.Keyfleet.SearchLive do
       <section class="search-panel" aria-labelledby="search-title">
         <h2 id="search-title">Search</h2>
 
+        <form
+          id="search-inline"
+          class="search-inline"
+          role="search"
+          action={search_path(@search.fleet_id)}
+          method="get"
+          phx-submit="search"
+        >
+          <label for="search-inline-q" class="visually-hidden">Search this fleet</label>
+          <input
+            id="search-inline-q"
+            name="q"
+            type="search"
+            value={@search.query}
+            placeholder="Search posts, messages, workspace, and notebooks…"
+            maxlength={Search.max_query()}
+            autocomplete="off"
+          />
+          <Regent.Primitives.button type="submit" variant="secondary" arrow={false}>
+            Search
+          </Regent.Primitives.button>
+        </form>
+
         <.load_failed :if={@search.state == :failed} />
 
         <Regent.Primitives.empty_state

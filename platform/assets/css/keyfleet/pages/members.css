@@ -9,6 +9,10 @@
 }
 
 .member-list h2 {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
   font-size: 1.35rem;
   line-height: 1.1;
 }
@@ -70,11 +74,13 @@
   overflow-wrap: anywhere;
 }
 
-/* Every card's row of Keys keeps the same height, however many it holds. */
+/* Every card's row of Keys keeps the same height, however many it holds, with a
+   trailing edge fade hinting at horizontal scroll. */
 .member-card__cards {
   flex: none;
   align-items: flex-end;
-  padding-inline: 0;
+  padding-inline: 0 1.25rem;
+  mask-image: linear-gradient(to right in oklch, #000 calc(100% - 1.5rem), transparent);
 }
 
 /* The Key the person posts as leads the row in a slot of its own, framed and

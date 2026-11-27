@@ -53,9 +53,24 @@
   color: var(--color-fg-muted);
 }
 
+.fleet-figures dt .rg-tip {
+  vertical-align: baseline;
+}
+
 .fleet-figures dd {
   margin: 0;
   font-variant-numeric: tabular-nums;
+}
+
+.presence-rules {
+  width: 100%;
+  font-size: 0.875rem;
+  color: var(--color-fg-muted);
+}
+
+.presence-rules p {
+  margin: 0;
+  line-height: 1.5;
 }
 }
 }

@@ -168,7 +168,7 @@ defmodule RegentsWeb.Keyfleet.Components.BuyKey do
           <dt>
             Price
             <Regent.Primitives.tip id="buy-key-price-tip" label="About paying">
-              Your wallet asks twice: Approve lets the sale take this much USDC, then Buy pays it and sends you the Key.
+              Two wallet prompts: approve USDC, then buy the Key.
             </Regent.Primitives.tip>
           </dt>
           <.fact id="buy-key-price" fact={price(@state, @cost)} />
@@ -268,7 +268,7 @@ defmodule RegentsWeb.Keyfleet.Components.BuyKey do
               checked={panel.inputs["unlimited"] == "true"}
               disabled={approve_done?(panel)}
               data-onchain-input="unlimited"
-            /> Unlimited
+            /> Approve future buys
           </label>
         </form>
         <%!-- Only the network fee ever holds Approve back, and it holds Buy

@@ -108,6 +108,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
   alias RegentsWeb.Keyfleet.KeyMap
   alias RegentsWeb.Keyfleet.KeyProfileLive
   alias RegentsWeb.Keyfleet.PageRead
+  alias RegentsWeb.Keyfleet.ProjectPage
   alias RegentsWeb.Keyfleet.ProposalsLive
   alias RegentsWeb.Keyfleet.ProposalsPage
   alias RegentsWeb.Keyfleet.RoomsLive
@@ -330,7 +331,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
               name="q"
               type="search"
               value={if @view == :search and is_binary(@params["q"]), do: @params["q"]}
-              placeholder="Search"
+              placeholder={"Search #{@fleet.name}"}
               maxlength={Search.max_query()}
               autocomplete="off"
             />
@@ -343,7 +344,16 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
 
           <.entry
             :if={
-              @view not in [:workspace, :proposals, :treasury, :search, :worldline, :atlas, :seasons]
+              @fleet.held == nil or
+                @view not in [
+                  :workspace,
+                  :proposals,
+                  :treasury,
+                  :search,
+                  :worldline,
+                  :atlas,
+                  :seasons
+                ]
             }
             fleet={@fleet}
             actor={@actor}
@@ -1027,7 +1037,11 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
         id={"fleet-recent-work-project-#{i}"}
         class="recent-project"
       >
-        <h3>{project.title}</h3>
+        <h3>
+          <.link patch={ProjectPage.path(@fleet_id, project.name)}>
+            {project.title}
+          </.link>
+        </h3>
         <ul :if={project.goals != []} class="recent-work__list">
           <li :for={goal <- project.goals} class="recent-goal">
             <p class="recent-goal__title">{goal}</p>
@@ -1304,8 +1318,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
 
       <div class="fleet-map-notes">
         <Regent.Primitives.tip id="key-map-help" label="About the Key map">
-          Drag to look around. Arrow keys move between Keys, and Enter chooses one. Every Key is
-          also under List.
+          Drag to pan, click or press Enter to inspect a Key. Switch to List to browse holders.
         </Regent.Primitives.tip>
         <p id="key-map-selected" role="status">
           <span class="key-map-selected__chosen">
@@ -1314,6 +1327,11 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
               else: "No Key chosen yet."}
           </span>
         </p>
+        <ul class="fleet-map-legend" aria-label="Key status">
+          <li data-state="sold">Sold</li>
+          <li data-state="next">Next</li>
+          <li data-state="unsold">Unsold</li>
+        </ul>
         <output
           id="key-map-found"
           class="key-map-found"

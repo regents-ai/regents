@@ -10,7 +10,8 @@
   color-scheme: light;
 }
 
-:scope[data-brand][data-theme="dark"] {
+:scope[data-brand][data-theme="dark"],
+:scope[data-brand]:not([data-theme]) {
   color-scheme: dark;
 }
 
@@ -20,7 +21,8 @@
   color-scheme: light;
 }
 
-:scope[data-theme="dark"] #app-shell {
+:scope[data-theme="dark"] #app-shell,
+:scope:not([data-theme]) #app-shell {
   color-scheme: dark;
 }
 
@@ -51,6 +53,11 @@
 }
 
 @media (prefers-color-scheme: light) {
+  :scope[data-brand]:not([data-theme]),
+  :scope:not([data-theme]) #app-shell {
+    color-scheme: light;
+  }
+
   :scope[data-product]:not([data-theme]) {
     --color-button: #161616;
     --color-fg-on-button: #E5E3D2;

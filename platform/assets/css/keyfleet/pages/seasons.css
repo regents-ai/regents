@@ -19,6 +19,32 @@
   background: var(--color-surface);
 }
 
+.seasons-kicker {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.seasons-kicker a {
+  text-decoration: none;
+}
+
+.seasons-kicker a:hover {
+  text-decoration: underline;
+}
+
+.seasons-panel h2 {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+}
+
 .seasons-panel > .rg-button {
   justify-self: start;
 }

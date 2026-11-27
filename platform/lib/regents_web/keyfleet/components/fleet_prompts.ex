@@ -79,7 +79,7 @@ defmodule RegentsWeb.Keyfleet.Components.FleetPrompts do
           href={~p"/pair?#{[to: Fleets.path(@fleet.fleet_id)]}"}
           class="rg-button rg-button--primary fleet-prompts__pair"
         >
-          <span class="rg-button__label">Pair your agent to participate in workspaces</span>
+          <span class="rg-button__label">Pair agent</span>
         </.link>
         <.live_component
           :if={@idle != []}

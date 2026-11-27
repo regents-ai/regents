@@ -1,13 +1,14 @@
 @scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
-/* The app fills the screen edge to edge: the menu stands against the screen's
-   left edge and the page runs to its right edge. */
+/* Keyfleet sits inside the unified one-site workspace frame: the shared bar
+   and sidebar own product/account navigation, so Keyfleet's shell gives the
+   full width to its scrolling route content. */
 #app-shell {
   position: relative;
   isolation: isolate;
   inline-size: 100%;
   border-inline: 0;
   display: grid;
-  grid-template: auto minmax(0, 1fr) / var(--rg-rail-width) minmax(0, 1fr);
+  grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
   min-width: 0;
   height: 100dvh;
   overflow: visible;
@@ -37,31 +38,22 @@
   outline: none;
 }
 
-
 #app-shell > .rg-bar {
   grid-column: 1 / -1;
 }
 
-#shell-sidebar,
 #app-shell-scroller {
   position: relative;
+  grid-area: 2 / 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
-/* A link drawn as a button keeps the button's own colours. */
-#shell-sidebar a:not(.rg-button) {
-  color: inherit;
-  text-decoration: none;
-}
-
-/* One ring on both grounds: outside the control where there is room for it,
-   inside the sidebar's cells, which run edge to edge. */
 #app-shell :focus-visible {
   outline: 2px solid var(--ash-ring);
   outline-offset: 2px;
-}
-
-#shell-sidebar :focus-visible {
-  outline-offset: -2px;
 }
 
 span.account-chip {
@@ -70,100 +62,6 @@ span.account-chip {
 
 .account-avatar {
   border-color: var(--ash-line-strong);
-}
-
-.mobile-menu-button {
-  display: none;
-}
-
-.shell-menu-close,
-.shell-menu-scrim {
-  display: none;
-}
-
-#shell-sidebar {
-  min-height: 0;
-  overflow: auto;
-  border-inline-end: 1px solid var(--color-border);
-  background: var(--color-bg);
-}
-
-#shell-sidebar ul {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-#shell-sidebar li {
-  min-width: 0;
-}
-
-/* The left nav reads as the marketing page's bordered cells: one line under each
-   destination, the label tracked and set in the Sans UI voice, in the same
-   words and case as the header. */
-#shell-sidebar li > a,
-#shell-sidebar li > button,
-#shell-sidebar [data-tree] > a {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-height: 2.75rem;
-  padding: 0.65rem 0.85rem;
-  border: 0;
-  border-block-end: 1px solid var(--color-border);
-  border-radius: 0;
-  background: transparent;
-  color: var(--color-fg-muted);
-  font-family: var(--font-family-ui);
-  font-size: 0.8rem;
-  letter-spacing: 0.02em;
-  text-align: left;
-}
-
-@media (hover: hover) {
-  #shell-sidebar li > a:hover,
-  #shell-sidebar li > button:hover,
-  #shell-sidebar [data-tree] > a:hover {
-    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
-    color: var(--color-fg);
-  }
-}
-
-#shell-sidebar [aria-current],
-#shell-sidebar [aria-pressed="true"] {
-  background: var(--ash-panel-strong);
-  color: var(--color-fg);
-}
-
-#shell-sidebar [data-tree] > span {
-  display: flex;
-  padding: 0.35rem 0.85rem 0.55rem;
-  border-block-end: 1px solid var(--color-border);
-}
-
-#shell-sidebar [data-tree] > span a {
-  padding: 0.2rem 0.45rem;
-  border: 1px solid var(--color-border);
-  color: var(--color-fg-muted);
-  font-family: var(--font-family-ui);
-  font-size: 0.66rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-#shell-sidebar [data-tree] > span a[aria-pressed="true"] {
-  border-color: var(--ash-line-strong);
-  background: var(--ash-panel-strong);
-  color: var(--color-fg);
-}
-
-/* The page fills the screen and scrolls as one, with the footer after it. */
-#app-shell-scroller {
-  min-width: 0;
-  min-height: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
 }
 
 /* A page with views shows them as tabs above its content. */
@@ -200,76 +98,8 @@ span.account-chip {
 }
 
 @media (max-width: 47.99rem) {
-  /* Under the 3.5rem bar, Menu has a strip of its own; the menu's drawer and the
-     dimmed page behind it open under both. Every panel keeps the page's own 1rem
-     margin inside it on every phone, so text starts at one edge from page to page. */
   #app-shell {
-    --shell-header-bottom: calc(3.5rem + 2.75rem);
     --rg-panel-padding: var(--space-2);
-    grid-template: auto auto minmax(0, 1fr) / minmax(0, 1fr);
-  }
-
-  .mobile-menu-button {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    min-height: 2.75rem;
-    padding-inline: 1rem;
-    border: 0;
-    border-block-end: 1px solid var(--color-border);
-    border-radius: 0;
-    background: var(--color-bg);
-    color: inherit;
-    font-family: var(--font-family-ui);
-    font-size: 0.72rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  #shell-sidebar {
-    position: fixed;
-    inset: var(--shell-header-bottom) auto 0 0;
-    z-index: var(--rg-layer-panel);
-    display: none;
-    width: min(20rem, calc(100% - 3rem));
-    border-inline-end: 1px solid var(--ash-line-strong);
-    background: var(--color-bg);
-  }
-
-  #app-shell[data-menu-open="true"] #shell-sidebar {
-    display: block;
-  }
-
-  .shell-menu-close {
-    display: block;
-    width: 100%;
-    min-height: 2.75rem;
-    border: 0;
-    border-block-end: 1px solid var(--color-border);
-    border-radius: 0;
-    background: transparent;
-    color: var(--color-fg-muted);
-    font-family: var(--font-family-ui);
-    font-size: 0.72rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .shell-menu-scrim {
-    position: fixed;
-    inset: var(--shell-header-bottom) 0 0;
-    z-index: var(--rg-layer-shade);
-    display: block;
-    min-width: 0;
-    min-height: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: color-mix(in oklch, var(--color-bg) 72%, transparent);
-  }
-
-  .shell-menu-scrim[hidden] {
-    display: none;
   }
 
   /* Four tabs fit a 320px phone; past that the strip scrolls on its own. */
@@ -282,24 +112,6 @@ span.account-chip {
   #route-content {
     padding: 1rem;
   }
-}
-
-/* The frame itself owns the ruled edges; there is no decorative page mat. */
-#shell-sidebar ul { padding: var(--space-1); }
-#shell-sidebar [aria-current] { border-inline-start: 3px solid currentColor; font-weight: 600; }
-@media (min-width: 48rem) and (max-width: 63.99rem) {
-  #app-shell { grid-template: auto auto minmax(0, 1fr) / minmax(0, 1fr); }
-  #shell-sidebar { grid-area: 2 / 1; border-inline-end: 0; border-block-end: 1px solid var(--color-border); }
-  #app-shell-scroller { grid-area: 3 / 1; }
-  #shell-sidebar ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
-#app-shell:not(:has(> #shell-sidebar)) {
-  grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
-}
-
-#app-shell:not(:has(> #shell-sidebar)) > #app-shell-scroller {
-  grid-area: 2 / 1;
 }
 
 /* ---- Footer marks ---- */

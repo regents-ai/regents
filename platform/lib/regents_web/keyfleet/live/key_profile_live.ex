@@ -85,6 +85,14 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
           </h2>
           <div class="key-profile__actions">
             <.link
+              :if={@profile.issued?}
+              id="key-profile-page-link"
+              class="rg-button rg-button--secondary"
+              patch={KeyLinks.page_path(@profile.fleet_id, @profile.token_id)}
+            >
+              <span class="rg-button__label">Key page</span>
+            </.link>
+            <.link
               :if={@profile.dms}
               id="key-profile-dms"
               class="rg-button rg-button--primary"
@@ -402,7 +410,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
       <h3 id="key-profile-claim-title">
         Claim
         <Regent.Primitives.tip id="key-profile-claim-tip" label="About claiming">
-          The Daily Treasury Slice to Keys shared with this Key waits here until claimed. It is always paid to the Key’s holder, and a shard of the Key can claim it for them.
+          Your Key’s share of Daily slices. Payouts always go to the Key holder.
         </Regent.Primitives.tip>
       </h3>
       <.live_component
@@ -455,7 +463,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
       <h3 id="key-profile-reveal-title">
         Traits
         <Regent.Primitives.tip id="key-profile-reveal-tip" label="About drawing traits">
-          A Key’s traits come from a random draw. If the request for it was turned down, anyone can ask again. If the draw hasn’t come 24 hours after it was asked for, anyone can end the wait, and the Key then never gets traits.
+          Traits come from an onchain random draw. Anyone can retry a failed draw or cancel after 24h.
         </Regent.Primitives.tip>
       </h3>
       <.live_component
@@ -506,7 +514,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
       <h3 id="key-profile-club-claim-title">
         Unclaimed
         <Regent.Primitives.tip id="key-profile-club-claim-tip" label="About claiming this Key">
-          The holder of Regents Club Pass {Rules.grouped(@profile.token_id)} can claim this Key at any time, with everything it has earned while it waited. If that Pass is burned, the Key stays here for good.
+          Reserved for Regents Club Pass {Rules.grouped(@profile.token_id)}, including accrued rewards, until claimed.
         </Regent.Primitives.tip>
       </h3>
       <.live_component

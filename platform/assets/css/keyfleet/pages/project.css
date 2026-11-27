@@ -23,6 +23,23 @@
   margin: 0;
 }
 
+.project-kicker {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.project-kicker a {
+  text-decoration: none;
+}
+
+.project-kicker a:hover {
+  text-decoration: underline;
+}
+
 /* Who holds the project and its fleet, in grey under the title and close to
    it, so the two read as one heading. */
 .project-page > .project-held {

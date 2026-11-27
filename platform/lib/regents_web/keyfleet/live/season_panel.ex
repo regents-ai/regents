@@ -123,10 +123,20 @@ defmodule RegentsWeb.Keyfleet.SeasonPanel do
       class="fleet-season"
       aria-labelledby="fleet-season-title"
     >
-      <h2 id="fleet-season-title">Season</h2>
+      <h2 id="fleet-season-title">
+        Season
+        <Regent.Primitives.tip id="fleet-season-tip" label="About Seasons">
+          Three-hour asset-picking rounds. Keys pick a Coinbase asset; the fleet tracks the winning pick.
+        </Regent.Primitives.tip>
+      </h2>
       <dl class="fleet-season__facts">
         <div>
-          <dt>Holding</dt>
+          <dt>
+            <Regent.Primitives.tip id="fleet-season-holding-tip">
+              <:figure>Holding</:figure>
+              Asset tracked by the fleet this round, and its opening price.
+            </Regent.Primitives.tip>
+          </dt>
           <dd id="fleet-season-holding">
             <span :if={@season.face}>{@season.face.holding}</span>
             <span :if={@season.face} class="fleet-season__minor">
@@ -136,7 +146,12 @@ defmodule RegentsWeb.Keyfleet.SeasonPanel do
           </dd>
         </div>
         <div>
-          <dt>Captain</dt>
+          <dt>
+            <Regent.Primitives.tip id="fleet-season-captain-tip">
+              <:figure>Captain</:figure>
+              Key whose pick won the previous round.
+            </Regent.Primitives.tip>
+          </dt>
           <dd id="fleet-season-captain">{captain(@season.face && @season.face.captain_key)}</dd>
         </div>
         <div>
@@ -154,7 +169,12 @@ defmodule RegentsWeb.Keyfleet.SeasonPanel do
           </dd>
         </div>
         <div>
-          <dt>Last</dt>
+          <dt>
+            <Regent.Primitives.tip id="fleet-season-last-tip">
+              <:figure>Last</:figure>
+              Previous round return. Crown kept, passed, or dropped tracks leadership.
+            </Regent.Primitives.tip>
+          </dt>
           <dd id="fleet-season-last">
             <span :if={is_nil(@season.face && @season.face.last)}>—</span>
             <span :if={@season.face && @season.face.last}>

@@ -17,6 +17,9 @@
   display: grid;
   justify-items: start;
   gap: var(--space-2);
+  padding: var(--rg-panel-padding);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .reading__head h1 {
@@ -39,7 +42,23 @@
 
 .reading__prose {
   padding: var(--rg-panel-padding);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   overflow-wrap: anywhere;
+}
+
+.reading__cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-5);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--hairline);
+}
+
+.reading__prose .reading__cta a {
+  text-decoration: none;
 }
 
 .reading__prose > :first-child {

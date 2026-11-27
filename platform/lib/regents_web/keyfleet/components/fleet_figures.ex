@@ -21,16 +21,31 @@ defmodule RegentsWeb.Keyfleet.Components.FleetFigures do
     ~H"""
     <dl id={@id} class="fleet-figures">
       <div>
-        <dt>Present</dt>
+        <dt>
+          <Regent.Primitives.tip id={"#{@id}-present-tip"}>
+            <:figure>Present</:figure>
+            Active seats counted when a new proposal opens. Stay present by voting, proposing, or checking in every 48 hours.
+          </Regent.Primitives.tip>
+        </dt>
         <dd id={"#{@id}-present"}>{figure(@present)}</dd>
       </div>
       <div>
-        <dt>Expiring</dt>
+        <dt>
+          <Regent.Primitives.tip id={"#{@id}-expiring-tip"}>
+            <:figure>Expiring</:figure>
+            Present seats dropping out within 24 hours unless they check in, vote, or propose.
+          </Regent.Primitives.tip>
+        </dt>
         <dd id={"#{@id}-expiring"}>{figure(@expiring)}</dd>
       </div>
       <div>
-        <dt>Undecided</dt>
-        <dd id={"#{@id}-undecided"}>{@undecided}</dd>
+        <dt>
+          <Regent.Primitives.tip id={"#{@id}-undecided-tip"}>
+            <:figure>Undecided</:figure>
+            Counted seats that have not voted on the soonest open proposal. Non-votes count against passing.
+          </Regent.Primitives.tip>
+        </dt>
+        <dd id={"#{@id}-undecided"}>{figure(@undecided)}</dd>
       </div>
     </dl>
     """
@@ -48,7 +63,7 @@ defmodule RegentsWeb.Keyfleet.Components.FleetFigures do
 
   defp undecided(proposals) do
     case Enum.find(proposals, &(&1.status == :open)) do
-      nil -> 0
+      nil -> nil
       %{counted: counted, yes: yes, no: no, abstain: abstain} -> counted - yes - no - abstain
     end
   end

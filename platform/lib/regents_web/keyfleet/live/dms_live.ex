@@ -23,7 +23,7 @@ defmodule RegentsWeb.Keyfleet.DmsLive do
   alias Regents.Keyfleet.Dms.Errors.SendLimitError
   alias Regents.Keyfleet.Dms.Message
   alias Regents.Keyfleet.Fleets
-  alias Regents.Keyfleet.Fleets.Rules
+  alias Regents.Keyfleet.Fleets.{Presets, Rules}
   alias Regents.Keyfleet.Keys
   alias Regents.Keyfleet.Rooms.Errors.KeyUnknownError
   alias RegentsWeb.Keyfleet.KeyLinks
@@ -291,14 +291,25 @@ defmodule RegentsWeb.Keyfleet.DmsLive do
         :if={@dms != :unreadable and not is_nil(@dms.fleet_name) and not sign_in?(@dms)}
         class="dms-closed__actions"
       >
+        <Regent.Primitives.button
+          :if={not @dms.refreshing? and not Presets.given?(@dms.fleet_id)}
+          id="dms-buy-key"
+          type="button"
+          variant="primary"
+          phx-click="open_buy_key"
+          phx-value-fleet={@dms.fleet_id}
+          aria-haspopup="dialog"
+        >
+          Buy Key
+        </Regent.Primitives.button>
         <.link
           patch={Regents.Keyfleet.Fleets.path(@dms.fleet_id)}
           class="rg-button rg-button--secondary"
         >
-          Back to {@dms.fleet_name}
+          <span class="rg-button__label">Back to {@dms.fleet_name}</span>
         </.link>
         <a href="/account#account-keyfleet" class="rg-button rg-button--quiet">
-          View your Keys
+          <span class="rg-button__label">View your Keys</span>
         </a>
       </div>
     </section>

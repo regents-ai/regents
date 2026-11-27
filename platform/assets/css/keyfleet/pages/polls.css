@@ -103,6 +103,13 @@
   max-width: 100%;
 }
 
+.polls-locked__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 /* The place a vote's line is read out from takes no room until it holds one. */
 .polls-said:not(:has(*)) {
   margin-block-end: -1rem;

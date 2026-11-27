@@ -40,6 +40,12 @@ defmodule RegentsWeb.Keyfleet.DirectoryController do
   def rooms(conn, %{"fleet_id" => fleet_id}),
     do: open_fleet(conn, fleet_id, "?room=general")
 
+  def keys_redirect(conn, _params),
+    do: redirect(conn, to: Fleets.path(conn.assigns.fleet_id) <> "?view=members")
+
+  def messages_redirect(conn, _params),
+    do: redirect(conn, to: Fleets.path(conn.assigns.fleet_id))
+
   defp fleet_md(conn, fleet_id) do
     case read(fn -> Directory.fleet(fleet_id) end) do
       {:ok, fleet} -> markdown(conn, DirectoryMD.show(%{fleet: fleet, generated_at: now()}))

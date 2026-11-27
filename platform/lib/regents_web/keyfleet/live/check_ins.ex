@@ -62,7 +62,7 @@ defmodule RegentsWeb.Keyfleet.CheckIns do
   def who_is_here(assigns) do
     ~H"""
     <section id="fleet-who" class="who-is-here" aria-labelledby="fleet-who-title">
-      <h2 id="fleet-who-title">Here now</h2>
+      <h2 id="fleet-who-title">Fleet agents</h2>
 
       <Regent.Primitives.empty_state
         :if={@shown == 0 and @agents_here != nil}

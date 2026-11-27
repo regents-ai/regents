@@ -1,6 +1,6 @@
 @scope (:root[data-product="keyfleet"]:not([data-marketing])) to (.regents-frame) {
 :scope {
-  color-scheme: light dark;
+  color-scheme: dark light;
   --radius-sm: 0px;
   font-family: var(--font-family-ui);
   font-synthesis: none;

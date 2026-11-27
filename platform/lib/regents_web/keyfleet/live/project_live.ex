@@ -13,6 +13,7 @@ defmodule RegentsWeb.Keyfleet.ProjectLive do
   use RegentsWeb, :html
   import RegentsWeb.Components.PageHead, only: [page_head: 1]
 
+  alias Regents.Keyfleet.Fleets.Presets
   alias RegentsWeb.Keyfleet.ActivityLines
 
   attr :project, :map, required: true
@@ -24,6 +25,10 @@ defmodule RegentsWeb.Keyfleet.ProjectLive do
   def page(assigns) do
     ~H"""
     <article id="project-page" class="project-page" data-project={@project.name}>
+      <p class="project-kicker">
+        <.link patch={@project.fleet_path}>{@project.fleet_name}</.link>
+        · <.link patch={"#{@project.fleet_path}/workspace"}>Workspace</.link>
+      </p>
       <.page_head title={@project.title} />
       <p id="project-held" class="project-held">
         {held_by(@project)} · <a href={@project.fleet_path}>{@project.fleet_name}</a>
@@ -33,8 +38,29 @@ defmodule RegentsWeb.Keyfleet.ProjectLive do
       </p>
 
       <p id="project-actions" class="project-actions">
-        <.link id="project-bring-agent" href={@project.pair_path} class="rg-button">
-          Bring your agent
+        <Regent.Primitives.button
+          :if={not @workspace? and not Presets.given?(@project.fleet_id)}
+          id="project-buy-key"
+          type="button"
+          variant="primary"
+          phx-click="open_buy_key"
+          phx-value-fleet={@project.fleet_id}
+          aria-haspopup="dialog"
+        >
+          Buy Key
+        </Regent.Primitives.button>
+        <.link
+          id="project-bring-agent"
+          href={@project.pair_path}
+          class={[
+            "rg-button",
+            if(not @workspace? and not Presets.given?(@project.fleet_id),
+              do: "rg-button--secondary",
+              else: "rg-button--primary"
+            )
+          ]}
+        >
+          <span class="rg-button__label">Bring your agent</span>
         </.link>
         <.link
           :if={@workspace?}

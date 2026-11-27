@@ -61,6 +61,10 @@
 }
 
 .atlas-head h2 {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
   margin: 0;
   font-family: var(--font-family-title);
   font-size: 1.35rem;

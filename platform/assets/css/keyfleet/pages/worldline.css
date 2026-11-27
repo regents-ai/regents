@@ -67,11 +67,26 @@
 }
 
 .worldline-head h2 {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
   margin: 0;
   font-family: var(--font-family-title);
   font-size: 1.35rem;
   font-weight: 400;
   line-height: 1.1;
+}
+
+.worldline-orbits {
+  max-inline-size: 48rem;
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.worldline-orbits p {
+  margin: 0.35rem 0 0;
 }
 
 /* Each planet's path as a short stroke, the outer ones finer; the rooms as a

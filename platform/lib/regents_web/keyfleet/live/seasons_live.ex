@@ -112,7 +112,17 @@ defmodule RegentsWeb.Keyfleet.SeasonsLive do
     ~H"""
     <article id="seasons-page" class="seasons-page">
       <section class="seasons-panel" aria-labelledby="seasons-title">
-        <h2 id="seasons-title">Seasons</h2>
+        <p class="seasons-kicker">
+          <.link patch={Fleets.path(@seasons.fleet_id)}>
+            ← {Fleets.name(@seasons.fleet_id)}
+          </.link>
+        </p>
+        <h2 id="seasons-title">
+          Seasons
+          <Regent.Primitives.tip id="seasons-title-tip" label="About Seasons record">
+            Settled three-hour rounds. Click any season row to inspect individual Key picks.
+          </Regent.Primitives.tip>
+        </h2>
 
         <Regent.Primitives.empty_state
           :if={@seasons.state == :unreadable}
@@ -221,7 +231,12 @@ defmodule RegentsWeb.Keyfleet.SeasonsLive do
         />
       </button>
     </th>
-    <td>{@row.holding}</td>
+    <td>
+      <span :if={@row.pick_count == 0 and @row.holding == "USDC"} class="seasons-minor">
+        Idle (USDC)
+      </span>
+      <span :if={@row.pick_count > 0 or @row.holding != "USDC"}>{@row.holding}</span>
+    </td>
     <td>{SeasonPanel.captain(@row.captain_key)}</td>
     <td class="seasons-table__figure">{SeasonPanel.percent(@row.result)}</td>
     <td class="seasons-table__figure">{@row.pick_count}</td>

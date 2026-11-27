@@ -203,7 +203,12 @@ defmodule RegentsWeb.Keyfleet.Components.MemberList do
   def render(assigns) do
     ~H"""
     <section id={@id} class="member-list" aria-labelledby={"#{@id}-title"}>
-      <h2 id={"#{@id}-title"}>Member List</h2>
+      <h2 id={"#{@id}-title"}>
+        Member List
+        <Regent.Primitives.tip id={"#{@id}-status-tip"} label="About Active and Idle status">
+          Active holders have at least one Key marked present for voting quorum. Idle holders need to check in.
+        </Regent.Primitives.tip>
+      </h2>
       <p :if={@holders == :unreadable} id={"#{@id}-failed"}>
         Couldn’t read the members just now. <a href="">Try again</a>
       </p>

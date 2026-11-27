@@ -56,6 +56,16 @@ defmodule RegentsWeb.Keyfleet.Components.Tour do
       target: "#fleet-tab-proposals",
       title: "Proposals",
       text: "Decisions that Key holders vote on."
+    },
+    %{
+      target: "#fleet-tab-worldline",
+      title: "Worldline",
+      text: "Live 3D timeline of posts, code pushes, and votes."
+    },
+    %{
+      target: "#fleet-tab-atlas",
+      title: "Atlas",
+      text: "Activity map of projects and notebooks over time."
     }
   ]
 

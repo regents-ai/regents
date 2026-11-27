@@ -31,14 +31,15 @@ defmodule RegentsWeb.Keyfleet.Components.PresenceCard do
     default: true,
     doc: "false where the page leaves out the line naming the sending wallet"
 
+  attr :can_mark?, :boolean,
+    default: true,
+    doc: "false on a single-Key page when the viewer neither owns the Key nor holds a shard"
+
   def card(assigns) do
     ~H"""
     <section id={@id} class={@class} aria-labelledby={"#{@id}-title"}>
       <h2 id={"#{@id}-title"} class="presence-title">
-        Present
-        <Regent.Primitives.tip id={"#{@id}-tip"} label="About being present">
-          A present Key is counted when a proposal opens. A new Key waits 2 days, then is present on its own until day 4. After that, marking it present lasts 48 hours, and voting or proposing with it marks it too.
-        </Regent.Primitives.tip>
+        {if @token_id, do: "Quorum status", else: "Active quorum"}
       </h2>
       <.live_component
         module={WalletPanel}
@@ -57,7 +58,7 @@ defmodule RegentsWeb.Keyfleet.Components.PresenceCard do
           <.key_lines :if={!@token_id} id={"#{@id}-idle"} keys={idle(panel)} />
         </:notes>
         <:buttons :let={panel}>
-          <WalletPanel.step_button panel={panel} step="present" id={"#{@id}-mark"}>
+          <WalletPanel.step_button :if={@can_mark?} panel={panel} step="present" id={"#{@id}-mark"}>
             Mark present
           </WalletPanel.step_button>
         </:buttons>
@@ -73,7 +74,24 @@ defmodule RegentsWeb.Keyfleet.Components.PresenceCard do
           </Regent.Primitives.disclosure>
         </:details>
       </.live_component>
-      <.live_component module={FleetFigures} id={"#{@id}-figures"} fleet_id={@fleet.fleet_id} />
+      <.live_component
+        :if={is_nil(@token_id)}
+        module={FleetFigures}
+        id={"#{@id}-figures"}
+        fleet_id={@fleet.fleet_id}
+      />
+      <Regent.Primitives.disclosure
+        id={"#{@id}-rules"}
+        summary="Quorum rules"
+        class="presence-rules"
+        phx-mounted={JS.ignore_attributes(["open"])}
+      >
+        <p>
+          A present Key counts toward quorum when a proposal opens. New Keys wait 2 days after sale,
+          then count automatically until day 4. After that, marking present lasts 48 hours; voting or
+          proposing renews presence too.
+        </p>
+      </Regent.Primitives.disclosure>
     </section>
     """
   end

@@ -342,7 +342,12 @@ defmodule RegentsWeb.Keyfleet.WorldlineLive do
     <article id="worldline-page" class="worldline-page">
       <section class="worldline-panel" aria-labelledby="worldline-title">
         <header class="worldline-head">
-          <h2 id="worldline-title">Worldline</h2>
+          <h2 id="worldline-title">
+            Worldline
+            <Regent.Primitives.tip id="worldline-title-tip" label="About Worldline">
+              Live 3D timeline of fleet events. Switch to List to browse as text.
+            </Regent.Primitives.tip>
+          </h2>
           <nav id="worldline-show" class="fleet-keys-switch" aria-label="Show the Worldline as">
             <.link
               id="worldline-show-picture"
@@ -546,19 +551,30 @@ defmodule RegentsWeb.Keyfleet.WorldlineLive do
     </div>
     <p id="worldline-help" class="worldline-help">
       <span class="worldline-help__mouse">
-        Drag to turn it, Shift and drag or scroll to move through time, and pinch or hold Ctrl and scroll to zoom.
+        Drag to rotate · Shift + drag or scroll to move in time · Ctrl + scroll to zoom.
       </span>
       <span class="worldline-help__touch">
-        Swipe sideways to move through time, pinch to zoom, and twist two fingers to turn it.
-      </span>
-      One turn is a day for Workspace, three for Code and a week for Notebooks.
-      <span class="worldline-help__flight">
-        At now the planets spin faster than that, slowing on the event or planet you point at or tap; moving through time stops them, and Now starts them again.
+        Swipe to move in time · Pinch to zoom · Twist with two fingers to rotate.
       </span>
       <span class="visually-hidden">
         Arrow keys move through time, Alt and the arrow keys turn it, plus and minus zoom, End goes back to now, and Enter opens the event shown.
       </span>
     </p>
+    <Regent.Primitives.disclosure
+      id="worldline-orbits"
+      class="worldline-orbits"
+      summary="Controls and orbits"
+    >
+      <p>
+        One orbit equals a day for Workspace, three days for Code, and a week for Notebooks.
+      </p>
+      <p class="worldline-help__flight">
+        At Now, planets spin faster and slow on hover or tap; scrubbing through time pauses them, and Now resumes playback.
+      </p>
+      <p>
+        Keyboard: Arrow keys move in time, Alt + arrows rotate, +/- zoom, End returns to Now, Enter opens the selected event.
+      </p>
+    </Regent.Primitives.disclosure>
     """
   end
 

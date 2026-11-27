@@ -46,9 +46,20 @@
   padding: var(--rg-panel-padding);
 }
 
-/* Sign in, under the members-only outline, keeps its own width. */
+/* Sign in and Buy Key, under the members-only outline, sit in one row. */
 .workspace-heading > .rg-button {
   justify-self: start;
+}
+
+.workspace-heading__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.workspace-public-project h3 a {
+  text-underline-offset: 0.18em;
 }
 
 .workspace-heading h2 {

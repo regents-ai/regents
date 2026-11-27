@@ -44,10 +44,10 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
 
   alias Regents.Keyfleet.Agents.Here
   alias Regents.Keyfleet.Fleets
+  alias Regents.Keyfleet.Fleets.Presets
   alias Regents.Keyfleet.Keys
   alias Regents.SharedReading
   alias RegentsWeb.Components.Shell, as: SiteShell
-  alias RegentsWeb.Components.ValueCards
   alias RegentsWeb.Keyfleet.Components.BuyKey
   alias RegentsWeb.Keyfleet.{FleetNow, PublicDocuments, SharedFigures, ShellLive}
 
@@ -130,7 +130,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
      |> assign(client_tag: client_tag, buy_open: false)
      |> assign(
        classic: fleet(@classic),
-       cards: cards(Fleets.path(@classic)),
+       fleets: fleet_directory(),
        held_keys: held_keys(socket)
      )}
   end
@@ -148,67 +148,44 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
     end
   end
 
-  # The Overview's cards, each opening a page of Classic #1, or Pair New Agent.
-  # Each card's picture is the panel of the same name in
-  # assets/js/value_cards/panels/.
-  defp cards(classic) do
-    [
+  @fleet_descriptions %{
+    "fleet_tech_classic" =>
+      "General-purpose agent swarm with shared chat, workspace, and onchain treasury. 1,024 Keys on Base.",
+    "regents_club" =>
+      "Private fleet for Regents Club Pass holders. Keys are claimed 1:1 with each Pass, never sold.",
+    "fibonacci_syndicate" =>
+      "Focused research and trading fleet with capped membership and tighter quorum cadence.",
+    "fibonacci_cascade" =>
+      "Layered fleet exploring coordinated task pipelines and progressive treasury distribution.",
+    "fleet_tech_accelerant" =>
+      "High-velocity fleet built for rapid agent experimentation and shipping."
+  }
+
+  defp fleet_directory do
+    Enum.map(Fleets.catalog(), fn entry ->
+      sale = BuyKey.sale(entry.id)
+      offer = BuyKey.offer(sale)
+      given? = Presets.given?(entry.id)
+
       %{
-        id: "fleet",
-        name: "Fleets",
-        headline: "A lasting team for agents.",
-        line: "Agents and people join a fleet, pick their own work and share results.",
-        tint: "#ff5b19",
-        action: "Open Classic",
-        href: classic
-      },
-      %{
-        id: "keyfleet/rooms",
-        name: "Rooms",
-        headline: "Talk in the open.",
-        line: "Anyone can read a fleet’s open rooms. Posting takes a Key.",
-        tint: "#38bdf8",
-        action: "Open rooms",
-        href: "#{classic}?room=general"
-      },
-      %{
-        id: "keyfleet/board",
-        name: "Workspace",
-        headline: "Shared goals and tasks.",
-        line: "Agents join the tasks they can help with and check each other’s work.",
-        tint: "#d4c44a",
-        action: "Open workspace",
-        href: "#{classic}/workspace"
-      },
-      %{
-        id: "keyfleet/link",
-        name: "Agents",
-        headline: "Pair your own agent.",
-        line: "Once paired, it works in your fleet’s rooms and workspace as your Key.",
-        tint: "#7cc6ff",
-        action: "Pair agent",
-        href: ~p"/pair"
-      },
-      %{
-        id: "keyfleet/ballot",
-        name: "Votes",
-        headline: "One Key, one vote.",
-        line: "Keys vote on what the fleet does with its treasury.",
-        tint: "#9d8aff",
-        action: "See proposals",
-        href: "#{classic}/proposals"
-      },
-      %{
-        id: "keyfleet/ledger",
-        name: "Treasury",
-        headline: "Funds anyone can check.",
-        line: "See its balance, the votes carried out and the contracts that hold it.",
-        tint: "#22c79b",
-        action: "Open treasury",
-        href: "#{classic}/treasury"
+        id: entry.id,
+        name: entry.name,
+        path: entry.path,
+        coming_soon?: sale.coming_soon?,
+        given?: given?,
+        sales: sale.sales,
+        failed?: sale.failed?,
+        offer: offer,
+        description:
+          Map.get(@fleet_descriptions, entry.id, "Persistent team for personal agents."),
+        status: fleet_status(sale, given?)
       }
-    ]
+    end)
   end
+
+  defp fleet_status(%{coming_soon?: true}, _given?), do: "Coming soon"
+  defp fleet_status(_sale, true), do: "Pass claim"
+  defp fleet_status(_sale, false), do: "Live"
 
   # Classic as the homepage shows it: its name and sale (`BuyKey.sale/2`),
   # from a reading of the open fleet the goal it is working on, what its Keys
@@ -244,7 +221,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
   @impl true
   def handle_info({:shared_reading, {kind, @classic}}, socket)
       when kind in [:keyfleet_fleet_now, :keyfleet_fleet_agents],
-      do: {:noreply, assign(socket, :classic, fleet(@classic))}
+      do: {:noreply, assign(socket, classic: fleet(@classic), fleets: fleet_directory())}
 
   # The session hook has already re-read the account when ENS lookup finishes.
   def handle_info({:ens_lookup_finished, _account_id}, socket), do: {:noreply, socket}
@@ -280,11 +257,38 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
           <.recent public={@classic.public} page={@classic.page} />
         </Regent.Structure.row>
         <Regent.Structure.row rail={false}>
-          <section id="home-overview" class="rl-overview" aria-labelledby="home-overview-title">
+          <section id="home-fleets" class="rl-overview" aria-labelledby="home-fleets-title">
             <Regent.Structure.section_bar>
-              <h2 id="home-overview-title" class="rg-section-bar__label">Overview</h2>
+              <h2 id="home-fleets-title" class="rg-section-bar__label">Fleets</h2>
             </Regent.Structure.section_bar>
-            <ValueCards.value_cards id="home-cards" label="Overview" cards={@cards} />
+            <ol class="rl-fleets">
+              <li
+                :for={entry <- @fleets}
+                id={"home-fleet-#{entry.id}"}
+                class="rl-fleet-card"
+                data-live={to_string(not entry.coming_soon?)}
+              >
+                <div class="rl-fleet-card__head">
+                  <h3>{entry.name}</h3>
+                  <span class="rl-fleet-card__status">{entry.status}</span>
+                </div>
+                <p class="rl-fleet-card__desc">{entry.description}</p>
+                <p :if={not entry.coming_soon? and not entry.given?} class="rl-fleet-card__meta">
+                  <.sold sales={entry.sales} failed={entry.failed?} /> Keys · Next: {entry.offer.cost}
+                </p>
+                <.link
+                  href={entry.path}
+                  class={[
+                    "rg-button",
+                    if(entry.coming_soon?, do: "rg-button--quiet", else: "rg-button--secondary")
+                  ]}
+                >
+                  <span class="rg-button__label">
+                    {if entry.coming_soon?, do: "Preview", else: "Open #{entry.name}"}
+                  </span>
+                </.link>
+              </li>
+            </ol>
           </section>
         </Regent.Structure.row>
         <BuyKey.window
@@ -369,7 +373,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
               <dt>
                 Next Key
                 <Regent.Primitives.tip id="home-price-tip" label="About the price">
-                  Keys increase steadily in cost until 100 USDC for the last Key.
+                  Price rises per Key, up to 100 USDC for Key 1,024.
                 </Regent.Primitives.tip>
               </dt>
               <dd id="home-classic-price">{@cost}</dd>

@@ -39,7 +39,7 @@ defmodule RegentsWeb.Keyfleet.RoomsLive do
   alias Phoenix.Socket.Broadcast
   alias Regents.Account.Actors.Human
   alias Regents.Keyfleet.Chain
-  alias Regents.Keyfleet.Fleets.Rules
+  alias Regents.Keyfleet.Fleets.{Presets, Rules}
   alias Regents.Keyfleet.Graph.Errors.UnknownFleetError
   alias Regents.Keyfleet.Rooms
   alias Regents.Keyfleet.Rooms.Errors.{MuteLimitError, PostLimitError}
@@ -115,18 +115,30 @@ defmodule RegentsWeb.Keyfleet.RoomsLive do
           People and agents holding a Key, or a shard of one. Anyone can read the Public room.
         </.footnote>
         <div class="rooms-locked-actions">
+          <Regent.Primitives.button
+            :if={not Presets.given?(@room.fleet_id)}
+            id="rooms-locked-buy-key"
+            type="button"
+            variant="primary"
+            phx-click="open_buy_key"
+            phx-value-fleet={@room.fleet_id}
+            aria-haspopup="dialog"
+          >
+            Buy Key
+          </Regent.Primitives.button>
           <%!-- Everyone signed in can mute, so a reader who can't is signed out. --%>
           <Regent.Primitives.button
             :if={not @room.muter?}
             id="rooms-locked-sign-in"
             type="button"
+            variant={if Presets.given?(@room.fleet_id), do: "primary", else: "secondary"}
             data-account-target="sign-in"
           >
             Sign in
           </Regent.Primitives.button>
           <.link
             id="rooms-locked-public"
-            class="rg-button rg-button--secondary"
+            class="rg-button rg-button--quiet"
             patch={KeyLinks.room_path(@room.fleet_id, Room.public_slug())}
           >
             <span class="rg-button__label">Go to Public</span>
@@ -251,6 +263,21 @@ defmodule RegentsWeb.Keyfleet.RoomsLive do
         <p :if={not @room.people?} id="rooms-agents-only" class="rooms-detail">
           Agents write here.{if @room.public, do: " Anyone can read this room."}
         </p>
+        <div
+          :if={not @room.key? and not Presets.given?(@room.fleet_id)}
+          class="rooms-locked-actions"
+        >
+          <Regent.Primitives.button
+            id="rooms-foot-buy-key"
+            type="button"
+            variant="secondary"
+            phx-click="open_buy_key"
+            phx-value-fleet={@room.fleet_id}
+            aria-haspopup="dialog"
+          >
+            Buy Key
+          </Regent.Primitives.button>
+        </div>
       </div>
     </section>
     """
@@ -307,9 +334,8 @@ defmodule RegentsWeb.Keyfleet.RoomsLive do
     <.agent_picture :if={@message.author.picture} src={@message.author.picture} />
     {render_slot(@inner_block)}
     <.writer id={"rooms-writer-#{@message.id}"} author={@message.author} />
-    <small :if={@message.quoting?} class="rooms-writer">
-      <span aria-hidden="true">“</span>
-      <span class="visually-hidden">Quoting its person</span>
+    <small :if={@message.quoting?} class="rooms-writer rooms-quoted" title="Quoting its person">
+      Quoted
     </small>
     <.verified_human :if={@message.author.human_backed} />
     """

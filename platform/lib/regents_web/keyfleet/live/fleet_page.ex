@@ -77,6 +77,7 @@ defmodule RegentsWeb.Keyfleet.FleetPage do
   def read_recent_work(fleet_id) do
     for project <- Graph.shown(fleet_id) do
       %{
+        name: project.name,
         title: seen(project.title, "A project"),
         goals: Enum.map(project.goals, &seen(&1, "A goal"))
       }

@@ -25,7 +25,7 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
 
   alias Ash.Error.Action.InvalidArgument
   alias Regents.Account.Actors.Human
-  alias Regents.Keyfleet.Fleets.Rules
+  alias Regents.Keyfleet.Fleets.{Presets, Rules}
   alias Regents.Keyfleet.{Graph, Keys, Notebooks, Projects}
   alias Regents.Keyfleet.Graph.Errors.{EditsRestrictedError, NotKeyHolderError}
   alias Regents.Keyfleet.Keys.Errors.OwnershipRefreshingError
@@ -546,7 +546,7 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
             <h3 id="workspace-project-info-title">
               Workflow
               <Regent.Primitives.tip id="workspace-project-tip" label="About ActiveGraph">
-                Goals, tasks, findings and evidence live in this fleet’s ActiveGraph. Agents write them; every change shows in the workstream.
+                Goals, tasks, findings, and evidence live in ActiveGraph. Every change appears in the workstream.
               </Regent.Primitives.tip>
             </h3>
             <ul class="workspace-info-rules">
@@ -1051,7 +1051,7 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
             <h3 id="workspace-docs-info-title">
               Editing
               <Regent.Primitives.tip id="workspace-docs-tip" label="About the notebooks">
-                This fleet’s marimo notebooks. Key holders open them as themselves, and their agents read and run them too.
+                Shared marimo notebooks for this fleet. Key holders and agents read and run them.
               </Regent.Primitives.tip>
             </h3>
             <Regent.Primitives.button
@@ -1073,7 +1073,7 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
             <h3 id="workspace-copies-title">
               Daily copies
               <Regent.Primitives.tip id="workspace-copies-tip" label="About daily copies">
-                Each notebook that changed is copied once a day and kept for 90 days. Bringing one back makes a new notebook, yours.
+                Changed notebooks are snapshotted daily for 90 days. Restoring creates a new copy.
               </Regent.Primitives.tip>
             </h3>
             <form
@@ -1448,7 +1448,7 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
             <h3 id="workspace-code-info-title">
               Clone
               <Regent.Primitives.tip id="workspace-code-tip" label="About the code">
-                One shared place for this fleet’s code. Holders of its Keys, and their agents, copy it with git and send their changes back.
+                Shared Git repository for this fleet. Key holders and agents clone and push changes.
               </Regent.Primitives.tip>
             </h3>
             <div :if={@board.project} class="workspace-copy-box">
@@ -1471,7 +1471,7 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
                   as={:stamp}
                 />.
                 <Regent.Primitives.tip id="code-password-tip" label="About the git password">
-                  Paste it when git asks for a password. It stops working sooner if you sign out or no longer hold a Key.
+                  Paste when git asks for a password. Expires sooner if you sign out.
                 </Regent.Primitives.tip>
               </p>
               <div class="workspace-copy-box">
@@ -1897,8 +1897,8 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
             <div>
               <dt>
                 Citation link
-                <Regent.Primitives.tip id="workspace-commit-link-tip" label="About">
-                  Use this link as the source of evidence in the workspace. It always points at this exact change.
+                <Regent.Primitives.tip id="workspace-commit-link-tip" label="About commit link">
+                  Permanent link to this exact commit for citing evidence in the workspace.
                 </Regent.Primitives.tip>
               </dt>
               <dd class="workspace-code-line">
@@ -2721,18 +2721,36 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
       <header class="workspace-heading">
         <h2>Workspace</h2>
         <p id="workspace-members-only" class="workspace-lede">
-          This fleet’s open goals. Key holders and their agents see who has each task, and everything else.
+          This fleet’s open goals. Key holders and their agents see tasks, notebooks, code, and reviews.
         </p>
-        <.link patch={KeyLinks.members_path(@fleet.fleet_id)}>See this fleet’s Keys</.link>
-        <Regent.Primitives.button
-          :if={@signed_out?}
-          id="workspace-sign-in"
-          type="button"
-          variant="secondary"
-          data-account-target="sign-in"
-        >
-          Sign in
-        </Regent.Primitives.button>
+        <div class="workspace-heading__actions">
+          <Regent.Primitives.button
+            :if={not Presets.given?(@fleet.fleet_id)}
+            id="workspace-buy-key"
+            type="button"
+            variant="primary"
+            phx-click="open_buy_key"
+            phx-value-fleet={@fleet.fleet_id}
+            aria-haspopup="dialog"
+          >
+            Buy Key
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
+            :if={@signed_out?}
+            id="workspace-sign-in"
+            type="button"
+            variant="secondary"
+            data-account-target="sign-in"
+          >
+            Sign in
+          </Regent.Primitives.button>
+          <.link
+            patch={KeyLinks.members_path(@fleet.fleet_id)}
+            class="rg-button rg-button--quiet"
+          >
+            <span class="rg-button__label">Browse Keys</span>
+          </.link>
+        </div>
       </header>
       <section class="workspace-panel" aria-labelledby="workspace-public-projects-title">
         <h2 id="workspace-public-projects-title">Projects</h2>
@@ -2741,7 +2759,11 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
           id={"workspace-public-project-#{i}"}
           class="workspace-public-project"
         >
-          <h3>{project.title}</h3>
+          <h3>
+            <.link patch={ProjectPage.path(@fleet.fleet_id, project.name)}>
+              {project.title}
+            </.link>
+          </h3>
           <p :if={project.goals == []} class="workspace-detail">No goals in progress.</p>
           <ul :if={project.goals != []} class="workspace-lines">
             <li :for={goal <- project.goals}>
@@ -2764,26 +2786,26 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
       <h2 id="workspace-tools-title">Places</h2>
       <dl class="workspace-tools-list">
         <div>
-          <dt>Project <span class="workspace-detail">ActiveGraph</span></dt>
-          <dd>Goals, tasks and what changed.</dd>
+          <dt>Project <span class="workspace-detail">ActiveGraph · Keys only</span></dt>
+          <dd>Goals, tasks, findings, and evidence.</dd>
         </div>
         <div>
-          <dt>Docs <span class="workspace-detail">marimo</span></dt>
+          <dt>Docs <span class="workspace-detail">marimo · Keys only</span></dt>
           <dd>
             {if Regents.Keyfleet.Notebooks.hub?(@fleet_id),
-              do: "Notebooks and saved results.",
+              do: "Interactive Python notebooks and saved results.",
               else: "Notebooks, not set up here yet."}
           </dd>
         </div>
         <div>
-          <dt>Code <span class="workspace-detail">Git</span></dt>
-          <dd>One shared Git repository.</dd>
+          <dt>Code <span class="workspace-detail">Git · Keys only</span></dt>
+          <dd>Shared Git repository for fleet code.</dd>
         </div>
         <div>
           <dt>Public <span class="workspace-detail">Open to all</span></dt>
           <dd>
             <.link patch={WorkspacePage.place_path(@fleet_id, :public)}>
-              Work its Keys chose to show everyone.
+              Work this fleet’s Keys published for everyone.
             </.link>
           </dd>
         </div>

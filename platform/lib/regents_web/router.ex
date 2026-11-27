@@ -993,6 +993,14 @@ defmodule RegentsWeb.Router do
 
     # A Key holder's way into the fleet's notebooks, or to one saved output.
     get "/fleets/:fleet_id/notebooks/open", NotebookOpenController, :open
+
+    # Predictable collection redirects so /<fleet>/keys and /<fleet>/messages resolve cleanly.
+    for %{id: fleet_id, path: "/keyfleet" <> path} <- Regents.Keyfleet.Fleets.catalog() do
+      get path <> "/keys", DirectoryController, :keys_redirect, assigns: %{fleet_id: fleet_id}
+
+      get path <> "/messages", DirectoryController, :messages_redirect,
+        assigns: %{fleet_id: fleet_id}
+    end
   end
 
   scope "/keyfleet", RegentsWeb.Keyfleet do
