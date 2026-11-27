@@ -48,10 +48,11 @@
 
   /* Sub-header Utility Bar */
   .pbt-topbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
     align-items: center;
-    gap: 0.85rem;
+    gap: 0.75rem;
     padding: 0.75rem 1rem;
     background: var(--pbt-panel);
     border: 1px solid var(--pbt-border);
@@ -62,6 +63,8 @@
     display: flex;
     align-items: center;
     gap: 0.65rem;
+    min-width: 0;
+    flex: 1 1 20rem;
   }
 
   .pbt-pulse-dot {
@@ -372,6 +375,12 @@
     color: var(--pbt-cobalt);
     text-decoration: none;
     white-space: nowrap;
+  }
+
+  .pbt-related-fixes .pbt-link-pill {
+    white-space: normal;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 
   .pbt-link-pill:hover { text-decoration: underline; }

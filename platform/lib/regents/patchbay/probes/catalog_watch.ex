@@ -143,6 +143,7 @@ defmodule Regents.Patchbay.Probes.CatalogWatch do
     opts = [
       max_bytes: @max_discovery_bytes,
       timeout: @discovery_timeout_ms,
+      answer: :headers,
       headers: [
         {"accept", "application/json, text/html, */*"},
         {"user-agent", "Patchbay-CatalogWatch/1.0 (+https://regents.sh/patchbay/app)"}
