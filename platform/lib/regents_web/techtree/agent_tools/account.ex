@@ -150,7 +150,7 @@ defmodule RegentsWeb.Techtree.AgentTools.Account do
     end
 
     action :orders_create, :map do
-      description "Request a new Techtree Uplift Factory order in one of the four lanes (skills, evals, environments, models)."
+      description "Request a new Techtree Uplift Factory order in one of the four lanes (skills, evals, environments, models). Note: /mcp caps total JSON payloads at 512 KiB (~370 KiB raw archive); for larger <= 5 MiB intake archives use POST /api/v1/techtree/account/orders or `regents techtree orders create`."
 
       argument :lane, :string, allow_nil?: false
       argument :title, :string, allow_nil?: false, constraints: [min_length: 1, max_length: 200]
@@ -167,41 +167,37 @@ defmodule RegentsWeb.Techtree.AgentTools.Account do
       argument :material_archive_base64, :string, allow_nil?: true
 
       run fn %{arguments: args}, context ->
-        case Map.get(@lanes, args.lane) do
-          nil ->
-            refused(
-              "invalid_lane",
-              "lane must be one of skills, evals, environments, or models.",
-              "Pass lane: \"skills\" | \"evals\" | \"environments\" | \"models\"."
-            )
+        with {:ok, lane} <- parse_lane(args.lane),
+             {:ok, runbook} <- AccountOrdersController.parse_runbook(args[:runbook]) do
+          input =
+            %{lane: lane, title: args.title, success: args.success}
+            |> maybe_put(:project_name, args[:project_name])
+            |> maybe_put(:customer_company, args[:customer_company])
+            |> maybe_put(:customer_contact_name, args[:customer_contact_name])
+            |> maybe_put(:customer_contact_email, args[:customer_contact_email])
+            |> maybe_put(:runbook, runbook)
+            |> maybe_put(:material_archive_base64, args[:material_archive_base64])
 
-          lane ->
-            input =
-              %{lane: lane, title: args.title, success: args.success}
-              |> maybe_put(:project_name, args[:project_name])
-              |> maybe_put(:customer_company, args[:customer_company])
-              |> maybe_put(:customer_contact_name, args[:customer_contact_name])
-              |> maybe_put(:customer_contact_email, args[:customer_contact_email])
-              |> maybe_put(:runbook, parse_runbook(args[:runbook]))
-              |> maybe_put(:material_archive_base64, args[:material_archive_base64])
+          case Outage.read(fn -> Factory.request_order(input, actor: context.actor) end) do
+            {:ok, {:ok, order}} ->
+              {:ok, AccountOrdersController.serialize_order(order)}
 
-            case Outage.read(fn -> Factory.request_order(input, actor: context.actor) end) do
-              {:ok, {:ok, order}} ->
-                {:ok, AccountOrdersController.serialize_order(order)}
+            {:ok, {:error, error}} ->
+              refused(
+                "order_invalid",
+                AccountOrdersController.validation_message(
+                  error,
+                  "Order fields or materials failed validation."
+                ),
+                "Check lane, title, success, runbook, and material_archive_base64."
+              )
 
-              {:ok, {:error, error}} ->
-                refused(
-                  "order_invalid",
-                  AccountOrdersController.validation_message(
-                    error,
-                    "Order fields or materials failed validation."
-                  ),
-                  "Check lane, title, success, runbook, and material_archive_base64."
-                )
-
-              :database_down ->
-                unavailable()
-            end
+            :database_down ->
+              unavailable()
+          end
+        else
+          {:error, code, message, hint} ->
+            refused(code, message, hint)
         end
       end
     end
@@ -260,23 +256,16 @@ defmodule RegentsWeb.Techtree.AgentTools.Account do
     }
   end
 
-  defp parse_runbook(%{} = raw) do
-    %{}
-    |> maybe_put(:mode, parse_atom(raw["mode"], ~w(supervised auto)))
-    |> maybe_put(:auto_deliver, if(is_boolean(raw["auto_deliver"]), do: raw["auto_deliver"]))
-    |> maybe_put(:max_gpu_cents, raw["max_gpu_cents"])
-    |> maybe_put(:default_gpu, parse_atom(raw["default_gpu"], ~w(auto L4 G4 A100 H100)))
-    |> maybe_put(:default_learning_rate, raw["default_learning_rate"])
-    |> maybe_put(:default_training_mode, parse_atom(raw["default_training_mode"], ~w(sft rl)))
+  defp parse_lane(raw) do
+    case Map.get(@lanes, to_string(raw || "")) do
+      nil ->
+        {:error, "invalid_lane", "lane must be one of skills, evals, environments, or models.",
+         "Pass lane: \"skills\" | \"evals\" | \"environments\" | \"models\"."}
+
+      lane ->
+        {:ok, lane}
+    end
   end
-
-  defp parse_runbook(_other), do: nil
-
-  defp parse_atom(val, allowed) when is_binary(val) do
-    if val in allowed, do: String.to_existing_atom(val), else: nil
-  end
-
-  defp parse_atom(_val, _allowed), do: nil
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)

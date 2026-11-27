@@ -149,46 +149,130 @@ defmodule RegentsWeb.Techtree.AccountOrdersController do
   end
 
   defp build_request_input(params) when is_map(params) do
-    case Map.get(@lanes, to_string(params["lane"] || params["kind"] || "")) do
+    with {:ok, lane} <- parse_lane(params["lane"] || params["kind"]),
+         {:ok, runbook} <- parse_runbook(params["runbook"]) do
+      input =
+        %{
+          lane: lane,
+          title: params["title"],
+          success: params["success"]
+        }
+        |> maybe_put(:project_name, params["project_name"])
+        |> maybe_put(:customer_company, params["customer_company"])
+        |> maybe_put(:customer_contact_name, params["customer_contact_name"])
+        |> maybe_put(:customer_contact_email, params["customer_contact_email"])
+        |> maybe_put(:material_archive_base64, params["material_archive_base64"])
+        |> maybe_put(:runbook, runbook)
+
+      {:ok, input}
+    end
+  end
+
+  defp parse_lane(raw) do
+    case Map.get(@lanes, to_string(raw || "")) do
       nil ->
         {:error, :invalid_lane, "lane must be one of skills, evals, environments, or models.",
          "Pass lane: \"skills\" | \"evals\" | \"environments\" | \"models\"."}
 
       lane ->
-        input =
-          %{
-            lane: lane,
-            title: params["title"],
-            success: params["success"]
-          }
-          |> maybe_put(:project_name, params["project_name"])
-          |> maybe_put(:customer_company, params["customer_company"])
-          |> maybe_put(:customer_contact_name, params["customer_contact_name"])
-          |> maybe_put(:customer_contact_email, params["customer_contact_email"])
-          |> maybe_put(:material_archive_base64, params["material_archive_base64"])
-          |> maybe_put(:runbook, parse_runbook(params["runbook"]))
-
-        {:ok, input}
+        {:ok, lane}
     end
   end
 
-  defp parse_runbook(%{} = raw) do
-    %{}
-    |> maybe_put(:mode, parse_atom(raw["mode"], ~w(supervised auto)))
-    |> maybe_put(:auto_deliver, if(is_boolean(raw["auto_deliver"]), do: raw["auto_deliver"]))
-    |> maybe_put(:max_gpu_cents, raw["max_gpu_cents"])
-    |> maybe_put(:default_gpu, parse_atom(raw["default_gpu"], ~w(auto L4 G4 A100 H100)))
-    |> maybe_put(:default_learning_rate, raw["default_learning_rate"])
-    |> maybe_put(:default_training_mode, parse_atom(raw["default_training_mode"], ~w(sft rl)))
+  @runbook_keys ~w(mode auto_deliver max_gpu_cents default_gpu default_learning_rate default_training_mode)
+
+  @doc false
+  @spec parse_runbook(term()) ::
+          {:ok, map() | nil} | {:error, :invalid_runbook, String.t(), String.t()}
+  def parse_runbook(nil), do: {:ok, nil}
+
+  def parse_runbook(raw) when is_map(raw) do
+    unknown = Map.keys(raw) |> Enum.map(&to_string/1) |> Enum.reject(&(&1 in @runbook_keys))
+
+    with [] <- unknown,
+         {:ok, mode} <- parse_runbook_atom(raw, "mode", ~w(supervised auto)),
+         {:ok, auto_deliver} <- parse_runbook_bool(raw, "auto_deliver"),
+         {:ok, max_gpu_cents} <- parse_runbook_int(raw, "max_gpu_cents", 0, 1_000_000),
+         {:ok, default_gpu} <- parse_runbook_atom(raw, "default_gpu", ~w(auto L4 G4 A100 H100)),
+         {:ok, lr} <- parse_runbook_lr(raw, "default_learning_rate"),
+         {:ok, train_mode} <- parse_runbook_atom(raw, "default_training_mode", ~w(sft rl)) do
+      parsed =
+        %{}
+        |> maybe_put(:mode, mode)
+        |> maybe_put(:auto_deliver, auto_deliver)
+        |> maybe_put(:max_gpu_cents, max_gpu_cents)
+        |> maybe_put(:default_gpu, default_gpu)
+        |> maybe_put(:default_learning_rate, lr)
+        |> maybe_put(:default_training_mode, train_mode)
+
+      {:ok, parsed}
+    else
+      unknown when is_list(unknown) ->
+        runbook_error("Unsupported runbook field(s): #{Enum.join(Enum.sort(unknown), ", ")}.")
+
+      {:error, reason} ->
+        runbook_error(reason)
+    end
   end
 
-  defp parse_runbook(_other), do: nil
+  def parse_runbook(_other), do: runbook_error("runbook must be a JSON object.")
 
-  defp parse_atom(val, allowed) when is_binary(val) do
-    if val in allowed, do: String.to_existing_atom(val), else: nil
+  defp parse_runbook_atom(raw, key, allowed) do
+    case Map.fetch(raw, key) do
+      :error ->
+        {:ok, nil}
+
+      {:ok, nil} ->
+        {:ok, nil}
+
+      {:ok, val} when is_binary(val) ->
+        if val in allowed,
+          do: {:ok, String.to_existing_atom(val)},
+          else: {:error, "runbook.#{key} must be one of: #{Enum.join(allowed, ", ")}."}
+
+      {:ok, _other} ->
+        {:error, "runbook.#{key} must be one of: #{Enum.join(allowed, ", ")}."}
+    end
   end
 
-  defp parse_atom(_val, _allowed), do: nil
+  defp parse_runbook_bool(raw, key) do
+    case Map.fetch(raw, key) do
+      :error -> {:ok, nil}
+      {:ok, nil} -> {:ok, nil}
+      {:ok, val} when is_boolean(val) -> {:ok, val}
+      {:ok, _other} -> {:error, "runbook.#{key} must be a boolean."}
+    end
+  end
+
+  defp parse_runbook_int(raw, key, min_v, max_v) do
+    case Map.fetch(raw, key) do
+      :error ->
+        {:ok, nil}
+
+      {:ok, nil} ->
+        {:ok, nil}
+
+      {:ok, val} when is_integer(val) and val >= min_v and val <= max_v ->
+        {:ok, val}
+
+      {:ok, _other} ->
+        {:error, "runbook.#{key} must be an integer between #{min_v} and #{max_v}."}
+    end
+  end
+
+  defp parse_runbook_lr(raw, key) do
+    case Map.fetch(raw, key) do
+      :error -> {:ok, nil}
+      {:ok, nil} -> {:ok, nil}
+      {:ok, val} when is_number(val) and val > 0 and val <= 1 -> {:ok, val * 1.0}
+      {:ok, _other} -> {:error, "runbook.#{key} must be a number in (0, 1]."}
+    end
+  end
+
+  defp runbook_error(message) do
+    {:error, :invalid_runbook, message,
+     "Allowed runbook fields: mode (supervised|auto), auto_deliver (boolean), max_gpu_cents (0..1000000), default_gpu (auto|L4|G4|A100|H100), default_learning_rate ((0,1]), default_training_mode (sft|rl)."}
+  end
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)

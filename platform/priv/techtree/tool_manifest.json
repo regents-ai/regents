@@ -850,7 +850,7 @@
           },
           "material_archive_base64": {
             "type": "string",
-            "description": "Optional base64-encoded <= 5 MiB .tar.gz material archive."
+            "description": "Optional base64-encoded .tar.gz material archive (up to 5 MiB via HTTP/CLI; /mcp requests are capped at 512 KiB total JSON, ~370 KiB raw archive)."
           }
         },
         "required": [

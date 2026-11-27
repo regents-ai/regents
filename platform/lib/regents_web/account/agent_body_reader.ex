@@ -99,13 +99,27 @@ defmodule RegentsWeb.Account.AgentBodyReader do
 
   defp techtree_order_post?(_conn), do: false
 
-  defp techtree_factory_deliver_post?(%{
-         method: "POST",
-         path_info: ["api", "v1", "techtree", "factory", "orders", _id, "deliver"]
-       }),
-       do: true
+  defp techtree_factory_deliver_post?(
+         %{
+           method: "POST",
+           path_info: ["api", "v1", "techtree", "factory", "orders", _id, "deliver"]
+         } = conn
+       ),
+       do: valid_factory_operator_token?(conn)
 
   defp techtree_factory_deliver_post?(_conn), do: false
+
+  # Verify the operator Bearer token before raising the body limit to ~171 MiB,
+  # so unauthenticated or invalid requests are cut off at @limit (8 KiB).
+  defp valid_factory_operator_token?(conn) do
+    with expected when is_binary(expected) and byte_size(expected) > 0 <-
+           Application.get_env(:regents, :techtree_factory_operator_token),
+         ["Bearer " <> provided] <- Plug.Conn.get_req_header(conn, "authorization") do
+      Plug.Crypto.secure_compare(String.trim(provided), expected)
+    else
+      _other -> false
+    end
+  end
 
   defp autolaunch_draft_patch?(%{
          method: "PATCH",

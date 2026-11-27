@@ -489,7 +489,7 @@ defmodule RegentsWeb.Techtree.ProjectsLive do
       <dl>
         <div :if={@training["mode"]}>
           <dt>Training mode</dt>
-          <dd>{training_mode_label(@training["mode"])}</dd>
+          <dd>{training_mode_label(@training)}</dd>
         </div>
         <div :if={@prompt_mode}>
           <dt>Inference prompt</dt>
@@ -641,8 +641,18 @@ defmodule RegentsWeb.Techtree.ProjectsLive do
     """
   end
 
-  defp training_mode_label("rl"), do: "GRPO RL (prime-rl)"
-  defp training_mode_label("sft"), do: "LoRA SFT (prime-rl)"
+  defp training_mode_label(%{"mode" => mode} = training) do
+    prime_rl? = is_map(training["versions"]) and is_binary(training["versions"]["prime-rl"])
+
+    case {mode, prime_rl?} do
+      {"rl", true} -> "GRPO RL (prime-rl)"
+      {"rl", false} -> "GRPO RL"
+      {"sft", true} -> "LoRA SFT (prime-rl)"
+      {"sft", false} -> "LoRA SFT"
+      {other, _} -> to_string(other)
+    end
+  end
+
   defp training_mode_label(other), do: to_string(other)
 
   attr :id, :string, required: true
