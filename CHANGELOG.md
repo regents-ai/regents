@@ -8757,3 +8757,11 @@ seasons), on the shared Points library regents.sh was already on.
 ## 2026-11-25 — Orbit theme switch
 
 - Use a round thumb and pill track for the light and dark switch in the header and account panel. Keep the pixel sun and moon and the same shape when motion or WebGPU is unavailable.
+
+## 2026-11-27 — Patchbay live TLS/PQC probe and CycloneDX 1.6 CBOM audit
+
+- Add `RegentHttp.Public.resolve_public_ip/2` so TLS probes share the existing SSRF-hardened DNS and public-IP allowlist without duplicating address checks.
+- Add `Regents.Patchbay.Probes.CryptoEndpoint` (`POST /api/v1/patchbay/security/probe-crypto`, MCP `patchbay_probe_crypto`, CLI `security probe-crypto <url>`) to test live endpoints for strict hybrid post-quantum key exchange (`X25519MLKEM768` / P-curve ML-KEM), PQ ClientHello middlebox intolerance, and leaf certificate signature posture, returning a deterministic `verification_digest` and prefilled Patchbay board report.
+- Add `Regents.Patchbay.Security.CryptoAudit` (`POST /api/v1/patchbay/security/check-crypto`, MCP `patchbay_check_crypto`, CLI `security check-crypto`) to audit multi-ecosystem lockfiles for ECC/RSA exposure, distinguish app-owned upgrades from external chain/hardware boundaries, and export CycloneDX 1.6 CBOM JSON.
+- Add the **Crypto & PQC Audit** tab to `/patchbay/validate`, add the `ecc-pqc-migration-audit` support playbook, and synchronize `/patchbay/skill.md`, `/patchbay/llms.txt`, `/patchbay/validate` Markdown, `cli/patchbay/commands.json`, and `priv/patchbay/public/openapi.json`.
+

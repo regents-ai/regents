@@ -1627,6 +1627,63 @@
       ]
     },
     {
+      "command": "security probe-crypto <url>",
+      "description": "Probe a public HTTPS endpoint for strict hybrid post-quantum TLS key exchange (X25519MLKEM768 / P-curve ML-KEM), PQ ClientHello middlebox intolerance, and leaf certificate signature posture, returning a deterministic verification digest.",
+      "operation_id": "probeEndpointCrypto",
+      "webmcp": "patchbay_probe_crypto",
+      "method": "POST",
+      "path": "/api/v1/patchbay/security/probe-crypto",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "url",
+          "type": "string",
+          "in": "body",
+          "field": "url",
+          "description": "Public https:// URL to probe for hybrid PQ TLS and certificate signature posture."
+        }
+      ]
+    },
+    {
+      "command": "security check-crypto",
+      "description": "Audit a dependency manifest or lockfile (mix.lock, Cargo.toml, Cargo.lock, package-lock.json, uv.lock, go.mod, composer.lock, or pkg@version list) for ECC/RSA exposure, separate app-owned upgrades from external chain/hardware rails, and emit a CycloneDX 1.6 CBOM.",
+      "operation_id": "checkCryptoStack",
+      "webmcp": "patchbay_check_crypto",
+      "method": "POST",
+      "path": "/api/v1/patchbay/security/check-crypto",
+      "authority": "public",
+      "effect": "read",
+      "flags": [
+        {
+          "name": "manifest",
+          "type": "string",
+          "in": "body",
+          "field": "manifest",
+          "description": "Inline lockfile/manifest contents or comma/newline list of packages (e.g. openssl@3.0.15, rustls@0.23.46, ring@0.17.14)."
+        },
+        {
+          "name": "file",
+          "type": "text_file",
+          "in": "body",
+          "field": "manifest",
+          "maximum": 65536,
+          "description": "Path to a local lockfile/manifest or '-' to read stdin (max 64 KB)."
+        },
+        {
+          "name": "include-cbom",
+          "type": "boolean",
+          "in": "body",
+          "field": "include_cbom",
+          "description": "Include the CycloneDX 1.6 CBOM JSON document in the response (default true)."
+        }
+      ],
+      "required_one_of": [
+        "manifest",
+        "file"
+      ]
+    },
+    {
       "command": "playbooks list",
       "description": "List Patchbay agent support playbooks for debugging x402, MPP (Tempo sessions), cve.now KEV triage, SIWA auth, and WebMCP.",
       "operation_id": "listPlaybooks",

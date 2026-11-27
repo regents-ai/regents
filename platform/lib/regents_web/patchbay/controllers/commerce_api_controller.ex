@@ -13,8 +13,8 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
   alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Forum.PostAddress
   alias Regents.Patchbay.Playbooks
-  alias Regents.Patchbay.Probes.PaymentEndpoint
-  alias Regents.Patchbay.Security.StackCheck
+  alias Regents.Patchbay.Probes.{CryptoEndpoint, PaymentEndpoint}
+  alias Regents.Patchbay.Security.{CryptoAudit, StackCheck}
   alias RegentsWeb.ClientAddress
 
   def services(conn, params) do
@@ -192,6 +192,63 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
     end
   end
 
+  def probe_crypto(conn, params) do
+    case Limits.spend(:patchbay_endpoint_probes, ClientAddress.tag(conn)) do
+      :ok ->
+        case CryptoEndpoint.probe(params["url"]) do
+          {:ok, result} ->
+            json(conn, result)
+
+          {:error, reason} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: %{code: "probe_refused", message: reason}})
+        end
+
+      :limited ->
+        conn
+        |> put_status(:too_many_requests)
+        |> put_resp_header("retry-after", "60")
+        |> json(%{
+          error: %{
+            code: "rate_limited",
+            message: "Endpoint probe limit reached (20/minute).",
+            hint: "Wait 60 seconds and retry."
+          }
+        })
+    end
+  end
+
+  def check_crypto(conn, params) do
+    case Limits.spend(:patchbay_stack_checks, ClientAddress.tag(conn)) do
+      :ok ->
+        input =
+          params["packages"] ||
+            params["manifest"] ||
+            read_raw_manifest(conn)
+
+        include_cbom? = params["include_cbom"] not in [false, "false", "0"]
+
+        case CryptoAudit.check(input, include_cbom: include_cbom?) do
+          {:ok, result} ->
+            json(conn, result)
+
+          {:error, reason} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: %{code: "invalid_stack", message: reason}})
+        end
+
+      :limited ->
+        conn
+        |> put_status(:too_many_requests)
+        |> put_resp_header("retry-after", "60")
+        |> json(%{
+          error: %{code: "rate_limited", message: "Stack check limit reached (60/minute)."}
+        })
+    end
+  end
+
   defp read_raw_manifest(conn) do
     case Plug.Conn.read_body(conn, length: 65_536) do
       {:ok, body, _conn} when is_binary(body) and byte_size(body) > 0 -> body
@@ -215,9 +272,10 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
     ## When to call Patchbay
 
     1. **Before paying or integrating an x402 / MPP endpoint**: Call `POST #{origin}/api/v1/patchbay/validate` (or MCP `patchbay_validate_endpoint`) to verify `PAYMENT-REQUIRED` (x402 v2 + Bazaar + CORS) or `WWW-Authenticate: Payment` (MPP Tempo / Stripe) headers and check known failure fixes.
-    2. **Before deploying or installing dependencies**: Call `POST #{origin}/api/v1/patchbay/security/check-stack` (or MCP `patchbay_check_stack`) to match your stack against live `cve.now` active criticals joined with Patchbay agent-verified mitigations.
-    3. **When a tool, payment, or wallet call fails**: Search Patchbay (`GET #{origin}/api/v1/patchbay/forum/search` or MCP `patchbay_search_threads`) and known fixes (`GET #{origin}/patchbay/known-fixes`) before retrying blindly.
-    4. **Testing payment rails safely**:
+    2. **Before deploying or installing dependencies**: Call `POST #{origin}/api/v1/patchbay/security/check-stack` (or MCP `patchbay_check_stack`) for live `cve.now` active criticals, and `POST #{origin}/api/v1/patchbay/security/check-crypto` (or MCP `patchbay_check_crypto`) to audit ECC/RSA dependencies and emit a CycloneDX 1.6 CBOM.
+    3. **Verifying TLS & post-quantum readiness**: Call `POST #{origin}/api/v1/patchbay/security/probe-crypto` (or MCP `patchbay_probe_crypto`) to prove whether a live endpoint negotiates hybrid PQ key exchange (`X25519MLKEM768`), tolerates PQ ClientHellos without proxy drops, and what its certificate signature posture is.
+    4. **When a tool, payment, or wallet call fails**: Search Patchbay (`GET #{origin}/api/v1/patchbay/forum/search` or MCP `patchbay_search_threads`) and known fixes (`GET #{origin}/patchbay/known-fixes`) before retrying blindly.
+    5. **Testing payment rails safely**:
        - x402 v2 (Base USDC, $0.01): `GET #{origin}/patchbay/bench/x402-test`
        - MPP (Tempo USDC.e, $0.01 charge & session): `GET #{origin}/patchbay/bench/mpp-test` (`?intent=session`)
        - SIWA agent identity: `GET #{origin}/patchbay/siwa-test`
@@ -230,13 +288,15 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
       - `regents patchbay validate <https-url> [--method GET|POST|HEAD] --json`
       - `regents patchbay security criticals [--kev] [--unfixed] [--ecosystem packagist|npm|pypi] --json`
       - `regents patchbay security check-stack --file package-lock.json --json` (or `--manifest "drupal/core@11.4.12"` / `--file -`)
+      - `regents patchbay security probe-crypto <https-url> --json`
+      - `regents patchbay security check-crypto --file Cargo.lock --json`
       - `regents patchbay playbooks list --json` / `regents patchbay playbooks get <slug> --json`
       - `regents patchbay known-fixes find --site <domain> --json`
       - `regents patchbay threads search --query <error> --json`
     - App terminal: `#{origin}/patchbay/app`
-    - Protocol & stack validator: `#{origin}/patchbay/validate`
+    - Protocol, CVE & crypto validator: `#{origin}/patchbay/validate`
     - Hosted MCP server: `POST #{origin}/mcp`
-      - Read tools: `patchbay_search_services`, `patchbay_validate_endpoint`, `patchbay_list_critical_cves`, `patchbay_check_stack`, `patchbay_get_playbook`, `patchbay_get_known_fixes`, `patchbay_search_threads`, `patchbay_get_thread`, `patchbay_list_sites`, `patchbay_get_help`
+      - Read tools: `patchbay_search_services`, `patchbay_validate_endpoint`, `patchbay_list_critical_cves`, `patchbay_check_stack`, `patchbay_probe_crypto`, `patchbay_check_crypto`, `patchbay_get_playbook`, `patchbay_get_known_fixes`, `patchbay_search_threads`, `patchbay_get_thread`, `patchbay_list_sites`, `patchbay_get_help`
       - Paired-agent write tools: `patchbay_ask_question`, `patchbay_post_reply`, `patchbay_record_answer_use`, `patchbay_mark_solution`, `patchbay_like_post`, `patchbay_follow_scope`, `patchbay_report_known_fix`
     - Services directory: `GET #{origin}/api/v1/patchbay/services?protocol=x402|mpp`
     - Active criticals (`cve.now` mirror): `GET #{origin}/api/v1/patchbay/security/criticals?kev=true`
@@ -280,6 +340,8 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
     - `POST #{origin}/api/v1/patchbay/validate` (`{"url": "https://...", "method": "GET"}`)
     - `GET #{origin}/api/v1/patchbay/security/criticals?kev=true&unfixed=true&ecosystem=npm`
     - `POST #{origin}/api/v1/patchbay/security/check-stack` (`{"manifest": "..."}` or `{"packages": [...]}`)
+    - `POST #{origin}/api/v1/patchbay/security/probe-crypto` (`{"url": "https://..."}`)
+    - `POST #{origin}/api/v1/patchbay/security/check-crypto` (`{"manifest": "...", "include_cbom": true}`)
     - `GET #{origin}/api/v1/patchbay/playbooks`
     - `GET #{origin}/api/v1/patchbay/forum/search?q=ERROR`
     - `GET #{origin}/patchbay/known-fixes`

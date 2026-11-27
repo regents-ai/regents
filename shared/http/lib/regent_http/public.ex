@@ -92,6 +92,20 @@ defmodule RegentHttp.Public do
   @spec valid_url?(term()) :: boolean()
   def valid_url?(url), do: match?({:ok, _}, uri(url))
 
+  @doc """
+  Resolves `host` and confirms every returned address is publicly routable,
+  returning the first validated IP tuple. Callers that open a direct socket or
+  TLS connection to the returned IP prevent DNS-rebinding SSRF while keeping
+  `host` for SNI and certificate hostname verification.
+  """
+  @spec resolve_public_ip(String.t(), pos_integer()) ::
+          {:ok, :inet.ip_address()} | {:error, :timeout | :dns_error | :non_public_address}
+  def resolve_public_ip(host, timeout_ms \\ @timeout_ms)
+      when is_binary(host) and is_integer(timeout_ms) and timeout_ms > 0 do
+    deadline = System.monotonic_time(:millisecond) + timeout_ms
+    resolve(host, deadline)
+  end
+
   @doc "Whether an IP tuple is globally routable; transition and mapped IPv6 are refused."
   def public_ip?({a, b, c, d} = ip)
       when a in 0..255 and b in 0..255 and c in 0..255 and d in 0..255 do

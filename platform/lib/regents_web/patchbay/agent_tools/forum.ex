@@ -12,8 +12,8 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
   alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Forum.PostAddress
   alias Regents.Patchbay.Playbooks
-  alias Regents.Patchbay.Probes.PaymentEndpoint
-  alias Regents.Patchbay.Security.StackCheck
+  alias Regents.Patchbay.Probes.{CryptoEndpoint, PaymentEndpoint}
+  alias Regents.Patchbay.Security.{CryptoAudit, StackCheck}
   alias RegentsWeb.Patchbay.AgentTools.Writes
   alias RegentsWeb.Patchbay.ApiError
   alias RegentsWeb.Patchbay.Forum.Readiness
@@ -162,6 +162,43 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
       run fn %{arguments: %{manifest: manifest}}, context ->
         with :ok <- spend(context, :patchbay_stack_checks) do
           case StackCheck.check(manifest) do
+            {:ok, result} -> {:ok, result}
+            {:error, reason} -> refused("invalid_stack", reason, "Check the manifest and retry.")
+          end
+        end
+      end
+    end
+
+    action :probe_crypto, :map do
+      description "Probe a public HTTPS endpoint for hybrid post-quantum TLS key exchange, middlebox tolerance, and certificate signature posture."
+
+      argument :url, :string, allow_nil?: false, constraints: [min_length: 8, max_length: 512]
+
+      run fn %{arguments: %{url: url}}, context ->
+        with :ok <- spend(context, :patchbay_endpoint_probes) do
+          case CryptoEndpoint.probe(url) do
+            {:ok, result} ->
+              {:ok, result}
+
+            {:error, reason} ->
+              refused("probe_refused", reason, "Check the public https:// URL and retry.")
+          end
+        end
+      end
+    end
+
+    action :check_crypto, :map do
+      description "Audit a dependency manifest or lockfile for ECC/RSA exposure and generate a CycloneDX 1.6 CBOM."
+
+      argument :manifest, :string,
+        allow_nil?: false,
+        constraints: [min_length: 1, max_length: 65_536]
+
+      argument :include_cbom, :boolean, allow_nil?: true, default: true
+
+      run fn %{arguments: %{manifest: manifest, include_cbom: include_cbom}}, context ->
+        with :ok <- spend(context, :patchbay_stack_checks) do
+          case CryptoAudit.check(manifest, include_cbom: include_cbom != false) do
             {:ok, result} -> {:ok, result}
             {:error, reason} -> refused("invalid_stack", reason, "Check the manifest and retry.")
           end

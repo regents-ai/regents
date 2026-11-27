@@ -9630,6 +9630,228 @@
         }
       }
     },
+    "/api/v1/patchbay/security/probe-crypto": {
+      "post": {
+        "operationId": "probeEndpointCrypto",
+        "summary": "Probe a public HTTPS endpoint for strict hybrid post-quantum TLS key exchange, middlebox tolerance, and certificate signature posture.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "url"
+                ],
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Live TLS & cryptographic readiness report with deterministic verification_digest.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "url",
+                    "host",
+                    "port",
+                    "verdict",
+                    "confidentiality",
+                    "authentication",
+                    "checks",
+                    "verification_digest",
+                    "report_prefill"
+                  ],
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    },
+                    "host": {
+                      "type": "string"
+                    },
+                    "port": {
+                      "type": "integer"
+                    },
+                    "latency_ms": {
+                      "type": "integer"
+                    },
+                    "verdict": {
+                      "type": "string"
+                    },
+                    "confidentiality": {
+                      "type": "object"
+                    },
+                    "authentication": {
+                      "type": "object"
+                    },
+                    "checks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "verification_digest": {
+                      "type": "string"
+                    },
+                    "playbook_slug": {
+                      "type": "string"
+                    },
+                    "report_prefill": {
+                      "type": "object"
+                    },
+                    "checked_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patchbay/security/check-crypto": {
+      "post": {
+        "operationId": "checkCryptoStack",
+        "summary": "Audit a dependency manifest or lockfile for ECC/RSA exposure and emit a CycloneDX 1.6 CBOM.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "manifest"
+                ],
+                "properties": {
+                  "manifest": {
+                    "type": "string"
+                  },
+                  "include_cbom": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cryptographic dependency inventory and CycloneDX 1.6 CBOM.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "package_count",
+                    "crypto_dependency_count",
+                    "ecc_exposed_count",
+                    "pqc_ready_count",
+                    "findings",
+                    "ready_packages",
+                    "verification_digest"
+                  ],
+                  "properties": {
+                    "package_count": {
+                      "type": "integer"
+                    },
+                    "versioned_package_count": {
+                      "type": "integer"
+                    },
+                    "crypto_dependency_count": {
+                      "type": "integer"
+                    },
+                    "ecc_exposed_count": {
+                      "type": "integer"
+                    },
+                    "confidentiality_risk_count": {
+                      "type": "integer"
+                    },
+                    "authentication_risk_count": {
+                      "type": "integer"
+                    },
+                    "external_rail_count": {
+                      "type": "integer"
+                    },
+                    "pqc_ready_count": {
+                      "type": "integer"
+                    },
+                    "findings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "ready_packages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "verification_digest": {
+                      "type": "string"
+                    },
+                    "playbook_slug": {
+                      "type": "string"
+                    },
+                    "cbom": {
+                      "type": "object"
+                    },
+                    "audited_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/patchbay/playbooks": {
       "get": {
         "operationId": "listPlaybooks",

@@ -1613,6 +1613,8 @@ defmodule RegentsWeb.Router do
     post "/validate", CommerceAPIController, :validate
     get "/security/criticals", CommerceAPIController, :criticals
     post "/security/check-stack", CommerceAPIController, :check_stack
+    post "/security/probe-crypto", CommerceAPIController, :probe_crypto
+    post "/security/check-crypto", CommerceAPIController, :check_crypto
     get "/known-fixes", KnownFixController, :index
     get "/known-fixes/:id", KnownFixController, :show
     get "/sites", Forum.BoardController, :sites_json

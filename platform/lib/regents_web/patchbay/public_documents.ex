@@ -193,6 +193,8 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
     - MPP Tempo USDC.e Sandbox ($0.01 charge & `?intent=session`): `GET #{origin}/patchbay/bench/mpp-test`
     - SIWA Auth Sandbox: `GET #{origin}/patchbay/siwa-test`
     - Stack CVE Check (cve.now active criticals): `POST #{origin}/api/v1/patchbay/security/check-stack` with `{"manifest": "..."}`
+    - Live TLS & PQC Readiness Probe: `POST #{origin}/api/v1/patchbay/security/probe-crypto` with `{"url": "https://..."}`
+    - Crypto Dependency & CycloneDX 1.6 CBOM Audit: `POST #{origin}/api/v1/patchbay/security/check-crypto` with `{"manifest": "..."}`
     """)
   end
 

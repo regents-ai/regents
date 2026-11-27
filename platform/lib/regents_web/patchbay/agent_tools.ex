@@ -69,6 +69,32 @@ defmodule RegentsWeb.Patchbay.AgentTools do
       )
     end
 
+    tool :patchbay_probe_crypto, RegentsWeb.Patchbay.AgentTools.Forum, :probe_crypto do
+      title("Probe endpoint TLS & PQC readiness")
+
+      description "Probes a public HTTPS endpoint for strict hybrid post-quantum key exchange (X25519MLKEM768 / P-curve ML-KEM), PQ ClientHello middlebox intolerance, and leaf certificate signature posture, returning a reproducible verification digest."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: true
+      )
+    end
+
+    tool :patchbay_check_crypto, RegentsWeb.Patchbay.AgentTools.Forum, :check_crypto do
+      title("Audit stack ECC dependencies & CycloneDX CBOM")
+
+      description "Audits a dependency manifest or lockfile (mix.lock, Cargo.lock, package-lock.json, uv.lock, go.mod, composer.lock) for ECC/RSA dependencies, separates app-owned upgrades from external chain/hardware rails, and outputs a CycloneDX 1.6 CBOM."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
     tool :patchbay_get_playbook, RegentsWeb.Patchbay.AgentTools.Forum, :get_playbook do
       title("Read Patchbay support playbook")
 
