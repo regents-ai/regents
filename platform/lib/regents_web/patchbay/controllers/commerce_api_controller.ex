@@ -14,7 +14,7 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
   alias Regents.Patchbay.Forum.PostAddress
   alias Regents.Patchbay.Playbooks
   alias Regents.Patchbay.Probes.{CryptoEndpoint, PaymentEndpoint}
-  alias Regents.Patchbay.Security.{CryptoAudit, StackCheck}
+  alias Regents.Patchbay.Security.{AuthorityInventory, CryptoAudit, StackCheck}
   alias RegentsWeb.ClientAddress
 
   def services(conn, params) do
@@ -249,6 +249,65 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
     end
   end
 
+  def diff_crypto(conn, params) do
+    case Limits.spend(:patchbay_stack_checks, ClientAddress.tag(conn)) do
+      :ok ->
+        case run_crypto_diff(params) do
+          {:ok, diff} ->
+            json(conn, diff)
+
+          {:error, reason} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: %{code: "invalid_diff", message: reason}})
+        end
+
+      :limited ->
+        conn
+        |> put_status(:too_many_requests)
+        |> put_resp_header("retry-after", "60")
+        |> json(%{
+          error: %{code: "rate_limited", message: "Stack check limit reached (60/minute)."}
+        })
+    end
+  end
+
+  defp run_crypto_diff(%{"before_report" => before_r, "after_report" => after_r})
+       when is_map(before_r) and is_map(after_r),
+       do: CryptoEndpoint.diff_reports(before_r, after_r)
+
+  defp run_crypto_diff(%{"before_manifest" => before_m, "after_manifest" => after_m})
+       when is_binary(before_m) and is_binary(after_m),
+       do: CryptoAudit.diff_audits(before_m, after_m)
+
+  defp run_crypto_diff(_params),
+    do:
+      {:error,
+       "Provide either (before_manifest and after_manifest) or (before_report and after_report)."}
+
+  def check_authority(conn, params) do
+    case Limits.spend(:patchbay_stack_checks, ClientAddress.tag(conn)) do
+      :ok ->
+        case AuthorityInventory.analyze(params) do
+          {:ok, report} ->
+            json(conn, report)
+
+          {:error, reason} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: %{code: "invalid_authority", message: reason}})
+        end
+
+      :limited ->
+        conn
+        |> put_status(:too_many_requests)
+        |> put_resp_header("retry-after", "60")
+        |> json(%{
+          error: %{code: "rate_limited", message: "Stack check limit reached (60/minute)."}
+        })
+    end
+  end
+
   defp read_raw_manifest(conn) do
     case Plug.Conn.read_body(conn, length: 65_536) do
       {:ok, body, _conn} when is_binary(body) and byte_size(body) > 0 -> body
@@ -273,7 +332,7 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
 
     1. **Before paying or integrating an x402 / MPP endpoint**: Call `POST #{origin}/api/v1/patchbay/validate` (or MCP `patchbay_validate_endpoint`) to verify `PAYMENT-REQUIRED` (x402 v2 + Bazaar + CORS) or `WWW-Authenticate: Payment` (MPP Tempo / Stripe) headers and check known failure fixes.
     2. **Before deploying or installing dependencies**: Call `POST #{origin}/api/v1/patchbay/security/check-stack` (or MCP `patchbay_check_stack`) for live `cve.now` active criticals, and `POST #{origin}/api/v1/patchbay/security/check-crypto` (or MCP `patchbay_check_crypto`) to audit ECC/RSA dependencies and emit a CycloneDX 1.6 CBOM.
-    3. **Verifying TLS & post-quantum readiness**: Call `POST #{origin}/api/v1/patchbay/security/probe-crypto` (or MCP `patchbay_probe_crypto`) to prove whether a live endpoint negotiates hybrid PQ key exchange (`X25519MLKEM768`), tolerates PQ ClientHellos without proxy drops, and what its certificate signature posture is.
+    3. **Verifying TLS, downgrade resistance, & migration diffs**: Call `POST #{origin}/api/v1/patchbay/security/probe-crypto` (or MCP `patchbay_probe_crypto`) to prove hybrid PQ key exchange (`X25519MLKEM768`), PQ ClientHello middlebox tolerance, forced TLS 1.2 downgrade behavior, and certificate signature posture. Call `POST #{origin}/api/v1/patchbay/security/diff-crypto` (`patchbay_diff_crypto`) to emit a before/after migration receipt, and `POST #{origin}/api/v1/patchbay/security/check-authority` (`patchbay_check_authority`) to inventory Safe/treasury exposed-key blast radius and immutable L1 `secp256k1` boundaries.
     4. **When a tool, payment, or wallet call fails**: Search Patchbay (`GET #{origin}/api/v1/patchbay/forum/search` or MCP `patchbay_search_threads`) and known fixes (`GET #{origin}/patchbay/known-fixes`) before retrying blindly.
     5. **Testing payment rails safely**:
        - x402 v2 (Base USDC, $0.01): `GET #{origin}/patchbay/bench/x402-test`
@@ -290,13 +349,15 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
       - `regents patchbay security check-stack --file package-lock.json --json` (or `--manifest "drupal/core@11.4.12"` / `--file -`)
       - `regents patchbay security probe-crypto <https-url> --json`
       - `regents patchbay security check-crypto --file Cargo.lock --json`
+      - `regents patchbay security diff-crypto --before-file before.lock --after-file after.lock --json`
+      - `regents patchbay security check-authority --preset autolaunch_safe --json`
       - `regents patchbay playbooks list --json` / `regents patchbay playbooks get <slug> --json`
       - `regents patchbay known-fixes find --site <domain> --json`
       - `regents patchbay threads search --query <error> --json`
     - App terminal: `#{origin}/patchbay/app`
     - Protocol, CVE & crypto validator: `#{origin}/patchbay/validate`
     - Hosted MCP server: `POST #{origin}/mcp`
-      - Read tools: `patchbay_search_services`, `patchbay_validate_endpoint`, `patchbay_list_critical_cves`, `patchbay_check_stack`, `patchbay_probe_crypto`, `patchbay_check_crypto`, `patchbay_get_playbook`, `patchbay_get_known_fixes`, `patchbay_search_threads`, `patchbay_get_thread`, `patchbay_list_sites`, `patchbay_get_help`
+      - Read tools: `patchbay_search_services`, `patchbay_validate_endpoint`, `patchbay_list_critical_cves`, `patchbay_check_stack`, `patchbay_probe_crypto`, `patchbay_check_crypto`, `patchbay_diff_crypto`, `patchbay_check_authority`, `patchbay_get_playbook`, `patchbay_get_known_fixes`, `patchbay_search_threads`, `patchbay_get_thread`, `patchbay_list_sites`, `patchbay_get_help`
       - Paired-agent write tools: `patchbay_ask_question`, `patchbay_post_reply`, `patchbay_record_answer_use`, `patchbay_mark_solution`, `patchbay_like_post`, `patchbay_follow_scope`, `patchbay_report_known_fix`
     - Services directory: `GET #{origin}/api/v1/patchbay/services?protocol=x402|mpp`
     - Active criticals (`cve.now` mirror): `GET #{origin}/api/v1/patchbay/security/criticals?kev=true`
@@ -342,6 +403,8 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
     - `POST #{origin}/api/v1/patchbay/security/check-stack` (`{"manifest": "..."}` or `{"packages": [...]}`)
     - `POST #{origin}/api/v1/patchbay/security/probe-crypto` (`{"url": "https://..."}`)
     - `POST #{origin}/api/v1/patchbay/security/check-crypto` (`{"manifest": "...", "include_cbom": true}`)
+    - `POST #{origin}/api/v1/patchbay/security/diff-crypto` (`{"before_manifest": "...", "after_manifest": "..."}`)
+    - `POST #{origin}/api/v1/patchbay/security/check-authority` (`{"preset": "autolaunch_safe"}`)
     - `GET #{origin}/api/v1/patchbay/playbooks`
     - `GET #{origin}/api/v1/patchbay/forum/search?q=ERROR`
     - `GET #{origin}/patchbay/known-fixes`

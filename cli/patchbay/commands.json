@@ -1684,6 +1684,162 @@
       ]
     },
     {
+      "command": "security diff-crypto",
+      "description": "Compare before and after dependency manifests (or lockfiles) to verify ECC/PQC migration progress and emit a deterministic receipt_digest.",
+      "operation_id": "diffCryptoMigration",
+      "webmcp": "patchbay_diff_crypto",
+      "method": "POST",
+      "path": "/api/v1/patchbay/security/diff-crypto",
+      "authority": "public",
+      "effect": "read",
+      "flags": [
+        {
+          "name": "before-manifest",
+          "type": "string",
+          "in": "body",
+          "field": "before_manifest",
+          "description": "Before-migration manifest or package list text."
+        },
+        {
+          "name": "after-manifest",
+          "type": "string",
+          "in": "body",
+          "field": "after_manifest",
+          "description": "After-migration manifest or package list text."
+        },
+        {
+          "name": "before-file",
+          "type": "text_file",
+          "in": "body",
+          "field": "before_manifest",
+          "maximum": 65536,
+          "description": "Path to before-migration lockfile/manifest (max 64 KB)."
+        },
+        {
+          "name": "after-file",
+          "type": "text_file",
+          "in": "body",
+          "field": "after_manifest",
+          "maximum": 65536,
+          "description": "Path to after-migration lockfile/manifest (max 64 KB)."
+        }
+      ],
+      "required_one_of": [
+        "before-manifest",
+        "before-file"
+      ]
+    },
+    {
+      "command": "security check-authority",
+      "description": "Inventory an on-chain Safe multisig, Autolaunch treasury, Keyfleet fleet treasury, or EOA admin for exposed-key quorum blast radius and immutable L1 secp256k1 boundaries.",
+      "operation_id": "checkAuthorityInventory",
+      "webmcp": "patchbay_check_authority",
+      "method": "POST",
+      "path": "/api/v1/patchbay/security/check-authority",
+      "authority": "public",
+      "effect": "read",
+      "flags": [
+        {
+          "name": "preset",
+          "type": "string",
+          "in": "body",
+          "field": "preset",
+          "description": "Optional built-in preset: autolaunch_safe, keyfleet_treasury, or single_eoa_admin."
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "in": "body",
+          "field": "label",
+          "description": "Human-readable name for the treasury or governance contract."
+        },
+        {
+          "name": "address",
+          "type": "string",
+          "in": "body",
+          "field": "address",
+          "description": "Optional 0x contract or EOA address."
+        },
+        {
+          "name": "chain-id",
+          "type": "integer",
+          "in": "body",
+          "field": "chain_id",
+          "description": "EVM chain ID (default 8453 for Base)."
+        },
+        {
+          "name": "classification",
+          "type": "string",
+          "in": "body",
+          "field": "classification",
+          "description": "Treasury type: supported_safe, safe_1_of_1, eoa, delegated_eoa, unknown_contract, split, or unsupported."
+        },
+        {
+          "name": "threshold",
+          "type": "integer",
+          "in": "body",
+          "field": "threshold",
+          "description": "Signing threshold required for execution."
+        },
+        {
+          "name": "owners",
+          "type": "string",
+          "in": "body",
+          "field": "owner_addresses",
+          "description": "Comma or newline separated 0x owner addresses."
+        },
+        {
+          "name": "exposed-owners",
+          "type": "string",
+          "in": "body",
+          "field": "exposed_owners",
+          "description": "Comma or newline separated 0x owner addresses whose public keys have been exposed on-chain or kept hot."
+        },
+        {
+          "name": "modules",
+          "type": "string",
+          "in": "body",
+          "field": "modules",
+          "description": "Optional comma-separated Safe module addresses."
+        },
+        {
+          "name": "guard",
+          "type": "string",
+          "in": "body",
+          "field": "guard",
+          "description": "Optional Safe transaction guard 0x address."
+        },
+        {
+          "name": "fallback-handler",
+          "type": "string",
+          "in": "body",
+          "field": "fallback_handler",
+          "description": "Optional Safe fallback handler 0x address."
+        },
+        {
+          "name": "upgrade-admin",
+          "type": "string",
+          "in": "body",
+          "field": "upgrade_admin",
+          "description": "Optional separate proxy/upgrade admin 0x address."
+        },
+        {
+          "name": "recovery-mode",
+          "type": "string",
+          "in": "body",
+          "field": "recovery_mode",
+          "description": "Documented out-of-band recovery path: human_multisig, timelock_guardian, or none."
+        },
+        {
+          "name": "app-auth-coupled",
+          "type": "boolean",
+          "in": "body",
+          "field": "app_auth_coupled",
+          "description": "Whether off-chain agent auth (SIWA/API) shares the on-chain treasury key."
+        }
+      ]
+    },
+    {
       "command": "playbooks list",
       "description": "List Patchbay agent support playbooks for debugging x402, MPP (Tempo sessions), cve.now KEV triage, SIWA auth, and WebMCP.",
       "operation_id": "listPlaybooks",

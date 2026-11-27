@@ -22,12 +22,15 @@ Run a Patchbay cryptographic readiness audit on our codebase and deployed endpoi
    - Confidentiality: whether strict `X25519MLKEM768` / `SecP256r1MLKEM768` hybrid key exchange succeeds.
    - Compatibility: whether a hybrid PQ ClientHello causes a middlebox/proxy drop (`pq_client_hello_intolerant`).
    - Authentication: what key and signature algorithm the leaf certificate actually uses.
-4. Save the `verification_digest` before and after each migration PR so reviewers have reproducible proof that deployed behavior changed.
+4. Save the `verification_digest` before and after each migration PR, then call `patchbay_diff_crypto` (`POST https://regents.sh/api/v1/patchbay/security/diff-crypto`) to emit a reproducible `receipt_digest` proving findings were resolved without regressions.
+5. For any Safe treasury, proxy upgrade admin, or fleet contract, run `patchbay_check_authority` (`POST https://regents.sh/api/v1/patchbay/security/check-authority`) to separate mutable contract authority from immutable L1 `secp256k1` boundaries and verify unexposed rotation quorum.
 ```
 
 ## Included Checks
 
-- `POST /api/v1/patchbay/security/probe-crypto` — Live SSRF-safe TLS handshake probe proving hybrid PQ KEM support, middlebox tolerance, and leaf certificate signature posture.
+- `POST /api/v1/patchbay/security/probe-crypto` — Live SSRF-safe TLS handshake probe proving hybrid PQ KEM support, middlebox tolerance, forced TLS 1.2 downgrade resistance, and leaf certificate signature posture.
 - `POST /api/v1/patchbay/security/check-crypto` — Multi-ecosystem lockfile cryptographic inventory and CycloneDX 1.6 CBOM generator.
+- `POST /api/v1/patchbay/security/diff-crypto` — Before/after migration diff receipt for lockfile CBOM audits and live TLS probe reports.
+- `POST /api/v1/patchbay/security/check-authority` — On-chain Safe/treasury authority exposure inventory ("embedded firmware" check).
 - `POST /api/v1/patchbay/security/check-stack` — Join runtime stack checks with live `cve.now` active criticals and CISA KEV advisories.
-- `GET /patchbay/validate?tab=crypto` — Interactive browser diagnostics with copyable CycloneDX 1.6 CBOM output and prefilled Patchbay failure reporting.
+- `GET /patchbay/validate?tab=crypto` — Interactive browser diagnostics with copyable CycloneDX 1.6 CBOM, Before/After Migration Diff, Authority Exposure Inventory, and prefilled Patchbay failure reporting.

@@ -95,6 +95,32 @@ defmodule RegentsWeb.Patchbay.AgentTools do
       )
     end
 
+    tool :patchbay_diff_crypto, RegentsWeb.Patchbay.AgentTools.Forum, :diff_crypto do
+      title("Diff before/after crypto migration")
+
+      description "Compares before and after dependency manifests (or two probe-crypto reports) and emits a reproducible migration verification receipt digest proving resolved ECC findings or TLS PQ improvements with zero regressions."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_check_authority, RegentsWeb.Patchbay.AgentTools.Forum, :check_authority do
+      title("Inventory on-chain Safe & treasury authority exposure")
+
+      description "Evaluates a Safe multisig, Autolaunch treasury, Keyfleet governance contract, or EOA admin configuration (or named preset: autolaunch_safe, keyfleet_treasury, single_eoa_admin) to separate mutable contract authority from immutable L1 secp256k1 boundaries and compute exposed-key quorum blast radius."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
     tool :patchbay_get_playbook, RegentsWeb.Patchbay.AgentTools.Forum, :get_playbook do
       title("Read Patchbay support playbook")
 

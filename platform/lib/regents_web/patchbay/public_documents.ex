@@ -193,8 +193,10 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
     - MPP Tempo USDC.e Sandbox ($0.01 charge & `?intent=session`): `GET #{origin}/patchbay/bench/mpp-test`
     - SIWA Auth Sandbox: `GET #{origin}/patchbay/siwa-test`
     - Stack CVE Check (cve.now active criticals): `POST #{origin}/api/v1/patchbay/security/check-stack` with `{"manifest": "..."}`
-    - Live TLS & PQC Readiness Probe: `POST #{origin}/api/v1/patchbay/security/probe-crypto` with `{"url": "https://..."}`
+    - Live TLS & PQC Readiness Probe (incl. TLS 1.2 downgrade check): `POST #{origin}/api/v1/patchbay/security/probe-crypto` with `{"url": "https://..."}`
     - Crypto Dependency & CycloneDX 1.6 CBOM Audit: `POST #{origin}/api/v1/patchbay/security/check-crypto` with `{"manifest": "..."}`
+    - Before/After Crypto Migration Diff Receipt: `POST #{origin}/api/v1/patchbay/security/diff-crypto` with `{"before_manifest": "...", "after_manifest": "..."}` or `{"before_report": {...}, "after_report": {...}}`
+    - On-Chain Authority Exposure Inventory ("Embedded Firmware" check): `POST #{origin}/api/v1/patchbay/security/check-authority` with `{"preset": "autolaunch_safe"}` or custom Safe/EOA fields
     """)
   end
 

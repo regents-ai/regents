@@ -9852,6 +9852,266 @@
         }
       }
     },
+    "/api/v1/patchbay/security/diff-crypto": {
+      "post": {
+        "operationId": "diffCryptoMigration",
+        "summary": "Compare before and after dependency manifests (or probe-crypto reports) and return a reproducible migration verification receipt.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "before_manifest": {
+                    "type": "string"
+                  },
+                  "after_manifest": {
+                    "type": "string"
+                  },
+                  "before_report": {
+                    "type": "object"
+                  },
+                  "after_report": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deterministic before/after cryptographic migration diff receipt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "before_digest",
+                    "after_digest",
+                    "status",
+                    "migration_verified?",
+                    "receipt_digest"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string"
+                    },
+                    "before_digest": {
+                      "type": "string"
+                    },
+                    "after_digest": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "migration_verified?": {
+                      "type": "boolean"
+                    },
+                    "receipt_digest": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patchbay/security/check-authority": {
+      "post": {
+        "operationId": "checkAuthorityInventory",
+        "summary": "Inventory an on-chain Safe multisig, treasury, or EOA authority for exposed-key quorum blast radius and immutable L1 secp256k1 boundaries.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "preset": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  },
+                  "chain_id": {
+                    "type": "integer"
+                  },
+                  "classification": {
+                    "type": "string"
+                  },
+                  "threshold": {
+                    "type": "integer"
+                  },
+                  "owner_addresses": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  },
+                  "exposed_owners": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  },
+                  "modules": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  },
+                  "guard": {
+                    "type": "string"
+                  },
+                  "fallback_handler": {
+                    "type": "string"
+                  },
+                  "upgrade_admin": {
+                    "type": "string"
+                  },
+                  "recovery_mode": {
+                    "type": "string"
+                  },
+                  "app_auth_coupled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "On-chain authority exposure inventory and migration rehearsal steps.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "chain_id",
+                    "classification",
+                    "verdict",
+                    "quorum_posture",
+                    "surfaces",
+                    "checks",
+                    "rehearsal_steps",
+                    "verification_digest"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "address": {
+                      "type": "string"
+                    },
+                    "chain_id": {
+                      "type": "integer"
+                    },
+                    "classification": {
+                      "type": "string"
+                    },
+                    "verdict": {
+                      "type": "string"
+                    },
+                    "quorum_posture": {
+                      "type": "object"
+                    },
+                    "surfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "checks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "rehearsal_steps": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "verification_digest": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/patchbay/playbooks": {
       "get": {
         "operationId": "listPlaybooks",

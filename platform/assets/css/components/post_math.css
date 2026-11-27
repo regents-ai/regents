@@ -1,0 +1,140 @@
+/* Post-Math visual identity: Lattice Teal color role and Crown-Block symbol.
+   Unclaimed across all seven Regents product palettes (Techtree green, Keyfleet
+   orange, Autolaunch peach, Patchbay cobalt, Protocol platinum, SIWA slate,
+   Cloak lavender) and clears WCAG AA in both light (#0B6B73 on #F6F4EA = 5.68:1)
+   and dark (#52E5D8 on #0B0B0C = 12.7:1). Zero blur, zero glow, 400 weight. */
+
+:root {
+  --rg-post-math: light-dark(#0B6B73, #52E5D8);
+  --rg-post-math-surface: light-dark(#E3F4F3, #0F2729);
+  --rg-post-math-border: light-dark(#8BC7C3, #2A706C);
+  --rg-post-math-muted: light-dark(#3E6E72, #87CBC5);
+  /* Fixed dark-panel role for Value Cards, which stay dark in both themes. */
+  --rg-post-math-dark-ink: #52E5D8;
+  --rg-post-math-dark-surface: #0C1E20;
+  --rg-post-math-dark-border: #256864;
+}
+
+@layer regents-product {
+  .rg-post-math-mark {
+    display: inline-block;
+    flex: none;
+    vertical-align: -0.15em;
+  }
+
+  .rg-post-math-mark__frame {
+    fill: currentColor;
+  }
+
+  .rg-post-math-mark__core {
+    fill: var(--rg-post-math);
+  }
+
+  .rg-post-math-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.22rem 0.55rem;
+    border: 1px solid var(--rg-post-math-border);
+    border-radius: 0;
+    background: var(--rg-post-math-surface);
+    color: var(--rg-post-math);
+    font-family: var(--font-family-mono);
+    font-size: 0.6875rem;
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: var(--tracking-microlabel, 0.08em);
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: border-color 160ms cubic-bezier(.23, 1, .32, 1), background-color 160ms cubic-bezier(.23, 1, .32, 1);
+  }
+
+  a.rg-post-math-badge:hover {
+    border-color: var(--rg-post-math);
+  }
+
+  .rg-post-math-badge--muted {
+    border-color: color-mix(in srgb, var(--rg-post-math-border) 72%, transparent);
+    background: transparent;
+    color: var(--rg-post-math-muted);
+  }
+
+  .rg-post-math-badge--muted .rg-post-math-mark__core {
+    fill: var(--rg-post-math-muted);
+  }
+
+  .rg-post-math-badge__sep {
+    opacity: 0.55;
+  }
+
+  /* Engraved corner seal for dark ValueCard GPU panels (never shifts card text height). */
+  .rg-post-math-stamp {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0.48rem;
+    border: 1px solid var(--rg-post-math-dark-border);
+    border-radius: 0;
+    background: var(--rg-post-math-dark-surface);
+    color: var(--rg-post-math-dark-ink);
+    font-family: var(--font-family-mono);
+    font-size: 0.625rem;
+    font-weight: 400;
+    line-height: 1.35;
+    letter-spacing: var(--tracking-microlabel, 0.08em);
+    text-transform: uppercase;
+    pointer-events: none;
+  }
+
+  .rg-post-math-stamp .rg-post-math-mark__frame {
+    fill: #E6F8F6;
+  }
+
+  .rg-post-math-stamp .rg-post-math-mark__core {
+    fill: var(--rg-post-math-dark-ink);
+  }
+
+  .rg-post-math-stamp--quiet {
+    border-color: color-mix(in srgb, var(--rg-post-math-dark-border) 70%, #08080a);
+    color: #9DDCD6;
+  }
+
+  .rg-post-math-stamp--quiet .rg-post-math-mark__frame {
+    fill: #9DDCD6;
+  }
+
+  .rg-post-math-stamp--quiet .rg-post-math-mark__core {
+    fill: #52E5D8;
+  }
+
+  .pbt-post-math-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .pbt-badge--post-math {
+    border-color: var(--rg-post-math-border);
+    background: var(--rg-post-math-surface);
+    color: var(--rg-post-math);
+  }
+
+  .pbt-diff-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  @media (max-width: 780px) {
+    .pbt-diff-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

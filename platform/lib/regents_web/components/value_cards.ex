@@ -34,6 +34,7 @@ defmodule RegentsWeb.Components.ValueCards do
   use RegentsWeb, :verified_routes
 
   alias Phoenix.LiveView.JS
+  alias RegentsWeb.Components.PostMath
 
   attr :id, :string, required: true
   attr :label, :string, required: true, doc: "names the row for screen readers"
@@ -79,6 +80,7 @@ defmodule RegentsWeb.Components.ValueCards do
   defp face(assigns) do
     ~H"""
     <div class="value-card__panel" aria-hidden="true">
+      <PostMath.stamp :if={@card[:post_math]} post_math={@card.post_math} />
       <img
         class="value-card__still"
         src={~p"/images/value-cards/#{Path.split(@card.id <> ".webp")}"}

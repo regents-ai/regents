@@ -456,6 +456,117 @@ defmodule Regents.Patchbay.Security.CryptoAudit do
     end
   end
 
+  @doc """
+  Compare a before-migration manifest and an after-migration manifest (or two
+  `evaluate/2` maps) and emit a reproducible before/after migration receipt.
+  """
+  @spec diff_audits(String.t() | map(), String.t() | map()) ::
+          {:ok, map()} | {:error, String.t()}
+  def diff_audits(before_input, after_input) do
+    with {:ok, before_res} <- resolve_audit(before_input, "before"),
+         {:ok, after_res} <- resolve_audit(after_input, "after") do
+      before_findings = index_items(before_res.findings)
+      after_findings = index_items(after_res.findings)
+      before_ready = index_items(before_res.ready_packages)
+      after_ready = index_items(after_res.ready_packages)
+
+      resolved_findings =
+        for {key, item} <- before_findings,
+            not Map.has_key?(after_findings, key),
+            do: summarize_delta(item, Map.get(after_ready, key))
+
+      new_findings =
+        for {key, item} <- after_findings,
+            not Map.has_key?(before_findings, key),
+            do: summarize_delta(item, nil)
+
+      newly_pqc_ready =
+        for {key, item} <- after_ready,
+            not Map.has_key?(before_ready, key),
+            do: summarize_ready(item)
+
+      {remaining_app, remaining_external} =
+        Enum.split_with(after_res.findings, &(&1.boundary == "app_owned"))
+
+      status = audit_diff_status(resolved_findings, newly_pqc_ready, new_findings)
+
+      migration_verified? =
+        (resolved_findings != [] or newly_pqc_ready != []) and new_findings == []
+
+      receipt_payload = %{
+        before_digest: before_res.verification_digest,
+        after_digest: after_res.verification_digest,
+        status: status,
+        resolved: Enum.map(resolved_findings, & &1.package),
+        newly_pqc_ready: Enum.map(newly_pqc_ready, & &1.package),
+        new_findings: Enum.map(new_findings, & &1.package)
+      }
+
+      {:ok,
+       %{
+         kind: "manifest_crypto_diff",
+         before_digest: before_res.verification_digest,
+         after_digest: after_res.verification_digest,
+         ecc_exposed_before: before_res.ecc_exposed_count,
+         ecc_exposed_after: after_res.ecc_exposed_count,
+         pqc_ready_before: before_res.pqc_ready_count,
+         pqc_ready_after: after_res.pqc_ready_count,
+         status: status,
+         migration_verified?: migration_verified?,
+         resolved_findings: Enum.sort_by(resolved_findings, & &1.package),
+         newly_pqc_ready: Enum.sort_by(newly_pqc_ready, & &1.package),
+         new_findings: Enum.sort_by(new_findings, & &1.package),
+         remaining_app_owned_findings: Enum.map(remaining_app, &summarize_delta(&1, nil)),
+         remaining_external_rails: Enum.map(remaining_external, &summarize_delta(&1, nil)),
+         receipt_digest:
+           "sha256:" <>
+             (:crypto.hash(:sha256, Jason.encode!(receipt_payload))
+              |> Base.encode16(case: :lower))
+       }}
+    end
+  end
+
+  defp resolve_audit(%{findings: _, ready_packages: _, verification_digest: _} = audit, _label),
+    do: {:ok, audit}
+
+  defp resolve_audit(input, label) when is_binary(input) or is_list(input) do
+    case check(input, include_cbom: false) do
+      {:ok, res} -> {:ok, res}
+      {:error, reason} -> {:error, "Invalid #{label} manifest: #{reason}"}
+    end
+  end
+
+  defp resolve_audit(_other, label),
+    do: {:error, "Provide a valid #{label} manifest or package list."}
+
+  defp index_items(items), do: Map.new(items, &{&1.package, &1})
+
+  defp summarize_delta(item, replacement) do
+    %{
+      package: item.package,
+      ecosystem: item.ecosystem,
+      version: item.installed_version,
+      status: item.status,
+      boundary: item.boundary,
+      exposure: item.exposure,
+      replaced_by_version: replacement && replacement.installed_version
+    }
+  end
+
+  defp summarize_ready(item) do
+    %{
+      package: item.package,
+      ecosystem: item.ecosystem,
+      version: item.installed_version,
+      algorithms: item.algorithms
+    }
+  end
+
+  defp audit_diff_status([], [], []), do: "unchanged"
+  defp audit_diff_status(resolved, ready, []) when resolved != [] or ready != [], do: "improved"
+  defp audit_diff_status([], [], [_ | _]), do: "regressed"
+  defp audit_diff_status(_, _, _), do: "mixed"
+
   # --- Evaluation logic ---
 
   defp evaluate_package(pkg, package_names) do

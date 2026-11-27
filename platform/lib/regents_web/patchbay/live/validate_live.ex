@@ -18,7 +18,8 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
   alias Regents.Limits
   alias Regents.Patchbay.Assist.KnownFixes
   alias Regents.Patchbay.Probes.{CryptoEndpoint, PaymentEndpoint}
-  alias Regents.Patchbay.Security.{CryptoAudit, StackCheck}
+  alias Regents.Patchbay.Security.{AuthorityInventory, CryptoAudit, StackCheck}
+  alias RegentsWeb.Components.PostMath
   alias RegentsWeb.Patchbay.IncidentHTML
 
   @tabs ~w(endpoint sandboxes stack crypto)
@@ -36,6 +37,17 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
     "rust_cloak" =>
       ~s([dependencies]\nrustls = "0.23.46"\nring = "0.17.14"\ncurve25519-dalek = "4.1.3"\ndcap-qvl = "0.7.1"\nalloy = "2.1.0"),
     "python_cli" => "cryptography==50.0.2\neth-account==0.13.7\npyjwt==2.15.0\nckzg==2.1.0"
+  }
+
+  @sample_diffs %{
+    "rust_cloak" => {
+      ~s([dependencies]\nrustls = "0.23.46"\nring = "0.17.14"\ndcap-qvl = "0.7.1"),
+      ~s([dependencies]\nrustls = "0.23.46"\naws-lc-rs = "1.19.0"\ndcap-qvl = "0.7.1")
+    },
+    "openssl_trixie" => {
+      "erlang@29.1.2\nopenssl@3.0.15\ncryptography@43.0.1",
+      "erlang@29.1.2\nopenssl@3.5.0\ncryptography@50.0.2"
+    }
   }
 
   @impl true
@@ -63,7 +75,27 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
        crypto_probe_result: nil,
        crypto_input: "",
        crypto_audit_error: nil,
-       crypto_audit_result: nil
+       crypto_audit_result: nil,
+       diff_before: "",
+       diff_after: "",
+       diff_error: nil,
+       diff_result: nil,
+       authority_preset: "autolaunch_safe",
+       authority_label: "Autolaunch Treasury Safe (3-of-5 Base)",
+       authority_address: "0x1111111111111111111111111111111111111111",
+       authority_chain_id: "8453",
+       authority_classification: "supported_safe",
+       authority_threshold: "3",
+       authority_owners:
+         "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n0xcccccccccccccccccccccccccccccccccccccccc\n0xdddddddddddddddddddddddddddddddddddddddd\n0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+       authority_exposed_owners: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       authority_modules: "",
+       authority_guard: "",
+       authority_upgrade_admin: "",
+       authority_recovery_mode: "human_multisig",
+       authority_app_auth_coupled?: false,
+       authority_error: nil,
+       authority_result: nil
      )}
   end
 
@@ -216,7 +248,136 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
     end
   end
 
+  def handle_event("load_sample_diff", %{"sample" => key}, socket) do
+    case Map.get(@sample_diffs, key) do
+      {before_text, after_text} ->
+        {:noreply,
+         assign(socket, diff_before: before_text, diff_after: after_text, diff_error: nil)}
+
+      nil ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("run_crypto_diff", %{"before" => before_text, "after" => after_text}, socket) do
+    before_text = before_text || ""
+    after_text = after_text || ""
+
+    case Limits.spend(:patchbay_stack_checks, socket.assigns.visitor) do
+      :ok ->
+        case CryptoAudit.diff_audits(before_text, after_text) do
+          {:ok, result} ->
+            {:noreply,
+             assign(socket,
+               diff_before: before_text,
+               diff_after: after_text,
+               diff_error: nil,
+               diff_result: result
+             )}
+
+          {:error, reason} ->
+            {:noreply,
+             assign(socket,
+               diff_before: before_text,
+               diff_after: after_text,
+               diff_error: reason,
+               diff_result: nil
+             )}
+        end
+
+      :limited ->
+        {:noreply,
+         assign(socket,
+           diff_before: before_text,
+           diff_after: after_text,
+           diff_error: "Stack check limit reached (60/minute). Wait a moment and try again."
+         )}
+    end
+  end
+
+  def handle_event("load_authority_preset", %{"preset" => key}, socket) do
+    case AuthorityInventory.preset(key) do
+      nil ->
+        {:noreply, socket}
+
+      cfg ->
+        {:noreply,
+         assign(socket,
+           authority_preset: key,
+           authority_label: cfg.label,
+           authority_address: cfg.address,
+           authority_chain_id: to_string(cfg.chain_id),
+           authority_classification: cfg.classification,
+           authority_threshold: to_string(cfg.threshold),
+           authority_owners: Enum.join(cfg.owner_addresses, "\n"),
+           authority_exposed_owners: Enum.join(cfg.exposed_owners, "\n"),
+           authority_modules: Enum.join(cfg.modules, "\n"),
+           authority_guard: cfg.guard || "",
+           authority_upgrade_admin: cfg.upgrade_admin || "",
+           authority_recovery_mode: cfg.recovery_mode,
+           authority_app_auth_coupled?: cfg.app_auth_coupled?,
+           authority_error: nil
+         )}
+    end
+  end
+
+  def handle_event("run_authority_check", params, socket) do
+    case Limits.spend(:patchbay_stack_checks, socket.assigns.visitor) do
+      :ok ->
+        updated = assign_authority_form(socket, params)
+        payload = authority_payload(params)
+
+        case AuthorityInventory.analyze(payload) do
+          {:ok, result} ->
+            {:noreply, assign(updated, authority_error: nil, authority_result: result)}
+
+          {:error, reason} ->
+            {:noreply, assign(updated, authority_error: reason, authority_result: nil)}
+        end
+
+      :limited ->
+        {:noreply,
+         assign(socket,
+           authority_error: "Stack check limit reached (60/minute). Wait a moment and try again."
+         )}
+    end
+  end
+
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  defp authority_payload(params) do
+    %{
+      "label" => params["label"],
+      "address" => params["address"],
+      "chain_id" => params["chain_id"],
+      "classification" => params["classification"],
+      "threshold" => params["threshold"],
+      "owner_addresses" => params["owner_addresses"],
+      "exposed_owners" => params["exposed_owners"],
+      "modules" => params["modules"],
+      "guard" => params["guard"],
+      "upgrade_admin" => params["upgrade_admin"],
+      "recovery_mode" => params["recovery_mode"],
+      "app_auth_coupled" => params["app_auth_coupled"] in ["true", "on", "1"]
+    }
+  end
+
+  defp assign_authority_form(socket, params) do
+    assign(socket,
+      authority_label: Map.get(params, "label", ""),
+      authority_address: Map.get(params, "address", ""),
+      authority_chain_id: Map.get(params, "chain_id", "8453"),
+      authority_classification: Map.get(params, "classification", "supported_safe"),
+      authority_threshold: Map.get(params, "threshold", "1"),
+      authority_owners: Map.get(params, "owner_addresses", ""),
+      authority_exposed_owners: Map.get(params, "exposed_owners", ""),
+      authority_modules: Map.get(params, "modules", ""),
+      authority_guard: Map.get(params, "guard", ""),
+      authority_upgrade_admin: Map.get(params, "upgrade_admin", ""),
+      authority_recovery_mode: Map.get(params, "recovery_mode", "human_multisig"),
+      authority_app_auth_coupled?: params["app_auth_coupled"] in ["true", "on", "1"]
+    )
+  end
 
   @impl true
   def handle_async(:probe, {:ok, {:ok, result}}, socket) do
@@ -323,7 +484,7 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
           phx-click="select_tab"
           phx-value-tab="crypto"
         >
-          Crypto &amp; PQC Audit
+          <PostMath.mark size={14} /> Post-Math &amp; Crypto Audit
         </button>
       </div>
 
@@ -653,10 +814,17 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
       <section :if={@tab == "crypto"} class="pbt-panel pbt-diag-body">
         <div class="pbt-stack-head">
           <div>
-            <h2>Live TLS &amp; Post-Quantum Readiness Probe</h2>
+            <div class="pbt-post-math-head">
+              <PostMath.badge
+                state={:live}
+                label="Post-Math · Live Verification"
+                detail="Hybrid PQ TLS, downgrade checks, CycloneDX 1.6 CBOM diffs, and on-chain authority inventories."
+              />
+            </div>
+            <h2>Live TLS, Hybrid PQ &amp; Downgrade Probe</h2>
             <p>
               Verify whether a public <code>https://</code>
-              endpoint actually negotiates hybrid post-quantum key exchange (<code>X25519MLKEM768</code>), tolerates PQ ClientHellos without proxy drops, and check its certificate signature posture separately from transport confidentiality.
+              endpoint negotiates hybrid post-quantum key exchange (<code>X25519MLKEM768</code>), tolerates PQ ClientHellos without proxy drops, refuses forced TLS 1.2 classical downgrades, and check its certificate signature posture separately from transport confidentiality.
             </p>
           </div>
         </div>
@@ -719,11 +887,25 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
               <span class={[
                 "pbt-badge",
                 if(@crypto_probe_result.confidentiality.hybrid_pqc_negotiated?,
-                  do: "pbt-badge--good",
+                  do: "pbt-badge--post-math",
                   else: "pbt-badge--amber"
                 )
               ]}>
                 KEX: {@crypto_probe_result.confidentiality.negotiated_pq_group || "Classical ECC"}
+              </span>
+              <span
+                :if={@crypto_probe_result.downgrade.tested?}
+                class={[
+                  "pbt-badge",
+                  if(@crypto_probe_result.downgrade.tls_1_2_accepted?,
+                    do: "pbt-badge--amber",
+                    else: "pbt-badge--good"
+                  )
+                ]}
+              >
+                {if @crypto_probe_result.downgrade.tls_1_2_accepted?,
+                  do: "TLS 1.2 DOWNGRADE OPEN",
+                  else: "TLS 1.3 ENFORCED"}
               </span>
               <span class={[
                 "pbt-badge",
@@ -898,6 +1080,366 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
             <h3>CycloneDX 1.6 CBOM (JSON)</h3>
             <pre><code>{Jason.encode!(@crypto_audit_result.cbom, pretty: true)}</code></pre>
           </div>
+        </div>
+
+        <hr />
+
+        <div id="migration-diff" class="pbt-stack-head">
+          <div>
+            <h2>Before vs. After Migration Diff Receipt</h2>
+            <p>
+              Paste a pre-migration manifest beside a post-migration manifest to generate a reproducible
+              <code>receipt_digest</code>
+              proving ECC findings were resolved without introducing regressions.
+            </p>
+          </div>
+          <div class="pbt-preset-row">
+            <span class="pbt-muted">Diff presets:</span>
+            <button
+              type="button"
+              class="pbt-mini-pill pbt-mini-pill--btn"
+              phx-click="load_sample_diff"
+              phx-value-sample="rust_cloak"
+            >
+              Cloak: ring → aws-lc-rs
+            </button>
+            <button
+              type="button"
+              class="pbt-mini-pill pbt-mini-pill--btn"
+              phx-click="load_sample_diff"
+              phx-value-sample="openssl_trixie"
+            >
+              OpenSSL 3.0 → 3.5 + Py 50
+            </button>
+          </div>
+        </div>
+
+        <form phx-submit="run_crypto_diff" class="pbt-stack-form">
+          <div class="pbt-diff-grid">
+            <label>
+              <span class="pbt-muted pbt-mono">Before manifest</span>
+              <textarea
+                name="before"
+                rows="5"
+                placeholder="Before migration (e.g. rustls@0.23.46, ring@0.17.14)…"
+              >{@diff_before}</textarea>
+            </label>
+            <label>
+              <span class="pbt-muted pbt-mono">After manifest</span>
+              <textarea
+                name="after"
+                rows="5"
+                placeholder="After migration (e.g. rustls@0.23.46, aws-lc-rs@1.19.0)…"
+              >{@diff_after}</textarea>
+            </label>
+          </div>
+          <div class="pbt-stack-form__foot">
+            <span class="pbt-muted pbt-mono">
+              API: POST /api/v1/patchbay/security/diff-crypto · MCP: patchbay_diff_crypto
+            </span>
+            <button type="submit" class="pbt-btn pbt-btn--contrast">
+              Generate Migration Receipt
+            </button>
+          </div>
+        </form>
+
+        <p :if={@diff_error} class="pbt-alert pbt-alert--critical" role="alert">{@diff_error}</p>
+
+        <div :if={@diff_result} class="pbt-stack-result">
+          <div class="pbt-probe-summary">
+            <span class={[
+              "pbt-badge",
+              if(@diff_result.migration_verified?,
+                do: "pbt-badge--post-math",
+                else: "pbt-badge--amber"
+              )
+            ]}>
+              {if @diff_result.migration_verified?,
+                do: "MIGRATION VERIFIED",
+                else: String.upcase(@diff_result.status)}
+            </span>
+            <span class="pbt-mono">
+              ECC findings: {@diff_result.ecc_exposed_before} → {@diff_result.ecc_exposed_after} · PQC-ready: {@diff_result.pqc_ready_before} → {@diff_result.pqc_ready_after}
+            </span>
+          </div>
+
+          <div :if={@diff_result.resolved_findings != []} class="pbt-related-fixes">
+            <h3>Resolved Findings ({length(@diff_result.resolved_findings)})</h3>
+            <div class="pbt-pill-group">
+              <span :for={item <- @diff_result.resolved_findings} class="pbt-badge pbt-badge--good">
+                {item.package}{if item.version, do: "@#{item.version}", else: ""} resolved
+              </span>
+            </div>
+          </div>
+
+          <div :if={@diff_result.newly_pqc_ready != []} class="pbt-related-fixes">
+            <h3>Newly PQC-Capable ({length(@diff_result.newly_pqc_ready)})</h3>
+            <div class="pbt-pill-group">
+              <span
+                :for={item <- @diff_result.newly_pqc_ready}
+                class="pbt-badge pbt-badge--post-math"
+              >
+                {item.package}{if item.version, do: "@#{item.version}", else: ""} · {Enum.join(
+                  item.algorithms,
+                  ", "
+                )}
+              </span>
+            </div>
+          </div>
+
+          <div :if={@diff_result.new_findings != []} class="pbt-related-fixes">
+            <h3>New Regressions ({length(@diff_result.new_findings)})</h3>
+            <div class="pbt-pill-group">
+              <span :for={item <- @diff_result.new_findings} class="pbt-badge pbt-badge--critical">
+                {item.package} ({item.status})
+              </span>
+            </div>
+          </div>
+
+          <p class="pbt-muted pbt-mono">
+            Receipt digest: {@diff_result.receipt_digest} · Before: {@diff_result.before_digest} · After: {@diff_result.after_digest}
+          </p>
+        </div>
+
+        <hr />
+
+        <div id="authority-inventory" class="pbt-stack-head">
+          <div>
+            <h2>On-Chain Authority Exposure Inventory (&ldquo;Embedded Firmware&rdquo; Check)</h2>
+            <p>
+              Audit a Safe multisig, Autolaunch treasury, Keyfleet fleet contract, or EOA admin to separate mutable contract controls from immutable Base/EVM L1
+              <code>secp256k1</code>
+              boundaries and check whether exposed owner keys can reach execution quorum.
+            </p>
+          </div>
+          <div class="pbt-preset-row">
+            <span class="pbt-muted">Presets:</span>
+            <button
+              type="button"
+              class="pbt-mini-pill pbt-mini-pill--btn"
+              phx-click="load_authority_preset"
+              phx-value-preset="autolaunch_safe"
+            >
+              Autolaunch Safe (3-of-5)
+            </button>
+            <button
+              type="button"
+              class="pbt-mini-pill pbt-mini-pill--btn"
+              phx-click="load_authority_preset"
+              phx-value-preset="keyfleet_treasury"
+            >
+              Keyfleet Treasury
+            </button>
+            <button
+              type="button"
+              class="pbt-mini-pill pbt-mini-pill--btn"
+              phx-click="load_authority_preset"
+              phx-value-preset="single_eoa_admin"
+            >
+              Single Hot EOA
+            </button>
+          </div>
+        </div>
+
+        <form phx-submit="run_authority_check" class="pbt-stack-form">
+          <div class="pbt-diff-grid">
+            <label>
+              <span class="pbt-muted pbt-mono">Label</span>
+              <input type="text" name="label" value={@authority_label} />
+            </label>
+            <label>
+              <span class="pbt-muted pbt-mono">Contract / Treasury Address (optional)</span>
+              <input type="text" name="address" value={@authority_address} placeholder="0x…" />
+            </label>
+            <label>
+              <span class="pbt-muted pbt-mono">Classification</span>
+              <span class="rg-select pbt-select">
+                <select name="classification">
+                  <option
+                    value="supported_safe"
+                    selected={@authority_classification == "supported_safe"}
+                  >
+                    supported_safe (Multisig Safe)
+                  </option>
+                  <option value="safe_1_of_1" selected={@authority_classification == "safe_1_of_1"}>
+                    safe_1_of_1 (1-of-1 Safe)
+                  </option>
+                  <option value="eoa" selected={@authority_classification == "eoa"}>
+                    eoa (Single EOA)
+                  </option>
+                  <option
+                    value="delegated_eoa"
+                    selected={@authority_classification == "delegated_eoa"}
+                  >
+                    delegated_eoa (EIP-7702 EOA)
+                  </option>
+                  <option
+                    value="unknown_contract"
+                    selected={@authority_classification == "unknown_contract"}
+                  >
+                    unknown_contract
+                  </option>
+                  <option value="split" selected={@authority_classification == "split"}>
+                    split
+                  </option>
+                </select>
+              </span>
+            </label>
+            <label>
+              <span class="pbt-muted pbt-mono">Threshold &amp; Chain ID</span>
+              <div class="pbt-diff-grid">
+                <input
+                  type="number"
+                  min="0"
+                  name="threshold"
+                  value={@authority_threshold}
+                  aria-label="Signing threshold"
+                />
+                <input
+                  type="number"
+                  min="1"
+                  name="chain_id"
+                  value={@authority_chain_id}
+                  aria-label="Chain ID"
+                />
+              </div>
+            </label>
+            <label>
+              <span class="pbt-muted pbt-mono">Owner Addresses (one per line)</span>
+              <textarea name="owner_addresses" rows="4">{@authority_owners}</textarea>
+            </label>
+            <label>
+              <span class="pbt-muted pbt-mono">
+                Exposed Owners (signed on-chain / hot keys)
+              </span>
+              <textarea name="exposed_owners" rows="4">{@authority_exposed_owners}</textarea>
+            </label>
+            <label>
+              <span class="pbt-muted pbt-mono">Safe Modules (optional, one per line)</span>
+              <textarea name="modules" rows="2">{@authority_modules}</textarea>
+            </label>
+            <label>
+              <span class="pbt-muted pbt-mono">Out-of-Band Recovery Mode</span>
+              <span class="rg-select pbt-select">
+                <select name="recovery_mode">
+                  <option
+                    value="human_multisig"
+                    selected={@authority_recovery_mode == "human_multisig"}
+                  >
+                    human_multisig
+                  </option>
+                  <option
+                    value="timelock_guardian"
+                    selected={@authority_recovery_mode == "timelock_guardian"}
+                  >
+                    timelock_guardian
+                  </option>
+                  <option value="none" selected={@authority_recovery_mode == "none"}>
+                    none
+                  </option>
+                </select>
+              </span>
+            </label>
+            <label>
+              <span class="pbt-muted pbt-mono">Safe Guard Address (optional)</span>
+              <input type="text" name="guard" value={@authority_guard} placeholder="0x…" />
+            </label>
+            <label>
+              <span class="pbt-muted pbt-mono">Upgrade Admin Address (optional)</span>
+              <input
+                type="text"
+                name="upgrade_admin"
+                value={@authority_upgrade_admin}
+                placeholder="0x…"
+              />
+            </label>
+          </div>
+          <label class="pbt-muted">
+            <input
+              type="checkbox"
+              name="app_auth_coupled"
+              value="true"
+              checked={@authority_app_auth_coupled?}
+            /> Off-chain agent auth (SIWA / API) shares keys with this treasury
+          </label>
+          <div class="pbt-stack-form__foot">
+            <span class="pbt-muted pbt-mono">
+              API: POST /api/v1/patchbay/security/check-authority · MCP: patchbay_check_authority
+            </span>
+            <button type="submit" class="pbt-btn pbt-btn--contrast">
+              Analyze Authority Exposure
+            </button>
+          </div>
+        </form>
+
+        <p :if={@authority_error} class="pbt-alert pbt-alert--critical" role="alert">
+          {@authority_error}
+        </p>
+
+        <div :if={@authority_result} class="pbt-stack-result">
+          <div class="pbt-probe-summary">
+            <span class={["pbt-badge", verdict_badge(@authority_result.verdict)]}>
+              {String.upcase(to_string(@authority_result.verdict))}
+            </span>
+            <span class="pbt-mono">
+              {@authority_result.label} · chain {@authority_result.chain_id} · {@authority_result.quorum_posture.threshold}-of-{@authority_result.quorum_posture.owner_count} · {@authority_result.quorum_posture.exposed_owner_count} exposed · {@authority_result.quorum_posture.unexposed_owner_count} unexposed
+            </span>
+          </div>
+
+          <ul class="pbt-check-list">
+            <li
+              :for={chk <- @authority_result.checks}
+              class={"pbt-check-item pbt-check-item--" <> to_string(chk.level)}
+            >
+              <span class="pbt-badge">{String.upcase(to_string(chk.level))}</span>
+              <span class="pbt-mono pbt-muted">{chk.code}</span>
+              <span>{chk.message}</span>
+            </li>
+          </ul>
+
+          <div class="pbt-table-wrap">
+            <table class="pbt-table">
+              <thead>
+                <tr>
+                  <th>Authority Surface</th>
+                  <th>Boundary</th>
+                  <th>Algorithm</th>
+                  <th>Migration Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={s <- @authority_result.surfaces}>
+                  <td><strong>{s.surface}</strong></td>
+                  <td>
+                    <span class={[
+                      "pbt-badge",
+                      if(s.boundary == "mutable_in_contract",
+                        do: "pbt-badge--post-math",
+                        else: "pbt-badge--cobalt"
+                      )
+                    ]}>
+                      {s.boundary}
+                    </span>
+                  </td>
+                  <td class="pbt-mono">{s.algorithm}</td>
+                  <td>{s.note}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pbt-related-fixes">
+            <h3>Rotation &amp; Containment Rehearsal Steps</h3>
+            <ul class="pbt-check-list">
+              <li :for={step <- @authority_result.rehearsal_steps} class="pbt-check-item">
+                <span>{step}</span>
+              </li>
+            </ul>
+          </div>
+
+          <p class="pbt-muted pbt-mono">
+            Verification digest: {@authority_result.verification_digest}
+          </p>
         </div>
       </section>
     </div>

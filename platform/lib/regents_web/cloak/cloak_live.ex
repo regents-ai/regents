@@ -14,6 +14,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
 
   alias Phoenix.LiveView.JS
   alias RegentsWeb.Cloak
+  alias RegentsWeb.Components.PostMath
 
   def page(assigns) do
     checksums = Cloak.release_checksums()
@@ -47,6 +48,12 @@ defmodule RegentsWeb.Cloak.CloakLive do
           />
         </picture>
         <p class="cloak-pill">{Cloak.pill()}</p>
+        <PostMath.badge
+          state={:live}
+          label="Post-Math · Hybrid PQ TLS & ML-DSA-65"
+          detail="NEAR gateway traffic prefers X25519MLKEM768 hybrid TLS 1.3 and releases support ML-DSA-65 offline signature verification."
+          href="/patchbay/validate?tab=crypto"
+        />
         <h1 id="cloak-heading" tabindex="-1">
           <span class="cloak-hero__first">{hd(Cloak.heading())}</span>
           <span :if={length(Cloak.heading()) > 1} class="cloak-hero__second">

@@ -1615,6 +1615,8 @@ defmodule RegentsWeb.Router do
     post "/security/check-stack", CommerceAPIController, :check_stack
     post "/security/probe-crypto", CommerceAPIController, :probe_crypto
     post "/security/check-crypto", CommerceAPIController, :check_crypto
+    post "/security/diff-crypto", CommerceAPIController, :diff_crypto
+    post "/security/check-authority", CommerceAPIController, :check_authority
     get "/known-fixes", KnownFixController, :index
     get "/known-fixes/:id", KnownFixController, :show
     get "/sites", Forum.BoardController, :sites_json

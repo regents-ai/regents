@@ -54,6 +54,9 @@ defmodule Regents.Patchbay.Probes.CryptoEndpoint do
       {pq_group, classical_fallback} =
         probe_pq_and_fallback(hybrid_offer, ip, uri.port, uri.host, pq_supported)
 
+      downgrade_offer =
+        probe_downgrade(hybrid_offer, classical_fallback, ip, uri.port, uri.host)
+
       latency_ms = max(0, System.monotonic_time(:millisecond) - started)
 
       {:ok,
@@ -65,7 +68,8 @@ defmodule Regents.Patchbay.Probes.CryptoEndpoint do
          runtime_pq_groups: Enum.map(pq_supported, &group_label/1),
          hybrid_offer: hybrid_offer,
          negotiated_pq_group: pq_group,
-         classical_fallback: classical_fallback
+         classical_fallback: classical_fallback,
+         downgrade_offer: downgrade_offer
        })}
     end
   end
@@ -87,13 +91,15 @@ defmodule Regents.Patchbay.Probes.CryptoEndpoint do
     hybrid = capture.hybrid_offer
     pq_group = capture.negotiated_pq_group
     classical = capture.classical_fallback
+    downgrade_offer = Map.get(capture, :downgrade_offer)
 
     {tls_info, cert_info, middlebox_intolerant?} =
       extract_tls_and_cert(hybrid, classical)
 
     kex_status = classify_kex(hybrid, pq_group, middlebox_intolerant?)
     auth_status = classify_auth(cert_info)
-    checks = build_checks(tls_info, cert_info, kex_status, auth_status, pq_group)
+    downgrade = analyze_downgrade(downgrade_offer)
+    checks = build_checks(tls_info, cert_info, kex_status, auth_status, pq_group, downgrade)
     verdict = compute_verdict(kex_status, tls_info, checks)
 
     canonical_facts = %{
@@ -104,6 +110,7 @@ defmodule Regents.Patchbay.Probes.CryptoEndpoint do
       key_exchange_status: Atom.to_string(kex_status),
       negotiated_pq_group: pq_group,
       middlebox_pq_intolerant: middlebox_intolerant?,
+      tls_1_2_downgrade_accepted: downgrade.tls_1_2_accepted?,
       auth_status: Atom.to_string(auth_status),
       leaf_key_algorithm: cert_info && cert_info.public_key_algorithm,
       leaf_signature_algorithm: cert_info && cert_info.signature_algorithm
@@ -125,6 +132,7 @@ defmodule Regents.Patchbay.Probes.CryptoEndpoint do
         tls_protocol: tls_info.protocol,
         cipher_suite: tls_info.cipher_suite
       },
+      downgrade: downgrade,
       authentication: %{
         status: Atom.to_string(auth_status),
         pqc_certificate?: auth_status == :pqc_signature,
@@ -140,6 +148,54 @@ defmodule Regents.Patchbay.Probes.CryptoEndpoint do
     Map.put(result, :report_prefill, build_report_prefill(result))
   end
 
+  @doc """
+  Compare two `probe/1` reports (before vs. after migration) and produce a
+  deterministic before/after migration proof receipt.
+  """
+  @spec diff_reports(map(), map()) :: {:ok, map()} | {:error, String.t()}
+  def diff_reports(before_report, after_report)
+      when is_map(before_report) and is_map(after_report) do
+    b = extract_comparable(before_report)
+    a = extract_comparable(after_report)
+
+    if is_nil(b.digest) or is_nil(a.digest) do
+      {:error, "Both before and after probe reports must include verification_digest."}
+    else
+      {improvements, regressions, unchanged} = compare_endpoints(b, a)
+      status = diff_status(improvements, regressions)
+      migration_verified? = improvements != [] and regressions == []
+
+      receipt_payload = %{
+        before_digest: b.digest,
+        after_digest: a.digest,
+        status: status,
+        improvements: Enum.map(improvements, & &1.code),
+        regressions: Enum.map(regressions, & &1.code)
+      }
+
+      {:ok,
+       %{
+         kind: "endpoint_crypto_diff",
+         host_before: b.host,
+         host_after: a.host,
+         host_changed?: b.host != a.host,
+         verdict_before: b.verdict,
+         verdict_after: a.verdict,
+         before_digest: b.digest,
+         after_digest: a.digest,
+         status: status,
+         migration_verified?: migration_verified?,
+         improvements: improvements,
+         regressions: regressions,
+         unchanged: unchanged,
+         receipt_digest: "sha256:" <> sha256_hex(Jason.encode!(receipt_payload))
+       }}
+    end
+  end
+
+  def diff_reports(_before, _after),
+    do: {:error, "Provide both before and after probe report maps."}
+
   # --- Network probes ---
 
   defp probe_pq_and_fallback({:ok, _info}, ip, port, host, pq_supported) do
@@ -151,6 +207,14 @@ defmodule Regents.Patchbay.Probes.CryptoEndpoint do
     classical = ssl_handshake(ip, port, host, @classical_groups, [:"tlsv1.3", :"tlsv1.2"])
     {nil, classical}
   end
+
+  defp probe_downgrade({:ok, _}, _classical, ip, port, host),
+    do: ssl_handshake(ip, port, host, [], [:"tlsv1.2"])
+
+  defp probe_downgrade(_hybrid, {:ok, _}, ip, port, host),
+    do: ssl_handshake(ip, port, host, [], [:"tlsv1.2"])
+
+  defp probe_downgrade(_hybrid, _classical, _ip, _port, _host), do: nil
 
   defp find_negotiated_pq_group(_ip, _port, _host, []), do: nil
 
@@ -385,14 +449,65 @@ defmodule Regents.Patchbay.Probes.CryptoEndpoint do
   defp classify_auth(%{public_key_family: "rsa"}), do: :classical_rsa
   defp classify_auth(_), do: :unknown
 
-  defp build_checks(tls_info, cert_info, kex_status, auth_status, pq_group) do
+  defp analyze_downgrade(nil) do
+    %{
+      tested?: false,
+      tls_1_2_accepted?: false,
+      negotiated_protocol: nil,
+      negotiated_cipher_suite: nil,
+      status: "not_tested"
+    }
+  end
+
+  defp analyze_downgrade({:ok, info}) do
+    %{
+      tested?: true,
+      tls_1_2_accepted?: true,
+      negotiated_protocol: info.protocol,
+      negotiated_cipher_suite: info.cipher_suite,
+      status: "tls_1_2_downgrade_accepted"
+    }
+  end
+
+  defp analyze_downgrade({:error, _reason}) do
+    %{
+      tested?: true,
+      tls_1_2_accepted?: false,
+      negotiated_protocol: nil,
+      negotiated_cipher_suite: nil,
+      status: "tls_1_3_enforced"
+    }
+  end
+
+  defp build_checks(tls_info, cert_info, kex_status, auth_status, pq_group, downgrade) do
     [
       tls_protocol_check(tls_info),
       kex_check(kex_status, pq_group),
       middlebox_check(kex_status),
+      downgrade_check(downgrade),
       auth_check(auth_status, cert_info)
     ]
     |> Enum.reject(&is_nil/1)
+  end
+
+  defp downgrade_check(%{tested?: false}), do: nil
+
+  defp downgrade_check(%{tls_1_2_accepted?: true, negotiated_cipher_suite: suite}) do
+    %{
+      level: :warn,
+      code: "tls_1_2_downgrade_accepted",
+      message:
+        "Downgrade check: endpoint accepted a forced TLS 1.2 classical handshake (#{suite}). Clients without strict TLS 1.3 minimum policy can be downgraded off hybrid PQ key exchange."
+    }
+  end
+
+  defp downgrade_check(%{tls_1_2_accepted?: false}) do
+    %{
+      level: :pass,
+      code: "tls_1_3_enforced",
+      message:
+        "Downgrade check: endpoint refused a forced TLS 1.2 classical handshake, blocking protocol downgrade off TLS 1.3."
+    }
   end
 
   defp tls_protocol_check(%{error: err}) when is_binary(err) do
@@ -518,6 +633,7 @@ defmodule Regents.Patchbay.Probes.CryptoEndpoint do
     - **Target:** `#{result.url}`
     - **Verdict:** `#{result.verdict}`
     - **Confidentiality (Key Exchange):** `#{result.confidentiality.status}` (PQ group: `#{result.confidentiality.negotiated_pq_group || "none"}`, TLS: `#{result.confidentiality.tls_protocol || "unknown"}`)
+    - **Downgrade Simulation (TLS 1.2):** `#{result.downgrade.status}`
     - **Authentication (Leaf Cert):** `#{result.authentication.status}`
     - **Verification Digest:** `#{result.verification_digest}`
     - **Checked at:** `#{result.checked_at}`
@@ -601,6 +717,163 @@ defmodule Regents.Patchbay.Probes.CryptoEndpoint do
   defp format_ssl_error(:econnrefused), do: "connection refused"
   defp format_ssl_error(:closed), do: "connection closed by peer during handshake"
   defp format_ssl_error(reason), do: inspect(reason)
+
+  # --- Before/After Diff Helpers ---
+
+  defp extract_comparable(report) do
+    conf = field(report, :confidentiality) || %{}
+    down = field(report, :downgrade) || %{}
+    auth = field(report, :authentication) || %{}
+
+    %{
+      host: field(report, :host),
+      verdict: to_str(field(report, :verdict)),
+      digest: field(report, :verification_digest),
+      tls_protocol: field(conf, :tls_protocol),
+      hybrid_pqc?: truthy?(field(conf, :hybrid_pqc_negotiated?)),
+      pq_group: field(conf, :negotiated_pq_group),
+      tolerated?: truthy?(field(conf, :pq_client_hello_tolerated?)),
+      kex_status: to_str(field(conf, :status)),
+      downgrade_tested?: truthy?(field(down, :tested?)),
+      tls_1_2_accepted?: truthy?(field(down, :tls_1_2_accepted?)),
+      pqc_cert?: truthy?(field(auth, :pqc_certificate?)),
+      auth_status: to_str(field(auth, :status))
+    }
+  end
+
+  defp compare_endpoints(b, a) do
+    deltas =
+      [
+        compare_hybrid_pqc(b, a),
+        compare_middlebox(b, a),
+        compare_downgrade(b, a),
+        compare_tls_version(b, a),
+        compare_cert_auth(b, a)
+      ]
+      |> Enum.reject(&is_nil/1)
+
+    improvements = for {:improved, item} <- deltas, do: item
+    regressions = for {:regressed, item} <- deltas, do: item
+    unchanged = for {:unchanged, item} <- deltas, do: item
+    {improvements, regressions, unchanged}
+  end
+
+  defp compare_hybrid_pqc(%{hybrid_pqc?: false}, %{hybrid_pqc?: true, pq_group: grp}),
+    do:
+      {:improved,
+       %{code: "hybrid_pqc_enabled", message: "Enabled hybrid PQ key exchange (#{grp})."}}
+
+  defp compare_hybrid_pqc(%{hybrid_pqc?: true, pq_group: grp}, %{hybrid_pqc?: false}),
+    do:
+      {:regressed,
+       %{code: "hybrid_pqc_lost", message: "Lost hybrid PQ key exchange (was #{grp})."}}
+
+  defp compare_hybrid_pqc(%{hybrid_pqc?: true, pq_group: grp}, %{hybrid_pqc?: true}),
+    do:
+      {:unchanged,
+       %{code: "hybrid_pqc_preserved", message: "Hybrid PQ key exchange intact (#{grp})."}}
+
+  defp compare_hybrid_pqc(_, _),
+    do:
+      {:unchanged,
+       %{code: "still_classical_kex", message: "Key exchange remains classical ECC only."}}
+
+  defp compare_middlebox(%{kex_status: "pq_intolerant"}, %{tolerated?: true}),
+    do:
+      {:improved,
+       %{
+         code: "middlebox_intolerance_fixed",
+         message: "Resolved PQ ClientHello middlebox drop."
+       }}
+
+  defp compare_middlebox(%{tolerated?: true}, %{kex_status: "pq_intolerant"}),
+    do:
+      {:regressed,
+       %{
+         code: "middlebox_intolerance_introduced",
+         message: "Introduced PQ ClientHello middlebox intolerance."
+       }}
+
+  defp compare_middlebox(_, _), do: nil
+
+  defp compare_downgrade(
+         %{downgrade_tested?: true, tls_1_2_accepted?: true},
+         %{downgrade_tested?: true, tls_1_2_accepted?: false}
+       ),
+       do:
+         {:improved,
+          %{
+            code: "tls_1_2_downgrade_closed",
+            message: "Closed TLS 1.2 classical downgrade path; TLS 1.3 is now enforced."
+          }}
+
+  defp compare_downgrade(
+         %{downgrade_tested?: true, tls_1_2_accepted?: false},
+         %{downgrade_tested?: true, tls_1_2_accepted?: true}
+       ),
+       do:
+         {:regressed,
+          %{
+            code: "tls_1_2_downgrade_opened",
+            message: "Reopened TLS 1.2 classical downgrade path."
+          }}
+
+  defp compare_downgrade(%{downgrade_tested?: true, tls_1_2_accepted?: false}, %{
+         downgrade_tested?: true,
+         tls_1_2_accepted?: false
+       }),
+       do: {:unchanged, %{code: "tls_1_3_enforced", message: "TLS 1.3 minimum enforcement held."}}
+
+  defp compare_downgrade(_, _), do: nil
+
+  defp compare_tls_version(%{tls_protocol: b}, %{tls_protocol: "TLS 1.3"}) when b != "TLS 1.3",
+    do:
+      {:improved,
+       %{code: "tls_1_3_upgraded", message: "Upgraded negotiated transport to TLS 1.3."}}
+
+  defp compare_tls_version(%{tls_protocol: "TLS 1.3"}, %{tls_protocol: a}) when a != "TLS 1.3",
+    do:
+      {:regressed,
+       %{code: "tls_1_3_downgraded", message: "Dropped from TLS 1.3 to #{a || "unreachable"}."}}
+
+  defp compare_tls_version(_, _), do: nil
+
+  defp compare_cert_auth(%{pqc_cert?: false}, %{pqc_cert?: true}),
+    do:
+      {:improved,
+       %{code: "pqc_certificate_enabled", message: "Leaf certificate migrated to PQC signature."}}
+
+  defp compare_cert_auth(%{pqc_cert?: true}, %{pqc_cert?: false}),
+    do:
+      {:regressed,
+       %{code: "pqc_certificate_reverted", message: "Leaf certificate reverted to classical key."}}
+
+  defp compare_cert_auth(_, %{auth_status: auth}) when is_binary(auth) and auth != "",
+    do:
+      {:unchanged,
+       %{code: "cert_auth_unchanged", message: "Leaf certificate posture unchanged (#{auth})."}}
+
+  defp compare_cert_auth(_, _), do: nil
+
+  defp diff_status([], []), do: "unchanged"
+  defp diff_status([_ | _], []), do: "improved"
+  defp diff_status([], [_ | _]), do: "regressed"
+  defp diff_status([_ | _], [_ | _]), do: "mixed"
+
+  defp field(map, atom_key) when is_map(map) do
+    case Map.fetch(map, atom_key) do
+      {:ok, value} -> value
+      :error -> Map.get(map, Atom.to_string(atom_key))
+    end
+  end
+
+  defp truthy?(true), do: true
+  defp truthy?(_), do: false
+
+  defp to_str(nil), do: nil
+  defp to_str(val) when is_atom(val), do: Atom.to_string(val)
+  defp to_str(val) when is_binary(val), do: val
+  defp to_str(val), do: to_string(val)
 
   defp sha256_hex(bytes) when is_binary(bytes) do
     :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)

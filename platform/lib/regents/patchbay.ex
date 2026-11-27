@@ -102,6 +102,7 @@ defmodule Regents.Patchbay do
       Probes.CatalogWatch,
       Probes.CryptoEndpoint,
       Probes.PaymentEndpoint,
+      Security.AuthorityInventory,
       Security.CryptoAudit,
       Security.StackCheck,
       Supervisor,

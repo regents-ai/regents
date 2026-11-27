@@ -13,7 +13,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
   alias Regents.Patchbay.Forum.PostAddress
   alias Regents.Patchbay.Playbooks
   alias Regents.Patchbay.Probes.{CryptoEndpoint, PaymentEndpoint}
-  alias Regents.Patchbay.Security.{CryptoAudit, StackCheck}
+  alias Regents.Patchbay.Security.{AuthorityInventory, CryptoAudit, StackCheck}
   alias RegentsWeb.Patchbay.AgentTools.Writes
   alias RegentsWeb.Patchbay.ApiError
   alias RegentsWeb.Patchbay.Forum.Readiness
@@ -201,6 +201,79 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
           case CryptoAudit.check(manifest, include_cbom: include_cbom != false) do
             {:ok, result} -> {:ok, result}
             {:error, reason} -> refused("invalid_stack", reason, "Check the manifest and retry.")
+          end
+        end
+      end
+    end
+
+    action :diff_crypto, :map do
+      description "Compare before and after dependency manifests (or probe-crypto reports) and emit a migration verification receipt."
+
+      argument :before_manifest, :string, allow_nil?: true, constraints: [max_length: 65_536]
+      argument :after_manifest, :string, allow_nil?: true, constraints: [max_length: 65_536]
+      argument :before_report, :map, allow_nil?: true
+      argument :after_report, :map, allow_nil?: true
+
+      run fn %{arguments: args}, context ->
+        with :ok <- spend(context, :patchbay_stack_checks) do
+          result =
+            cond do
+              is_map(args.before_report) and is_map(args.after_report) ->
+                CryptoEndpoint.diff_reports(args.before_report, args.after_report)
+
+              is_binary(args.before_manifest) and is_binary(args.after_manifest) ->
+                CryptoAudit.diff_audits(args.before_manifest, args.after_manifest)
+
+              true ->
+                {:error,
+                 "Provide either (before_manifest and after_manifest) or (before_report and after_report)."}
+            end
+
+          case result do
+            {:ok, diff} ->
+              {:ok, diff}
+
+            {:error, reason} ->
+              refused("invalid_diff", reason, "Check both inputs and retry.")
+          end
+        end
+      end
+    end
+
+    action :check_authority, :map do
+      description "Analyze a Safe multisig, treasury, or EOA authority configuration (or preset) for ECC exposure and immutable L1 boundaries."
+
+      argument :preset, :string, allow_nil?: true
+      argument :label, :string, allow_nil?: true
+      argument :address, :string, allow_nil?: true
+      argument :chain_id, :integer, allow_nil?: true
+      argument :classification, :string, allow_nil?: true
+      argument :owner_addresses, {:array, :string}, allow_nil?: true
+      argument :exposed_owners, {:array, :string}, allow_nil?: true
+      argument :threshold, :integer, allow_nil?: true
+      argument :modules, {:array, :string}, allow_nil?: true
+      argument :guard, :string, allow_nil?: true
+      argument :fallback_handler, :string, allow_nil?: true
+      argument :upgrade_admin, :string, allow_nil?: true
+      argument :recovery_mode, :string, allow_nil?: true
+      argument :app_auth_coupled, :boolean, allow_nil?: true
+
+      run fn %{arguments: args}, context ->
+        with :ok <- spend(context, :patchbay_stack_checks) do
+          payload =
+            args
+            |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+            |> Map.new(fn
+              {:app_auth_coupled, v} -> {:app_auth_coupled?, v}
+              pair -> pair
+            end)
+
+          case AuthorityInventory.analyze(payload) do
+            {:ok, report} ->
+              {:ok, report}
+
+            {:error, reason} ->
+              refused("invalid_authority", reason, "Check the authority configuration and retry.")
           end
         end
       end

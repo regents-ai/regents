@@ -3,7 +3,7 @@ defmodule RegentsWeb.RegentOpsLive do
   use Phoenix.Component
 
   alias RegentsWeb.Chain.TokenDisplay
-  alias RegentsWeb.Components.{LabBlocks, Loading, ValueCards}
+  alias RegentsWeb.Components.{LabBlocks, Loading, PostMath, ValueCards}
 
   # Each product's words, by its name in the product menu: its card here, its name in
   # the hero's picture and its row on the home page. Each card's panel is in its
@@ -85,7 +85,11 @@ defmodule RegentsWeb.RegentOpsLive do
   opens (`:href`): the Overview's cards and the names in its picture, and the home
   page's rows.
   """
-  def products, do: @products
+  def products do
+    Enum.map(@products, fn product ->
+      Map.put(product, :post_math, PostMath.for_product(product.name))
+    end)
+  end
 
   # One line for each way an agent on one product uses another, as the products'
   # own guides describe it. Cloak works on its own. Where two lines meet, the later
@@ -230,7 +234,7 @@ defmodule RegentsWeb.RegentOpsLive do
   def page(assigns) do
     assigns =
       assigns
-      |> assign(products: @products, map_links: @map_links)
+      |> assign(products: products(), map_links: @map_links)
       |> assign(
         :wallet_loading,
         assigns.reading ||

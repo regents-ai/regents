@@ -37,6 +37,7 @@ defmodule RegentsWeb do
       ClientAddress,
       Components.Loading,
       Components.PageHead,
+      Components.PostMath,
       Components.RegentLinks,
       # The account control and theme switch a product's own header draws.
       Components.Shell,
