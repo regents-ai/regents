@@ -63,10 +63,12 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
        tab: "endpoint",
        url: "",
        method: "GET",
+       req_body: "",
        probe_running?: false,
        probe_error: nil,
        probe_result: nil,
        stack_input: "",
+       stack_filename: nil,
        stack_error: nil,
        stack_result: nil,
        crypto_url: "",
@@ -115,65 +117,68 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
     {:noreply, push_patch(socket, to: ~p"/patchbay/validate?#{[tab: tab]}")}
   end
 
-  def handle_event("prefill_probe", %{"url" => url} = params, socket) do
-    method = if params["method"] in ~w(GET POST HEAD), do: params["method"], else: "GET"
-    {:noreply, assign(socket, tab: "endpoint", url: url, method: method, probe_error: nil)}
+  def handle_event("set_probe_form", params, socket) do
+    method =
+      if params["method"] in ~w(GET POST HEAD), do: params["method"], else: socket.assigns.method
+
+    url = Map.get(params, "url", socket.assigns.url)
+    req_body = Map.get(params, "body", socket.assigns.req_body)
+    {:noreply, assign(socket, method: method, url: url, req_body: req_body)}
   end
 
-  def handle_event("run_probe", %{"url" => url, "method" => method}, socket) do
-    url = String.trim(url || "")
-    method = if method in ~w(GET POST HEAD), do: method, else: "GET"
+  def handle_event("prefill_probe", %{"url" => url} = params, socket) do
+    method = if params["method"] in ~w(GET POST HEAD), do: params["method"], else: "GET"
+    req_body = Map.get(params, "body", "")
+    start_probe(socket, url, method, req_body)
+  end
 
-    case Limits.spend(:patchbay_endpoint_probes, socket.assigns.visitor) do
-      :ok ->
-        {:noreply,
-         socket
-         |> assign(
-           url: url,
-           method: method,
-           probe_running?: true,
-           probe_error: nil,
-           probe_result: nil
-         )
-         |> start_async(:probe, fn -> PaymentEndpoint.probe(url, method) end)}
+  def handle_event("run_probe", %{"url" => url, "method" => method} = params, socket) do
+    req_body = Map.get(params, "body", "")
+    start_probe(socket, url, method, req_body)
+  end
 
-      :limited ->
-        {:noreply,
-         assign(socket,
-           url: url,
-           method: method,
-           probe_running?: false,
-           probe_error: "Probe limit reached (20/minute). Wait a moment and try again."
-         )}
-    end
+  def handle_event("file_load_error", %{"message" => msg}, socket) do
+    {:noreply, assign(socket, stack_error: msg, stack_result: nil)}
   end
 
   def handle_event("load_sample_stack", %{"sample" => key}, socket) do
     case Map.get(@sample_stacks, key) do
       nil -> {:noreply, socket}
-      text -> {:noreply, assign(socket, stack_input: text, stack_error: nil)}
+      text -> {:noreply, assign(socket, stack_input: text, stack_filename: nil, stack_error: nil)}
     end
   end
 
-  def handle_event("run_stack_check", %{"manifest" => manifest}, socket) do
+  def handle_event("run_stack_check", %{"manifest" => manifest} = params, socket) do
     manifest = manifest || ""
+    filename = params["filename"]
 
     case Limits.spend(:patchbay_stack_checks, socket.assigns.visitor) do
       :ok ->
         case StackCheck.check(manifest) do
           {:ok, result} ->
             {:noreply,
-             assign(socket, stack_input: manifest, stack_error: nil, stack_result: result)}
+             assign(socket,
+               stack_input: manifest,
+               stack_filename: filename,
+               stack_error: nil,
+               stack_result: result
+             )}
 
           {:error, reason} ->
             {:noreply,
-             assign(socket, stack_input: manifest, stack_error: reason, stack_result: nil)}
+             assign(socket,
+               stack_input: manifest,
+               stack_filename: filename,
+               stack_error: reason,
+               stack_result: nil
+             )}
         end
 
       :limited ->
         {:noreply,
          assign(socket,
            stack_input: manifest,
+           stack_filename: filename,
            stack_error: "Stack check limit reached (60/minute). Wait a moment and try again."
          )}
     end
@@ -490,34 +495,46 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
 
       <%!-- TAB 1: ENDPOINT 402 VALIDATOR --%>
       <section :if={@tab == "endpoint"} class="pbt-panel pbt-diag-body">
-        <form phx-submit="run_probe" class="pbt-probe-form">
-          <span class="rg-select pbt-select">
-            <select name="method" aria-label="HTTP method">
-              <option value="GET" selected={@method == "GET"}>GET</option>
-              <option value="POST" selected={@method == "POST"}>POST</option>
-              <option value="HEAD" selected={@method == "HEAD"}>HEAD</option>
-            </select>
-          </span>
-          <input
-            type="url"
-            name="url"
-            value={@url}
-            placeholder="https://api.example.com/v1/search"
-            required
-          />
-          <button type="submit" class="pbt-btn pbt-btn--contrast" disabled={@probe_running?}>
-            {if @probe_running?, do: "Probing…", else: "Validate Endpoint"}
-          </button>
+        <form phx-submit="run_probe" phx-change="set_probe_form">
+          <div class="pbt-probe-form">
+            <span class="rg-select pbt-select">
+              <select name="method" aria-label="HTTP method">
+                <option value="GET" selected={@method == "GET"}>GET</option>
+                <option value="POST" selected={@method == "POST"}>POST</option>
+                <option value="HEAD" selected={@method == "HEAD"}>HEAD</option>
+              </select>
+            </span>
+            <input
+              type="url"
+              name="url"
+              value={@url}
+              placeholder="https://api.example.com/v1/search"
+              required
+            />
+            <button type="submit" class="pbt-btn pbt-btn--contrast" disabled={@probe_running?}>
+              {if @probe_running?, do: "Probing…", else: "Validate Endpoint"}
+            </button>
+          </div>
+          <div :if={@method == "POST"} class="pbt-probe-body-wrap">
+            <label for="pb-probe-body">Optional POST JSON Body (sent unpaid; defaults to <code>{"{}"}</code>)</label>
+            <textarea
+              id="pb-probe-body"
+              name="body"
+              rows="2"
+              placeholder='{"query": "x402"}'
+            >{@req_body}</textarea>
+          </div>
         </form>
 
         <div class="pbt-preset-row">
-          <span class="pbt-muted">Quick presets:</span>
+          <span class="pbt-muted">One-click live probes:</span>
           <button
             type="button"
             class="pbt-mini-pill pbt-mini-pill--btn"
             phx-click="prefill_probe"
             phx-value-url="https://regents.sh/patchbay/bench/x402-test"
             phx-value-method="GET"
+            disabled={@probe_running?}
           >
             Patchbay x402 (Base USDC)
           </button>
@@ -527,6 +544,7 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
             phx-click="prefill_probe"
             phx-value-url="https://regents.sh/patchbay/bench/mpp-test"
             phx-value-method="GET"
+            disabled={@probe_running?}
           >
             Patchbay MPP (Tempo Charge)
           </button>
@@ -536,8 +554,20 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
             phx-click="prefill_probe"
             phx-value-url="https://regents.sh/patchbay/bench/mpp-test?intent=session"
             phx-value-method="GET"
+            disabled={@probe_running?}
           >
             Patchbay MPP (Tempo Session)
+          </button>
+          <button
+            type="button"
+            class="pbt-mini-pill pbt-mini-pill--btn"
+            phx-click="prefill_probe"
+            phx-value-url="https://api.exa.ai/search"
+            phx-value-method="POST"
+            phx-value-body='{"query":"x402"}'
+            disabled={@probe_running?}
+          >
+            Exa Search (POST)
           </button>
         </div>
 
@@ -564,6 +594,27 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
                 {String.upcase(proto)}
               </span>
             </div>
+          </div>
+
+          <div :if={probe_summary_cards(@probe_result) != []} class="pbt-probe-meta">
+            <div :for={card <- probe_summary_cards(@probe_result)} class="pbt-probe-meta__card">
+              <span class="pbt-probe-meta__label">{card.label}</span>
+              <span class="pbt-probe-meta__value">{card.value}</span>
+              <span :if={card.sub} class="pbt-probe-meta__sub">{card.sub}</span>
+            </div>
+          </div>
+
+          <div class="pbt-cli-box">
+            <code>{validate_cli_snippet(@probe_result.url, @probe_result.method, @req_body)}</code>
+            <button
+              type="button"
+              class="rg-copy pbt-mini-pill pbt-mini-pill--btn"
+              data-copy-text={
+                validate_cli_snippet(@probe_result.url, @probe_result.method, @req_body)
+              }
+            >
+              Copy CLI
+            </button>
           </div>
 
           <ul class="pbt-check-list">
@@ -686,13 +737,27 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
           <div>
             <h2>Stack Vulnerability Check (<code>cve.now</code> Active Criticals)</h2>
             <p>
-              Paste <code>package.json</code>, <code>mix.lock</code>, <code>requirements.txt</code>, <code>Cargo.toml</code>, <code>go.mod</code>, or package names. Patchbay matches them against live mirrored
-              <code>cve.now</code>
-              critical & CISA KEV vulnerabilities and surfaces community mitigations.
+              Upload or paste <code>package-lock.json</code>, <code>pnpm-lock.yaml</code>, <code>yarn.lock</code>, <code>mix.lock</code>, <code>composer.lock</code>, <code>Cargo.lock</code>, <code>uv.lock</code>, <code>poetry.lock</code>, <code>go.mod</code>, <code>go.sum</code>, <code>Gemfile.lock</code>, or a
+              <strong>CycloneDX / SPDX JSON SBOM</strong>
+              (up to 2 MB). Patched pins are
+              verified against OSV ranges and explicitly cleared.
             </p>
           </div>
           <div class="pbt-preset-row">
-            <span class="pbt-muted">Samples:</span>
+            <label
+              id="pb-stack-file-loader"
+              class="pbt-btn pbt-btn--ghost pbt-file-btn"
+              phx-hook="PatchbayFileLoader"
+              data-event="run_stack_check"
+              data-target="#pb-stack-manifest"
+            >
+              <span>Load Lockfile / SBOM…</span>
+              <input
+                type="file"
+                accept=".json,.lock,.yaml,.yml,.toml,.txt,.mod,.sum"
+                aria-label="Load lockfile or SBOM"
+              />
+            </label>
             <button
               type="button"
               class="pbt-mini-pill pbt-mini-pill--btn"
@@ -722,13 +787,14 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
 
         <form phx-submit="run_stack_check" class="pbt-stack-form">
           <textarea
+            id="pb-stack-manifest"
             name="manifest"
             rows="6"
-            placeholder="Paste package.json, mix.lock, requirements.txt, or comma-separated packages (e.g. next, plug, langflow, openssl)…"
+            placeholder="Paste package-lock.json, pnpm-lock.yaml, yarn.lock, mix.lock, uv.lock, Cargo.lock, CycloneDX/SPDX SBOM, or pkg@version list…"
           >{@stack_input}</textarea>
           <div class="pbt-stack-form__foot">
             <span class="pbt-muted pbt-mono">
-              API: POST /api/v1/patchbay/security/check-stack · MCP: patchbay_check_stack
+              {if @stack_filename, do: "Loaded #{@stack_filename} · ", else: ""}CLI: regents patchbay security check-stack --file package-lock.json --json
             </span>
             <button type="submit" class="pbt-btn pbt-btn--contrast">Scan Active Criticals</button>
           </div>
@@ -767,8 +833,8 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
               <thead>
                 <tr>
                   <th>Advisory</th>
-                  <th>Matched Packages</th>
-                  <th>Severity / KEV</th>
+                  <th>Installed → Fix</th>
+                  <th>Severity / Signals</th>
                   <th>Fix Status</th>
                   <th>Patchbay Thread</th>
                 </tr>
@@ -783,14 +849,27 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
                   </td>
                   <td>
                     <div class="pbt-pill-group">
-                      <span :for={pkg <- m.matched_packages} class="pbt-mini-pill">{pkg}</span>
+                      <span :for={d <- m.matched_details} class="pbt-upgrade-pill">
+                        {format_upgrade_pill(d)}
+                      </span>
                     </div>
                   </td>
                   <td>
                     <div class="pbt-pill-group">
-                      <span :if={m.exploited} class="pbt-badge pbt-badge--critical">KEV</span>
+                      <span :if={m.exploited} class="pbt-badge pbt-badge--critical">
+                        {if m.kev_due_date, do: "KEV due #{m.kev_due_date}", else: "KEV"}
+                      </span>
                       <span :if={m.score} class="pbt-badge pbt-badge--amber">
                         CVSS {IncidentHTML.score_text(m.score)}
+                      </span>
+                      <span
+                        :if={is_map(m.ssvc) and m.ssvc["automatable"] == "yes"}
+                        class="pbt-badge pbt-badge--critical"
+                      >
+                        SSVC AUTOMATABLE
+                      </span>
+                      <span :for={cwe <- Enum.take(m.cwe || [], 2)} class="pbt-mini-pill">
+                        {cwe}
                       </span>
                     </div>
                   </td>
@@ -1444,6 +1523,113 @@ defmodule RegentsWeb.Patchbay.ValidateLive do
       </section>
     </div>
     """
+  end
+
+  defp start_probe(socket, url, method, req_body) do
+    url = String.trim(url || "")
+    method = if method in ~w(GET POST HEAD), do: method, else: "GET"
+    req_body = if is_binary(req_body), do: req_body, else: ""
+
+    case Limits.spend(:patchbay_endpoint_probes, socket.assigns.visitor) do
+      :ok ->
+        {:noreply,
+         socket
+         |> assign(
+           tab: "endpoint",
+           url: url,
+           method: method,
+           req_body: req_body,
+           probe_running?: true,
+           probe_error: nil,
+           probe_result: nil
+         )
+         |> start_async(:probe, fn -> PaymentEndpoint.probe(url, method, body: req_body) end)}
+
+      :limited ->
+        {:noreply,
+         assign(socket,
+           tab: "endpoint",
+           url: url,
+           method: method,
+           req_body: req_body,
+           probe_running?: false,
+           probe_error: "Probe limit reached (20/minute). Wait a moment and try again."
+         )}
+    end
+  end
+
+  defp probe_summary_cards(result) do
+    pricing = Map.get(result, :pricing) || %{}
+    x402_p = pricing[:x402]
+    mpp_p = pricing[:mpp]
+    cors = result.cors
+
+    []
+    |> maybe_add_pricing_cards("x402", x402_p)
+    |> maybe_add_pricing_cards("MPP", mpp_p)
+    |> maybe_add_cors_card(cors)
+  end
+
+  defp maybe_add_pricing_cards(cards, _prefix, nil), do: cards
+
+  defp maybe_add_pricing_cards(cards, prefix, p) do
+    recipient_val = short_recipient(p.recipient)
+    timeout_sub = format_timeout_sub(p)
+
+    cards ++
+      [
+        %{
+          label: "#{prefix} Price",
+          value: p.amount_display || to_string(p.raw_amount),
+          sub: p.rail_label
+        },
+        %{label: "#{prefix} Recipient", value: recipient_val, sub: timeout_sub}
+      ]
+  end
+
+  defp maybe_add_cors_card(cards, %{tested?: true} = cors) do
+    status_text = if cors.preflight_status, do: "HTTP #{cors.preflight_status}", else: "Error"
+    verdict = if cors.preflight_ok, do: "Browser-ready", else: "Preflight failed"
+
+    cards ++
+      [%{label: "CORS Preflight", value: "#{status_text} · #{verdict}", sub: cors.allow_origin}]
+  end
+
+  defp maybe_add_cors_card(cards, _cors), do: cards
+
+  defp short_recipient(addr) when is_binary(addr) and byte_size(addr) > 16 do
+    String.slice(addr, 0, 8) <> "…" <> String.slice(addr, -6, 6)
+  end
+
+  defp short_recipient(addr) when is_binary(addr) and addr != "", do: addr
+  defp short_recipient(_other), do: "Not specified"
+
+  defp format_timeout_sub(%{timeout_seconds: s}) when is_integer(s), do: "maxTimeout #{s}s"
+  defp format_timeout_sub(%{ttl_seconds: s}) when is_integer(s), do: "expires in #{s}s"
+  defp format_timeout_sub(_other), do: nil
+
+  defp validate_cli_snippet(url, method, body) do
+    base = "regents patchbay validate #{url}"
+    with_method = if method == "GET", do: base, else: "#{base} --method #{method}"
+
+    with_body =
+      if method == "POST" and is_binary(body) and String.trim(body) != "",
+        do: "#{with_method} --body '#{String.trim(body)}'",
+        else: with_method
+
+    with_body <> " --json"
+  end
+
+  defp format_upgrade_pill(detail) do
+    base =
+      if detail.installed_version,
+        do: "#{detail.name}@#{detail.installed_version}",
+        else: detail.name
+
+    case detail.fixed_versions do
+      [fix | _] -> "#{base} → fix #{fix}"
+      _ -> base
+    end
   end
 
   defp verdict_badge(:pass), do: "pbt-badge--good"

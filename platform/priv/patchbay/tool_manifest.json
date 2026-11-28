@@ -3867,6 +3867,11 @@
               "HEAD"
             ],
             "description": "HTTP method to send (default GET)."
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 16384,
+            "description": "Optional JSON request body to send when method is POST (max 16 KB)."
           }
         },
         "required": [
@@ -3985,8 +3990,8 @@
           "manifest": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 65536,
-            "description": "Raw dependency manifest text or comma-separated package@version list."
+            "maxLength": 2097152,
+            "description": "Raw dependency manifest, lockfile, CycloneDX/SPDX JSON SBOM (up to 2 MB), or comma-separated package@version list."
           }
         },
         "required": [
@@ -4087,8 +4092,8 @@
           "manifest": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 65536,
-            "description": "Raw dependency manifest or lockfile text."
+            "maxLength": 2097152,
+            "description": "Raw dependency manifest, lockfile, or SBOM text (up to 2 MB)."
           },
           "include_cbom": {
             "type": "boolean",
@@ -4141,13 +4146,13 @@
         "properties": {
           "before_manifest": {
             "type": "string",
-            "maxLength": 65536,
-            "description": "Before dependency manifest text."
+            "maxLength": 2097152,
+            "description": "Before dependency manifest text (up to 2 MB)."
           },
           "after_manifest": {
             "type": "string",
-            "maxLength": 65536,
-            "description": "After dependency manifest text."
+            "maxLength": 2097152,
+            "description": "After dependency manifest text (up to 2 MB)."
           },
           "before_report": {
             "type": "object",

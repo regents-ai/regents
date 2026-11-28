@@ -1552,6 +1552,13 @@
             "HEAD"
           ],
           "description": "HTTP method for the unpaid probe (default GET)."
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "in": "body",
+          "field": "body",
+          "description": "Optional JSON request body to send when --method POST (max 16 KB)."
         }
       ]
     },
@@ -1599,7 +1606,7 @@
     },
     {
       "command": "security check-stack",
-      "description": "Version-accurately scan a dependency manifest or lockfile (package.json, package-lock.json, composer.lock, mix.lock, requirements.txt, uv.lock, Cargo.toml, Cargo.lock, go.mod, or pkg@version list) against live cve.now active criticals and Patchbay mitigations. Pass --file <path> (or --file - for stdin) or --manifest <text>. Patched version pins are explicitly cleared.",
+      "description": "Version-accurately scan a dependency manifest, lockfile, or SBOM (package.json, package-lock.json, pnpm-lock.yaml, yarn.lock, composer.lock, mix.lock, requirements.txt, uv.lock, poetry.lock, Cargo.toml, Cargo.lock, go.mod, go.sum, Gemfile.lock, CycloneDX/SPDX JSON SBOM, or pkg@version list; up to 2 MB) against live cve.now active criticals and Patchbay mitigations. Pass --file <path> (or --file - for stdin) or --manifest <text>. Patched version pins are explicitly cleared.",
       "operation_id": "checkStackSecurity",
       "webmcp": "patchbay_check_stack",
       "method": "POST",
@@ -1612,15 +1619,15 @@
           "type": "string",
           "in": "body",
           "field": "manifest",
-          "description": "Inline lockfile/manifest contents or comma/newline list of packages (e.g. drupal/core@11.4.12)."
+          "description": "Inline lockfile/manifest/SBOM contents or comma/newline list of packages (e.g. drupal/core@11.4.12)."
         },
         {
           "name": "file",
           "type": "text_file",
           "in": "body",
           "field": "manifest",
-          "maximum": 65536,
-          "description": "Path to a local lockfile/manifest (package.json, package-lock.json, mix.lock, composer.lock, Cargo.lock, uv.lock, requirements.txt, go.mod) or '-' to read stdin (max 64 KB)."
+          "maximum": 2097152,
+          "description": "Path to a local lockfile, manifest, or CycloneDX/SPDX JSON SBOM (package-lock.json, pnpm-lock.yaml, yarn.lock, mix.lock, composer.lock, Cargo.lock, uv.lock, poetry.lock, requirements.txt, go.mod, go.sum, Gemfile.lock) or '-' to read stdin (max 2 MB)."
         }
       ],
       "required_one_of": [
@@ -1649,7 +1656,7 @@
     },
     {
       "command": "security check-crypto",
-      "description": "Audit a dependency manifest or lockfile (mix.lock, Cargo.toml, Cargo.lock, package-lock.json, uv.lock, go.mod, composer.lock, or pkg@version list) for ECC/RSA exposure, separate app-owned upgrades from external chain/hardware rails, and emit a CycloneDX 1.6 CBOM.",
+      "description": "Audit a dependency manifest, lockfile, or SBOM (mix.lock, Cargo.toml, Cargo.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, uv.lock, poetry.lock, go.mod, go.sum, composer.lock, Gemfile.lock, CycloneDX/SPDX JSON, or pkg@version list; up to 2 MB) for ECC/RSA exposure, separate app-owned upgrades from external chain/hardware rails, and emit a CycloneDX 1.6 CBOM.",
       "operation_id": "checkCryptoStack",
       "webmcp": "patchbay_check_crypto",
       "method": "POST",
@@ -1669,8 +1676,8 @@
           "type": "text_file",
           "in": "body",
           "field": "manifest",
-          "maximum": 65536,
-          "description": "Path to a local lockfile/manifest or '-' to read stdin (max 64 KB)."
+          "maximum": 2097152,
+          "description": "Path to a local lockfile, manifest, or CycloneDX/SPDX SBOM or '-' to read stdin (max 2 MB)."
         },
         {
           "name": "include-cbom",
@@ -1714,16 +1721,16 @@
           "type": "text_file",
           "in": "body",
           "field": "before_manifest",
-          "maximum": 65536,
-          "description": "Path to before-migration lockfile/manifest (max 64 KB)."
+          "maximum": 2097152,
+          "description": "Path to before-migration lockfile/manifest (max 2 MB)."
         },
         {
           "name": "after-file",
           "type": "text_file",
           "in": "body",
           "field": "after_manifest",
-          "maximum": 65536,
-          "description": "Path to after-migration lockfile/manifest (max 64 KB)."
+          "maximum": 2097152,
+          "description": "Path to after-migration lockfile/manifest (max 2 MB)."
         }
       ],
       "required_one_of": [

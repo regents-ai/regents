@@ -61,7 +61,14 @@ defmodule RegentsWeb.Patchbay.Plugs.X402Test do
           asset: USDC.asset(),
           pay_to: @pay_to,
           extra: USDC.signing_domain(),
-          description: "Wallet Bench paid-call test"
+          description: "Wallet Bench paid-call test",
+          bazaar: [
+            method: :get,
+            output: [
+              type: "json",
+              example: %{"message" => "test passed"}
+            ]
+          ]
         }
       ]
     )

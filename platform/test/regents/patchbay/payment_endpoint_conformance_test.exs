@@ -282,6 +282,158 @@ defmodule Regents.Patchbay.Probes.PaymentEndpointConformanceTest do
       assert result.verdict == :pass
       assert result.detected_protocols == ["x402", "mpp"]
       assert Enum.any?(result.checks, &(&1.code == "dual_protocol" and &1.level == :pass))
+      assert result.pricing.x402.amount_display == "$0.01 USDC"
+      assert result.pricing.mpp.amount_display == "$0.01 USDC.e"
+    end
+
+    test "x402 v2 Bazaar info+schema extension passes with zero warnings" do
+      payload = %{
+        "x402Version" => 2,
+        "accepts" => [
+          %{
+            "scheme" => "exact",
+            "network" => "eip155:8453",
+            "asset" => "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "payTo" => "0x1111111111111111111111111111111111111111",
+            "amount" => "10000",
+            "maxTimeoutSeconds" => 60
+          }
+        ],
+        "extensions" => %{
+          "bazaar" => %{
+            "info" => %{
+              "input" => %{"type" => "http", "method" => "GET"},
+              "output" => %{"type" => "json", "example" => %{"message" => "test passed"}}
+            },
+            "schema" => %{"type" => "object"}
+          }
+        }
+      }
+
+      result =
+        PaymentEndpoint.analyze_wire(%{
+          url: "https://regents.sh/patchbay/bench/x402-test",
+          method: "GET",
+          status: 402,
+          headers: %{
+            "payment-required" => [encode_b64_json(payload)],
+            "access-control-allow-origin" => ["*"],
+            "access-control-expose-headers" => ["PAYMENT-REQUIRED, PAYMENT-RESPONSE"]
+          },
+          body: "",
+          latency_ms: 28,
+          now: @now,
+          preflight: %{
+            status: 204,
+            headers: %{
+              "access-control-allow-origin" => ["*"],
+              "access-control-allow-headers" => ["Payment-Signature, Authorization, Content-Type"]
+            }
+          }
+        })
+
+      assert result.verdict == :pass
+      assert result.x402.bazaar_discoverable? == true
+      assert result.x402.bazaar_format == :v2_schema
+      assert result.pricing.x402.rail_label == "Base Mainnet"
+      assert result.pricing.x402.amount_display == "$0.01 USDC"
+      assert Enum.all?(result.checks, &(&1.level == :pass))
+    end
+
+    test "burn address payTo fails with invalid_pay_to and 18-decimal price bug warns" do
+      payload = %{
+        "x402Version" => 2,
+        "accepts" => [
+          %{
+            "scheme" => "exact",
+            "network" => "eip155:8453",
+            "asset" => "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "payTo" => "0x0000000000000000000000000000000000000000",
+            "amount" => "10000000000000000",
+            "maxTimeoutSeconds" => 5
+          }
+        ]
+      }
+
+      result =
+        PaymentEndpoint.analyze_wire(%{
+          url: "https://buggy.example.com/pay",
+          method: "GET",
+          status: 402,
+          headers: %{"payment-required" => [encode_b64_json(payload)]},
+          body: "",
+          latency_ms: 40,
+          now: @now
+        })
+
+      assert result.verdict == :warn
+      assert Enum.any?(result.checks, &(&1.code == "invalid_pay_to" and &1.level == :fail))
+      assert Enum.any?(result.checks, &(&1.code == "price_unusually_high" and &1.level == :warn))
+      assert Enum.any?(result.checks, &(&1.code == "timeout_too_short" and &1.level == :warn))
+    end
+
+    test "HTTP 307 redirect flags redirect_drops_payment_headers" do
+      result =
+        PaymentEndpoint.analyze_wire(%{
+          url: "https://example.com/pay",
+          method: "POST",
+          status: 307,
+          headers: %{"location" => ["https://www.example.com/pay"]},
+          body: "",
+          latency_ms: 18,
+          now: @now
+        })
+
+      assert result.verdict == :fail
+
+      assert Enum.any?(
+               result.checks,
+               &(&1.code == "redirect_drops_payment_headers" and &1.level == :fail)
+             )
+    end
+
+    test "dual-rail divergent pricing emits dual_price_mismatch warning" do
+      x402_payload = %{
+        "x402Version" => 2,
+        "accepts" => [
+          %{
+            "scheme" => "exact",
+            "network" => "eip155:8453",
+            "asset" => "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "payTo" => "0x1111111111111111111111111111111111111111",
+            "amount" => "10000"
+          }
+        ]
+      }
+
+      mpp_req = encode_b64_json(%{"amount" => "100000", "currency" => "USDC.e"})
+
+      result =
+        PaymentEndpoint.analyze_wire(%{
+          url: "https://mismatch.example.com/api",
+          method: "POST",
+          status: 402,
+          headers: %{
+            "payment-required" => [encode_b64_json(x402_payload)],
+            "www-authenticate" => [
+              mpp_header(%{
+                "id" => "mpp_mismatch",
+                "method" => "tempo",
+                "intent" => "charge",
+                "expires" => "2026-11-26T20:10:00Z",
+                "request" => mpp_req
+              })
+            ],
+            "cache-control" => ["no-store"],
+            "vary" => ["Authorization"],
+            "access-control-expose-headers" => ["PAYMENT-REQUIRED, WWW-Authenticate"]
+          },
+          body: "",
+          latency_ms: 30,
+          now: @now
+        })
+
+      assert Enum.any?(result.checks, &(&1.code == "dual_price_mismatch" and &1.level == :warn))
     end
   end
 end

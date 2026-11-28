@@ -128,7 +128,10 @@ defmodule Regents.Patchbay.Incidents.CveNow.Post do
       epss_score: epss_score(entry),
       kev_due_date: kev_due_date(entry),
       exposure: exposure_value(entry),
-      agent_ecosystem: agent_ecosystem?(entry, product_text, packages)
+      agent_ecosystem: agent_ecosystem?(entry, product_text, packages),
+      cwe: extract_cwe(entry),
+      ssvc: extract_ssvc(entry),
+      poc_signals: extract_poc_signals(entry)
     }
   end
 
@@ -140,7 +143,61 @@ defmodule Regents.Patchbay.Incidents.CveNow.Post do
        when is_number(score) and score >= 0 and score <= 1,
        do: score / 1
 
+  defp epss_score(%{"epss" => %{"score" => score}})
+       when is_number(score) and score >= 0 and score <= 1,
+       do: score / 1
+
   defp epss_score(_entry), do: nil
+
+  defp extract_cwe(entry) do
+    entry
+    |> list("cwe")
+    |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
+    |> Enum.map(&line/1)
+    |> Enum.uniq()
+    |> Enum.take(10)
+  end
+
+  defp extract_ssvc(%{"ssvc" => %{} = ssvc}) do
+    map =
+      %{}
+      |> maybe_put_ssvc("exploitation", ssvc["exploitation"])
+      |> maybe_put_ssvc("automatable", ssvc["automatable"])
+      |> maybe_put_ssvc("technical_impact", ssvc["technicalImpact"] || ssvc["technical_impact"])
+      |> maybe_put_ssvc("source", ssvc["source"])
+
+    if map == %{}, do: nil, else: map
+  end
+
+  defp extract_ssvc(_entry), do: nil
+
+  defp maybe_put_ssvc(acc, key, val) when is_binary(val) do
+    trimmed = line(val)
+    if trimmed == "", do: acc, else: Map.put(acc, key, trimmed)
+  end
+
+  defp maybe_put_ssvc(acc, _key, _val), do: acc
+
+  defp extract_poc_signals(%{"exploitation" => %{} = exp}) do
+    [
+      {"githubPoc", "github_poc"},
+      {"nuclei", "nuclei"},
+      {"metasploit", "metasploit"},
+      {"exploitDb", "exploit_db"}
+    ]
+    |> Enum.reduce([], fn {field, label}, acc ->
+      if truthy_signal?(exp[field]), do: [label | acc], else: acc
+    end)
+    |> Enum.reverse()
+  end
+
+  defp extract_poc_signals(_entry), do: []
+
+  defp truthy_signal?(true), do: true
+  defp truthy_signal?(n) when is_integer(n) and n > 0, do: true
+  defp truthy_signal?([_ | _]), do: true
+  defp truthy_signal?(%{} = m), do: map_size(m) > 0
+  defp truthy_signal?(_other), do: false
 
   defp kev_due_date(%{"exploitation" => %{"kev" => %{"dueDate" => due}}}) when is_binary(due),
     do: line(due)
@@ -154,11 +211,14 @@ defmodule Regents.Patchbay.Incidents.CveNow.Post do
 
   defp structured_packages(entry) do
     top_fixed = versions(list(entry, "fixedIn"))
+    from_fix_status = packages_from_fix_status(entry)
+    from_list = packages_from_list(entry)
+    eco_by_name = build_ecosystem_index(from_fix_status ++ from_list)
+    from_affected = packages_from_affected(entry, eco_by_name)
+    from_fixed_by_product = packages_from_fixed_by_product(entry, eco_by_name)
 
     merged =
-      (packages_from_affected(entry) ++
-         packages_from_fix_status(entry) ++
-         packages_from_list(entry))
+      (from_affected ++ from_fix_status ++ from_list ++ from_fixed_by_product)
       |> Enum.reduce(%{}, &merge_structured_package/2)
       |> Map.values()
       |> Enum.sort_by(&{&1["ecosystem"], String.downcase(&1["name"])})
@@ -174,33 +234,96 @@ defmodule Regents.Patchbay.Incidents.CveNow.Post do
     end
   end
 
-  defp packages_from_affected(entry) do
-    for item when is_map(item) <- list(entry, "affected"),
-        eco = item["ecosystem"],
-        name = item["package"] || item["name"],
-        is_binary(eco) and eco != "" and is_binary(name) and name != "" do
-      ranges = normalize_ranges(item["ranges"])
+  defp build_ecosystem_index(pkgs) do
+    Enum.reduce(pkgs, %{}, fn pkg, acc ->
+      Map.put_new(acc, String.downcase(pkg["name"]), pkg["ecosystem"])
+    end)
+  end
 
-      range_fixed =
-        ranges
-        |> Enum.map(& &1["fixed"])
-        |> versions()
-        |> Enum.uniq()
+  defp packages_from_affected(entry, eco_by_name) do
+    entry
+    |> list("affected")
+    |> Enum.filter(&is_map/1)
+    |> Enum.flat_map(&affected_item_to_package(&1, eco_by_name))
+  end
 
-      explicit_versions =
-        item["versions"]
-        |> List.wrap()
-        |> versions()
-        |> Enum.uniq()
-        |> Enum.take(50)
+  defp affected_item_to_package(item, eco_by_name) do
+    ranges = normalize_ranges(item["ranges"])
+    range_fixed = ranges |> Enum.map(& &1["fixed"]) |> versions() |> Enum.uniq()
+
+    explicit_versions =
+      item["versions"] |> List.wrap() |> versions() |> Enum.uniq() |> Enum.take(50)
+
+    case resolve_affected_target(item, eco_by_name, ranges, explicit_versions) do
+      {eco, name} ->
+        [
+          %{
+            "ecosystem" => eco,
+            "name" => name,
+            "status" => if(range_fixed != [], do: "fixed", else: nil),
+            "fixed" => range_fixed,
+            "ranges" => ranges,
+            "versions" => explicit_versions
+          }
+        ]
+
+      nil ->
+        []
+    end
+  end
+
+  defp resolve_affected_target(item, eco_by_name, ranges, explicit_versions) do
+    case explicit_affected_package(item) do
+      {:ok, target} -> target
+      :none -> product_affected_target(item["product"], eco_by_name, ranges, explicit_versions)
+    end
+  end
+
+  defp explicit_affected_package(item) do
+    eco = trim_non_empty(item["ecosystem"])
+    pkg_name = trim_non_empty(item["package"] || item["name"])
+
+    if eco && pkg_name, do: {:ok, {String.downcase(eco), pkg_name}}, else: :none
+  end
+
+  defp product_affected_target(raw_product, eco_by_name, ranges, explicit_versions) do
+    case trim_non_empty(raw_product) do
+      nil ->
+        nil
+
+      product ->
+        case Map.get(eco_by_name, String.downcase(product)) do
+          eco when is_binary(eco) -> {eco, product}
+          nil when ranges != [] or explicit_versions != [] -> {"product", product}
+          nil -> nil
+        end
+    end
+  end
+
+  defp trim_non_empty(val) when is_binary(val) do
+    case String.trim(val) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp trim_non_empty(_other), do: nil
+
+  defp packages_from_fixed_by_product(entry, eco_by_name) do
+    for %{"product" => product, "versions" => vers} <- list(entry, "fixedInByProduct"),
+        is_binary(product) and String.trim(product) != "",
+        clean_vers = vers |> List.wrap() |> versions() |> Enum.uniq(),
+        clean_vers != [] do
+      trimmed = String.trim(product)
+      eco = Map.get(eco_by_name, String.downcase(trimmed), "product")
 
       %{
-        "ecosystem" => String.downcase(String.trim(eco)),
-        "name" => String.trim(name),
-        "status" => if(range_fixed != [], do: "fixed", else: nil),
-        "fixed" => range_fixed,
-        "ranges" => ranges,
-        "versions" => explicit_versions
+        "ecosystem" => eco,
+        "name" => trimmed,
+        "status" => "fixed",
+        "fixed" => clean_vers,
+        "ranges" => [],
+        "versions" => []
       }
     end
   end

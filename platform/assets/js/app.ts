@@ -79,6 +79,7 @@ import {autolaunchHooks} from "./autolaunch"
 // WebMCP guide's status line.
 // Their copy buttons and other motion are the site's own above.
 import {installEscape} from "./patchbay/escape"
+import {PatchbayFileLoader} from "./patchbay/file_loader"
 import {MotionArrivals} from "./patchbay/motion_arrivals"
 import {MotionThread} from "./patchbay/motion_thread"
 import {PatchbayRelativeTime} from "./patchbay/relative_time"
@@ -335,6 +336,7 @@ const hooks = {
   MenuAgents,
   OnchainSteps,
   PaperPicks,
+  PatchbayFileLoader,
   PatchbayRelativeTime,
   PublicName,
   ResearchScrollCue,

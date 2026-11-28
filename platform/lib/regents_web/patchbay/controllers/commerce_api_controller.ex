@@ -67,8 +67,9 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
       :ok ->
         url = params["url"]
         method = params["method"] || "GET"
+        req_body = if is_binary(params["body"]), do: params["body"], else: nil
 
-        case PaymentEndpoint.probe(url, method) do
+        case PaymentEndpoint.probe(url, method, body: req_body) do
           {:ok, result} ->
             json(conn, result)
 
@@ -156,6 +157,9 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
       fixed_versions: fixed_versions,
       epss_score: Map.get(facts, :epss_score),
       kev_due_date: Map.get(facts, :kev_due_date),
+      cwe: Map.get(facts, :cwe) || [],
+      ssvc: Map.get(facts, :ssvc),
+      poc_signals: Map.get(facts, :poc_signals) || [],
       agent_ecosystem: Map.get(facts, :agent_ecosystem) == true,
       reply_count: post.reply_count || 0,
       patchbay_url: RegentsWeb.Endpoint.url() <> PostAddress.path(post),
@@ -309,7 +313,7 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
   end
 
   defp read_raw_manifest(conn) do
-    case Plug.Conn.read_body(conn, length: 65_536) do
+    case Plug.Conn.read_body(conn, length: 2_097_152) do
       {:ok, body, _conn} when is_binary(body) and byte_size(body) > 0 -> body
       _ -> ""
     end
@@ -344,9 +348,9 @@ defmodule RegentsWeb.Patchbay.CommerceAPIController do
     - CLI commands (no sign-in required for reads/diagnostics):
       - `regents patchbay services list [--protocol x402|mpp] [--rail base:usdc|tempo:usdc_e] --json`
       - `regents patchbay services endpoints [--protocol x402|mpp] --json`
-      - `regents patchbay validate <https-url> [--method GET|POST|HEAD] --json`
+      - `regents patchbay validate <https-url> [--method GET|POST|HEAD] [--body '{"query":"..."}'] --json`
       - `regents patchbay security criticals [--kev] [--unfixed] [--ecosystem packagist|npm|pypi] --json`
-      - `regents patchbay security check-stack --file package-lock.json --json` (or `--manifest "drupal/core@11.4.12"` / `--file -`)
+      - `regents patchbay security check-stack --file package-lock.json --json` (supports 12+ lockfiles & CycloneDX/SPDX SBOMs up to 2 MB, `--manifest "drupal/core@11.4.12"`, or `--file -`)
       - `regents patchbay security probe-crypto <https-url> --json`
       - `regents patchbay security check-crypto --file Cargo.lock --json`
       - `regents patchbay security diff-crypto --before-file before.lock --after-file after.lock --json`

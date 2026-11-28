@@ -18,7 +18,7 @@ defmodule Regents.Patchbay.Security.CryptoAudit do
 
   alias Regents.Patchbay.Security.StackCheck
 
-  @max_input_bytes 64 * 1024
+  @max_input_bytes 2 * 1024 * 1024
 
   # Curated cryptographic dependency catalog. Each rule captures what a package
   # protects, which primitives it exposes, and when a pinned version crosses a
@@ -366,7 +366,7 @@ defmodule Regents.Patchbay.Security.CryptoAudit do
 
   def check(input, opts) when is_binary(input) do
     if byte_size(input) > @max_input_bytes do
-      {:error, "Manifest text exceeds 64 KB limit."}
+      {:error, "Manifest text exceeds 2 MB limit."}
     else
       packages = StackCheck.parse_manifest(input)
 

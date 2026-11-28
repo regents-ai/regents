@@ -2,12 +2,14 @@ defmodule Regents.Patchbay.Security.StackCheck do
   @moduledoc """
   Version-accurate dependency security checker for Patchbay.
 
-  Parses exact pinned versions from `package.json`, `package-lock.json`,
-  `composer.json`, `composer.lock`, `mix.lock`, `Cargo.toml`, `Cargo.lock`,
-  `requirements.txt`, `uv.lock`, `go.mod`, or `name@version` lists and evaluates
-  them against Patchbay's live mirrored `cve.now` active criticals (using OSV
-  `introduced` / `fixed` / `last_affected` version ranges) plus curated security
-  briefings.
+  Parses exact pinned versions from 12+ real-world manifest, lockfile, and SBOM
+  formats (`package.json`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`
+  v1/Berry, `composer.json`, `composer.lock`, `mix.lock`, `Cargo.toml`,
+  `Cargo.lock`, `requirements.txt`, `uv.lock`, `poetry.lock`, `go.mod`, `go.sum`,
+  `Gemfile.lock`, CycloneDX JSON SBOM, SPDX JSON SBOM, or `name@version` lists)
+  up to 2 MB / 1,500 packages and evaluates them against Patchbay's live
+  mirrored `cve.now` active criticals (using OSV `introduced` / `fixed` /
+  `last_affected` version ranges) plus curated security briefings.
 
   When a lockfile pins a patched version (`version >= fixed` or outside all
   affected ranges), the package is cleared as patched rather than falsely
@@ -18,9 +20,26 @@ defmodule Regents.Patchbay.Security.StackCheck do
   alias Regents.Patchbay.Forum.PostAddress
   alias Regents.Patchbay.Incidents
 
-  @max_input_bytes 64 * 1024
-  @max_packages 200
+  @max_input_bytes 2 * 1024 * 1024
+  @max_packages 1_500
   @max_cves_scanned 250
+
+  @purl_ecosystems %{
+    "npm" => "npm",
+    "pypi" => "pypi",
+    "composer" => "packagist",
+    "packagist" => "packagist",
+    "cargo" => "cargo",
+    "golang" => "go",
+    "go" => "go",
+    "hex" => "hex",
+    "gem" => "rubygems",
+    "rubygems" => "rubygems",
+    "maven" => "maven",
+    "nuget" => "nuget",
+    "deb" => "debian",
+    "apk" => "alpine"
+  }
 
   @type parsed_package :: %{
           ecosystem: String.t() | nil,
@@ -35,13 +54,13 @@ defmodule Regents.Patchbay.Security.StackCheck do
   @spec check(String.t() | [map()]) :: {:ok, map()} | {:error, String.t()}
   def check(input) when is_binary(input) do
     if byte_size(input) > @max_input_bytes do
-      {:error, "Manifest text exceeds 64 KB limit."}
+      {:error, "Manifest text exceeds 2 MB limit."}
     else
       packages = parse_manifest(input)
 
       if packages == [] do
         {:error,
-         "No package names detected. Paste package.json, package-lock.json, composer.lock, mix.lock, requirements.txt, uv.lock, Cargo.toml, Cargo.lock, go.mod, or a comma/line-separated list of packages."}
+         "No package names detected. Paste or upload package.json, package-lock.json, pnpm-lock.yaml, yarn.lock, composer.lock, mix.lock, requirements.txt, uv.lock, poetry.lock, Cargo.toml, Cargo.lock, go.mod, go.sum, Gemfile.lock, CycloneDX/SPDX JSON SBOM, or a comma/line-separated list of packages."}
       else
         {:ok, evaluate(packages, load_cves(), Incidents.all())}
       end
@@ -93,36 +112,56 @@ defmodule Regents.Patchbay.Security.StackCheck do
     }
   end
 
-  @doc "Extract normalized `{ecosystem, name, version}` entries from common manifest and lockfile formats."
+  @doc "Extract normalized `{ecosystem, name, version}` entries from common manifest, lockfile, and SBOM formats."
   @spec parse_manifest(String.t()) :: [parsed_package()]
   def parse_manifest(text) when is_binary(text) do
     trimmed = String.trim(text)
 
-    cond do
-      trimmed == "" ->
-        []
-
-      String.starts_with?(trimmed, "{") ->
-        parse_json_manifest(trimmed)
-
-      String.contains?(trimmed, "{:hex,") ->
-        parse_mix_lock(trimmed)
-
-      String.contains?(trimmed, "[[package]]") ->
-        parse_toml_lock(trimmed)
-
-      String.contains?(trimmed, "[dependencies]") ->
-        parse_cargo_toml(trimmed)
-
-      String.contains?(trimmed, "module ") and String.contains?(trimmed, "require") ->
-        parse_go_mod(trimmed)
-
-      true ->
-        parse_plain_or_requirements(trimmed)
-    end
+    trimmed
+    |> dispatch_manifest_parser()
     |> dedupe_packages()
     |> Enum.take(@max_packages)
   end
+
+  defp dispatch_manifest_parser(""), do: []
+
+  defp dispatch_manifest_parser(trimmed) do
+    parsers = [
+      {&String.starts_with?(&1, "{"), &parse_json_manifest/1},
+      {&String.contains?(&1, "{:hex,"), &parse_mix_lock/1},
+      {&String.contains?(&1, "[[package]]"), &parse_toml_lock/1},
+      {&pnpm_lock?/1, &parse_pnpm_lock/1},
+      {&yarn_lock?/1, &parse_yarn_lock/1},
+      {&gemfile_lock?/1, &parse_gemfile_lock/1},
+      {&String.contains?(&1, "[dependencies]"), &parse_cargo_toml/1},
+      {&go_mod?/1, &parse_go_mod/1},
+      {&go_sum?/1, &parse_go_sum/1}
+    ]
+
+    case Enum.find(parsers, fn {match?, _parser} -> match?.(trimmed) end) do
+      {_match?, parser} -> parser.(trimmed)
+      nil -> parse_plain_or_requirements(trimmed)
+    end
+  end
+
+  defp pnpm_lock?(text),
+    do:
+      String.contains?(text, "lockfileVersion:") and
+        (String.contains?(text, "\npackages:") or String.contains?(text, "\nsnapshots:"))
+
+  defp yarn_lock?(text),
+    do:
+      String.contains?(text, "yarn lockfile v1") or
+        (String.contains?(text, "__metadata:") and String.contains?(text, "resolution:"))
+
+  defp gemfile_lock?(text),
+    do: String.contains?(text, "GEM\n") and String.contains?(text, "specs:\n")
+
+  defp go_mod?(text),
+    do: String.contains?(text, "module ") and String.contains?(text, "require")
+
+  defp go_sum?(text),
+    do: Regex.match?(~r/^\S+\s+v[0-9][^\s]*(?:\/go\.mod)?\s+h1:/m, text)
 
   @doc """
   Determine whether `installed_version` falls inside a structured package entry's
@@ -169,10 +208,16 @@ defmodule Regents.Patchbay.Security.StackCheck do
     end
   end
 
-  # --- Manifest parsers ---
+  # --- JSON Manifest & SBOM parsers ---
 
   defp parse_json_manifest(text) do
     case Jason.decode(text) do
+      {:ok, %{"bomFormat" => "CycloneDX"} = map} ->
+        parse_cyclonedx_sbom(map)
+
+      {:ok, %{"spdxVersion" => _} = map} ->
+        parse_spdx_sbom(map)
+
       {:ok, %{"lockfileVersion" => _} = map} ->
         parse_package_lock_json(map)
 
@@ -187,6 +232,91 @@ defmodule Regents.Patchbay.Security.StackCheck do
 
       _ ->
         parse_plain_or_requirements(text)
+    end
+  end
+
+  defp parse_cyclonedx_sbom(map) do
+    map
+    |> Map.get("components", [])
+    |> List.wrap()
+    |> Enum.flat_map(&cyclonedx_component_to_pkg/1)
+  end
+
+  defp cyclonedx_component_to_pkg(%{"purl" => purl} = comp) when is_binary(purl) do
+    case parse_purl(purl) do
+      {:ok, pkg} ->
+        ver = pkg.version || clean_version(comp["version"])
+        [%{pkg | version: ver}]
+
+      :error ->
+        fallback_sbom_component(comp["name"], comp["version"])
+    end
+  end
+
+  defp cyclonedx_component_to_pkg(%{"name" => name} = comp),
+    do: fallback_sbom_component(name, comp["version"])
+
+  defp cyclonedx_component_to_pkg(_other), do: []
+
+  defp parse_spdx_sbom(map) do
+    map
+    |> Map.get("packages", [])
+    |> List.wrap()
+    |> Enum.flat_map(&spdx_package_to_pkg/1)
+  end
+
+  defp spdx_package_to_pkg(%{} = pkg) do
+    purl =
+      pkg
+      |> Map.get("externalRefs", [])
+      |> List.wrap()
+      |> Enum.find_value(fn
+        %{"referenceType" => "purl", "referenceLocator" => loc} when is_binary(loc) -> loc
+        _ -> nil
+      end)
+
+    case purl && parse_purl(purl) do
+      {:ok, parsed} ->
+        ver = parsed.version || clean_version(pkg["versionInfo"])
+        [%{parsed | version: ver}]
+
+      _ ->
+        fallback_sbom_component(pkg["name"], pkg["versionInfo"])
+    end
+  end
+
+  defp spdx_package_to_pkg(_other), do: []
+
+  defp fallback_sbom_component(name, version) when is_binary(name) and name != "" do
+    [%{ecosystem: nil, name: String.downcase(String.trim(name)), version: clean_version(version)}]
+  end
+
+  defp fallback_sbom_component(_name, _version), do: []
+
+  defp parse_purl("pkg:" <> rest) do
+    without_qualifiers = rest |> String.split(["?", "#"], parts: 2) |> hd()
+
+    case String.split(without_qualifiers, "/", parts: 2) do
+      [raw_type, remainder] when remainder != "" ->
+        eco = Map.get(@purl_ecosystems, String.downcase(raw_type), String.downcase(raw_type))
+        {raw_name, raw_ver} = split_purl_version(remainder)
+        name = raw_name |> URI.decode() |> String.trim() |> String.downcase()
+
+        if name != "",
+          do: {:ok, %{ecosystem: eco, name: name, version: clean_version(raw_ver)}},
+          else: :error
+
+      _ ->
+        :error
+    end
+  end
+
+  defp parse_purl(_other), do: :error
+
+  defp split_purl_version(remainder) do
+    case String.split(remainder, "@", parts: 2) do
+      [name, ver] -> {name, URI.decode(ver)}
+      [name] -> {name, nil}
     end
   end
 
@@ -267,6 +397,87 @@ defmodule Regents.Patchbay.Security.StackCheck do
     end
   end
 
+  # --- YAML / Lockfile parsers (pnpm, yarn, Gemfile, mix, Cargo, uv, poetry, Go) ---
+
+  defp parse_pnpm_lock(text) do
+    # Matches pnpm v6/v9 keys under packages: or snapshots:
+    # e.g. "  '/@scope/pkg@1.2.3':", "  next@15.1.0(react@19.0.0):", "  /lodash/4.17.21:"
+    text
+    |> String.split(~r/\r?\n/)
+    |> Enum.flat_map(&parse_pnpm_line/1)
+  end
+
+  defp parse_pnpm_line(line) do
+    case Regex.run(
+           ~r/^\s{2,4}['"]?\/?((?:@[^@\/\s'"]+\/)?[^@\/\s'":(]+)[@\/]([0-9][^'":(\s]*)[^:]*:\s*$/,
+           line
+         ) do
+      [_, name, ver] ->
+        case clean_version(ver) do
+          nil -> []
+          cleaned -> [%{ecosystem: "npm", name: String.downcase(name), version: cleaned}]
+        end
+
+      _ ->
+        []
+    end
+  end
+
+  defp parse_yarn_lock(text) do
+    text
+    |> String.split(~r/\r?\n\r?\n+/)
+    |> Enum.flat_map(&parse_yarn_block/1)
+  end
+
+  defp parse_yarn_block(block) do
+    trimmed = String.trim(block)
+
+    if trimmed == "" or String.starts_with?(trimmed, "#") or
+         String.starts_with?(trimmed, "__metadata:") do
+      []
+    else
+      header = trimmed |> String.split(~r/\r?\n/, parts: 2) |> hd()
+
+      with name when is_binary(name) <- extract_yarn_name(header),
+           ver when is_binary(ver) <- extract_yarn_version(trimmed) do
+        [%{ecosystem: "npm", name: name, version: ver}]
+      else
+        _ -> []
+      end
+    end
+  end
+
+  defp extract_yarn_name(header) do
+    first_spec =
+      header
+      |> String.trim_trailing(":")
+      |> String.split(",", parts: 2)
+      |> hd()
+      |> String.trim()
+      |> String.trim("\"")
+      |> String.trim("'")
+
+    case Regex.run(~r/\A((?:@[^@\/\s]+\/)?[^@\s]+)@/, first_spec) do
+      [_, name] -> String.downcase(name)
+      _ -> nil
+    end
+  end
+
+  defp extract_yarn_version(block) do
+    case Regex.run(~r/^\s+version(?:\s+"([^"]+)"|:\s*([^\s"]+))/m, block) do
+      [_, v1] when v1 != "" -> clean_version(v1)
+      [_, "", v2] -> clean_version(v2)
+      _ -> nil
+    end
+  end
+
+  defp parse_gemfile_lock(text) do
+    Regex.scan(~r/^\s{4}([a-zA-Z0-9._-]+)\s+\(([0-9][^)\s]*)\)\s*$/m, text)
+    |> Enum.map(fn [_, name, ver] ->
+      %{ecosystem: "rubygems", name: String.downcase(name), version: clean_version(ver)}
+    end)
+  end
+
   defp parse_mix_lock(text) do
     Regex.scan(~r/"([a-z0-9_]+)":\s*\{:hex,\s*:[a-z0-9_]+,\s*"([^"]+)"/i, text)
     |> case do
@@ -284,33 +495,40 @@ defmodule Regents.Patchbay.Security.StackCheck do
   end
 
   defp parse_toml_lock(text) do
-    ecosystem =
-      if String.contains?(text, "requires-python") or String.contains?(text, "pypi.org"),
-        do: "pypi",
-        else: "cargo"
+    ecosystem = toml_lock_ecosystem(text)
 
     text
     |> String.split(~r/^\s*\[\[package\]\]\s*$/m)
     |> Enum.drop(1)
-    |> Enum.flat_map(fn block ->
-      name =
-        case Regex.run(~r/^\s*name\s*=\s*"([^"]+)"/m, block) do
-          [_, n] -> String.downcase(String.trim(n))
-          _ -> nil
-        end
+    |> Enum.flat_map(&parse_toml_package_block(&1, ecosystem))
+  end
 
-      version =
-        case Regex.run(~r/^\s*version\s*=\s*"([^"]+)"/m, block) do
-          [_, v] -> clean_version(v)
-          _ -> nil
-        end
+  defp toml_lock_ecosystem(text) do
+    python_markers = [
+      "requires-python",
+      "pypi.org",
+      "python-versions",
+      "[metadata]\nlock-version"
+    ]
 
-      if is_binary(name) and name != "" do
-        [%{ecosystem: ecosystem, name: name, version: version}]
-      else
-        []
-      end
-    end)
+    if Enum.any?(python_markers, &String.contains?(text, &1)), do: "pypi", else: "cargo"
+  end
+
+  defp parse_toml_package_block(block, ecosystem) do
+    name = regex_first_capture(~r/^\s*name\s*=\s*"([^"]+)"/m, block)
+    version = regex_first_capture(~r/^\s*version\s*=\s*"([^"]+)"/m, block) |> clean_version()
+
+    case name && String.downcase(String.trim(name)) do
+      n when is_binary(n) and n != "" -> [%{ecosystem: ecosystem, name: n, version: version}]
+      _ -> []
+    end
+  end
+
+  defp regex_first_capture(pattern, text) do
+    case Regex.run(pattern, text) do
+      [_, value] -> value
+      _ -> nil
+    end
   end
 
   defp parse_cargo_toml(text) do
@@ -332,6 +550,13 @@ defmodule Regents.Patchbay.Security.StackCheck do
 
   defp parse_go_mod(text) do
     Regex.scan(~r/^\s*([a-z0-9.-]+\/[a-z0-9._\/-]+)\s+(v[0-9][^\s]*)/im, text)
+    |> Enum.map(fn [_, mod, ver] ->
+      %{ecosystem: "go", name: String.downcase(mod), version: clean_version(ver)}
+    end)
+  end
+
+  defp parse_go_sum(text) do
+    Regex.scan(~r/^([a-z0-9.-]+\/[a-z0-9._\/-]+)\s+(v[0-9][^\s\/]*)(?:\/go\.mod)?\s+h1:/im, text)
     |> Enum.map(fn [_, mod, ver] ->
       %{ecosystem: "go", name: String.downcase(mod), version: clean_version(ver)}
     end)
@@ -377,17 +602,14 @@ defmodule Regents.Patchbay.Security.StackCheck do
     trimmed = String.trim(raw)
 
     cond do
-      # Scoped npm package with version: @scope/pkg@1.2.3
       Regex.match?(~r/\A(@[^@\s\/]+\/[^@\s=<>!~]+)@([^\s,;]+)\z/, trimmed) ->
         [_, name, ver] = Regex.run(~r/\A(@[^@\s\/]+\/[^@\s=<>!~]+)@([^\s,;]+)\z/, trimmed)
         {String.downcase(name), clean_version(ver)}
 
-      # Package with @version: drupal/core@11.4.12 or next@15.1.0
       Regex.match?(~r/\A([^@\s=<>!~]+)@([^\s,;]+)\z/, trimmed) ->
         [_, name, ver] = Regex.run(~r/\A([^@\s=<>!~]+)@([^\s,;]+)\z/, trimmed)
         {String.downcase(name), clean_version(ver)}
 
-      # Requirements.txt style: pkg==1.2.3, pkg>=1.2.3, pkg~=1.2.3
       Regex.match?(
         ~r/\A([a-zA-Z0-9._\/@-]+)(?:\[[^\]]+\])?\s*(?:===|==|~=|>=|<=|=)\s*([^\s,;]+)/,
         trimmed
@@ -400,7 +622,6 @@ defmodule Regents.Patchbay.Security.StackCheck do
 
         {String.downcase(name), clean_version(ver)}
 
-      # Space separated: drupal/core 11.4.12
       Regex.match?(~r/\A([a-zA-Z0-9._\/@-]+)\s+(v?[0-9][^\s,;]*)\z/, trimmed) ->
         [_, name, ver] = Regex.run(~r/\A([a-zA-Z0-9._\/@-]+)\s+(v?[0-9][^\s,;]*)\z/, trimmed)
         {String.downcase(name), clean_version(ver)}
@@ -459,7 +680,6 @@ defmodule Regents.Patchbay.Security.StackCheck do
   defp normalize_package_entry(_other), do: []
 
   defp dedupe_packages(packages) do
-    # Prefer versioned entries over unversioned entries for the same package.
     packages
     |> Enum.reduce(%{}, fn pkg, acc ->
       Map.update(acc, {pkg.ecosystem, pkg.name}, pkg, &prefer_versioned(&1, pkg))
@@ -580,7 +800,9 @@ defmodule Regents.Patchbay.Security.StackCheck do
     Enum.filter(structured, fn sp ->
       pkg_name = String.downcase(sp["name"] || "")
       pkg_eco = String.downcase(sp["ecosystem"] || "")
-      pkg_name == name and (is_nil(eco) or eco == "" or pkg_eco == "" or pkg_eco == eco)
+
+      pkg_name == name and
+        (is_nil(eco) or eco == "" or pkg_eco in ["", "product"] or pkg_eco == eco)
     end)
   end
 
@@ -611,7 +833,6 @@ defmodule Regents.Patchbay.Security.StackCheck do
 
     candidates = if same_major != [], do: same_major, else: fixed_versions
 
-    # Patched if installed is at or above a fixed version on its major branch.
     if Enum.any?(candidates, &(compare_versions(installed, &1) in [:eq, :gt])) do
       :patched
     else
@@ -676,6 +897,9 @@ defmodule Regents.Patchbay.Security.StackCheck do
       ecosystems: Map.get(facts, :ecosystems, []),
       kev_due_date: Map.get(facts, :kev_due_date),
       epss_score: Map.get(facts, :epss_score),
+      cwe: Map.get(facts, :cwe, []),
+      ssvc: Map.get(facts, :ssvc),
+      poc_signals: Map.get(facts, :poc_signals, []),
       matched_packages: matched_details |> Enum.map(& &1.name) |> Enum.uniq(),
       matched_details: matched_details,
       reply_count: post.reply_count || 0,
@@ -715,6 +939,9 @@ defmodule Regents.Patchbay.Security.StackCheck do
       ecosystems: [],
       kev_due_date: nil,
       epss_score: nil,
+      cwe: [],
+      ssvc: nil,
+      poc_signals: [],
       matched_packages: matched,
       matched_details:
         Enum.map(matched, fn name ->

@@ -96,10 +96,11 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
 
       argument :url, :string, allow_nil?: false, constraints: [min_length: 8, max_length: 512]
       argument :method, :string, allow_nil?: true, default: "GET"
+      argument :body, :string, allow_nil?: true, default: nil, constraints: [max_length: 16_384]
 
-      run fn %{arguments: %{url: url, method: method}}, context ->
+      run fn %{arguments: %{url: url, method: method, body: body}}, context ->
         with :ok <- spend(context, :patchbay_endpoint_probes) do
-          case PaymentEndpoint.probe(url, method) do
+          case PaymentEndpoint.probe(url, method, body: body) do
             {:ok, result} ->
               {:ok, result}
 
@@ -134,20 +135,36 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
                   (eco == "" or eco in ecos)
               end)
               |> Enum.map(fn p ->
-                f = p.cve_facts
+                f = p.cve_facts || %{}
+                packages = Map.get(f, :packages) || []
+
+                fixed_versions =
+                  packages
+                  |> Enum.flat_map(&List.wrap(&1["fixed"]))
+                  |> Enum.uniq()
+                  |> Enum.take(12)
 
                 %{
                   id: p.cve_now_id,
                   title: p.title,
-                  product: f && f.product,
-                  severity: f && f.severity,
-                  score: f && f.score,
-                  exploited: (f && f.exploited) || false,
-                  fix_available: (f && f.fix_available) || false,
-                  ecosystems: (f && f.ecosystems) || [],
+                  product: Map.get(f, :product),
+                  severity: Map.get(f, :severity),
+                  score: Map.get(f, :score),
+                  exploited: Map.get(f, :exploited) == true,
+                  fix_available: Map.get(f, :fix_available) == true,
+                  ecosystems: Map.get(f, :ecosystems) || [],
+                  packages: packages,
+                  fixed_versions: fixed_versions,
+                  epss_score: Map.get(f, :epss_score),
+                  kev_due_date: Map.get(f, :kev_due_date),
+                  cwe: Map.get(f, :cwe) || [],
+                  ssvc: Map.get(f, :ssvc),
+                  poc_signals: Map.get(f, :poc_signals) || [],
+                  agent_ecosystem: Map.get(f, :agent_ecosystem) == true,
                   reply_count: p.reply_count || 0,
                   patchbay_path: PostAddress.path(p),
-                  cve_now_url: "https://cve.now/#{p.cve_now_id}"
+                  cve_now_url: "https://cve.now/#{p.cve_now_id}",
+                  modified_at: p.cve_now_modified_at
                 }
               end)
 
@@ -160,11 +177,11 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
     end
 
     action :check_stack, :map do
-      description "Check a dependency manifest or comma-separated package list against cve.now active criticals."
+      description "Check a dependency manifest, lockfile, SBOM (up to 2 MB), or package list against cve.now active criticals."
 
       argument :manifest, :string,
         allow_nil?: false,
-        constraints: [min_length: 1, max_length: 65_536]
+        constraints: [min_length: 1, max_length: 2_097_152]
 
       run fn %{arguments: %{manifest: manifest}}, context ->
         with :ok <- spend(context, :patchbay_stack_checks) do
@@ -195,11 +212,11 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
     end
 
     action :check_crypto, :map do
-      description "Audit a dependency manifest or lockfile for ECC/RSA exposure and generate a CycloneDX 1.6 CBOM."
+      description "Audit a dependency manifest, lockfile, or SBOM (up to 2 MB) for ECC/RSA exposure and generate a CycloneDX 1.6 CBOM."
 
       argument :manifest, :string,
         allow_nil?: false,
-        constraints: [min_length: 1, max_length: 65_536]
+        constraints: [min_length: 1, max_length: 2_097_152]
 
       argument :include_cbom, :boolean, allow_nil?: true, default: true
 
@@ -216,8 +233,8 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
     action :diff_crypto, :map do
       description "Compare before and after dependency manifests (or probe-crypto reports) and emit a migration verification receipt."
 
-      argument :before_manifest, :string, allow_nil?: true, constraints: [max_length: 65_536]
-      argument :after_manifest, :string, allow_nil?: true, constraints: [max_length: 65_536]
+      argument :before_manifest, :string, allow_nil?: true, constraints: [max_length: 2_097_152]
+      argument :after_manifest, :string, allow_nil?: true, constraints: [max_length: 2_097_152]
       argument :before_report, :map, allow_nil?: true
       argument :after_report, :map, allow_nil?: true
 

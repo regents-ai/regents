@@ -9378,6 +9378,10 @@
                       "POST",
                       "HEAD"
                     ]
+                  },
+                  "body": {
+                    "type": "string",
+                    "maxLength": 16384
                   }
                 }
               }

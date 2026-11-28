@@ -89,6 +89,32 @@ defmodule Regents.Patchbay.Forum.CveFacts do
       default(false)
       public?(true)
     end
+
+    attribute :cwe, {:array, :string} do
+      description("CWE weakness identifiers reported for this CVE (e.g. CWE-306).")
+      allow_nil?(false)
+      default([])
+      public?(true)
+    end
+
+    attribute :ssvc, :map do
+      description(
+        "CISA Stakeholder-Specific Vulnerability Categorization (exploitation, automatable, technical_impact, source)."
+      )
+
+      allow_nil?(true)
+      public?(true)
+    end
+
+    attribute :poc_signals, {:array, :string} do
+      description(
+        "Observed public exploit / PoC indicators (github_poc, nuclei, metasploit, exploit_db)."
+      )
+
+      allow_nil?(false)
+      default([])
+      public?(true)
+    end
   end
 
   actions do
@@ -105,7 +131,10 @@ defmodule Regents.Patchbay.Forum.CveFacts do
         :epss_score,
         :kev_due_date,
         :exposure,
-        :agent_ecosystem
+        :agent_ecosystem,
+        :cwe,
+        :ssvc,
+        :poc_signals
       ]
     ])
   end
