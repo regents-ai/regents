@@ -118,10 +118,16 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Account.Answer do
 
   # The bytes go to the address the start answered, on this site only, as
   # the browser tool sends them.
-  def answer(:avatar_upload, %{"upload_url" => url} = params, _actor, _waiter) do
+  def answer(
+        :avatar_upload,
+        %{"upload_url" => url, "bytes_base64" => encoded} = params,
+        _actor,
+        _waiter
+      )
+      when is_binary(encoded) do
     with {:ok, ticket} <- ticket(url),
          {:ok, upload} <- upload(ticket, params["content_type"]) do
-      case Base.decode64(params["bytes_base64"], ignore: :whitespace, padding: false) do
+      case Base.decode64(encoded, ignore: :whitespace, padding: false) do
         {:ok, bytes} -> keep(upload, bytes)
         :error -> refusal(422, "invalid_request")
       end
@@ -130,6 +136,8 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Account.Answer do
       refused -> refused
     end
   end
+
+  def answer(:avatar_upload, _params, _actor, _waiter), do: refusal(422, "invalid_request")
 
   def answer(:avatar_remove, _params, actor, _waiter) do
     case Agents.get_my_profile(actor: actor) do

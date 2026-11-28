@@ -149,22 +149,22 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
   the ticker. A token's page has no written version.
   """
   def market_page(:token, name, ticker) do
-    named = if same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
+    named = market_label(name, ticker)
     [page_title: "#{named} token", page_description: @token_description]
   end
 
   def market_page(:robinhood_token, name, ticker) do
-    named = if same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
+    named = market_label(name, ticker)
     [page_title: "#{named} token", page_description: @robinhood_token_description]
   end
 
   def market_page(:auction, name, ticker) do
-    named = if same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
+    named = market_label(name, ticker)
     [page_title: "#{named} auction", page_description: "A token auction on Autolaunch."]
   end
 
   def market_page(:robinhood_auction, name, ticker) do
-    named = if same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
+    named = market_label(name, ticker)
 
     [
       page_title: "#{named} auction",
@@ -174,7 +174,7 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
   end
 
   def market_page(:stock, name, ticker) do
-    named = if same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
+    named = market_label(name, ticker)
     [page_title: "#{named} stock", page_description: "Onchain stock launches on Autolaunch."]
   end
 
@@ -195,7 +195,19 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
   def market_page(:token_unavailable),
     do: [page_title: "Token unavailable", page_description: @token_description]
 
-  defp same_name?(name, ticker), do: String.downcase(name) == String.downcase(ticker || "")
+  defp market_label(name, ticker) do
+    name = (name || "") |> to_string() |> String.trim()
+    ticker = (ticker || "") |> to_string() |> String.trim()
+
+    cond do
+      name == "" -> ticker
+      ticker == "" or same_name?(name, ticker) -> name
+      true -> "#{name} (#{ticker})"
+    end
+  end
+
+  defp same_name?(name, ticker),
+    do: String.downcase(name || "") == String.downcase(ticker || "")
 
   @doc false
   def docs_source, do: interpolate_agent_doc(@sources["docs"])
