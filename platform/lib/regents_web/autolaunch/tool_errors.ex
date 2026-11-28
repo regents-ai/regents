@@ -72,7 +72,11 @@ defmodule RegentsWeb.Autolaunch.ToolErrors do
         AgentSwap,
         AgentPayment,
         Market,
-        RegentsWeb.Techtree.AgentTools.Public
+        RegentsWeb.AgentTools.Public,
+        RegentsWeb.AgentTools.Account,
+        RegentsWeb.Techtree.AgentTools.Public,
+        RegentsWeb.Techtree.AgentTools.Account,
+        RegentsWeb.Patchbay.AgentTools.Forum
       ] or
         action == :read_offer_campaign
 
@@ -153,19 +157,46 @@ defmodule RegentsWeb.Autolaunch.ToolErrors do
   defp refused(_resource, read)
        when read in [
               :counts,
+              :counts_answer,
               :auctions_answer,
               :auction_answer,
               :bid_quote_answer,
               :tokens_answer,
               :token_answer,
+              :after_hour_stocks_list,
+              :after_hour_stocks_series,
               :revstake_draft,
               :memestock_draft,
               :my_positions,
+              :my_after_hour_stocks,
+              :after_hour_stocks_prepare,
+              :bid_prepare,
+              :bid_settlement_prepare,
+              :robinhood_bid_prepare,
+              :robinhood_bid_settlement_prepare,
+              :launch_prepare,
+              :finish_prepare,
+              :stake_prepare,
               :points
             ],
        do: text(MarketAnswer.invalid_query())
 
-  defp refused(RegentsWeb.Techtree.AgentTools.Public, action) do
+  defp refused(resource, action)
+       when resource in [RegentsWeb.AgentTools.Public, RegentsWeb.AgentTools.Account] do
+    Jason.encode!(
+      ApiError.body(
+        "invalid_request",
+        "The Regents tool received invalid input.",
+        "Use the inputs in the hosted tool schema for #{action}."
+      )
+    )
+  end
+
+  defp refused(resource, action)
+       when resource in [
+              RegentsWeb.Techtree.AgentTools.Public,
+              RegentsWeb.Techtree.AgentTools.Account
+            ] do
     Jason.encode!(
       ApiError.body(
         "invalid_request",
@@ -181,6 +212,16 @@ defmodule RegentsWeb.Autolaunch.ToolErrors do
         "invalid_request",
         "A campaign ID is required.",
         "Use the 0x-prefixed lowercase campaign ID from a paid offer."
+      )
+    )
+  end
+
+  defp refused(RegentsWeb.Patchbay.AgentTools.Forum, action) do
+    Jason.encode!(
+      ApiError.body(
+        "invalid_request",
+        "The Patchbay tool received invalid input.",
+        "Use the inputs in the hosted tool schema for #{action}."
       )
     )
   end

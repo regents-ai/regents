@@ -37,7 +37,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_launch_prepare",
-        "http": "POST /api/agent/v1/autolaunch/launches/{draft}/steps"
+        "mcp": "autolaunch_launch_prepare",
+        "http": "POST /api/agent/v1/autolaunch/launches/{draft}/steps",
+        "cli": {
+          "command": "launches prepare <draft>"
+        }
       },
       "effect": "prepare"
     }

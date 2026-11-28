@@ -1,0 +1,118 @@
+# Agent revenue payments on Base mainnet (`Regents.Autolaunch.AgentPayment`), backed by
+# POST /api/agent/v1/autolaunch/tokens/{token_id}/payment/steps and MCP `prepare_payment`.
+paths:
+  /api/agent/v1/autolaunch/tokens/{token_id}/payment/steps:
+    post:
+      operationId: autolaunch_payment_prepare
+      summary: Prepare a Base revenue payment
+      description: Review one payment or sweep into a listed Revstake token's revenue split on Base
+        mainnet and return unsigned wallet steps. Only the person's verified linked wallet signs and
+        sends each step. Changes nothing.
+      security:
+      - SiwaProof: []
+      parameters:
+      - name: token_id
+        in: path
+        required: true
+        description: The token's id exactly as autolaunch_tokens lists it.
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - kind
+              - asset
+              properties:
+                kind:
+                  type: string
+                  enum:
+                  - pay
+                  - sweep
+                  description: pay to pay amount into the token's revenue split, or sweep to route everything waiting at the payment address.
+                asset:
+                  type: string
+                  enum:
+                  - usdc
+                  - regent
+                  - token
+                  description: usdc for USDC, regent for REGENT, or token for the token itself.
+                amount:
+                  type: string
+                  description: For pay only, and needed there. Leave out for sweep.
+                signer:
+                  type: string
+                  description: One of the person's own wallet addresses. Omit to use the sign-in wallet.
+      responses:
+        '200':
+          description: The payment review and unsigned wallet steps
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+        '401':
+          description: Fresh request proof required or account unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentError'
+        '403':
+          description: Agent not paired or wrong signer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentError'
+        '404':
+          description: Token not found or payments disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentError'
+        '409':
+          description: Wallet required, payment not offered/open, split mismatch, balance short, or nothing to sweep
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentError'
+        '422':
+          description: Invalid request or amount
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentError'
+        '503':
+          description: Chain or payment review unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPaymentError'
+components:
+  schemas:
+    AgentPaymentError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - hint
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            hint:
+              type: string

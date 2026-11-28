@@ -50,10 +50,18 @@ check-alignment:
 	elixir scripts/check-one-site-alignment.exs
 # The command description check is regents-cli's own checker at the commit pinned
 # here, run by uv straight from GitHub. Move the pin in a commit.
-REGENTS_CLI_REV := 2805736810eb388ccfd7d1c97e1beca9aa4dddcd
+REGENTS_CLI_REV := 16a23c7375e6170d13199cf6de4e648f442d9b4e
 check-cli:
 	uv run --no-project --with "regents-cli[check] @ git+https://github.com/regents-ai/regents-cli@$(REGENTS_CLI_REV)" \
-	  python -m regents_cli.check_commands cli/regents/commands.json platform/priv/public/openapi.json platform/priv/static/api-contract.openapiv3.yaml
+	  python -c "import glob, sys; from regents_cli.check_commands import main; \
+	  checks = [ \
+	    ['cli/regents/commands.json', 'platform/priv/public/openapi.json', 'platform/priv/static/api-contract.openapiv3.yaml'], \
+	    ['cli/autolaunch/commands.json', *sorted(glob.glob('platform/priv/autolaunch/contracts/*.openapiv3.yaml'))], \
+	    ['cli/keyfleet/commands.json', 'platform/priv/keyfleet/public/openapi.json', 'platform/priv/keyfleet/public/api-contract.openapiv3.yaml'], \
+	    ['cli/patchbay/commands.json', 'platform/priv/patchbay/public/openapi.json'], \
+	    ['cli/techtree/commands.json', 'platform/priv/techtree/openapi.json'], \
+	  ]; \
+	  sys.exit(max(main(args) for args in checks))"
 # Every site is on the newest SIWA: the newest regents-cli release on PyPI (the pin
 # above, the agent guide and the install lines) and the newest change to the SIWA
 # library in elixir-utils. Needs `gh auth login`.

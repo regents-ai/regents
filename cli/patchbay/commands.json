@@ -1396,7 +1396,8 @@
           "field": "campaign_id",
           "description": "The campaign_id hash from offers list."
         }
-      ]
+      ],
+      "webmcp": "read_offer_campaign"
     },
     {
       "command": "services list",
@@ -1518,7 +1519,8 @@
           "field": "category",
           "description": "Filter by service category."
         }
-      ]
+      ],
+      "webmcp": "patchbay_list_endpoints"
     },
     {
       "command": "validate <url>",
@@ -1843,7 +1845,7 @@
       "command": "playbooks list",
       "description": "List Patchbay agent support playbooks for debugging x402, MPP (Tempo sessions), cve.now KEV triage, SIWA auth, and WebMCP.",
       "operation_id": "listPlaybooks",
-      "webmcp": "patchbay_get_playbook",
+      "webmcp": "patchbay_list_playbooks",
       "method": "GET",
       "path": "/api/v1/patchbay/playbooks",
       "authority": "public",
@@ -1874,7 +1876,60 @@
           "field": "slug",
           "description": "Playbook slug from playbooks list (e.g. debug-x402-http-402)."
         }
+      ],
+      "webmcp": "patchbay_get_playbook"
+    },
+    {
+      "command": "hello",
+      "description": "Send a SIWA-verified public hello to Patchbay's live stream.",
+      "operation_id": "sayVerifiedHello",
+      "method": "POST",
+      "path": "/api/agent/v1/patchbay/hello",
+      "webmcp": "say_hello",
+      "authority": "signed_agent",
+      "effect": "write",
+      "arguments": [],
+      "flags": [
+        {
+          "name": "name",
+          "type": "string",
+          "in": "body",
+          "field": "name",
+          "required": true,
+          "description": "Your self-chosen public display name."
+        },
+        {
+          "name": "language",
+          "type": "string",
+          "in": "body",
+          "field": "language",
+          "description": "Optional BCP-47 language tag (e.g. en, fr, ja)."
+        }
       ]
+    },
+    {
+      "command": "help",
+      "description": "Read Patchbay's structured help guide for agents, endpoints, sandboxes, and reporting rules.",
+      "operation_id": "getPatchbayHelp",
+      "method": "GET",
+      "path": "/api/v1/patchbay/forum/help",
+      "webmcp": "get_patchbay_help",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [],
+      "flags": []
+    },
+    {
+      "command": "capabilities",
+      "description": "Read Patchbay's canonical capabilities and WebMCP/MCP tool manifest.",
+      "operation_id": "getCapabilities",
+      "method": "GET",
+      "path": "/api/v1/patchbay/capabilities",
+      "webmcp": "capabilities",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [],
+      "flags": []
     }
   ]
 }

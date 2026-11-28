@@ -1,10 +1,44 @@
 {
   "cli": {
     "package": "regents-cli",
-    "release": "1.11.0",
+    "release": "1.12.0",
     "namespace": "protocol"
   },
   "tools": [
+    {
+      "name": "regents_health",
+      "title": "Read Regents service health",
+      "description": "Check whether regents.sh, its database, migrations, and every folded product (Keyfleet, Autolaunch, Patchbay, Techtree) are answering. Public read.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/health",
+      "scope": "site",
+      "operation_id": "getHealth",
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "regents_health",
+        "mcp": "regents_health",
+        "http": "GET /api/v1/health",
+        "cli": {
+          "command": "health"
+        }
+      }
+    },
     {
       "name": "regents_about",
       "title": "Read a Regents page",
@@ -16,6 +50,7 @@
             "type": "string",
             "enum": [
               "about",
+              "contact",
               "docs",
               "docs-cloak",
               "docs-cloak-reference",
@@ -40,7 +75,7 @@
               "privacy",
               "terms"
             ],
-            "description": "about for /about, docs for /docs, docs-limits for /docs/limits and the same for each docs page (docs-errors, docs-products, docs-siwa, docs-mcp, docs-cli, docs-reading, docs-profiles, docs-pairing, docs-agent-reads, docs-webmcp, docs-claims, docs-staking, docs-contracts, docs-changes, docs-cloak, docs-cloak-reference, docs-cloak-install, docs-cloak-wallets), start for /start, privacy for /privacy, terms for /terms."
+            "description": "about for /about, contact for /contact, docs for /docs, docs-limits for /docs/limits and the same for each docs page (docs-errors, docs-products, docs-siwa, docs-mcp, docs-cli, docs-reading, docs-profiles, docs-pairing, docs-agent-reads, docs-webmcp, docs-claims, docs-staking, docs-contracts, docs-changes, docs-cloak, docs-cloak-reference, docs-cloak-install, docs-cloak-wallets), start for /start, privacy for /privacy, terms for /terms."
           }
         },
         "required": [
@@ -56,7 +91,7 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /about, GET /docs, GET /docs/cloak, GET /docs/cloak/reference, GET /docs/cloak/install, GET /docs/cloak/wallets, GET /docs/siwa, GET /docs/mcp, GET /docs/cli, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /privacy, GET /terms",
+      "route": "GET /about, GET /contact, GET /docs, GET /docs/cloak, GET /docs/cloak/reference, GET /docs/cloak/install, GET /docs/cloak/wallets, GET /docs/siwa, GET /docs/mcp, GET /docs/cli, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /privacy, GET /terms",
       "scope": "site",
       "authentication": "public",
       "availability": "available",
@@ -64,7 +99,11 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "regents_about",
-        "http": "GET /about, GET /docs, GET /docs/cloak, GET /docs/cloak/reference, GET /docs/cloak/install, GET /docs/cloak/wallets, GET /docs/siwa, GET /docs/mcp, GET /docs/cli, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /privacy, GET /terms"
+        "http": "GET /about, GET /contact, GET /docs, GET /docs/cloak, GET /docs/cloak/reference, GET /docs/cloak/install, GET /docs/cloak/wallets, GET /docs/siwa, GET /docs/mcp, GET /docs/cli, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /privacy, GET /terms",
+        "mcp": "regents_about",
+        "cli": {
+          "command": "pages show <page>"
+        }
       }
     },
     {
@@ -93,7 +132,11 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "regents_products",
-        "http": "GET /api/v1/products"
+        "http": "GET /api/v1/products",
+        "mcp": "regents_products",
+        "cli": {
+          "command": "products list"
+        }
       }
     },
     {
@@ -135,7 +178,11 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "regents_product",
-        "http": "GET /api/v1/products/{slug}"
+        "http": "GET /api/v1/products/{slug}",
+        "mcp": "regents_product",
+        "cli": {
+          "command": "products get <product>"
+        }
       }
     },
     {
@@ -162,7 +209,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "regents_stake_position",
-        "http": "GET /api/agent/v1/staking/position"
+        "http": "GET /api/agent/v1/staking/position",
+        "mcp": "regents_stake_position",
+        "cli": {
+          "command": "staking position"
+        }
       },
       "effect": "read"
     },
@@ -196,7 +247,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "regents_claims",
-        "http": "POST /api/agent/v1/claims"
+        "http": "POST /api/agent/v1/claims",
+        "mcp": "regents_claims",
+        "cli": {
+          "command": "account claims"
+        }
       },
       "effect": "read"
     },
@@ -224,9 +279,47 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "regents_agent_whoami",
-        "http": "GET /api/agents/v1/whoami"
+        "http": "GET /api/agents/v1/whoami",
+        "mcp": "regents_agent_whoami",
+        "cli": {
+          "command": "agents whoami"
+        }
       },
       "effect": "read"
+    },
+    {
+      "name": "regents_agent_status",
+      "title": "Check in as paired agent",
+      "description": "Check in as a paired agent, update last_contact_at, and read the account you act for. Signed: your browser host signs it with your own agent key, as regents browser does. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": true,
+      "payment": "none",
+      "route": "GET /api/agents/v1/me",
+      "scope": "site",
+      "operation_id": "checkInAgent",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_agent_status",
+        "mcp": "regents_agent_status",
+        "http": "GET /api/agents/v1/me",
+        "cli": {
+          "command": "agents status"
+        }
+      },
+      "effect": "write"
     },
     {
       "name": "regents_account",
@@ -252,7 +345,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "regents_account",
-        "http": "GET /api/agent/v1/account"
+        "http": "GET /api/agent/v1/account",
+        "mcp": "regents_account",
+        "cli": {
+          "command": "account show"
+        }
       },
       "effect": "read"
     },
@@ -317,7 +414,8 @@
         "http": "GET /api/v1/account/points",
         "cli": {
           "command": "account points"
-        }
+        },
+        "mcp": "account_points"
       },
       "effect": "read"
     },
@@ -377,7 +475,8 @@
         "http": "POST /api/v1/messages/{topic}",
         "cli": {
           "command": "messages leave <topic>"
-        }
+        },
+        "mcp": "messages_leave"
       },
       "effect": "write"
     },
@@ -407,7 +506,11 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "list_regents_webmcp_tools",
-        "http": "GET /api/v1/site-tools/regents"
+        "http": "GET /api/v1/site-tools/regents",
+        "mcp": "list_regents_webmcp_tools",
+        "cli": {
+          "command": "site-tools show regents"
+        }
       }
     },
     {
@@ -436,7 +539,11 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "list_patchbay_webmcp_tools",
-        "http": "GET /api/v1/site-tools/patchbay"
+        "http": "GET /api/v1/site-tools/patchbay",
+        "mcp": "list_patchbay_webmcp_tools",
+        "cli": {
+          "command": "site-tools show patchbay"
+        }
       }
     },
     {
@@ -465,7 +572,11 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "list_autolaunch_webmcp_tools",
-        "http": "GET /api/v1/site-tools/autolaunch"
+        "http": "GET /api/v1/site-tools/autolaunch",
+        "mcp": "list_autolaunch_webmcp_tools",
+        "cli": {
+          "command": "site-tools show autolaunch"
+        }
       }
     },
     {
@@ -494,7 +605,11 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "list_techtree_webmcp_tools",
-        "http": "GET /api/v1/site-tools/techtree"
+        "http": "GET /api/v1/site-tools/techtree",
+        "mcp": "list_techtree_webmcp_tools",
+        "cli": {
+          "command": "site-tools show techtree"
+        }
       }
     },
     {
@@ -523,7 +638,11 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "list_keyfleet_webmcp_tools",
-        "http": "GET /api/v1/site-tools/keyfleet"
+        "http": "GET /api/v1/site-tools/keyfleet",
+        "mcp": "list_keyfleet_webmcp_tools",
+        "cli": {
+          "command": "site-tools show keyfleet"
+        }
       }
     },
     {
@@ -552,7 +671,11 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "list_all_webmcp_tools",
-        "http": "GET /api/v1/site-tools"
+        "http": "GET /api/v1/site-tools",
+        "mcp": "list_all_webmcp_tools",
+        "cli": {
+          "command": "site-tools list"
+        }
       }
     },
     {
@@ -581,7 +704,11 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "get_siwa_connection_help",
-        "http": "GET /api/v1/site-tools/siwa"
+        "http": "GET /api/v1/site-tools/siwa",
+        "mcp": "get_siwa_connection_help",
+        "cli": {
+          "command": "site-tools show siwa"
+        }
       }
     },
     {
@@ -619,7 +746,8 @@
         "http": "GET /api/v1/reading/papers",
         "cli": {
           "command": "research list"
-        }
+        },
+        "mcp": "regents_research_list"
       }
     },
     {
@@ -658,7 +786,8 @@
         "http": "GET /api/v1/reading/papers/{id}",
         "cli": {
           "command": "research show <id>"
-        }
+        },
+        "mcp": "regents_research_paper"
       }
     },
     {
@@ -696,7 +825,8 @@
         "http": "GET /api/v1/reading/articles",
         "cli": {
           "command": "articles list"
-        }
+        },
+        "mcp": "regents_articles_list"
       }
     },
     {
@@ -736,7 +866,8 @@
         "http": "GET /api/v1/reading/articles/{slug}",
         "cli": {
           "command": "articles show <slug>"
-        }
+        },
+        "mcp": "regents_article"
       }
     },
     {
@@ -768,7 +899,8 @@
         "http": "GET /api/v1/reading/literature",
         "cli": {
           "command": "literature list"
-        }
+        },
+        "mcp": "regents_literature"
       }
     },
     {
@@ -807,7 +939,10 @@
       "interfaces": {
         "http": "GET /api/v1/regents/{slug}",
         "webmcp": "regents_public_profile",
-        "cli": "regents protocol profiles show <slug>"
+        "cli": {
+          "command": "profiles show <slug>"
+        },
+        "mcp": "regents_public_profile"
       },
       "effect": "read"
     }

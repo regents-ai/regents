@@ -1,20 +1,37 @@
 defmodule RegentsWeb.Autolaunch.AgentTools do
   @moduledoc """
-  Autolaunch market reads and paired-account draft tools on the unified
-  `/mcp` server. The tools reuse the signed HTTP and public market answers.
+  Autolaunch market reads, Exposure reads/preparations, paired-account draft
+  tools, and non-custodial unsigned step builders on the unified `/mcp` server.
+  Every tool reuses the exact same answers and refusals as the HTTP routes.
   """
 
   use Ash.Domain, otp_app: :regents, extensions: [AshAi]
 
-  @manifest_path Application.app_dir(:regents, "priv/autolaunch/tool_manifest.json")
-  @external_resource @manifest_path
+  @manifest_files [
+    "priv/autolaunch/tool_manifest.json",
+    "priv/autolaunch/exposure_tools.json",
+    "priv/autolaunch/agent_bids_tools.json",
+    "priv/autolaunch/agent_robinhood_bids_tools.json",
+    "priv/autolaunch/agent_launches_tools.json",
+    "priv/autolaunch/agent_finish_tools.json",
+    "priv/autolaunch/agent_stake_tools.json"
+  ]
+
+  for path <- @manifest_files do
+    @external_resource Application.app_dir(:regents, path)
+  end
 
   @browser_signing [
     " Signed: your browser host signs it with your own agent key, as regents browser does.",
     " Browser sign-in is not agent authority."
   ]
-  @browser_tools (for tool <-
-                        @manifest_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools"),
+  @browser_tools (for file <- @manifest_files,
+                      tool <-
+                        :regents
+                        |> Application.app_dir(file)
+                        |> File.read!()
+                        |> Jason.decode!()
+                        |> Map.fetch!("tools"),
                       into: %{} do
                     words = String.replace(tool["description"], @browser_signing, "")
                     {tool["name"], %{tool | "description" => words}}
@@ -35,6 +52,12 @@ defmodule RegentsWeb.Autolaunch.AgentTools do
     tool :autolaunch_auction, RegentsWeb.Autolaunch.AgentTools.Market, :auction_answer do
       title(@browser_tools["autolaunch_auction"]["title"])
       description @browser_tools["autolaunch_auction"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
+
+    tool :autolaunch_auction_counts, RegentsWeb.Autolaunch.AgentTools.Market, :counts_answer do
+      title(@browser_tools["autolaunch_auction_counts"]["title"])
+      description @browser_tools["autolaunch_auction_counts"]["description"]
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
     end
 
@@ -60,6 +83,22 @@ defmodule RegentsWeb.Autolaunch.AgentTools do
       title(@browser_tools["autolaunch_bid_quote"]["title"])
       description @browser_tools["autolaunch_bid_quote"]["description"]
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
+
+    tool :autolaunch_after_hour_stocks_list,
+         RegentsWeb.Autolaunch.AgentTools.Market,
+         :after_hour_stocks_list do
+      title(@browser_tools["autolaunch_after_hour_stocks_list"]["title"])
+      description @browser_tools["autolaunch_after_hour_stocks_list"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
+    end
+
+    tool :autolaunch_after_hour_stocks_series,
+         RegentsWeb.Autolaunch.AgentTools.Market,
+         :after_hour_stocks_series do
+      title(@browser_tools["autolaunch_after_hour_stocks_series"]["title"])
+      description @browser_tools["autolaunch_after_hour_stocks_series"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
     end
 
     tool :autolaunch_revstake_draft,
@@ -110,6 +149,70 @@ defmodule RegentsWeb.Autolaunch.AgentTools do
       title(@browser_tools["autolaunch_my_positions"]["title"])
       description @browser_tools["autolaunch_my_positions"]["description"]
       annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
+    end
+
+    tool :autolaunch_my_after_hour_stocks,
+         RegentsWeb.Autolaunch.AgentTools.Account,
+         :my_after_hour_stocks do
+      title(@browser_tools["autolaunch_my_after_hour_stocks"]["title"])
+      description @browser_tools["autolaunch_my_after_hour_stocks"]["description"]
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: true)
+    end
+
+    tool :autolaunch_after_hour_stocks_prepare,
+         RegentsWeb.Autolaunch.AgentTools.Account,
+         :after_hour_stocks_prepare do
+      title(@browser_tools["autolaunch_after_hour_stocks_prepare"]["title"])
+      description @browser_tools["autolaunch_after_hour_stocks_prepare"]["description"]
+      annotations(read_only_hint: true, destructive_hint: false, open_world_hint: true)
+    end
+
+    tool :autolaunch_bid_prepare, RegentsWeb.Autolaunch.AgentTools.Account, :bid_prepare do
+      title(@browser_tools["autolaunch_bid_prepare"]["title"])
+      description @browser_tools["autolaunch_bid_prepare"]["description"]
+      annotations(read_only_hint: true, destructive_hint: false, open_world_hint: true)
+    end
+
+    tool :autolaunch_bid_settlement_prepare,
+         RegentsWeb.Autolaunch.AgentTools.Account,
+         :bid_settlement_prepare do
+      title(@browser_tools["autolaunch_bid_settlement_prepare"]["title"])
+      description @browser_tools["autolaunch_bid_settlement_prepare"]["description"]
+      annotations(read_only_hint: true, destructive_hint: false, open_world_hint: true)
+    end
+
+    tool :autolaunch_robinhood_bid_prepare,
+         RegentsWeb.Autolaunch.AgentTools.Account,
+         :robinhood_bid_prepare do
+      title(@browser_tools["autolaunch_robinhood_bid_prepare"]["title"])
+      description @browser_tools["autolaunch_robinhood_bid_prepare"]["description"]
+      annotations(read_only_hint: true, destructive_hint: false, open_world_hint: true)
+    end
+
+    tool :autolaunch_robinhood_bid_settlement_prepare,
+         RegentsWeb.Autolaunch.AgentTools.Account,
+         :robinhood_bid_settlement_prepare do
+      title(@browser_tools["autolaunch_robinhood_bid_settlement_prepare"]["title"])
+      description @browser_tools["autolaunch_robinhood_bid_settlement_prepare"]["description"]
+      annotations(read_only_hint: true, destructive_hint: false, open_world_hint: true)
+    end
+
+    tool :autolaunch_launch_prepare, RegentsWeb.Autolaunch.AgentTools.Account, :launch_prepare do
+      title(@browser_tools["autolaunch_launch_prepare"]["title"])
+      description @browser_tools["autolaunch_launch_prepare"]["description"]
+      annotations(read_only_hint: false, destructive_hint: false, open_world_hint: true)
+    end
+
+    tool :autolaunch_finish_prepare, RegentsWeb.Autolaunch.AgentTools.Account, :finish_prepare do
+      title(@browser_tools["autolaunch_finish_prepare"]["title"])
+      description @browser_tools["autolaunch_finish_prepare"]["description"]
+      annotations(read_only_hint: true, destructive_hint: false, open_world_hint: true)
+    end
+
+    tool :autolaunch_stake_prepare, RegentsWeb.Autolaunch.AgentTools.Account, :stake_prepare do
+      title(@browser_tools["autolaunch_stake_prepare"]["title"])
+      description @browser_tools["autolaunch_stake_prepare"]["description"]
+      annotations(read_only_hint: true, destructive_hint: false, open_world_hint: true)
     end
   end
 end

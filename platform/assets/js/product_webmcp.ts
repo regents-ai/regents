@@ -1,10 +1,17 @@
-// Product-specific WebMCP read tools (document.modelContext) for the folded
+// Product-specific WebMCP tools (document.modelContext) for the folded
 // Techtree, Keyfleet, Autolaunch, and Patchbay routes on one-site.
-// Hydrates titles, descriptions, schemas, and annotations directly from each
-// product's canonical `priv/<product>/tool_manifest.json` via
-// `GET /api/v1/<product>/capabilities`, with a safe built-in route table so
-// public GET tools never drift from the canonical manifest.
-import {visitId} from "./visit_log.ts"
+// Hydrates ALL public (GET and POST) and signed (siwa_per_request) tools
+// directly from each product's canonical `GET /api/v1/<product>/capabilities`,
+// with a safe built-in route table so public read tools never drift or vanish
+// offline. Signed tools delegate exclusively to `window.regentsSign` via
+// `signedTools`, so keys, receipts, and signatures never enter the page.
+import coreManifest from "../../priv/tool_manifest.json" with {type: "json"}
+import {
+  Refused,
+  signedTools,
+  type SignedOperation,
+} from "../vendor/regent_agent_access/signed_tools.ts"
+import {report, visitId} from "./visit_log.ts"
 
 type Schema = {
   type: "object"
@@ -37,12 +44,14 @@ type ToolSpec = {
   manifestName?: string
   title: string
   description: string
+  method?: "GET" | "POST"
   properties?: Schema["properties"]
   required?: string[]
   annotations?: Partial<Annotations>
   accept?: "application/json" | "text/markdown"
   manifestText?: boolean
   path: (input: Record<string, unknown>) => string
+  body?: (input: Record<string, unknown>) => Record<string, unknown>
 }
 
 type ManifestHttp = {
@@ -57,14 +66,26 @@ type ManifestTool = {
   description?: string
   requires?: string
   authentication?: string
+  availability?: string
   effect?: string
+  route?: string
+  operation_id_field?: string
+  request?: {method?: string; path?: string}
+  request_body?: {encoding: "raw_json"; field: string; maxBytes: number}
   input_schema?: {
     type?: string
-    properties?: Record<string, {type?: string; description?: string; enum?: string[]}>
+    properties?: Record<string, {type?: string; description?: string; enum?: string[]; pattern?: string}>
     required?: string[]
+    additionalProperties?: boolean
   }
   annotations?: Partial<Annotations>
   http?: ManifestHttp
+}
+
+type CapabilitiesPayload = {
+  audience: string
+  proofHeaders: string[]
+  tools: Map<string, ManifestTool>
 }
 
 const READ_ANNOTATIONS: Annotations = {
@@ -78,6 +99,17 @@ const UNTRUSTED_READ_ANNOTATIONS: Annotations = {
   untrustedContentHint: true,
   consequentialHint: false,
 }
+
+const CORE_TOOL_NAMES = new Set<string>(
+  (coreManifest.tools as Array<{name: string}>).map(entry => entry.name),
+)
+
+const SITE_FAULTS = new Set([
+  "invalid_operation",
+  "invalid_path",
+  "invalid_request_header",
+  "unsupported_field_type",
+])
 
 export const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
   techtree: [
@@ -288,6 +320,7 @@ export const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
     },
     {
       name: "patchbay_services",
+      manifestName: "patchbay_search_services",
       title: "List Patchbay commerce services",
       description:
         "Browse Patchbay's indexed x402, MPP (Tempo), MCP, and WebMCP agentic commerce services.",
@@ -307,15 +340,17 @@ export const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
     },
     {
       name: "patchbay_critical_cves",
+      manifestName: "patchbay_list_critical_cves",
       title: "List active critical CVEs",
       description: "Read active critical and CISA KEV vulnerabilities mirrored from cve.now.",
-      path: () => "/api/v1/patchbay/security/criticals",
+      path: manifestPathBuilder("/api/v1/patchbay/security/criticals"),
     },
     {
       name: "patchbay_playbooks",
+      manifestName: "patchbay_list_playbooks",
       title: "List Patchbay playbooks",
       description: "List agent support playbooks for x402, MPP (Tempo), and active CVE triage.",
-      path: () => "/api/v1/patchbay/playbooks",
+      path: manifestPathBuilder("/api/v1/patchbay/playbooks"),
     },
     {
       name: "patchbay_known_fixes",
@@ -326,30 +361,46 @@ export const PRODUCT_TOOLS: Record<string, ToolSpec[]> = {
   ],
 }
 
-async function fetchManifestTools(
+async function fetchCapabilities(
   product: string,
   signal: AbortSignal,
-): Promise<Map<string, ManifestTool>> {
+): Promise<CapabilitiesPayload> {
   const byName = new Map<string, ManifestTool>()
+  let audience = coreManifest.audience
+  let proofHeaders = [...coreManifest.proof_headers]
   try {
     const response = await fetch(`/api/v1/${encodeURIComponent(product)}/capabilities`, {
       headers: {Accept: "application/json"},
       credentials: "omit",
       signal,
     })
-    if (!response.ok) return byName
-    const payload = (await response.json()) as {tools?: unknown}
-    if (!Array.isArray(payload.tools)) return byName
-    for (const raw of payload.tools) {
-      if (raw && typeof raw === "object" && typeof (raw as ManifestTool).name === "string") {
-        const entry = raw as ManifestTool
-        byName.set(entry.name as string, entry)
+    if (!response.ok) return {audience, proofHeaders, tools: byName}
+    const payload = (await response.json()) as {
+      audience?: unknown
+      proof_headers?: unknown
+      tools?: unknown
+    }
+    if (typeof payload.audience === "string" && payload.audience.trim() !== "") {
+      audience = payload.audience
+    }
+    if (
+      Array.isArray(payload.proof_headers) &&
+      payload.proof_headers.every(item => typeof item === "string")
+    ) {
+      proofHeaders = payload.proof_headers as string[]
+    }
+    if (Array.isArray(payload.tools)) {
+      for (const raw of payload.tools) {
+        if (raw && typeof raw === "object" && typeof (raw as ManifestTool).name === "string") {
+          const entry = raw as ManifestTool
+          byName.set(entry.name as string, entry)
+        }
       }
     }
   } catch {
     // Offline or aborted: fall back cleanly to built-in route descriptors.
   }
-  return byName
+  return {audience, proofHeaders, tools: byName}
 }
 
 export function buildAnnotations(
@@ -418,6 +469,46 @@ export function manifestPathBuilder(template: string): (input: Record<string, un
   }
 }
 
+function postPathAndBody(template: string): {
+  path: (input: Record<string, unknown>) => string
+  body: (input: Record<string, unknown>) => Record<string, unknown>
+} {
+  const routeKeys = new Set<string>()
+  for (const match of template.matchAll(/\{([a-zA-Z0-9_]+)\}/g)) {
+    routeKeys.add(match[1])
+  }
+  return {
+    path: input =>
+      template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_match, key: string) => {
+        const raw = input[key]
+        return encodeURIComponent(raw == null ? "" : String(raw))
+      }),
+    body: input => {
+      const payload: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(input)) {
+        if (!routeKeys.has(key) && value !== undefined) payload[key] = value
+      }
+      return payload
+    },
+  }
+}
+
+function entryRoute(entry: ManifestTool): {method: string; path: string; accept?: "application/json" | "text/markdown"} | null {
+  if (entry.http?.method && typeof entry.http.path === "string") {
+    return {method: entry.http.method.toUpperCase(), path: entry.http.path, accept: entry.http.accept}
+  }
+  if (entry.request?.method && typeof entry.request.path === "string") {
+    return {method: entry.request.method.toUpperCase(), path: entry.request.path}
+  }
+  if (typeof entry.route === "string") {
+    const parts = entry.route.trim().split(/\s+/)
+    if (parts.length === 2) {
+      return {method: parts[0].toUpperCase(), path: parts[1]}
+    }
+  }
+  return null
+}
+
 function extraManifestSpecs(
   product: string,
   manifestTools: Map<string, ManifestTool>,
@@ -425,27 +516,149 @@ function extraManifestSpecs(
 ): ToolSpec[] {
   const extras: ToolSpec[] = []
   for (const [name, entry] of manifestTools.entries()) {
-    if (registered.has(name)) continue
-    const http = entry.http
-    if (!http || http.method !== "GET" || typeof http.path !== "string") continue
-    if (!http.path.startsWith("/") || http.path.startsWith("//")) continue
+    if (registered.has(name) || CORE_TOOL_NAMES.has(name)) continue
+    if (entry.availability && entry.availability !== "available") continue
     if (entry.requires && entry.requires !== "none") continue
     if (entry.authentication && entry.authentication !== "public") continue
+    const target = entryRoute(entry)
+    if (!target) continue
+    if (target.method !== "GET" && target.method !== "POST") continue
+    if (!target.path.startsWith("/") || target.path.startsWith("//")) continue
     const toolName = name.startsWith(`${product}_`) ? name : `${product}_${name}`
-    if (registered.has(toolName)) continue
+    if (registered.has(toolName) || CORE_TOOL_NAMES.has(toolName)) continue
     registered.add(toolName)
-    extras.push({
-      name: toolName,
-      manifestName: name,
-      title: entry.title ?? toolName,
-      description: entry.description ?? "",
-      properties: entry.input_schema?.properties,
-      required: entry.input_schema?.required,
-      accept: http.accept,
-      path: manifestPathBuilder(http.path),
-    })
+    registered.add(name)
+    if (target.method === "POST") {
+      const builder = postPathAndBody(target.path)
+      extras.push({
+        name: toolName,
+        manifestName: name,
+        title: entry.title ?? toolName,
+        description: entry.description ?? "",
+        method: "POST",
+        properties: entry.input_schema?.properties,
+        required: entry.input_schema?.required,
+        accept: target.accept ?? "application/json",
+        path: builder.path,
+        body: builder.body,
+      })
+    } else {
+      extras.push({
+        name: toolName,
+        manifestName: name,
+        title: entry.title ?? toolName,
+        description: entry.description ?? "",
+        method: "GET",
+        properties: entry.input_schema?.properties,
+        required: entry.input_schema?.required,
+        accept: target.accept,
+        path: manifestPathBuilder(target.path),
+      })
+    }
   }
   return extras
+}
+
+function signedManifestEntries(
+  manifestTools: Map<string, ManifestTool>,
+  registered: Set<string>,
+): Array<{entry: ManifestTool; operation: SignedOperation}> {
+  const signed: Array<{entry: ManifestTool; operation: SignedOperation}> = []
+  for (const [name, entry] of manifestTools.entries()) {
+    if (registered.has(name) || CORE_TOOL_NAMES.has(name)) continue
+    if (entry.authentication !== "siwa_per_request") continue
+    if (entry.availability && entry.availability !== "available") continue
+    const target = entryRoute(entry)
+    if (!target) continue
+    if (!["GET", "POST", "PATCH", "DELETE"].includes(target.method)) continue
+    if (!target.path.startsWith("/") || target.path.startsWith("//")) continue
+    registered.add(name)
+    const operation: SignedOperation = {
+      name,
+      route: `${target.method} ${target.path}`,
+      authentication: "siwa_per_request",
+      availability: "available",
+      ...(entry.operation_id_field ? {operation_id_field: entry.operation_id_field} : {}),
+      ...(entry.request_body ? {request_body: entry.request_body} : {}),
+      input_schema: {
+        type: "object",
+        properties: (entry.input_schema?.properties ?? {}) as SignedOperation["input_schema"]["properties"],
+        required: entry.input_schema?.required ?? [],
+        additionalProperties: entry.input_schema?.additionalProperties ?? false,
+      },
+    }
+    signed.push({entry, operation})
+  }
+  return signed
+}
+
+function clientHeaders(toolName: string): Record<string, string> {
+  const visit = visitId()
+  return {"x-regent-client": `webmcp/${toolName}`, ...(visit && {"x-regent-visit": visit})}
+}
+
+function runSignal(lifetime: AbortSignal, client: unknown): AbortSignal {
+  const host =
+    client && typeof client === "object" ? (client as {signal?: unknown}).signal : undefined
+  return host instanceof AbortSignal ? AbortSignal.any([lifetime, host]) : lifetime
+}
+
+function explainSignedError(reason: string): string {
+  const [kind, field] = reason.split(":", 2)
+  switch (kind) {
+    case "invalid_input":
+      return "Send an object of named fields."
+    case "missing_field":
+      return `${field} is required.`
+    case "invalid_field":
+      return `${field} is not a field of this tool, or is not the kind of value it takes.`
+    case "invalid_path_field":
+      return `${field} must be a name: not empty, "." or "..".`
+    case "unexpected_read_body":
+      return "This tool reads only. Send only the fields its address names."
+    case "invalid_raw_body":
+      return "Send the body as JSON text, and nothing else."
+    case "invalid_operation":
+    case "invalid_path":
+    case "invalid_request_header":
+    case "unsupported_field_type":
+      return "This tool is set up wrongly on the site, so nothing was sent."
+    case "operation_unavailable":
+      return "No signed tool has that name. Use a name from this page's tools."
+    case "operation_id_required":
+      return "operation_id is required. Use a new one for each change and keep it when retrying."
+    case "body_too_large":
+      return "The input is too large."
+    case "input_complexity_exceeded":
+      return "The input has too many parts or is nested too deeply."
+    case "invalid_signer_answer":
+    case "proof_required":
+    case "invalid_proof":
+    case "incomplete_proof":
+    case "body_proof_required":
+    case "unexpected_body_proof":
+      return "Your agent's signer gave an incomplete answer, so nothing was sent. Update regents-cli and open this site again with regents browser."
+    case "untrusted_origin":
+    case "insecure_origin":
+      return "This page can't send signed requests."
+    default:
+      return "The input doesn't fit this tool's schema."
+  }
+}
+
+function signedInvalid(error: unknown) {
+  const reason = error instanceof Error ? error.message : String(error)
+  return {
+    ok: false,
+    error: {
+      code: "invalid_request",
+      message: explainSignedError(reason),
+      hint: SITE_FAULTS.has(reason.split(":", 1)[0])
+        ? "Use another way in, such as the API, and tell the site's team."
+        : "Check the input against this tool's schema, then call the tool again.",
+      details: {reason},
+    },
+  }
 }
 
 export async function runSpec(
@@ -460,15 +673,27 @@ export async function runSpec(
       : {}
   for (const key of spec.required ?? []) {
     const val = input[key]
-    if (typeof val !== "string" || val.trim() === "") {
-      return {ok: false, error: {code: "invalid_input", message: `Missing required string: ${key}`}}
+    if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+      return {ok: false, error: {code: "invalid_input", message: `Missing required field: ${key}`}}
     }
   }
   const accept = spec.accept ?? "application/json"
   const visit = visitId()
+  const method = spec.method ?? "GET"
+  const headers: Record<string, string> = {
+    Accept: accept,
+    ...(visit && {"x-regent-visit": visit}),
+  }
+  let body: string | undefined
+  if (method === "POST") {
+    headers["Content-Type"] = "application/json"
+    body = JSON.stringify(spec.body ? spec.body(input) : input)
+  }
   try {
     const response = await fetchImpl(spec.path(input), {
-      headers: {Accept: accept, ...(visit && {"x-regent-visit": visit})},
+      method,
+      headers,
+      body,
       credentials: "omit",
       cache: "no-store",
       signal,
@@ -477,10 +702,10 @@ export async function runSpec(
       return {ok: true, status: response.status, body: {manifest: await response.text()}}
     }
     const contentType = response.headers.get("content-type") ?? ""
-    const body = /(?:\/|\+)json(?:;|$)/i.test(contentType)
+    const parsed = /(?:\/|\+)json(?:;|$)/i.test(contentType)
       ? await response.json()
       : await response.text()
-    return {ok: response.ok, status: response.status, body}
+    return {ok: response.ok, status: response.status, body: parsed}
   } catch {
     return {
       ok: false,
@@ -506,31 +731,97 @@ export function installProductWebMcpTools(documentRoot: Document = document): vo
     group = current
 
     void (async () => {
-      const manifestTools = await fetchManifestTools(product, current.signal)
+      const capabilities = await fetchCapabilities(product, current.signal)
       if (current.signal.aborted) return
 
+      const manifestTools = capabilities.tools
       const seen = new Set<string>()
       for (const spec of baseSpecs) {
         seen.add(spec.name)
         if (spec.manifestName) seen.add(spec.manifestName)
       }
-      const allSpecs = [...baseSpecs, ...extraManifestSpecs(product, manifestTools, seen)]
+      const publicSpecs = [...baseSpecs, ...extraManifestSpecs(product, manifestTools, seen)]
+      const signedSpecs = signedManifestEntries(manifestTools, seen)
+
+      const makeTransport = () =>
+        signedTools({
+          origin: window.location.origin,
+          trustedOrigins: [
+            documentRoot.querySelector<HTMLMetaElement>('meta[name="agent-request-origin"]')
+              ?.content ?? "",
+          ],
+          audience: capabilities.audience,
+          proofHeaders: capabilities.proofHeaders,
+          requestHeaders: clientHeaders,
+          operations: signedSpecs.map(item => item.operation),
+        })
+
+      const publicTools: Tool[] = publicSpecs.map(spec => {
+        const entry =
+          manifestTools.get(spec.name) ??
+          (spec.manifestName ? manifestTools.get(spec.manifestName) : undefined)
+        return {
+          name: spec.name,
+          title: entry?.title ?? spec.title,
+          description: entry?.description ?? spec.description,
+          inputSchema: buildSchema(spec, entry),
+          annotations: buildAnnotations(product, spec, entry),
+          execute: (input, client) => runSpec(spec, input, runSignal(current.signal, client)),
+        }
+      })
+
+      const signedToolDefs: Tool[] = signedSpecs.map(({entry, operation}) => ({
+        name: operation.name,
+        title: entry.title ?? operation.name,
+        description: entry.description ?? "",
+        inputSchema: {
+          type: "object",
+          properties: (entry.input_schema?.properties ?? {}) as Schema["properties"],
+          required: entry.input_schema?.required ?? [],
+          additionalProperties: false,
+        },
+        annotations: buildAnnotations(
+          product,
+          {annotations: {readOnlyHint: entry.effect === "read", consequentialHint: entry.effect === "write"}},
+          entry,
+        ),
+        execute: async (input, client) => {
+          const signal = runSignal(current.signal, client)
+          if (signal.aborted) {
+            return {ok: false, error: {code: "aborted", message: "The call was cancelled."}}
+          }
+          try {
+            const payload =
+              input && typeof input === "object" && !Array.isArray(input)
+                ? (input as Record<string, unknown>)
+                : {}
+            const response = await makeTransport().execute(operation.name, payload, signal)
+            const contentType = response.headers.get("content-type") ?? ""
+            const body = /(?:\/|\+)json(?:;|$)/i.test(contentType)
+              ? await response.json()
+              : await response.text()
+            return {ok: response.ok, status: response.status, body}
+          } catch (error) {
+            if (error instanceof Refused) return {ok: false, error: error.refusal}
+            if (signal.aborted) {
+              return {ok: false, error: {code: "aborted", message: "The call was cancelled."}}
+            }
+            if (error instanceof TypeError) {
+              report({name: "tool.unsent", where: operation.name, outcome: "unreachable"})
+              return {
+                ok: false,
+                error: {code: "network_error", message: "regents.sh could not be reached."},
+              }
+            }
+            return signedInvalid(error)
+          }
+        },
+      }))
 
       await Promise.all(
-        allSpecs.map(spec => {
-          const entry =
-            manifestTools.get(spec.name) ??
-            (spec.manifestName ? manifestTools.get(spec.manifestName) : undefined)
-          const tool: Tool = {
-            name: spec.name,
-            title: entry?.title ?? spec.title,
-            description: entry?.description ?? spec.description,
-            inputSchema: buildSchema(spec, entry),
-            annotations: buildAnnotations(product, spec, entry),
-            execute: input => runSpec(spec, input, current.signal),
-          }
-          return Promise.resolve().then(() => context.registerTool(tool, {signal: current.signal}))
-        }),
+        [...publicTools, ...signedToolDefs].map(tool =>
+          Promise.resolve().then(() => context.registerTool(tool, {signal: current.signal})),
+        ),
       )
     })()
   }

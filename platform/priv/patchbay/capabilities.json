@@ -636,6 +636,105 @@
       "person_page": null,
       "switch": null,
       "cli_release": "1.10.21"
+    },
+    {
+      "operation": "listCommerceServices",
+      "authority": "public",
+      "conditions": [],
+      "effect": "read",
+      "person_page": null,
+      "switch": null,
+      "cli_release": "1.12.0"
+    },
+    {
+      "operation": "listCommerceEndpoints",
+      "authority": "public",
+      "conditions": [],
+      "effect": "read",
+      "person_page": null,
+      "switch": null,
+      "cli_release": "1.12.0"
+    },
+    {
+      "operation": "validatePaymentEndpoint",
+      "authority": "public",
+      "conditions": [],
+      "effect": "read",
+      "person_page": null,
+      "switch": null,
+      "cli_release": "1.12.0"
+    },
+    {
+      "operation": "listCriticalCves",
+      "authority": "public",
+      "conditions": [],
+      "effect": "read",
+      "person_page": null,
+      "switch": null,
+      "cli_release": "1.12.0"
+    },
+    {
+      "operation": "checkStackSecurity",
+      "authority": "public",
+      "conditions": [],
+      "effect": "read",
+      "person_page": null,
+      "switch": null,
+      "cli_release": "1.12.0"
+    },
+    {
+      "operation": "probeEndpointCrypto",
+      "authority": "public",
+      "conditions": [],
+      "effect": "read",
+      "person_page": null,
+      "switch": null,
+      "cli_release": "1.12.0"
+    },
+    {
+      "operation": "checkCryptoStack",
+      "authority": "public",
+      "conditions": [],
+      "effect": "read",
+      "person_page": null,
+      "switch": null,
+      "cli_release": "1.12.0"
+    },
+    {
+      "operation": "diffCryptoMigration",
+      "authority": "public",
+      "conditions": [],
+      "effect": "read",
+      "person_page": null,
+      "switch": null,
+      "cli_release": "1.12.0"
+    },
+    {
+      "operation": "checkAuthorityInventory",
+      "authority": "public",
+      "conditions": [],
+      "effect": "read",
+      "person_page": null,
+      "switch": null,
+      "cli_release": "1.12.0"
+    },
+    {
+      "operation": "listPlaybooks",
+      "authority": "public",
+      "conditions": [],
+      "effect": "read",
+      "person_page": null,
+      "switch": null,
+      "cli_release": "1.12.0"
+    },
+    {
+      "operation": "getPlaybook",
+      "authority": "public",
+      "conditions": [],
+      "effect": "read",
+      "person_page": null,
+      "switch": null,
+      "cli_release": "1.12.0"
     }
   ]
 }

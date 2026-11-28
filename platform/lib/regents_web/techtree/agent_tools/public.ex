@@ -13,7 +13,15 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
   alias Regents.Techtree.Network.{Projection, Query}
   alias Regents.Techtree.Train.Comparisons
   alias Regents.Techtree.WalletBench.Reading
-  alias RegentsWeb.Techtree.{ClimbController, Outage, TrainController, WalletBenchScores}
+
+  alias RegentsWeb.Techtree.{
+    ClimbController,
+    Outage,
+    PublicDocuments,
+    TrainController,
+    WalletBenchEvidenceController,
+    WalletBenchScores
+  }
 
   defmodule Refused do
     @moduledoc false
@@ -148,6 +156,26 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
       end
     end
 
+    action :publication_bundle, :map do
+      description "Read the exact submitted JSON proof bundle for a published Techtree Result."
+
+      argument :bundle_digest, :string,
+        allow_nil?: false,
+        constraints: [min_length: 10, max_length: 120]
+
+      run fn %{arguments: %{bundle_digest: digest}}, _context ->
+        if Digest.valid?(digest) do
+          read_publication_bundle(digest)
+        else
+          refused(
+            "publication_digest_invalid",
+            "The bundle_digest is not a valid sha256 digest.",
+            "Call techtree_publications to list valid bundle digests."
+          )
+        end
+      end
+    end
+
     action :skill, :map do
       description "Read a published Techtree Skill's files and standing Results by root digest."
 
@@ -214,6 +242,47 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
         end
       end
     end
+
+    action :wallet_bench_show, :map do
+      description "Read one Agent Wallet Bench attempt's summary, rulings, and checks by attempt UUID."
+
+      argument :id, :string, allow_nil?: false, constraints: [min_length: 36, max_length: 36]
+
+      run fn %{arguments: %{id: id}}, _context ->
+        case WalletBenchEvidenceController.summary_data(id) do
+          {:ok, payload} ->
+            {:ok, payload}
+
+          :database_down ->
+            refused(
+              "wallet_test_unavailable",
+              "The wallet test can't be read right now; try again shortly.",
+              "Retry in a moment."
+            )
+
+          :not_found ->
+            refused(
+              "wallet_test_not_found",
+              "No wallet test has that id.",
+              "Call techtree_wallet_bench to list attempt ids."
+            )
+        end
+      end
+    end
+
+    action :docs_markdown, :map do
+      description "Read Techtree's docs index as Markdown."
+
+      run fn _input, _context ->
+        case PublicDocuments.document("/techtree/docs") do
+          %{title: title, markdown: markdown} ->
+            {:ok, %{path: "/techtree/docs", title: title, markdown: markdown}}
+
+          nil ->
+            refused("not_found", "Techtree docs could not be read.", "Try again in a moment.")
+        end
+      end
+    end
   end
 
   policies do
@@ -227,6 +296,31 @@ defmodule RegentsWeb.Techtree.AgentTools.Public do
       {:ok, {:ok, entry, runs_behind}} ->
         bytes = Projection.entry(entry, runs_behind, RegentsWeb.Endpoint.url())
         {:ok, Jason.decode!(bytes)}
+
+      {:ok, :error} ->
+        refused(
+          "publication_missing",
+          "No published Result has that bundle digest.",
+          "Call techtree_publications to list available bundle digests."
+        )
+
+      :database_down ->
+        refused("unavailable", "Techtree results are unavailable.", "Try again in a moment.")
+    end
+  end
+
+  defp read_publication_bundle(digest) do
+    case Outage.read(fn -> Query.get_entry(digest) end) do
+      {:ok, {:ok, entry}} ->
+        if Query.withdrawn?(entry) do
+          refused(
+            "publication_withdrawn",
+            "The participant withdrew this run, so this site no longer hands out the submitted bundle.",
+            "Call techtree_publication_show with the same bundle_digest to read the entry and withdrawal receipt."
+          )
+        else
+          {:ok, Jason.decode!(entry.submission_bytes)}
+        end
 
       {:ok, :error} ->
         refused(

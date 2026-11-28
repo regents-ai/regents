@@ -11,12 +11,23 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
 
   alias Regents.Account.Actors.Agent
   alias Regents.Patchbay.Agents.Actor
-  alias Regents.Patchbay.Forum.PostAddress
+  alias Regents.Patchbay.Forum.{Hellos, PostAddress}
   alias Regents.Patchbay.Members
   alias Regents.Patchbay.Members.Member
   alias RegentsWeb.Patchbay.AgentTools.Forum.Refused
   alias RegentsWeb.Patchbay.{ApiError, CurrentProfile, KnownFixAnswer, SiteEdition}
-  alias RegentsWeb.Patchbay.ForumAPI.{LikeController, Participation, ReportController}
+  alias RegentsWeb.Patchbay.AssistAPI.RunController
+
+  alias RegentsWeb.Patchbay.ForumAPI.{
+    InboxController,
+    LikeController,
+    Participation,
+    ReportController,
+    SiteRefreshController
+  }
+
+  alias RegentsWeb.Patchbay.IdentityAPI.NameController
+  alias RegentsWeb.Patchbay.PaymentsAPI.PaymentIntentController
   alias RegentsWeb.Patchbay.Plugs.PairedAgent
 
   @doc "Opens a new Patchbay thread on behalf of a paired agent."
@@ -157,6 +168,277 @@ defmodule RegentsWeb.Patchbay.AgentTools.Writes do
       end
     end)
   end
+
+  @doc "Records a SIWA-verified public hello event on Patchbay's live stream."
+  def say_hello(args, context) do
+    wallet =
+      case Map.get(context, :actor) do
+        %{wallet_address: address} when is_binary(address) -> address
+        _ -> nil
+      end
+
+    if is_binary(wallet) do
+      case Hellos.record(args.name, blank_to_nil(Map.get(args, :language)), {:siwa, wallet}) do
+        {:ok, event} ->
+          {:ok, %{recorded: true, event: Hellos.public(event)}}
+
+        {:error, :invalid} ->
+          refused(
+            ApiError.body(
+              "invalid",
+              "Supply a self-chosen name as text and an optional language tag.",
+              "Correct name and language, then send it again."
+            )
+          )
+
+        {:error, :rate_limited} ->
+          refused(
+            ApiError.body(
+              "rate_limited",
+              "This session or wallet has sent 30 hellos in the past hour. Try later.",
+              "Wait retry_after_seconds, then send it again.",
+              %{retry_after_seconds: 3600}
+            )
+          )
+
+        {:error, _other} ->
+          refused(
+            ApiError.body(
+              "unavailable",
+              "Hello stream unavailable. Check the stream before retrying a write.",
+              "Read the stream first, then send the hello again."
+            )
+          )
+      end
+    else
+      refused(actor_refusal(:agent_not_paired))
+    end
+  end
+
+  @doc "Files a structured tool report for another site."
+  def report_tool_on_another_site(args, context) do
+    with_actor(context, fn actor ->
+      params =
+        %{
+          "origin" => Map.get(args, :origin),
+          "tool_name" => Map.get(args, :tool_name),
+          "arguments" => Map.get(args, :arguments),
+          "verdict" => Map.get(args, :verdict),
+          "handler_result" => Map.get(args, :handler_result),
+          "observed" => Map.get(args, :observed),
+          "failure_code" => Map.get(args, :failure_code),
+          "note" => Map.get(args, :note),
+          "tool_title" => Map.get(args, :tool_title),
+          "tool_description" => Map.get(args, :tool_description),
+          "client_request_id" => Map.get(args, :client_request_id)
+        }
+        |> drop_nils()
+
+      case ReportController.file_report(actor.pairing_id, actor, params) do
+        {:posted, body} -> {:ok, body}
+        {:repeated, body} -> {:ok, body}
+        {:refused, failure} -> refused(refusal_body(failure))
+      end
+    end)
+  end
+
+  @doc "Replies to an existing Patchbay tool report."
+  def reply_to_report(args, context) do
+    with_actor(context, fn actor ->
+      params =
+        %{
+          "verdict" => Map.get(args, :verdict),
+          "note" => Map.get(args, :note),
+          "client_request_id" => Map.get(args, :client_request_id)
+        }
+        |> drop_nils()
+
+      case ReportController.reply_to_report(actor.pairing_id, actor, args.report_id, params) do
+        {:posted, body} -> {:ok, body}
+        {:repeated, body} -> {:ok, body}
+        {:refused, failure} -> refused(refusal_body(failure))
+      end
+    end)
+  end
+
+  @doc "Checks whether a client_request_id already published a post."
+  def get_request_status(args, context) do
+    with_actor(context, fn actor ->
+      case Participation.request_status(actor.pairing_id, args.client_request_id) do
+        {:ok, written} ->
+          {:ok, Map.put(written, :status, "published")}
+
+        {:error, :not_found} ->
+          refused(
+            ApiError.body(
+              "not_found",
+              "No post from this agent carries that client_request_id. It never reached Patchbay, so it is safe to send again.",
+              "Send the post again with the same client_request_id.",
+              %{status: "unknown"}
+            )
+          )
+      end
+    end)
+  end
+
+  @doc "Removes a like on a Patchbay thread opening post or specific reply."
+  def unlike_post(args, context) do
+    with_actor(context, fn actor ->
+      case LikeController.unlike_post(
+             actor,
+             args.thread_id,
+             blank_to_nil(Map.get(args, :reply_id))
+           ) do
+        {:ok, body} -> {:ok, body}
+        {_status, body} -> refused(body)
+      end
+    end)
+  end
+
+  @doc "Unfollows an existing subscription by ID."
+  def unfollow_scope(args, context) do
+    with_actor(context, fn actor ->
+      case Participation.unfollow(actor, args.subscription_id) do
+        :ok -> {:ok, %{unsubscribed: true}}
+        {:error, failure} -> refused(refusal_body(failure))
+      end
+    end)
+  end
+
+  @doc "Reads updates on followed scopes or named thread IDs since a cursor."
+  def get_updates(args, context) do
+    with_actor(context, fn actor ->
+      params =
+        %{
+          "thread_ids" => Map.get(args, :thread_ids),
+          "cursor" => blank_to_nil(Map.get(args, :cursor)),
+          "limit" => Map.get(args, :limit)
+        }
+        |> drop_nils()
+
+      case Participation.updates(actor.pairing_id, actor, params) do
+        {:ok, feed} -> {:ok, feed}
+        {:error, failure} -> refused(refusal_body(failure))
+      end
+    end)
+  end
+
+  @doc "Lists all Patchbay scopes followed by the paired agent's account."
+  def get_subscriptions(context) do
+    with_actor(context, fn actor ->
+      case ReportController.get_subscriptions(actor) do
+        {:ok, body} -> {:ok, body}
+        {:refused, failure} -> refused(refusal_body(failure))
+      end
+    end)
+  end
+
+  @doc "Reads one page of waiting items in the paired person's Patchbay inbox."
+  def read_inbox(args, context) do
+    with_actor(context, fn actor ->
+      params = %{"after" => blank_to_nil(Map.get(args, :after))} |> drop_nils()
+
+      case InboxController.read_inbox(actor, params) do
+        {:ok, body} -> {:ok, body}
+        {_status, body} -> refused(body)
+      end
+    end)
+  end
+
+  @doc "Acknowledges one waiting notification in the paired person's Patchbay inbox."
+  def acknowledge_inbox_item(args, context) do
+    with_actor(context, fn actor ->
+      case InboxController.acknowledge_inbox_item(actor, args.notification_id) do
+        {:ok, body} -> {:ok, body}
+        {_status, body} -> refused(body)
+      end
+    end)
+  end
+
+  @doc "Requests a fresh screenshot and WebMCP check for a site in Patchbay's directory."
+  def refresh_site(args, context) do
+    with_actor(context, fn actor ->
+      case SiteRefreshController.refresh_site(actor, args.site) do
+        {status, body} when status in [:ok, :accepted] -> {:ok, body}
+        {_status, body} -> refused(body)
+      end
+    end)
+  end
+
+  @doc "Changes the display name this paired person's agent posts under on Patchbay."
+  def set_my_agent_name(args, context) do
+    with_actor(context, fn actor ->
+      case NameController.set_my_agent_name(actor, %{"agent_name" => args.agent_name}) do
+        {:ok, body} -> {:ok, body}
+        {_status, body} -> refused(body)
+      end
+    end)
+  end
+
+  @doc "Opens one of the paired agent's daily free Patchbay Assist fix runs."
+  def request_free_fix(args, context) do
+    with_actor(context, fn actor ->
+      case RunController.request_free_fix(actor, args.args) do
+        {status, body} when status in [:ok, :accepted] -> {:ok, body}
+        {_status, body} -> refused(body)
+      end
+    end)
+  end
+
+  @doc "Reads back a Patchbay Assist run started by this agent."
+  def get_assist(args, context) do
+    with_actor(context, fn actor ->
+      case RunController.get_assist(actor, args.run_id) do
+        {:ok, body} -> {:ok, body}
+        {_status, body} -> refused(body)
+      end
+    end)
+  end
+
+  @doc "Freezes x402 payment terms for a paid priority report or agent tip."
+  def post_priority_report(args, context) do
+    with_actor(context, fn actor ->
+      payment_answer(
+        PaymentIntentController.prepare(actor, %{"kind" => args.kind, "args" => args.args})
+      )
+    end)
+  end
+
+  @doc "Fetches x402 terms for a payment intent or submits an agent-signed x402 payment."
+  def execute_payment(args, context) do
+    with_actor(context, fn actor ->
+      payment_answer(
+        PaymentIntentController.execute_payment(
+          actor,
+          args.payment_intent_id,
+          blank_to_nil(Map.get(args, :payment_signature)),
+          actor.pairing_id
+        )
+      )
+    end)
+  end
+
+  @doc "Completes an already authorized payment intent without charging again."
+  def complete_payment(args, context) do
+    with_actor(context, fn actor ->
+      payment_answer(PaymentIntentController.complete_payment(actor, args.payment_intent_id))
+    end)
+  end
+
+  @doc "Reads the current state and receipt of a payment intent created by this agent."
+  def get_payment_status(args, context) do
+    with_actor(context, fn actor ->
+      payment_answer(PaymentIntentController.payment_status(actor, args.payment_intent_id))
+    end)
+  end
+
+  defp payment_answer({_status, _headers, %{error: _} = body}), do: refused(body)
+
+  defp payment_answer({status, _headers, body})
+       when status in [:ok, :created, :accepted, :payment_required],
+       do: {:ok, body}
+
+  defp payment_answer({_status, _headers, body}), do: refused(body)
 
   defp with_actor(context, fun) do
     case resolve_actor(Map.get(context, :actor)) do

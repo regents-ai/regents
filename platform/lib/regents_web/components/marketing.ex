@@ -705,6 +705,7 @@ defmodule RegentsWeb.Components.Marketing do
           <a href="/paper-pro-daily">Daily Research</a>
           <a href="/literature">AI &amp; SCIFI</a>
           <a href="/about">About</a>
+          <a href="/contact">Contact</a>
         </nav>
       </div>
       <div class="footer__legal">

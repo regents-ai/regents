@@ -15,6 +15,7 @@ defmodule RegentsWeb.Capabilities do
     "regents_stake_position" => "Read your staking position",
     "regents_claims" => "Read your name claims",
     "regents_agent_whoami" => nil,
+    "regents_agent_status" => nil,
     "regents_account" => "Read your display name and ENS name",
     "regents_account_overview" =>
       "Read your account overview across Keyfleet, Autolaunch, Patchbay, and Techtree",

@@ -49,6 +49,7 @@ const json = "application/json"
 // The pages regents_about reads, by the manifest's page names.
 const pages: Record<string, string> = {
   about: "/about",
+  contact: "/contact",
   docs: "/docs",
   "docs-limits": "/docs/limits",
   "docs-errors": "/docs/errors",
@@ -74,6 +75,7 @@ const pages: Record<string, string> = {
   terms: "/terms",
 }
 const requests: Record<string, (input: Input) => Request> = {
+  regents_health: () => ({path: "/api/v1/health", accept: json}),
   regents_about: input => ({path: pages[input.page], accept: "text/markdown"}),
   regents_products: () => ({path: "/api/v1/products", accept: json}),
   regents_product: input => ({path: `/api/v1/products/${encodeURIComponent(input.slug)}`, accept: json}),

@@ -51,7 +51,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_stake_prepare",
-        "http": "POST /api/agent/v1/autolaunch/tokens/{token_id}/stake/steps"
+        "mcp": "autolaunch_stake_prepare",
+        "http": "POST /api/agent/v1/autolaunch/tokens/{token_id}/stake/steps",
+        "cli": {
+          "command": "tokens stake <token-id>"
+        }
       },
       "effect": "prepare"
     }

@@ -19,6 +19,7 @@ defmodule Regents.Account do
       Actors.ConnectedApp,
       Actors.Human,
       Actors.System,
+      AgentAccount,
       AgentPicture,
       Agents,
       Agents.ActivityReading,

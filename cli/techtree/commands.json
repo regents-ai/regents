@@ -291,6 +291,64 @@
           "description": "Comparison slug from train list, such as dependabot-nemotron-3-nano-4b."
         }
       ]
+    },
+    {
+      "command": "catalog",
+      "description": "Read the active Techtree catalog of published Climbs and Skills as JSON.",
+      "operation_id": "getTechtreeCatalog",
+      "webmcp": "techtree_catalog",
+      "method": "GET",
+      "path": "/api/v1/techtree/catalog",
+      "authority": "public",
+      "effect": "read"
+    },
+    {
+      "command": "bootstrap",
+      "description": "Read Techtree CLI bootstrap and install metadata for the active release channel.",
+      "operation_id": "getTechtreeBootstrap",
+      "webmcp": "techtree_bootstrap",
+      "method": "GET",
+      "path": "/api/v1/techtree/bootstrap",
+      "authority": "public",
+      "effect": "read"
+    },
+    {
+      "command": "results bundle <bundle-digest>",
+      "description": "Download the exact submitted JSON proof bundle for one standing published Result.",
+      "operation_id": "getTechtreePublicationBundle",
+      "webmcp": "techtree_publication_bundle",
+      "method": "GET",
+      "path": "/api/v1/techtree/publications/{bundle_digest}/bundle",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "bundle-digest",
+          "type": "string",
+          "in": "path",
+          "field": "bundle_digest",
+          "description": "The Result's bundle digest, `sha256:` and 64 lowercase hex characters."
+        }
+      ]
+    },
+    {
+      "command": "skills show <root-digest>",
+      "description": "Read a published Techtree Skill's files and standing Results by root digest.",
+      "operation_id": "getTechtreeSkill",
+      "webmcp": "techtree_skill",
+      "method": "GET",
+      "path": "/api/v1/techtree/skills/{root_digest}",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "root-digest",
+          "type": "string",
+          "in": "path",
+          "field": "root_digest",
+          "description": "Skill root sha256 digest from a published Result."
+        }
+      ]
     }
   ]
 }

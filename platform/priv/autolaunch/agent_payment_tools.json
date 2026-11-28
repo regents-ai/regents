@@ -1,0 +1,72 @@
+{
+  "_comment": "Agent payments' browser tool. Merged into the canonical Autolaunch manifest by Regents.SiteTools; backed by POST /api/agent/v1/autolaunch/tokens/{token_id}/payment/steps and hosted MCP prepare_payment.",
+  "tools": [
+    {
+      "name": "autolaunch_payment_prepare",
+      "title": "Prepare a Base revenue payment",
+      "description": "Review one payment or sweep into a listed Revstake token's revenue split on Base mainnet and return unsigned wallet steps. Only the person's verified linked wallet signs and sends each step. Changes nothing. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "token_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The token's id exactly as autolaunch_tokens lists it."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pay",
+              "sweep"
+            ],
+            "description": "pay to pay the amount named into the token's revenue split, or sweep to route everything of the asset already waiting at its payment address into the split."
+          },
+          "asset": {
+            "type": "string",
+            "enum": [
+              "usdc",
+              "regent",
+              "token"
+            ],
+            "description": "usdc for USDC, regent for REGENT, or token for the token itself."
+          },
+          "amount": {
+            "type": "string",
+            "description": "For pay only, and needed there: how much of the asset to pay, as a decimal with no more decimal places than the asset has. Leave it out for sweep."
+          },
+          "signer": {
+            "type": "string",
+            "description": "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
+          }
+        },
+        "required": [
+          "token_id",
+          "kind",
+          "asset"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "POST /api/agent/v1/autolaunch/tokens/{token_id}/payment/steps",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "autolaunch_payment_prepare",
+        "mcp": "prepare_payment",
+        "http": "POST /api/agent/v1/autolaunch/tokens/{token_id}/payment/steps",
+        "cli": {
+          "command": "tokens payment <token-id>"
+        }
+      },
+      "effect": "prepare"
+    }
+  ]
+}

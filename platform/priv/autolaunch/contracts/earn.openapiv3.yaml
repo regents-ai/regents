@@ -2,7 +2,7 @@
 # (AUTOLAUNCH_EARN=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json
 # is api-contract.openapiv3.yaml exactly. Every path and component here is new; none replaces one.
 paths:
-  /api/v1/earn/products:
+  /api/v1/autolaunch/earn/products:
     get:
       operationId: autolaunch_earn_products
       summary: List the Earn products
@@ -35,7 +35,7 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         default:
           $ref: '#/components/responses/OtherError'
-  /api/v1/me/earn:
+  /api/v1/autolaunch/me/earn:
     get:
       operationId: getMyEarn
       summary: Read your Earn balances
@@ -68,7 +68,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EarnError'
-  /api/agent/v1/earn/positions:
+  /api/agent/v1/autolaunch/earn/positions:
     get:
       operationId: autolaunch_earn_positions
       summary: Read your person's Earn balances
@@ -103,7 +103,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EarnError'
-  /api/agent/v1/earn/quote:
+  /api/agent/v1/autolaunch/earn/quote:
     post:
       operationId: autolaunch_earn_quote
       summary: Preview an Earn deposit or withdrawal
@@ -159,7 +159,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EarnError'
-  /api/agent/v1/earn/steps:
+  /api/agent/v1/autolaunch/earn/steps:
     post:
       operationId: autolaunch_earn_prepare
       summary: Prepare an Earn step

@@ -2,27 +2,70 @@ defmodule Regents.SiteTools do
   @moduledoc """
   Every browser tool each Regents Labs product offers agents, loaded directly
   from the committed canonical `priv/<product>/tool_manifest.json` manifests
-  shipped in this single site so every product's tool list and capabilities
-  endpoint answer immediately without remote HTTP calls.
+  (plus Autolaunch's split feature tool manifests) shipped in this single site
+  so every product's tool list and capabilities endpoint answer immediately
+  without remote HTTP calls.
   """
 
+  @autolaunch_extra_manifests [
+    "priv/autolaunch/covered_calls_tools.json",
+    "priv/autolaunch/exposure_tools.json",
+    "priv/autolaunch/earn_tools.json",
+    "priv/autolaunch/agent_bids_tools.json",
+    "priv/autolaunch/agent_robinhood_bids_tools.json",
+    "priv/autolaunch/agent_launches_tools.json",
+    "priv/autolaunch/agent_finish_tools.json",
+    "priv/autolaunch/agent_stake_tools.json",
+    "priv/autolaunch/agent_swap_tools.json",
+    "priv/autolaunch/agent_payment_tools.json"
+  ]
+
   @sites %{
-    "regents" => %{name: "regents.sh", manifest: "priv/tool_manifest.json"},
-    "patchbay" => %{name: "regents.sh/patchbay", manifest: "priv/patchbay/tool_manifest.json"},
-    "techtree" => %{name: "regents.sh/techtree", manifest: "priv/techtree/tool_manifest.json"},
+    "regents" => %{name: "regents.sh", manifest: "priv/tool_manifest.json", extras: []},
+    "patchbay" => %{
+      name: "regents.sh/patchbay",
+      manifest: "priv/patchbay/tool_manifest.json",
+      extras: []
+    },
+    "techtree" => %{
+      name: "regents.sh/techtree",
+      manifest: "priv/techtree/tool_manifest.json",
+      extras: []
+    },
     "autolaunch" => %{
       name: "regents.sh/autolaunch",
-      manifest: "priv/autolaunch/tool_manifest.json"
+      manifest: "priv/autolaunch/tool_manifest.json",
+      extras: @autolaunch_extra_manifests
     },
-    "keyfleet" => %{name: "regents.sh/keyfleet", manifest: "priv/keyfleet/tool_manifest.json"}
+    "keyfleet" => %{
+      name: "regents.sh/keyfleet",
+      manifest: "priv/keyfleet/tool_manifest.json",
+      extras: []
+    }
   }
 
-  for %{manifest: path} <- Map.values(@sites) do
-    @external_resource Application.app_dir(:regents, path)
+  for %{manifest: path, extras: extras} <- Map.values(@sites),
+      file <- [path | extras] do
+    @external_resource Application.app_dir(:regents, file)
   end
 
-  @manifests Map.new(@sites, fn {site, %{manifest: path}} ->
-               {site, :regents |> Application.app_dir(path) |> File.read!() |> Jason.decode!()}
+  @manifests Map.new(@sites, fn {site, %{manifest: path, extras: extras}} ->
+               base = :regents |> Application.app_dir(path) |> File.read!() |> Jason.decode!()
+
+               extra_tools =
+                 Enum.flat_map(extras, fn extra_path ->
+                   :regents
+                   |> Application.app_dir(extra_path)
+                   |> File.read!()
+                   |> Jason.decode!()
+                   |> Map.get("tools", [])
+                 end)
+
+               merged_tools =
+                 (Map.get(base, "tools", []) ++ extra_tools)
+                 |> Enum.uniq_by(& &1["name"])
+
+               {site, Map.put(base, "tools", merged_tools)}
              end)
 
   @type tool :: %{name: String.t(), title: String.t() | nil, description: String.t() | nil}
@@ -44,7 +87,7 @@ defmodule Regents.SiteTools do
     end
   end
 
-  @doc "The full decoded canonical `priv/<product>/tool_manifest.json` map."
+  @doc "The full decoded canonical `priv/<product>/tool_manifest.json` map (including split feature manifests)."
   @spec manifest(String.t()) :: {:ok, map()} | {:error, :unknown_site | :unreachable}
   def manifest(site) do
     case Map.fetch(@manifests, site) do

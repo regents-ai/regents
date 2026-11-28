@@ -1,0 +1,114 @@
+# Agent swaps on Base mainnet (`Regents.Autolaunch.AgentSwap`), backed by
+# POST /api/agent/v1/autolaunch/tokens/{token_id}/swap/steps and MCP `prepare_swap`.
+paths:
+  /api/agent/v1/autolaunch/tokens/{token_id}/swap/steps:
+    post:
+      operationId: autolaunch_swap_prepare
+      summary: Prepare a Base swap
+      description: Review one exact-input buy or sell of a listed token on Base mainnet and return
+        unsigned wallet steps (Permit2 approvals when needed, then swap). Only the person's verified
+        linked wallet signs and sends each step. Changes nothing.
+      security:
+      - SiwaProof: []
+      parameters:
+      - name: token_id
+        in: path
+        required: true
+        description: The token's id exactly as autolaunch_tokens lists it.
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - direction
+              - amount
+              properties:
+                direction:
+                  type: string
+                  enum:
+                  - buy
+                  - sell
+                  description: buy to spend the pool's currency on the token, or sell to spend the token for the pool's currency.
+                amount:
+                  type: string
+                  description: How much this wallet spends, as a decimal.
+                protection:
+                  type: string
+                  description: Price protection in percent from 1 to 10; defaults to 6.
+                signer:
+                  type: string
+                  description: One of the person's own wallet addresses. Omit to use the sign-in wallet.
+      responses:
+        '200':
+          description: The swap review and unsigned wallet steps
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+        '401':
+          description: Fresh request proof required or account unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapError'
+        '403':
+          description: Agent not paired or wrong signer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapError'
+        '404':
+          description: Token not found or swaps disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapError'
+        '409':
+          description: Wallet required, swap not offered/open, balance short, or quote unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapError'
+        '422':
+          description: Invalid request, amount, or protection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapError'
+        '503':
+          description: Chain or swap review unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSwapError'
+components:
+  schemas:
+    AgentSwapError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - hint
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            hint:
+              type: string

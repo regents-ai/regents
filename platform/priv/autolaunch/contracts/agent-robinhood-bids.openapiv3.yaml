@@ -3,7 +3,7 @@
 # is api-contract.openapiv3.yaml exactly, or that and agent-bids.openapiv3.yaml while agent bids
 # are on. Every path and component here is new; none replaces one.
 paths:
-  /api/agent/v1/robinhood/bids/steps:
+  /api/agent/v1/autolaunch/robinhood/bids/steps:
     post:
       operationId: autolaunch_robinhood_bid_prepare
       summary: Prepare a Robinhood bid
@@ -78,7 +78,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AgentRobinhoodBidError'
-  /api/agent/v1/robinhood/bids/{bid}/steps:
+  /api/agent/v1/autolaunch/robinhood/bids/{bid}/steps:
     post:
       operationId: autolaunch_robinhood_bid_settlement_prepare
       summary: Prepare a Robinhood settlement

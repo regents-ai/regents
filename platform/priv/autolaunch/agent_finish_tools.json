@@ -37,7 +37,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_finish_prepare",
-        "http": "POST /api/agent/v1/autolaunch/auctions/{auction_id}/finish/steps"
+        "mcp": "autolaunch_finish_prepare",
+        "http": "POST /api/agent/v1/autolaunch/auctions/{auction_id}/finish/steps",
+        "cli": {
+          "command": "auctions finish <auction-id>"
+        }
       },
       "effect": "prepare"
     }

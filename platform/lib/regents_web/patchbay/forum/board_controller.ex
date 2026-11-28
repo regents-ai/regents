@@ -451,46 +451,86 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
   @doc "JSON tool catalog for API and CLI callers (`GET /api/v1/patchbay/sites/:host/tools/:name`)."
   def tool_json(conn, %{"host" => host, "name" => name} = params) do
+    case read_tool_catalog(host, name, params["after"]) do
+      {:ok, payload} ->
+        send_catalog_payload(conn, payload, 200)
+
+      {:error, {status, body}} ->
+        conn |> put_status(status) |> json(body)
+    end
+  end
+
+  @doc "Tool catalog payload for a site host and tool name, shared with hosted MCP."
+  @spec read_tool_catalog(String.t(), String.t(), String.t() | nil) ::
+          {:ok, map()} | {:error, {atom(), map()}}
+  def read_tool_catalog(host, name, after_cursor \\ nil) do
     with true <- Board.tool_name?(name),
          {:ok, site} <- Board.fetch_site_ref(host),
          true <- host == site.origin,
-         {:ok, history} <- Board.tool_history(site, name, params["after"]),
-         {:ok, current_tool} <- history_header(site, name, params["after"], history),
+         {:ok, history} <- Board.tool_history(site, name, after_cursor),
+         {:ok, current_tool} <- history_header(site, name, after_cursor, history),
          false <- is_nil(current_tool) do
-      send_catalog_json(
-        conn,
-        :tool,
-        %{
+      payload =
+        BoardJSON.tool(%{
           site: site,
           current_tool: current_tool,
           versions: history.versions,
           pagination: history.pagination
-        },
-        200
-      )
+        })
+
+      if byte_size(Jason.encode!(payload)) <= 256 * 1024 do
+        {:ok, payload}
+      else
+        {:error,
+         {:internal_server_error,
+          RegentsWeb.Patchbay.ApiError.body(
+            "response_too_large",
+            "This catalog page could not be returned intact.",
+            "Read one version's schemas with regents patchbay tools history --limit 1 (or the get_tool_history tool)."
+          )}}
+      end
     else
       {:error, :invalid_cursor} ->
-        conn
-        |> put_status(:bad_request)
-        |> json(BoardJSON.tool_error(%{invalid_cursor?: true}))
+        {:error, {:bad_request, BoardJSON.tool_error(%{invalid_cursor?: true})}}
 
       {:error, _reason} ->
-        conn
-        |> put_status(:service_unavailable)
-        |> json(BoardJSON.tool_error(%{}))
+        {:error, {:service_unavailable, BoardJSON.tool_error(%{})}}
 
       _not_found ->
-        conn
-        |> put_status(:not_found)
-        |> json(
+        {:error,
+         {:not_found,
           RegentsWeb.Patchbay.ApiError.body(
             "not_found",
             "No recorded tool matches that host and name.",
             "List sites with regents patchbay sites list or search tools with regents patchbay tools history."
-          )
-        )
+          )}}
     end
   end
+
+  @doc "Patchbay WebMCP site directory rendered as Markdown, shared with hosted MCP."
+  @spec sites_markdown(map()) :: {:ok, map()} | {:error, {atom(), map()}}
+  def sites_markdown(params \\ %{}) do
+    with {:ok, number} <- SiteDirectory.page_number(params["page"]),
+         {:ok, directory} <- SiteDirectory.page(params) do
+      markdown =
+        RegentsWeb.Patchbay.Forum.BoardMD.sites(%{
+          popular: popular(params, number),
+          directory: directory,
+          directory_filters: Map.take(params, ~w(q category page))
+        })
+
+      {:ok, %{markdown: markdown}}
+    else
+      {:error, {:invalid, messages}} ->
+        {:error, {:unprocessable_entity, BoardJSON.sites_error(%{messages: messages})}}
+
+      {:error, _failure} ->
+        {:error, {:service_unavailable, BoardJSON.tool_error(%{})}}
+    end
+  end
+
+  defp send_catalog_payload(conn, payload, status),
+    do: conn |> put_status(status) |> json(payload)
 
   defp send_catalog_json(conn, template, assigns, status) do
     payload = apply(BoardJSON, template, [assigns])

@@ -28,6 +28,7 @@ defmodule Mix.Tasks.Regents.VerifyContracts do
   alias RegentsWeb.Keyfleet.AgentTools.Account.Answer, as: KeyfleetAccountAnswer
 
   @agent_tool_domains [
+    {"regents", RegentsWeb.AgentTools},
     {"autolaunch", RegentsWeb.Autolaunch.AgentTools},
     {"techtree", RegentsWeb.Techtree.AgentTools},
     {"keyfleet", RegentsWeb.Keyfleet.AgentTools},
@@ -103,10 +104,34 @@ defmodule Mix.Tasks.Regents.VerifyContracts do
   end
 
   defp check_agent_tools do
-    Enum.flat_map(@agent_tool_domains, fn {product, domain} ->
-      tools = AshAi.Info.tools(domain)
-      check_domain_tools(product, domain, tools) ++ check_manifest_parity(product, tools)
-    end)
+    all_ash_domains = Application.get_env(:regents, :ash_domains, [])
+
+    all_mcp_tools =
+      Enum.flat_map(all_ash_domains, fn domain ->
+        if AshAi in Spark.extensions(domain), do: AshAi.Info.tools(domain), else: []
+      end)
+
+    exposed = MapSet.new(all_mcp_tools, &Atom.to_string(&1.name))
+
+    duplicate_errors =
+      all_mcp_tools
+      |> Enum.group_by(& &1.name)
+      |> Enum.flat_map(fn
+        {name, [_, _ | _] = list} ->
+          domains = Enum.map_join(list, ", ", &inspect(&1.domain))
+          ["Duplicate MCP tool name #{name} exposed by multiple domains: #{domains}"]
+
+        _ ->
+          []
+      end)
+
+    domain_errors =
+      Enum.flat_map(@agent_tool_domains, fn {product, domain} ->
+        tools = AshAi.Info.tools(domain)
+        check_domain_tools(product, domain, tools) ++ check_manifest_parity(product, exposed)
+      end)
+
+    duplicate_errors ++ domain_errors ++ check_keyfleet_cli_sync()
   end
 
   defp check_domain_tools(product, domain, tools) do
@@ -117,7 +142,7 @@ defmodule Mix.Tasks.Regents.VerifyContracts do
       action = Ash.Resource.Info.action(tool.resource, tool.action)
 
       name_errors =
-        if String.starts_with?(name, prefix),
+        if product == "regents" or String.starts_with?(name, prefix),
           do: [],
           else: ["#{inspect(domain)} tool #{name} missing prefix #{prefix}"]
 
@@ -160,20 +185,32 @@ defmodule Mix.Tasks.Regents.VerifyContracts do
   defp dummy_value(:map), do: %{}
   defp dummy_value(_other), do: "sample"
 
-  defp check_manifest_parity(product, tools) do
-    path = Path.join([Application.app_dir(:regents, "priv"), product, "tool_manifest.json"])
-    manifest = path |> File.read!() |> Jason.decode!()
-    exposed = MapSet.new(tools, &Atom.to_string(&1.name))
+  defp check_manifest_parity(product, exposed) do
+    manifest =
+      case product do
+        "regents" ->
+          Application.app_dir(:regents, "priv/tool_manifest.json")
+          |> File.read!()
+          |> Jason.decode!()
+
+        other ->
+          {:ok, manifest} = Regents.SiteTools.manifest(other)
+          manifest
+      end
 
     manifest_hosted =
       manifest
       |> Map.fetch!("tools")
       |> Enum.flat_map(&hosted_tool_name(product, &1))
+      |> Enum.uniq()
 
     for name <- manifest_hosted, not MapSet.member?(exposed, name) do
-      "#{product} tool_manifest.json marks #{name} hosted, but #{product}.AgentTools does not expose it"
+      "#{product} tool manifest declares MCP tool #{name}, but no mounted AshAi domain exposes it"
     end
   end
+
+  defp hosted_tool_name(_product, %{"interfaces" => %{"mcp" => name}}) when is_binary(name),
+    do: [name]
 
   defp hosted_tool_name("patchbay", %{"hosted" => true, "hosted_name" => name})
        when is_binary(name),
@@ -181,10 +218,22 @@ defmodule Mix.Tasks.Regents.VerifyContracts do
 
   defp hosted_tool_name("patchbay", %{"hosted" => true, "name" => name}), do: [name]
 
-  defp hosted_tool_name("techtree", %{"interfaces" => %{"mcp" => name}}) when is_binary(name),
-    do: [name]
-
   defp hosted_tool_name(_product, _tool), do: []
+
+  defp check_keyfleet_cli_sync do
+    priv_path = Application.app_dir(:regents, "priv/keyfleet/public/commands.json")
+    cli_path = Path.expand("../cli/keyfleet/commands.json", File.cwd!())
+
+    if File.exists?(priv_path) and File.exists?(cli_path) do
+      if File.read!(priv_path) == File.read!(cli_path) do
+        []
+      else
+        ["cli/keyfleet/commands.json drifted from platform/priv/keyfleet/public/commands.json"]
+      end
+    else
+      ["Missing keyfleet commands.json sync pair (#{priv_path} / #{cli_path})"]
+    end
+  end
 
   defp check_prometheus_contract do
     {:ok, _} = Application.ensure_all_started(:telemetry)

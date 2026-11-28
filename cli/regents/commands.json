@@ -46,7 +46,8 @@
       "method": "GET",
       "path": "/api/agents/v1/me",
       "authority": "paired_agent",
-      "effect": "write"
+      "effect": "write",
+      "webmcp": "regents_agent_status"
     },
     {
       "command": "agents whoami",
@@ -300,6 +301,73 @@
           "in": "path",
           "field": "slug",
           "description": "The slug from a known public /regents/ profile page."
+        }
+      ]
+    },
+    {
+      "command": "health",
+      "description": "Check whether regents.sh, its database, migrations, and every folded product (Keyfleet, Autolaunch, Patchbay, Techtree) are answering.",
+      "operation_id": "getHealth",
+      "webmcp": "regents_health",
+      "method": "GET",
+      "path": "/api/v1/health",
+      "authority": "public",
+      "effect": "read"
+    },
+    {
+      "command": "docs",
+      "description": "Read the regents.sh documentation overview page as Markdown.",
+      "operation_id": "getDocs",
+      "webmcp": "regents_about",
+      "method": "GET",
+      "path": "/api/v1/docs",
+      "authority": "public",
+      "effect": "read"
+    },
+    {
+      "command": "pages show <page>",
+      "description": "Read any public regents.sh documentation or information page as Markdown (about, contact, docs, docs-*, start, privacy, terms).",
+      "operation_id": "getPublicPage",
+      "webmcp": "regents_about",
+      "method": "GET",
+      "path": "/api/v1/pages/{page}",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "page",
+          "type": "string",
+          "in": "path",
+          "field": "page",
+          "description": "Page slug: about, contact, docs, docs-cloak, docs-cloak-reference, docs-cloak-install, docs-cloak-wallets, docs-siwa, docs-mcp, docs-cli, docs-limits, docs-errors, docs-products, docs-reading, docs-profiles, docs-pairing, docs-agent-reads, docs-webmcp, docs-claims, docs-staking, docs-contracts, docs-changes, start, privacy, or terms."
+        }
+      ]
+    },
+    {
+      "command": "site-tools list",
+      "description": "Read the bundled WebMCP tool manifests for Regents, Patchbay, Autolaunch, Techtree, and Keyfleet, plus SIWA connection setup.",
+      "operation_id": "getEverySiteTools",
+      "webmcp": "list_all_webmcp_tools",
+      "method": "GET",
+      "path": "/api/v1/site-tools",
+      "authority": "public",
+      "effect": "read"
+    },
+    {
+      "command": "site-tools show <site>",
+      "description": "Read the bundled WebMCP tool catalog for one site (regents, patchbay, autolaunch, techtree, keyfleet) or SIWA setup (siwa).",
+      "operation_id": "getSiteTools",
+      "method": "GET",
+      "path": "/api/v1/site-tools/{site}",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "site",
+          "type": "string",
+          "in": "path",
+          "field": "site",
+          "description": "Site key: regents, patchbay, autolaunch, techtree, keyfleet, or siwa."
         }
       ]
     }

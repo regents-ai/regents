@@ -46,6 +46,7 @@ defmodule Regents do
       Account.Actors.ConnectedApp,
       Account.Actors.Human,
       Account.Actors.System,
+      Account.AgentAccount,
       Account.AgentPicture,
       Account.Agents,
       Account.Agents.ActivityReading,

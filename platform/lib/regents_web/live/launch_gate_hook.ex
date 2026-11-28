@@ -24,6 +24,7 @@ defmodule RegentsWeb.Live.LaunchGateHook do
     :paper_pro_daily_paper,
     :literature,
     :about,
+    :contact,
     :docs,
     :docs_page,
     :docs_subpage,

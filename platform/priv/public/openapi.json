@@ -7,7 +7,7 @@
     "contact": {
       "name": "Regents Labs",
       "email": "build@regents.sh",
-      "url": "https://regents.sh/about#contact"
+      "url": "https://regents.sh/contact"
     },
     "license": {
       "name": "Regents Labs Terms of Use",
@@ -201,6 +201,96 @@
           },
           "404": {
             "description": "The product manifest is unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/pages/{page}": {
+      "get": {
+        "operationId": "getPublicPage",
+        "summary": "Read a public Regents page as Markdown",
+        "description": "Returns any public regents.sh documentation or information page (about, contact, docs, docs-*, start, privacy, terms) as JSON with its Markdown text.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "path",
+            "required": true,
+            "description": "Page slug: about, contact, docs, docs-cloak, docs-cloak-reference, docs-cloak-install, docs-cloak-wallets, docs-siwa, docs-mcp, docs-cli, docs-limits, docs-errors, docs-products, docs-reading, docs-profiles, docs-pairing, docs-agent-reads, docs-webmcp, docs-claims, docs-staking, docs-contracts, docs-changes, start, privacy, or terms.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "about",
+                "contact",
+                "docs",
+                "docs-cloak",
+                "docs-cloak-reference",
+                "docs-cloak-install",
+                "docs-cloak-wallets",
+                "docs-siwa",
+                "docs-mcp",
+                "docs-cli",
+                "docs-limits",
+                "docs-errors",
+                "docs-products",
+                "docs-reading",
+                "docs-profiles",
+                "docs-pairing",
+                "docs-agent-reads",
+                "docs-webmcp",
+                "docs-claims",
+                "docs-staking",
+                "docs-contracts",
+                "docs-changes",
+                "start",
+                "privacy",
+                "terms"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public page Markdown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "page",
+                    "path",
+                    "markdown"
+                  ],
+                  "properties": {
+                    "page": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "markdown": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No public page has that name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
           }
         }
       }
@@ -5504,6 +5594,12 @@
         "schema": {
           "type": "integer",
           "minimum": 1
+        }
+      },
+      "Deprecation": {
+        "description": "RFC 9745 deprecation signal indicating when an endpoint became or becomes deprecated (Unix timestamp in @-form, or true).",
+        "schema": {
+          "type": "string"
         }
       },
       "Sunset": {

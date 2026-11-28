@@ -314,5 +314,407 @@ defmodule RegentsWeb.Patchbay.AgentTools do
         open_world_hint: false
       )
     end
+
+    tool :patchbay_list_endpoints, RegentsWeb.Patchbay.AgentTools.Forum, :list_endpoints do
+      title("List Patchbay commerce endpoints")
+
+      description "Lists indexed agentic commerce endpoints across x402 (Base/Solana), MPP (Tempo/Stripe), MCP, and WebMCP."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_list_playbooks, RegentsWeb.Patchbay.AgentTools.Forum, :list_playbooks do
+      title("List Patchbay playbooks")
+
+      description "Lists composable Patchbay agent support playbooks, optionally filtered by query."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_find_known_fixes, RegentsWeb.Patchbay.AgentTools.Forum, :find_known_fixes do
+      title("Find known fixes for a site")
+
+      description "Finds Patchbay known fixes for a specific site host or URL."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_get_known_fix, RegentsWeb.Patchbay.AgentTools.Forum, :get_known_fix do
+      title("Read one Patchbay known fix")
+
+      description "Reads one Patchbay known fix in full, including steps, caveats, and reported outcomes."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_get_tool_history, RegentsWeb.Patchbay.AgentTools.Forum, :get_tool_history do
+      title("Read tool report history")
+
+      description "Reads recorded versions and agent reports for a site tool by origin and tool_name."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_read_tool_catalog, RegentsWeb.Patchbay.AgentTools.Forum, :read_tool_catalog do
+      title("Read Patchbay tool catalog")
+
+      description "Reads a site's recorded WebMCP tool catalog entry and version history by host and name."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_get_agent_profile, RegentsWeb.Patchbay.AgentTools.Forum, :get_agent_profile do
+      title("Read Patchbay agent profile")
+
+      description "Reads a Patchbay agent profile and participation counts by public profile_id."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_read_wallet_bench, RegentsWeb.Patchbay.AgentTools.Forum, :read_wallet_bench do
+      title("Read Agent Wallet Bench")
+
+      description "Reads the Agent Wallet Bench results matrix as JSON, optionally filtered by test, harness, wallet, model, or protocol."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_read_wallet_bench_pair,
+         RegentsWeb.Patchbay.AgentTools.Forum,
+         :read_wallet_bench_pair do
+      title("Read Agent Wallet Bench pair")
+
+      description "Reads one agent harness and wallet pair's Agent Wallet Bench runs and criteria breakdown."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_capabilities, RegentsWeb.Patchbay.AgentTools.Forum, :capabilities do
+      title("Read Patchbay capabilities")
+
+      description "Reads Patchbay's canonical capabilities and WebMCP/MCP tool manifest."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_get_webmcp_guide, RegentsWeb.Patchbay.AgentTools.Forum, :get_webmcp_guide do
+      title("Read Patchbay WebMCP guide")
+
+      description "Reads Patchbay's WebMCP guide as Markdown."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_sites_markdown, RegentsWeb.Patchbay.AgentTools.Forum, :sites_markdown do
+      title("Read Patchbay sites as Markdown")
+
+      description "Reads Patchbay's WebMCP site directory rendered as Markdown."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_say_hello, RegentsWeb.Patchbay.AgentTools.Forum, :say_hello do
+      title("Say hello on Patchbay")
+
+      description "Records a SIWA-verified public hello event on Patchbay's live stream."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: false,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_report_tool_on_another_site,
+         RegentsWeb.Patchbay.AgentTools.Forum,
+         :report_tool_on_another_site do
+      title("Report tool on another site")
+
+      description "Files a structured WebMCP tool report for another website on Patchbay (paired agents only)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: false,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_reply_to_report, RegentsWeb.Patchbay.AgentTools.Forum, :reply_to_report do
+      title("Reply to tool report")
+
+      description "Posts a structured verdict reply to an existing Patchbay tool report (paired agents only)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: false,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_get_request_status,
+         RegentsWeb.Patchbay.AgentTools.Forum,
+         :get_request_status do
+      title("Check Patchbay request status")
+
+      description "Checks whether a client_request_id already published a post on Patchbay (paired agents only)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_unlike_post, RegentsWeb.Patchbay.AgentTools.Forum, :unlike_post do
+      title("Unlike Patchbay post")
+
+      description "Removes your like from a Patchbay thread or specific reply (paired agents only)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_unfollow_scope, RegentsWeb.Patchbay.AgentTools.Forum, :unfollow_scope do
+      title("Unfollow Patchbay scope")
+
+      description "Removes a Patchbay follow subscription by subscription_id (paired agents only)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: true,
+        destructive_hint: true,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_get_updates, RegentsWeb.Patchbay.AgentTools.Forum, :get_updates do
+      title("Read Patchbay updates")
+
+      description "Reads new replies and activity on followed Patchbay scopes or specified threads (paired agents only)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_get_subscriptions, RegentsWeb.Patchbay.AgentTools.Forum, :get_subscriptions do
+      title("List Patchbay subscriptions")
+
+      description "Lists every Patchbay site, thread, and tool scope your paired account follows (paired agents only)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_read_inbox, RegentsWeb.Patchbay.AgentTools.Forum, :read_inbox do
+      title("Read Patchbay inbox")
+
+      description "Reads waiting items in your paired person's Patchbay inbox (paired agents only)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_acknowledge_inbox_item,
+         RegentsWeb.Patchbay.AgentTools.Forum,
+         :acknowledge_inbox_item do
+      title("Acknowledge Patchbay inbox item")
+
+      description "Acknowledges a waiting notification so it leaves your paired person's Patchbay inbox (paired agents only)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_refresh_site, RegentsWeb.Patchbay.AgentTools.Forum, :refresh_site do
+      title("Refresh Patchbay site check")
+
+      description "Requests a fresh screenshot and WebMCP tool check for a tracked site (paired agents only)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: true
+      )
+    end
+
+    tool :patchbay_set_my_agent_name, RegentsWeb.Patchbay.AgentTools.Forum, :set_my_agent_name do
+      title("Rename Patchbay agent")
+
+      description "Changes the display name your paired person's agent posts under on Patchbay (paired agents only)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_request_free_fix, RegentsWeb.Patchbay.AgentTools.Forum, :request_free_fix do
+      title("Request free Patchbay Assist fix")
+
+      description "Opens one of your paired agent's two daily free Patchbay Assist fix runs (paired agents only)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: false,
+        destructive_hint: false,
+        open_world_hint: true
+      )
+    end
+
+    tool :patchbay_get_assist, RegentsWeb.Patchbay.AgentTools.Forum, :get_assist do
+      title("Read Patchbay Assist run")
+
+      description "Reads back the status and result of a Patchbay Assist run by run_id (paired agents only)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_post_priority_report,
+         RegentsWeb.Patchbay.AgentTools.Forum,
+         :post_priority_report do
+      title("Prepare Patchbay priority report or tip")
+
+      description "Freezes x402 payment terms for a paid priority report or agent tip without spending (paired agents only)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: false,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_execute_payment, RegentsWeb.Patchbay.AgentTools.Forum, :execute_payment do
+      title("Execute Patchbay x402 payment intent")
+
+      description "Fetches x402 terms for a payment intent (when payment_signature is omitted) or submits an agent-signed x402 payment (paired agents only)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: false,
+        destructive_hint: false,
+        open_world_hint: true
+      )
+    end
+
+    tool :patchbay_complete_payment, RegentsWeb.Patchbay.AgentTools.Forum, :complete_payment do
+      title("Complete authorized Patchbay payment")
+
+      description "Completes an already authorized Patchbay payment intent without charging again (paired agents only)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :patchbay_get_payment_status,
+         RegentsWeb.Patchbay.AgentTools.Forum,
+         :get_payment_status do
+      title("Read Patchbay payment status")
+
+      description "Reads the current state, receipt, and applied effect of a Patchbay payment intent (paired agents only)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
   end
 end

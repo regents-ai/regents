@@ -21,8 +21,25 @@
       "payment": "none",
       "route": "GET /api/v1/autolaunch/earn/products",
       "scope": "site",
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "autolaunch_earn_products",
+        "mcp": "earn_products",
+        "http": "GET /api/v1/autolaunch/earn/products",
+        "cli": {
+          "command": "earn list"
+        }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/autolaunch/earn/products",
+        "accept": "application/json"
+      },
       "request": {
-        "path": "/api/v1/earn/products"
+        "path": "/api/v1/autolaunch/earn/products"
       }
     },
     {
@@ -79,7 +96,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_earn_quote",
-        "http": "POST /api/agent/v1/autolaunch/earn/quote"
+        "mcp": "earn_quote",
+        "http": "POST /api/agent/v1/autolaunch/earn/quote",
+        "cli": {
+          "command": "earn quote"
+        }
       },
       "effect": "read"
     },
@@ -107,7 +128,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_earn_positions",
-        "http": "GET /api/agent/v1/autolaunch/earn/positions"
+        "mcp": "earn_positions",
+        "http": "GET /api/agent/v1/autolaunch/earn/positions",
+        "cli": {
+          "command": "earn positions"
+        }
       },
       "effect": "read"
     },
@@ -165,7 +190,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_earn_prepare",
-        "http": "POST /api/agent/v1/autolaunch/earn/steps"
+        "mcp": "prepare_earn",
+        "http": "POST /api/agent/v1/autolaunch/earn/steps",
+        "cli": {
+          "command": "earn prepare"
+        }
       },
       "effect": "prepare"
     }

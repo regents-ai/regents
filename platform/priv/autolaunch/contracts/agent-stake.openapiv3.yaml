@@ -3,7 +3,7 @@
 # api-contract.openapiv3.yaml exactly, or that and the other agent contracts that are on. Every
 # path and component here is new; none replaces one.
 paths:
-  /api/agent/v1/tokens/{token_id}/stake/steps:
+  /api/agent/v1/autolaunch/tokens/{token_id}/stake/steps:
     post:
       operationId: autolaunch_stake_prepare
       summary: Prepare a stake, unstake or claim

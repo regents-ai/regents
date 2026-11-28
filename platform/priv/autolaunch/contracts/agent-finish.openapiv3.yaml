@@ -3,7 +3,7 @@
 # api-contract.openapiv3.yaml exactly, or that and the other agent contracts that are on. Every
 # path and component here is new; none replaces one.
 paths:
-  /api/agent/v1/auctions/{auction_id}/finish/steps:
+  /api/agent/v1/autolaunch/auctions/{auction_id}/finish/steps:
     post:
       operationId: autolaunch_finish_prepare
       summary: Prepare a finish

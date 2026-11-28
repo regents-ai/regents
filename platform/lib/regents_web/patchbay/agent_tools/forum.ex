@@ -10,16 +10,23 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
   alias Regents.Patchbay.Assist.KnownFixes
   alias Regents.Patchbay.Commerce.Catalog
   alias Regents.Patchbay.Forum
-  alias Regents.Patchbay.Forum.PostAddress
+  alias Regents.Patchbay.Forum.{Capabilities, PostAddress}
   alias Regents.Patchbay.Playbooks
   alias Regents.Patchbay.Probes.{CryptoEndpoint, PaymentEndpoint}
   alias Regents.Patchbay.Security.{AuthorityInventory, CryptoAudit, StackCheck}
   alias RegentsWeb.Patchbay.AgentTools.Writes
-  alias RegentsWeb.Patchbay.ApiError
-  alias RegentsWeb.Patchbay.Forum.Readiness
+
+  alias RegentsWeb.Patchbay.{
+    ApiError,
+    KnownFixController,
+    OffersController,
+    PublicDocuments,
+    WalletBenchController
+  }
+
+  alias RegentsWeb.Patchbay.Forum.{BoardController, Readiness}
   alias RegentsWeb.Patchbay.ForumAPI.{Reads, ReportController}
   alias RegentsWeb.Patchbay.Help
-  alias RegentsWeb.Patchbay.OffersController
 
   defmodule Refused do
     @moduledoc false
@@ -489,6 +496,367 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
 
       run fn %{arguments: args}, context -> Writes.report_known_fix(args, context) end
     end
+
+    action :list_endpoints, :map do
+      description "List indexed agentic commerce endpoints across x402, MPP (Tempo), MCP, and WebMCP."
+
+      argument :protocol, :string, allow_nil?: true, default: ""
+      argument :rail, :string, allow_nil?: true, default: ""
+      argument :query, :string, allow_nil?: true, default: ""
+
+      run fn %{arguments: args}, _context ->
+        list =
+          Catalog.endpoints(%{
+            "protocol" => args.protocol,
+            "rail" => args.rail,
+            "q" => args.query
+          })
+
+        {:ok, %{count: length(list), endpoints: list}}
+      end
+    end
+
+    action :list_playbooks, :map do
+      description "List Patchbay support playbooks, optionally filtered by a search query."
+
+      argument :query, :string, allow_nil?: true, default: ""
+
+      run fn %{arguments: %{query: query}}, _context ->
+        list =
+          Playbooks.search(query || "")
+          |> Enum.map(&Map.drop(&1, [:raw_markdown]))
+
+        {:ok, %{count: length(list), playbooks: list}}
+      end
+    end
+
+    action :find_known_fixes, :map do
+      description "Find Patchbay known fixes for one site by host or URL."
+
+      argument :site, :string, allow_nil?: false
+
+      run fn %{arguments: %{site: site}}, _context ->
+        case KnownFixController.find_known_fixes(site) do
+          {:ok, body} -> {:ok, body}
+          {_status, body} -> {:error, Refused.exception(body: body)}
+        end
+      end
+    end
+
+    action :get_known_fix, :map do
+      description "Read one Patchbay known fix in full by fix_id."
+
+      argument :fix_id, :string, allow_nil?: false
+
+      run fn %{arguments: %{fix_id: fix_id}}, _context ->
+        case KnownFixController.get_known_fix(fix_id) do
+          {:ok, body} -> {:ok, body}
+          {_status, body} -> {:error, Refused.exception(body: body)}
+        end
+      end
+    end
+
+    action :get_tool_history, :map do
+      description "Read recorded versions and reports for one site tool by origin and tool_name."
+
+      argument :origin, :string, allow_nil?: false
+      argument :tool_name, :string, allow_nil?: false
+      argument :after, :string, allow_nil?: true, default: nil
+      argument :limit, :integer, allow_nil?: true, default: nil, constraints: [min: 1, max: 25]
+
+      run fn %{arguments: args}, _context ->
+        params =
+          %{
+            "origin" => args.origin,
+            "tool_name" => args.tool_name,
+            "after" => args[:after],
+            "limit" => args[:limit] && to_string(args[:limit])
+          }
+          |> Map.reject(fn {_k, v} -> is_nil(v) end)
+
+        case Reads.tool_history(params) do
+          {:ok, payload} ->
+            {:ok, payload}
+
+          {:error, {_status, code, message, hint}} ->
+            refused(code, message, hint)
+        end
+      end
+    end
+
+    action :read_tool_catalog, :map do
+      description "Read the Patchbay tool catalog entry and version history for one site host and tool name."
+
+      argument :host, :string, allow_nil?: false
+      argument :name, :string, allow_nil?: false
+      argument :after, :string, allow_nil?: true, default: nil
+
+      run fn %{arguments: args}, _context ->
+        case BoardController.read_tool_catalog(args.host, args.name, args[:after]) do
+          {:ok, payload} -> {:ok, payload}
+          {:error, {_status, body}} -> {:error, Refused.exception(body: body)}
+        end
+      end
+    end
+
+    action :get_agent_profile, :map do
+      description "Read one Patchbay agent profile by public profile_id."
+
+      argument :profile_id, :string, allow_nil?: false
+
+      run fn %{arguments: %{profile_id: public_id}}, _context ->
+        case Reads.agent_profile(public_id, :free) do
+          {:ok, profile} ->
+            {:ok, profile}
+
+          {:error, :not_found} ->
+            refused(
+              "not_found",
+              "There is no agent with that profile id.",
+              "Copy the profile id from a thread's author."
+            )
+        end
+      end
+    end
+
+    action :read_wallet_bench, :map do
+      description "Read the Agent Wallet Bench results matrix as JSON."
+
+      argument :test, :string, allow_nil?: true, default: nil
+      argument :harness, :string, allow_nil?: true, default: nil
+      argument :wallet, :string, allow_nil?: true, default: nil
+      argument :model, :string, allow_nil?: true, default: nil
+      argument :protocol, :string, allow_nil?: true, default: nil
+
+      run fn %{arguments: args}, _context ->
+        params =
+          args
+          |> Map.new(fn {k, v} -> {Atom.to_string(k), v} end)
+          |> Map.reject(fn {_k, v} -> is_nil(v) or v == "" end)
+
+        case WalletBenchController.read_wallet_bench(params) do
+          {:ok, body} -> {:ok, body}
+          {_status, body} -> {:error, Refused.exception(body: body)}
+        end
+      end
+    end
+
+    action :read_wallet_bench_pair, :map do
+      description "Read one harness and wallet pair's Agent Wallet Bench runs as JSON."
+
+      argument :harness_id, :string, allow_nil?: false
+      argument :wallet_id, :string, allow_nil?: false
+      argument :test, :string, allow_nil?: true, default: nil
+      argument :harness, :string, allow_nil?: true, default: nil
+      argument :wallet, :string, allow_nil?: true, default: nil
+      argument :model, :string, allow_nil?: true, default: nil
+      argument :protocol, :string, allow_nil?: true, default: nil
+      argument :set, :string, allow_nil?: true, default: nil
+      argument :run, :string, allow_nil?: true, default: nil
+      argument :check, :string, allow_nil?: true, default: nil
+      argument :baseline, :string, allow_nil?: true, default: nil
+      argument :compare, :string, allow_nil?: true, default: nil
+
+      run fn %{arguments: args}, _context ->
+        params =
+          args
+          |> Map.new(fn {k, v} -> {Atom.to_string(k), v} end)
+          |> Map.reject(fn {_k, v} -> is_nil(v) or v == "" end)
+
+        case WalletBenchController.read_wallet_bench_pair(params) do
+          {:ok, body} -> {:ok, body}
+          {_status, body} -> {:error, Refused.exception(body: body)}
+        end
+      end
+    end
+
+    action :capabilities, :map do
+      description "Read Patchbay's canonical capabilities and tool manifest."
+
+      run fn _input, _context ->
+        {:ok, Capabilities.manifest(:main)}
+      end
+    end
+
+    action :get_webmcp_guide, :map do
+      description "Read Patchbay's WebMCP guide as Markdown."
+
+      run fn _input, _context ->
+        {:ok, PublicDocuments.document("/patchbay/webmcp")}
+      end
+    end
+
+    action :sites_markdown, :map do
+      description "Read Patchbay's WebMCP site directory as Markdown."
+
+      run fn _input, _context ->
+        case BoardController.sites_markdown() do
+          {:ok, body} -> {:ok, body}
+          {:error, {_status, body}} -> {:error, Refused.exception(body: body)}
+        end
+      end
+    end
+
+    action :say_hello, :map do
+      description "Send a SIWA-verified public hello to Patchbay's live stream."
+
+      argument :name, :string, allow_nil?: false
+      argument :language, :string, allow_nil?: true, default: nil
+
+      run fn %{arguments: args}, context -> Writes.say_hello(args, context) end
+    end
+
+    action :report_tool_on_another_site, :map do
+      description "File a structured tool report for another website on Patchbay (requires a paired agent)."
+
+      argument :origin, :string, allow_nil?: false
+      argument :tool_name, :string, allow_nil?: false
+      argument :verdict, :string, allow_nil?: false
+      argument :client_request_id, :string, allow_nil?: false
+      argument :arguments, :map, allow_nil?: true, default: nil
+      argument :handler_result, :map, allow_nil?: true, default: nil
+      argument :observed, :map, allow_nil?: true, default: nil
+      argument :failure_code, :string, allow_nil?: true, default: nil
+      argument :note, :string, allow_nil?: true, default: nil
+      argument :tool_title, :string, allow_nil?: true, default: nil
+      argument :tool_description, :string, allow_nil?: true, default: nil
+
+      run fn %{arguments: args}, context -> Writes.report_tool_on_another_site(args, context) end
+    end
+
+    action :reply_to_report, :map do
+      description "Post a structured verdict reply to an existing Patchbay tool report (requires a paired agent)."
+
+      argument :report_id, :string, allow_nil?: false
+      argument :verdict, :string, allow_nil?: false
+      argument :client_request_id, :string, allow_nil?: false
+      argument :note, :string, allow_nil?: true, default: nil
+
+      run fn %{arguments: args}, context -> Writes.reply_to_report(args, context) end
+    end
+
+    action :get_request_status, :map do
+      description "Check whether a client_request_id already published a Patchbay post (requires a paired agent)."
+
+      argument :client_request_id, :string, allow_nil?: false
+
+      run fn %{arguments: args}, context -> Writes.get_request_status(args, context) end
+    end
+
+    action :unlike_post, :map do
+      description "Remove your like from a Patchbay thread or reply (requires a paired agent)."
+
+      argument :thread_id, :string, allow_nil?: false
+      argument :reply_id, :string, allow_nil?: true, default: nil
+
+      run fn %{arguments: args}, context -> Writes.unlike_post(args, context) end
+    end
+
+    action :unfollow_scope, :map do
+      description "Remove an existing Patchbay follow subscription by ID (requires a paired agent)."
+
+      argument :subscription_id, :string, allow_nil?: false
+
+      run fn %{arguments: args}, context -> Writes.unfollow_scope(args, context) end
+    end
+
+    action :get_updates, :map do
+      description "Read recent updates across your followed Patchbay scopes or named threads (requires a paired agent)."
+
+      argument :thread_ids, {:array, :string}, allow_nil?: true, default: nil
+      argument :cursor, :string, allow_nil?: true, default: nil
+      argument :limit, :integer, allow_nil?: true, default: nil, constraints: [min: 1, max: 50]
+
+      run fn %{arguments: args}, context -> Writes.get_updates(args, context) end
+    end
+
+    action :get_subscriptions, :map do
+      description "List all Patchbay scopes your paired account follows (requires a paired agent)."
+
+      run fn _input, context -> Writes.get_subscriptions(context) end
+    end
+
+    action :read_inbox, :map do
+      description "Read waiting notifications in your paired person's Patchbay inbox (requires a paired agent)."
+
+      argument :after, :string, allow_nil?: true, default: nil
+
+      run fn %{arguments: args}, context -> Writes.read_inbox(args, context) end
+    end
+
+    action :acknowledge_inbox_item, :map do
+      description "Acknowledge one waiting notification in your paired person's Patchbay inbox (requires a paired agent)."
+
+      argument :notification_id, :string, allow_nil?: false
+
+      run fn %{arguments: args}, context -> Writes.acknowledge_inbox_item(args, context) end
+    end
+
+    action :refresh_site, :map do
+      description "Request a fresh screenshot and WebMCP tool check for a tracked site (requires a paired agent)."
+
+      argument :site, :string, allow_nil?: false
+
+      run fn %{arguments: args}, context -> Writes.refresh_site(args, context) end
+    end
+
+    action :set_my_agent_name, :map do
+      description "Set the display name your paired person's agent posts under on Patchbay (requires a paired agent)."
+
+      argument :agent_name, :string, allow_nil?: false
+
+      run fn %{arguments: args}, context -> Writes.set_my_agent_name(args, context) end
+    end
+
+    action :request_free_fix, :map do
+      description "Open one of your paired agent's daily free Patchbay Assist fix runs (requires a paired agent)."
+
+      argument :args, :map, allow_nil?: false
+
+      run fn %{arguments: args}, context -> Writes.request_free_fix(args, context) end
+    end
+
+    action :get_assist, :map do
+      description "Read back the status and result of a Patchbay Assist run (requires a paired agent)."
+
+      argument :run_id, :string, allow_nil?: false
+
+      run fn %{arguments: args}, context -> Writes.get_assist(args, context) end
+    end
+
+    action :post_priority_report, :map do
+      description "Freeze x402 payment terms for a Patchbay paid priority report or agent tip (requires a paired agent)."
+
+      argument :kind, :string, allow_nil?: false
+      argument :args, :map, allow_nil?: false
+
+      run fn %{arguments: args}, context -> Writes.post_priority_report(args, context) end
+    end
+
+    action :execute_payment, :map do
+      description "Fetch x402 terms for a Patchbay payment intent or submit an agent-signed x402 payment signature (requires a paired agent)."
+
+      argument :payment_intent_id, :string, allow_nil?: false
+      argument :payment_signature, :string, allow_nil?: true, default: nil
+
+      run fn %{arguments: args}, context -> Writes.execute_payment(args, context) end
+    end
+
+    action :complete_payment, :map do
+      description "Complete an already authorized Patchbay payment intent without charging again (requires a paired agent)."
+
+      argument :payment_intent_id, :string, allow_nil?: false
+
+      run fn %{arguments: args}, context -> Writes.complete_payment(args, context) end
+    end
+
+    action :get_payment_status, :map do
+      description "Read the current state, receipt, and applied effect of a Patchbay payment intent (requires a paired agent)."
+
+      argument :payment_intent_id, :string, allow_nil?: false
+
+      run fn %{arguments: args}, context -> Writes.get_payment_status(args, context) end
+    end
   end
 
   policies do
@@ -498,8 +866,25 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
              :record_answer_use,
              :mark_solution,
              :like_post,
+             :unlike_post,
              :follow_scope,
-             :report_known_fix
+             :unfollow_scope,
+             :report_known_fix,
+             :report_tool_on_another_site,
+             :reply_to_report,
+             :get_request_status,
+             :get_updates,
+             :get_subscriptions,
+             :read_inbox,
+             :acknowledge_inbox_item,
+             :refresh_site,
+             :set_my_agent_name,
+             :request_free_fix,
+             :get_assist,
+             :post_priority_report,
+             :execute_payment,
+             :complete_payment,
+             :get_payment_status
            ]) do
       forbid_unless {RegentAgents.Checks.Paired, repo: Regents.Repo}
       authorize_if actor_attribute_equals(:role, :agent)

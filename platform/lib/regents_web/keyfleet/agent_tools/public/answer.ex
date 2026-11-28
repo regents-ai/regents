@@ -11,7 +11,16 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Public.Answer do
   """
 
   alias Regents.Keyfleet.{Chain, Directory, Fleets, Proposals}
-  alias RegentsWeb.Keyfleet.{DirectoryJSON, PageRead, ProposalJSON, ProposalsPage, Refusal}
+  alias RegentsWeb.Keyfleet.AgentTools.Seasons.Answer, as: SeasonsAnswer
+
+  alias RegentsWeb.Keyfleet.{
+    DirectoryJSON,
+    PageRead,
+    ProposalJSON,
+    ProposalsPage,
+    PublicDocuments,
+    Refusal
+  }
 
   @doc "Answers `op`; the caller and the waiter are unused."
   @spec answer(atom(), map(), term(), term()) :: {pos_integer(), map(), nil}
@@ -60,6 +69,24 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Public.Answer do
       {:ok, page} -> ok(treasury_json(fleet_id, page))
       {:error, _failure} -> refusal(503, "treasury_unavailable")
     end
+  end
+
+  def answer(:fleet_seasons, params, _actor, _waiter),
+    do: SeasonsAnswer.answer(:list, params, nil, nil)
+
+  def answer(:fleet_season, params, _actor, _waiter),
+    do: SeasonsAnswer.answer(:season, params, nil, nil)
+
+  def answer(:about, _params, _actor, _waiter) do
+    %{markdown: markdown} = PublicDocuments.document("/keyfleet/about")
+    page = PublicDocuments.page(:about)
+    ok(%{title: page[:page_title], markdown: markdown})
+  end
+
+  def answer(:docs, _params, _actor, _waiter) do
+    %{markdown: markdown} = PublicDocuments.document("/keyfleet/docs")
+    page = PublicDocuments.page(:docs)
+    ok(%{title: page[:page_title], markdown: markdown})
   end
 
   defp ok(body), do: {200, body, nil}

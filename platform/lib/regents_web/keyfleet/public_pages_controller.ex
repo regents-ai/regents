@@ -51,6 +51,20 @@ defmodule RegentsWeb.Keyfleet.PublicPagesController do
     conn |> cached(body) |> put_resp_content_type("application/yaml") |> send_resp(200, body)
   end
 
+  def about_json(conn, _params) do
+    %{markdown: markdown} = PublicDocuments.document("/keyfleet/about")
+    page = PublicDocuments.page(:about)
+    body = Jason.encode!(%{title: page[:page_title], markdown: markdown})
+    conn |> cached(body) |> put_resp_content_type("application/json") |> send_resp(200, body)
+  end
+
+  def docs_json(conn, _params) do
+    %{markdown: markdown} = PublicDocuments.document("/keyfleet/docs")
+    page = PublicDocuments.page(:docs)
+    body = Jason.encode!(%{title: page[:page_title], markdown: markdown})
+    conn |> cached(body) |> put_resp_content_type("application/json") |> send_resp(200, body)
+  end
+
   @doc "Permanent redirect for legacy `keyfleet.ai/mcp` cutover requests."
   def redirect_mcp(conn, _params) do
     conn

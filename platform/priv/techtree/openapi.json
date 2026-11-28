@@ -39,11 +39,21 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["code", "name", "harness"],
+                "required": [
+                  "code",
+                  "name",
+                  "harness"
+                ],
                 "properties": {
-                  "code": { "type": "string" },
-                  "name": { "type": "string" },
-                  "harness": { "type": "string" }
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "harness": {
+                    "type": "string"
+                  }
                 },
                 "additionalProperties": false
               }
@@ -92,7 +102,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": true
                 }
               }
             }
@@ -110,7 +121,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": true
                 }
               }
             }
@@ -127,7 +139,9 @@
             "name": "slug",
             "in": "path",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -149,12 +163,51 @@
         "operationId": "listTechtreePublications",
         "summary": "List published Techtree evaluation Results, newest first",
         "parameters": [
-          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } },
-          { "name": "before_sequence", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
-          { "name": "agent", "in": "query", "schema": { "type": "string" } },
-          { "name": "agent_version", "in": "query", "schema": { "type": "string" } },
-          { "name": "model", "in": "query", "schema": { "type": "string" } },
-          { "name": "challenge", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "before_sequence",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agent_version",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "challenge",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -162,7 +215,30 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "entries",
+                    "next_before_sequence"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string"
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "next_before_sequence": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
                 }
               }
             }
@@ -176,7 +252,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "type": "object" }
+              "schema": {
+                "type": "object"
+              }
             }
           }
         },
@@ -185,7 +263,9 @@
             "description": "Countersigned receipt",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
               }
             }
           }
@@ -197,14 +277,159 @@
         "operationId": "getTechtreePublication",
         "summary": "Read one published Techtree Result by bundle digest",
         "parameters": [
-          { "name": "bundle_digest", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "bundle_digest",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Result entry",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "schema_version",
+                    "log_sequence",
+                    "bundle_digest",
+                    "run_id",
+                    "accepted_at",
+                    "entry_url",
+                    "participant",
+                    "climb",
+                    "subject",
+                    "result",
+                    "checks",
+                    "claims",
+                    "task_deltas",
+                    "receipt"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "string"
+                    },
+                    "log_sequence": {
+                      "type": "integer"
+                    },
+                    "bundle_digest": {
+                      "type": "string"
+                    },
+                    "run_id": {
+                      "type": "string"
+                    },
+                    "accepted_at": {
+                      "type": "string"
+                    },
+                    "withdrawn_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "entry_url": {
+                      "type": "string"
+                    },
+                    "participant": {
+                      "type": "object"
+                    },
+                    "climb": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "campaign_spec_digest": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "campaign_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "data_policy_digest": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "skill_digest": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "skill_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "skill_github_url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "rerun_of": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "subject": {
+                      "type": "object"
+                    },
+                    "result": {
+                      "type": "object"
+                    },
+                    "statuses": {
+                      "type": [
+                        "object",
+                        "array",
+                        "null"
+                      ]
+                    },
+                    "decision": {
+                      "type": [
+                        "string",
+                        "object",
+                        "null"
+                      ]
+                    },
+                    "proof_grade": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "checks": {
+                      "type": "object"
+                    },
+                    "claims": {
+                      "type": "object"
+                    },
+                    "task_deltas": {
+                      "type": [
+                        "object",
+                        "array",
+                        "null"
+                      ]
+                    },
+                    "receipt": {
+                      "type": "object"
+                    }
+                  },
+                  "additionalProperties": true
+                }
               }
             }
           }
@@ -216,14 +441,23 @@
         "operationId": "getTechtreePublicationBundle",
         "summary": "Download exact submitted proof bundle bytes",
         "parameters": [
-          { "name": "bundle_digest", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "bundle_digest",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Exact JSON proof bundle",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
               }
             }
           }
@@ -235,14 +469,56 @@
         "operationId": "getTechtreeSkill",
         "summary": "Read a published Skill's files and standing Results",
         "parameters": [
-          { "name": "root_digest", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "root_digest",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Published Skill",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -258,7 +534,9 @@
             "description": "Model Climb reports list",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
               }
             }
           }
@@ -271,7 +549,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "type": "object" }
+              "schema": {
+                "type": "object"
+              }
             }
           }
         },
@@ -280,7 +560,9 @@
             "description": "Stored report receipt",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
               }
             }
           }
@@ -292,14 +574,23 @@
         "operationId": "getModelClimbReport",
         "summary": "Read one private Model Climb proof report by digest",
         "parameters": [
-          { "name": "digest", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "digest",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Model Climb report",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
               }
             }
           }
@@ -315,7 +606,9 @@
             "description": "Delivered projects",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
               }
             }
           }
@@ -327,14 +620,24 @@
         "operationId": "getAccountProject",
         "summary": "Read one delivered Techtree project with manifest, rerun_test receipt, report, and package metadata",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Delivered project",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
               }
             }
           }
@@ -346,14 +649,25 @@
         "operationId": "getAccountProjectPackage",
         "summary": "Download gzipped tar archive for one delivered Techtree project",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Gzipped tar archive",
             "content": {
               "application/gzip": {
-                "schema": { "type": "string", "format": "binary" }
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
               }
             }
           }
@@ -369,7 +683,9 @@
             "description": "Order list",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
               }
             }
           }
@@ -384,17 +700,45 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["lane", "title", "success"],
+                "required": [
+                  "lane",
+                  "title",
+                  "success"
+                ],
                 "properties": {
-                  "lane": { "type": "string", "enum": ["skills", "evals", "environments", "models"] },
-                  "title": { "type": "string" },
-                  "success": { "type": "string" },
-                  "project_name": { "type": "string" },
-                  "customer_company": { "type": "string" },
-                  "customer_contact_name": { "type": "string" },
-                  "customer_contact_email": { "type": "string" },
-                  "runbook": { "type": "object" },
-                  "material_archive_base64": { "type": "string" }
+                  "lane": {
+                    "type": "string",
+                    "enum": [
+                      "skills",
+                      "evals",
+                      "environments",
+                      "models"
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "success": {
+                    "type": "string"
+                  },
+                  "project_name": {
+                    "type": "string"
+                  },
+                  "customer_company": {
+                    "type": "string"
+                  },
+                  "customer_contact_name": {
+                    "type": "string"
+                  },
+                  "customer_contact_email": {
+                    "type": "string"
+                  },
+                  "runbook": {
+                    "type": "object"
+                  },
+                  "material_archive_base64": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -405,7 +749,9 @@
             "description": "Created order",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
               }
             }
           }
@@ -417,14 +763,24 @@
         "operationId": "getTechtreeOrder",
         "summary": "Read one Techtree Uplift Factory order",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Order details",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
               }
             }
           }
@@ -436,7 +792,15 @@
         "operationId": "cancelTechtreeOrder",
         "summary": "Cancel an unpaid Techtree Uplift Factory order",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
         ],
         "requestBody": {
           "required": false,
@@ -454,7 +818,9 @@
             "description": "Cancelled order",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
               }
             }
           }
@@ -470,7 +836,10 @@
             "description": "Wallet Bench scores JSON",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
               }
             }
           }
@@ -482,14 +851,57 @@
         "operationId": "getTechtreeWalletBenchAttempt",
         "summary": "Read one Agent Wallet Bench attempt",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Wallet Bench attempt JSON",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -505,7 +917,21 @@
             "description": "Train comparisons JSON",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "comparisons"
+                  ],
+                  "properties": {
+                    "comparisons": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
               }
             }
           }
@@ -517,14 +943,23 @@
         "operationId": "getTechtreeTrainReport",
         "summary": "Read one Skill comparison's exact per-case report JSON",
         "parameters": [
-          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Train report JSON",
             "content": {
               "application/json": {
-                "schema": { "type": "object" }
+                "schema": {
+                  "type": "object"
+                }
               }
             }
           }

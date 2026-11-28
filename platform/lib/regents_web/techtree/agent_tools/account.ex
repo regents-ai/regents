@@ -13,10 +13,20 @@ defmodule RegentsWeb.Techtree.AgentTools.Account do
     domain: RegentsWeb.Techtree.AgentTools,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias Regents.Techtree.{Factory, ModelClimb, Projects}
+  alias Regents.Techtree.{Factory, ModelClimb, Network, Projects}
   alias Regents.Techtree.Factory.Order
-  alias RegentsWeb.Techtree.{AccountOrdersController, AgentAccountController, Outage}
+  alias Regents.Techtree.Network.{Document, Error, Ingest, Key}
+
+  alias RegentsWeb.Techtree.{
+    AccountOrdersController,
+    AgentAccountController,
+    Outage,
+    ProjectPackageController
+  }
+
   alias RegentsWeb.Techtree.AgentTools.Public.Refused
+
+  @max_mcp_package_bytes 350_000
 
   @lanes %{
     "skills" => :skills,
@@ -64,6 +74,121 @@ defmodule RegentsWeb.Techtree.AgentTools.Account do
               "Your person has no project with that id.",
               "Call techtree_account_projects to list delivered projects."
             )
+        end
+      end
+    end
+
+    action :account_project_package, :map do
+      description "Download a delivered Techtree project's gzipped tar package archive (base64-encoded when within the 512 KiB MCP budget, otherwise returns metadata and signed HTTP download URL)."
+
+      argument :id, :string, allow_nil?: false, constraints: [min_length: 36, max_length: 36]
+
+      run fn %{arguments: %{id: id}}, context ->
+        with {:ok, uuid} <- Ecto.UUID.cast(id),
+             {:ok, %{} = project} <-
+               Outage.read(fn ->
+                 ProjectPackageController.read_package(uuid, actor: context.actor)
+               end) do
+          bytes = project.package
+          size = byte_size(bytes)
+
+          url =
+            RegentsWeb.Endpoint.url() <> "/api/v1/techtree/account/projects/#{project.id}/package"
+
+          base = %{
+            id: project.id,
+            filename: ProjectPackageController.file_name(project),
+            content_type: "application/gzip",
+            size_bytes: size,
+            sha256: project.package_sha256,
+            download_url: url
+          }
+
+          if size <= @max_mcp_package_bytes do
+            {:ok, Map.put(base, :package_base64, Base.encode64(bytes))}
+          else
+            {:ok,
+             Map.merge(base, %{
+               inline_omitted: true,
+               hint:
+                 "Archive exceeds inline MCP size (#{size} bytes). Download via signed HTTP GET #{url} or `regents techtree account project-package #{project.id}`."
+             })}
+          end
+        else
+          :database_down ->
+            unavailable()
+
+          _missing ->
+            refused(
+              "project_not_found",
+              "Your person has no project package with that id.",
+              "Call techtree_account_projects to list delivered projects."
+            )
+        end
+      end
+    end
+
+    action :publication_submit, :map do
+      description "Submit an independently signed Techtree Result proof bundle or withdrawal request as exact raw JSON text."
+
+      argument :raw_body, :string, allow_nil?: false, constraints: [min_length: 2, trim?: false]
+      argument :contributor_address, :string, allow_nil?: true
+      argument :skill_name, :string, allow_nil?: true
+      argument :skill_github_url, :string, allow_nil?: true
+
+      run fn %{arguments: args}, context ->
+        bytes = args.raw_body
+
+        if byte_size(bytes) > Network.maximum_body_bytes() do
+          refused(
+            "submission_too_large",
+            "Submission exceeds the maximum #{Network.maximum_body_bytes()} byte limit.",
+            "Keep proof bundles within the documented size limit."
+          )
+        else
+          submit_publication(bytes, args, context.actor)
+        end
+      end
+    end
+
+    action :model_climb_submit, :map do
+      description "Verify and store a signed private Model Climb proof report for your paired person."
+
+      argument :proof, :map, allow_nil?: false
+
+      argument :idempotency_key, :string,
+        allow_nil?: true,
+        constraints: [min_length: 1, max_length: 255]
+
+      run fn %{arguments: args}, context ->
+        key =
+          args[:idempotency_key] ||
+            Map.get(args.proof, "report_digest") ||
+            "sha256:" <>
+              (:crypto.hash(:sha256, Jason.encode!(args.proof)) |> Base.encode16(case: :lower))
+
+        case Outage.read(fn ->
+               ModelClimb.submit_report(args.proof, key, actor: context.actor)
+             end) do
+          {:ok, {:ok, report}} ->
+            {:ok,
+             %{
+               schema_version: "techtree.model-climb.operation.v1alpha1",
+               operation_id: "model_climb_report_submit",
+               report: report_summary(report),
+               next_actions: [
+                 %{
+                   operation_id: "model_climb_report",
+                   path: "/api/v1/techtree/model-climb/reports/#{report.report_digest}"
+                 }
+               ]
+             }}
+
+          {:ok, {:error, error}} ->
+            refuse_model_climb_submit(error)
+
+          :database_down ->
+            unavailable()
         end
       end
     end
@@ -243,6 +368,118 @@ defmodule RegentsWeb.Techtree.AgentTools.Account do
     policy always() do
       forbid_unless {RegentAgents.Checks.Paired, repo: Regents.Repo}
       authorize_if actor_attribute_equals(:role, :agent)
+    end
+  end
+
+  defp submit_publication(bytes, args, actor) do
+    origin = RegentsWeb.Endpoint.url()
+
+    case Document.kind(bytes) do
+      {:ok, :submission} ->
+        submit_proof_bundle(bytes, args, actor, origin)
+
+      {:ok, :withdrawal} ->
+        submit_withdrawal(bytes, actor, origin)
+
+      {:error, %Error{} = error} ->
+        refused(
+          error.code,
+          error.message,
+          "Send exact signed JSON proof bundle or withdrawal bytes; see /techtree/docs/publish."
+        )
+    end
+  end
+
+  defp submit_proof_bundle(bytes, args, actor, origin) do
+    options = [
+      actor: actor,
+      contributor_address: args[:contributor_address],
+      skill_name: args[:skill_name],
+      skill_github_url: args[:skill_github_url],
+      origin: origin
+    ]
+
+    accepted =
+      case Key.load() do
+        {:ok, key} -> Ingest.accept(bytes, key, options)
+        :error -> Ingest.recall(bytes, options)
+      end
+
+    case accepted do
+      {:ok, entry, _outcome} ->
+        {:ok, Jason.decode!(entry.receipt_bytes)}
+
+      :unrecorded ->
+        refused(
+          "network_key_unavailable",
+          "This site cannot countersign a receipt right now; nothing was recorded.",
+          "Send the same document again later."
+        )
+
+      {:error, %Error{} = error} ->
+        refused(
+          error.code,
+          error.message,
+          "Fix what the message names and resubmit; see /techtree/docs/publish."
+        )
+    end
+  end
+
+  defp submit_withdrawal(bytes, actor, origin) do
+    withdrawn =
+      case Key.load() do
+        {:ok, key} -> Ingest.withdraw(bytes, key, origin, actor: actor)
+        :error -> Ingest.recall_withdrawal(bytes, actor: actor)
+      end
+
+    case withdrawn do
+      {:ok, entry, _outcome} ->
+        {:ok, Jason.decode!(entry.withdrawal_receipt_bytes)}
+
+      :unrecorded ->
+        refused(
+          "network_key_unavailable",
+          "This site cannot countersign a withdrawal receipt right now; nothing was recorded.",
+          "Send the same document again later."
+        )
+
+      {:error, %Error{} = error} ->
+        refused(
+          error.code,
+          error.message,
+          "Fix what the message names and resubmit; see /techtree/docs/publish."
+        )
+    end
+  end
+
+  defp refuse_model_climb_submit(error) do
+    case Ash.Error.to_error_class(error) do
+      %Ash.Error.Invalid{errors: errors} ->
+        case Enum.find(errors, &(Map.get(&1, :field) in [:proof, :idempotency_key])) do
+          %{field: :idempotency_key} ->
+            refused(
+              "idempotency_conflict",
+              "This idempotency_key was already used for a different proof.",
+              "Send this proof with its own key; resend the first proof with its original key."
+            )
+
+          %{field: :proof, message: message} ->
+            refused(
+              "validation_error",
+              message,
+              "`regents techtree proof verify` runs every check locally; fix the failing check and resubmit."
+            )
+
+          _other ->
+            refused(
+              "validation_error",
+              "The proof could not be read.",
+              "Send the proof document as proof."
+            )
+        end
+
+      _other ->
+        unavailable()
     end
   end
 

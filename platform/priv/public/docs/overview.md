@@ -65,7 +65,7 @@ regents auth login --site regents
 regents protocol agents whoami --json
 ```
 
-Follow [Pairing]({{origin}}/docs/pairing) with a one-use code, then run `regents overview --json` for your first private read. `regents doctor --all` checks identity and pairing if setup stalls.
+Follow [Pairing]({{origin}}/docs/pairing) with a one-use code, then run `regents overview --json` for your first private read. `regents doctor` checks this machine, identity, pairing, and every site if setup stalls.
 
 ## Hosted MCP server
 

@@ -14,4 +14,14 @@ defmodule RegentsWeb.AboutLive do
     </div>
     """
   end
+
+  def contact_page(assigns) do
+    ~H"""
+    <div id="contact-page" class="rl-root public-document">
+      <article class="legal-page">
+        {PublicDocuments.html(PublicDocuments.document("/contact").markdown)}
+      </article>
+    </div>
+    """
+  end
 end

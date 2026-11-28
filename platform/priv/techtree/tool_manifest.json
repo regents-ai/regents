@@ -46,7 +46,7 @@
         "mcp": "techtree_catalog",
         "http": "GET /api/v1/techtree/catalog",
         "cli": {
-          "command": "regents techtree climb list"
+          "command": "catalog"
         }
       },
       "http": {
@@ -83,7 +83,10 @@
       "interfaces": {
         "webmcp": "techtree_bootstrap",
         "mcp": "techtree_bootstrap",
-        "http": "GET /api/v1/techtree/bootstrap"
+        "http": "GET /api/v1/techtree/bootstrap",
+        "cli": {
+          "command": "bootstrap"
+        }
       },
       "http": {
         "method": "GET",
@@ -130,7 +133,7 @@
         "mcp": "techtree_climb",
         "http": "GET /api/v1/techtree/climbs/{slug}",
         "cli": {
-          "command": "regents techtree climb show <reference>"
+          "command": "climb show <reference>"
         }
       },
       "http": {
@@ -205,7 +208,7 @@
         "mcp": "techtree_publications",
         "http": "GET /api/v1/techtree/publications",
         "cli": {
-          "command": "regents techtree results list"
+          "command": "results list"
         }
       },
       "http": {
@@ -251,7 +254,10 @@
       "interfaces": {
         "webmcp": "techtree_publication",
         "mcp": "techtree_publication_show",
-        "http": "GET /api/v1/techtree/publications/{bundle_digest}"
+        "http": "GET /api/v1/techtree/publications/{bundle_digest}",
+        "cli": {
+          "command": "results show <bundle-digest>"
+        }
       },
       "http": {
         "method": "GET",
@@ -295,7 +301,11 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "techtree_publication_bundle",
-        "http": "GET /api/v1/techtree/publications/{bundle_digest}/bundle"
+        "http": "GET /api/v1/techtree/publications/{bundle_digest}/bundle",
+        "mcp": "techtree_publication_bundle",
+        "cli": {
+          "command": "results bundle <bundle-digest>"
+        }
       },
       "http": {
         "method": "GET",
@@ -342,7 +352,7 @@
         "mcp": "techtree_skill",
         "http": "GET /api/v1/techtree/skills/{root_digest}",
         "cli": {
-          "command": "regents techtree skill fetch <root_digest>"
+          "command": "skills show <root-digest>"
         }
       },
       "http": {
@@ -378,7 +388,10 @@
       "interfaces": {
         "webmcp": "techtree_wallet_bench",
         "mcp": "techtree_wallet_bench",
-        "http": "GET /techtree/wallet-bench.json"
+        "http": "GET /techtree/wallet-bench.json",
+        "cli": {
+          "command": "wallet-bench list"
+        }
       },
       "http": {
         "method": "GET",
@@ -420,7 +433,11 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "techtree_wallet_bench_show",
-        "http": "GET /techtree/wallet-bench/{id}/results.json"
+        "http": "GET /techtree/wallet-bench/{id}/results.json",
+        "mcp": "techtree_wallet_bench_show",
+        "cli": {
+          "command": "wallet-bench show <id>"
+        }
       },
       "http": {
         "method": "GET",
@@ -455,7 +472,10 @@
       "interfaces": {
         "webmcp": "techtree_train_comparisons",
         "mcp": "techtree_train_comparisons",
-        "http": "GET /techtree/train.json"
+        "http": "GET /techtree/train.json",
+        "cli": {
+          "command": "train list"
+        }
       },
       "http": {
         "method": "GET",
@@ -499,7 +519,10 @@
       "interfaces": {
         "webmcp": "techtree_train_report",
         "mcp": "techtree_train_report",
-        "http": "GET /techtree/train/{slug}/report.json"
+        "http": "GET /techtree/train/{slug}/report.json",
+        "cli": {
+          "command": "train show <slug>"
+        }
       },
       "http": {
         "method": "GET",
@@ -533,7 +556,8 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "techtree_docs_markdown",
-        "http": "GET /techtree/docs"
+        "http": "GET /techtree/docs",
+        "mcp": "techtree_docs_markdown"
       },
       "http": {
         "method": "GET",
@@ -576,13 +600,20 @@
       "interfaces": {
         "http": "POST /api/v1/techtree/publications",
         "cli": {
-          "command": "regents techtree publish"
-        }
+          "command": "publish"
+        },
+        "webmcp": "techtree_publication_submit",
+        "mcp": "techtree_publication_submit"
       },
       "http": {
         "method": "POST",
         "path": "/api/v1/techtree/publications",
         "accept": "application/json"
+      },
+      "request_body": {
+        "encoding": "raw_json",
+        "field": "raw_body",
+        "maxBytes": 2097152
       }
     },
     {
@@ -614,8 +645,9 @@
         "mcp": "techtree_account_projects",
         "http": "GET /api/v1/techtree/account/projects",
         "cli": {
-          "command": "regents techtree account projects"
-        }
+          "command": "account projects"
+        },
+        "webmcp": "techtree_account_projects"
       },
       "http": {
         "method": "GET",
@@ -660,8 +692,9 @@
         "mcp": "techtree_account_project",
         "http": "GET /api/v1/techtree/account/projects/{id}",
         "cli": {
-          "command": "regents techtree account project <id>"
-        }
+          "command": "account project <id>"
+        },
+        "webmcp": "techtree_account_project"
       },
       "http": {
         "method": "GET",
@@ -705,8 +738,10 @@
       "interfaces": {
         "http": "GET /api/v1/techtree/account/projects/{id}/package",
         "cli": {
-          "command": "regents techtree account project-package <id>"
-        }
+          "command": "account project-package <id>"
+        },
+        "webmcp": "techtree_account_project_package",
+        "mcp": "techtree_account_project_package"
       },
       "http": {
         "method": "GET",
@@ -743,8 +778,9 @@
         "mcp": "techtree_orders_list",
         "http": "GET /api/v1/techtree/account/orders",
         "cli": {
-          "command": "regents techtree orders list"
-        }
+          "command": "orders list"
+        },
+        "webmcp": "techtree_orders_list"
       },
       "http": {
         "method": "GET",
@@ -789,8 +825,9 @@
         "mcp": "techtree_orders_show",
         "http": "GET /api/v1/techtree/account/orders/{id}",
         "cli": {
-          "command": "regents techtree orders show <id>"
-        }
+          "command": "orders show <id>"
+        },
+        "webmcp": "techtree_orders_show"
       },
       "http": {
         "method": "GET",
@@ -879,8 +916,9 @@
         "mcp": "techtree_orders_create",
         "http": "POST /api/v1/techtree/account/orders",
         "cli": {
-          "command": "regents techtree orders create"
-        }
+          "command": "orders create"
+        },
+        "webmcp": "techtree_orders_create"
       },
       "http": {
         "method": "POST",
@@ -925,8 +963,9 @@
         "mcp": "techtree_orders_cancel",
         "http": "POST /api/v1/techtree/account/orders/{id}/cancel",
         "cli": {
-          "command": "regents techtree orders cancel <id>"
-        }
+          "command": "orders cancel <id>"
+        },
+        "webmcp": "techtree_orders_cancel"
       },
       "http": {
         "method": "POST",
@@ -963,8 +1002,9 @@
         "mcp": "techtree_model_climb_list",
         "http": "GET /api/v1/techtree/model-climb/reports",
         "cli": {
-          "command": "regents techtree model-climb reports"
-        }
+          "command": "model-climb reports"
+        },
+        "webmcp": "techtree_model_climb_list"
       },
       "http": {
         "method": "GET",
@@ -978,7 +1018,14 @@
       "description": "Verify and store a signed private Model Climb proof report for your paired person.",
       "input_schema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "Stable idempotency key (typically the proof's report_digest)."
+          }
+        },
         "required": [],
         "additionalProperties": true
       },
@@ -998,7 +1045,12 @@
       "availability": "available",
       "effect": "write",
       "interfaces": {
-        "http": "POST /api/v1/techtree/model-climb/reports"
+        "http": "POST /api/v1/techtree/model-climb/reports",
+        "webmcp": "techtree_model_climb_submit",
+        "mcp": "techtree_model_climb_submit",
+        "cli": {
+          "command": "model submit"
+        }
       },
       "http": {
         "method": "POST",
@@ -1044,8 +1096,9 @@
         "mcp": "techtree_model_climb_show",
         "http": "GET /api/v1/techtree/model-climb/reports/{digest}",
         "cli": {
-          "command": "regents techtree model-climb report <digest>"
-        }
+          "command": "model-climb report <digest>"
+        },
+        "webmcp": "techtree_model_climb_show"
       },
       "http": {
         "method": "GET",

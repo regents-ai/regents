@@ -3,7 +3,7 @@
 # is api-contract.openapiv3.yaml exactly, or that and the agent bid contracts while agent bids are
 # on. Every path and component here is new; none replaces one.
 paths:
-  /api/agent/v1/launches/{draft}/steps:
+  /api/agent/v1/autolaunch/launches/{draft}/steps:
     post:
       operationId: autolaunch_launch_prepare
       summary: Prepare a launch

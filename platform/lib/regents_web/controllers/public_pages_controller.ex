@@ -14,10 +14,74 @@ defmodule RegentsWeb.PublicPagesController do
     end
   end
 
+  @page_paths %{
+    "about" => "/about",
+    "contact" => "/contact",
+    "docs" => "/docs",
+    "docs-cloak" => "/docs/cloak",
+    "docs-cloak-reference" => "/docs/cloak/reference",
+    "docs-cloak-install" => "/docs/cloak/install",
+    "docs-cloak-wallets" => "/docs/cloak/wallets",
+    "docs-siwa" => "/docs/siwa",
+    "docs-mcp" => "/docs/mcp",
+    "docs-cli" => "/docs/cli",
+    "docs-limits" => "/docs/limits",
+    "docs-errors" => "/docs/errors",
+    "docs-products" => "/docs/products",
+    "docs-reading" => "/docs/reading",
+    "docs-profiles" => "/docs/profiles",
+    "docs-pairing" => "/docs/pairing",
+    "docs-agent-reads" => "/docs/agent-reads",
+    "docs-webmcp" => "/docs/webmcp",
+    "docs-claims" => "/docs/claims",
+    "docs-staking" => "/docs/staking",
+    "docs-contracts" => "/docs/contracts",
+    "docs-changes" => "/docs/changes",
+    "start" => "/start",
+    "privacy" => "/privacy",
+    "terms" => "/terms"
+  }
+
+  @doc "Canonical public page slugs accepted by `/api/v1/pages/:page` and `regents_about`."
+  @spec page_names() :: [String.t()]
+  def page_names, do: Map.keys(@page_paths) |> Enum.sort()
+
+  @doc "Reads a named public page as `%{page, path, title, markdown}`."
+  @spec read_page(String.t()) :: {:ok, map()} | :error
+  def read_page(page) when is_binary(page) do
+    with {:ok, path} <- Map.fetch(@page_paths, page),
+         %{markdown: markdown} = doc <- PublicDocuments.document(path) do
+      {:ok, %{page: page, path: path, title: Map.get(doc, :title), markdown: markdown}}
+    else
+      _ -> :error
+    end
+  end
+
+  def read_page(_page), do: :error
+
   @doc "A public page as JSON, `{title, markdown}`."
   def document(conn, _params) do
     %{title: title, markdown: markdown} = PublicDocuments.document(conn.assigns.document)
     json(conn, %{title: title, markdown: markdown})
+  end
+
+  @doc "Any documented public page as JSON, `{page, path, title, markdown}`."
+  def page(conn, %{"page" => page}) do
+    case read_page(page) do
+      {:ok, payload} ->
+        json(conn, payload)
+
+      :error ->
+        conn
+        |> put_status(404)
+        |> json(%{
+          error: %{
+            code: "page_not_found",
+            message: "There is no public page with that name.",
+            hint: "Use one of: #{Enum.join(page_names(), ", ")}."
+          }
+        })
+    end
   end
 
   def developers(conn, _params), do: conn |> put_status(301) |> redirect(to: "/docs")
@@ -179,7 +243,12 @@ defmodule RegentsWeb.PublicPagesHTML do
         <nav class="legal-nav" aria-label="Information">
           <a
             :for={
-              {label, path} <- [{"Docs", "/docs"}, {"About", "/about"}, {"Changelog", "/changelog"}]
+              {label, path} <- [
+                {"Docs", "/docs"},
+                {"About", "/about"},
+                {"Contact", "/contact"},
+                {"Changelog", "/changelog"}
+              ]
             }
             href={path}
             aria-current={if(@conn.request_path == path, do: "page")}

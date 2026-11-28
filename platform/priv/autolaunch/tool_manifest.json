@@ -80,7 +80,7 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Safe integer; the API clamps it to 1–50. Defaults to 50."
+            "description": "Safe integer; the API clamps it to 1\u201350. Defaults to 50."
           }
         },
         "required": [],
@@ -100,7 +100,19 @@
         "method": "GET",
         "path": "/api/v1/autolaunch/auctions",
         "accept": "application/json"
-      }
+      },
+      "interfaces": {
+        "webmcp": "autolaunch_auctions",
+        "mcp": "autolaunch_auctions",
+        "http": "GET /api/v1/autolaunch/auctions",
+        "cli": {
+          "command": "auctions list"
+        }
+      },
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read"
     },
     {
       "name": "autolaunch_auction",
@@ -133,7 +145,19 @@
         "method": "GET",
         "path": "/api/v1/autolaunch/auctions/{id}",
         "accept": "application/json"
-      }
+      },
+      "interfaces": {
+        "webmcp": "autolaunch_auction",
+        "mcp": "autolaunch_auction",
+        "http": "GET /api/v1/autolaunch/auctions/{id}",
+        "cli": {
+          "command": "auction <id>"
+        }
+      },
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read"
     },
     {
       "name": "autolaunch_auction_counts",
@@ -159,7 +183,19 @@
         "method": "GET",
         "path": "/api/v1/autolaunch/auction-counts",
         "accept": "application/json"
-      }
+      },
+      "interfaces": {
+        "webmcp": "autolaunch_auction_counts",
+        "mcp": "autolaunch_auction_counts",
+        "http": "GET /api/v1/autolaunch/auction-counts",
+        "cli": {
+          "command": "auctions counts"
+        }
+      },
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read"
     },
     {
       "name": "autolaunch_tokens",
@@ -209,7 +245,7 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Safe integer; the API clamps it to 1–100. Defaults to 100."
+            "description": "Safe integer; the API clamps it to 1\u2013100. Defaults to 100."
           }
         },
         "required": [],
@@ -229,7 +265,19 @@
         "method": "GET",
         "path": "/api/v1/autolaunch/tokens",
         "accept": "application/json"
-      }
+      },
+      "interfaces": {
+        "webmcp": "autolaunch_tokens",
+        "mcp": "autolaunch_tokens",
+        "http": "GET /api/v1/autolaunch/tokens",
+        "cli": {
+          "command": "tokens list"
+        }
+      },
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read"
     },
     {
       "name": "autolaunch_token",
@@ -262,7 +310,19 @@
         "method": "GET",
         "path": "/api/v1/autolaunch/tokens/{id}",
         "accept": "application/json"
-      }
+      },
+      "interfaces": {
+        "webmcp": "autolaunch_token",
+        "mcp": "autolaunch_token",
+        "http": "GET /api/v1/autolaunch/tokens/{id}",
+        "cli": {
+          "command": "token <id>"
+        }
+      },
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read"
     },
     {
       "name": "autolaunch_treasury",
@@ -295,7 +355,19 @@
         "method": "GET",
         "path": "/api/v1/autolaunch/treasury-security/{address}",
         "accept": "application/json"
-      }
+      },
+      "interfaces": {
+        "webmcp": "autolaunch_treasury",
+        "mcp": "autolaunch_treasury",
+        "http": "GET /api/v1/autolaunch/treasury-security/{address}",
+        "cli": {
+          "command": "treasury security <address>"
+        }
+      },
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read"
     },
     {
       "name": "autolaunch_bid_quote",
@@ -333,7 +405,24 @@
       "state_changing": false,
       "payment": "none",
       "route": "POST /api/v1/autolaunch/auctions/{id}/bid-quote",
-      "scope": "site"
+      "scope": "site",
+      "interfaces": {
+        "webmcp": "autolaunch_bid_quote",
+        "mcp": "autolaunch_bid_quote",
+        "http": "POST /api/v1/autolaunch/auctions/{id}/bid-quote",
+        "cli": {
+          "command": "bids quote"
+        }
+      },
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "quote",
+      "http": {
+        "method": "POST",
+        "path": "/api/v1/autolaunch/auctions/{id}/bid-quote",
+        "accept": "application/json"
+      }
     },
     {
       "name": "agent_whoami",
@@ -359,7 +448,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "agent_whoami",
-        "http": "GET /api/agents/v1/whoami"
+        "http": "GET /api/agents/v1/whoami",
+        "mcp": "regents_agent_whoami",
+        "cli": {
+          "command": "agents whoami"
+        }
       },
       "effect": "read"
     },
@@ -387,7 +480,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "agent_status",
-        "http": "GET /api/agents/v1/me"
+        "http": "GET /api/agents/v1/me",
+        "mcp": "regents_agent_status",
+        "cli": {
+          "command": "agents status"
+        }
       },
       "effect": "read"
     },
@@ -415,7 +512,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_revstake_draft",
-        "http": "GET /api/agent/v1/autolaunch/drafts/revstake"
+        "http": "GET /api/agent/v1/autolaunch/drafts/revstake",
+        "mcp": "autolaunch_revstake_draft",
+        "cli": {
+          "command": "drafts revstake show"
+        }
       },
       "effect": "read"
     },
@@ -507,7 +608,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_revstake_draft_save",
-        "http": "PATCH /api/agent/v1/autolaunch/drafts/revstake"
+        "http": "PATCH /api/agent/v1/autolaunch/drafts/revstake",
+        "mcp": "autolaunch_revstake_draft_save",
+        "cli": {
+          "command": "drafts revstake save"
+        }
       },
       "effect": "write"
     },
@@ -535,7 +640,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_memestock_draft",
-        "http": "GET /api/agent/v1/autolaunch/drafts/memestock"
+        "http": "GET /api/agent/v1/autolaunch/drafts/memestock",
+        "mcp": "autolaunch_memestock_draft",
+        "cli": {
+          "command": "drafts memestock show"
+        }
       },
       "effect": "read"
     },
@@ -625,7 +734,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_memestock_draft_save",
-        "http": "PATCH /api/agent/v1/autolaunch/drafts/memestock"
+        "http": "PATCH /api/agent/v1/autolaunch/drafts/memestock",
+        "mcp": "autolaunch_memestock_draft_save",
+        "cli": {
+          "command": "drafts memestock save"
+        }
       },
       "effect": "write"
     },
@@ -653,7 +766,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_my_positions",
-        "http": "GET /api/agent/v1/autolaunch/positions"
+        "http": "GET /api/agent/v1/autolaunch/positions",
+        "mcp": "autolaunch_my_positions",
+        "cli": {
+          "command": "positions"
+        }
       },
       "effect": "read"
     },
@@ -681,7 +798,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "account_points",
-        "http": "GET /api/v1/account/points"
+        "http": "GET /api/v1/account/points",
+        "mcp": "account_points",
+        "cli": {
+          "command": "account points"
+        }
       },
       "effect": "read"
     }

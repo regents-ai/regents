@@ -16,14 +16,6 @@ defmodule RegentsWeb.MarketingProductLive do
   @impl true
   def mount(_params, session, socket) do
     product = socket.assigns.live_action
-
-    path =
-      case product do
-        :cloak_download -> "/cloak/download/mac"
-        :cloak_install -> "/cloak/install"
-        other -> "/#{other}"
-      end
-
     cloak_route? = product in [:cloak, :cloak_download, :cloak_install]
 
     socket =
@@ -38,24 +30,34 @@ defmodule RegentsWeb.MarketingProductLive do
         cloak_github_stars: if(cloak_route?, do: Cloak.github_stars(), else: 0),
         cloak_release_tag: if(cloak_route?, do: Cloak.latest_release().tag, else: nil)
       )
-      |> assign(PublicDocuments.page(path))
-
-    socket =
-      if cloak_route? and connected?(socket) and not Cloak.github_stars_fresh?() do
-        start_async(socket, :cloak_github_stars, fn -> Cloak.refresh_github_stars() end)
-      else
-        socket
-      end
-
-    socket =
-      if cloak_route? and connected?(socket) and not Cloak.latest_release_fresh?() do
-        start_async(socket, :cloak_latest_release, fn -> Cloak.refresh_latest_release() end)
-      else
-        socket
-      end
+      |> assign(PublicDocuments.page(product_path(product)))
+      |> maybe_refresh_cloak(cloak_route?)
 
     {:ok, socket}
   end
+
+  defp product_path(:cloak_download), do: "/cloak/download/mac"
+  defp product_path(:cloak_install), do: "/cloak/install"
+  defp product_path(other), do: "/#{other}"
+
+  defp maybe_refresh_cloak(socket, false), do: socket
+
+  defp maybe_refresh_cloak(socket, true) do
+    if connected?(socket) do
+      socket
+      |> maybe_start_async(:cloak_github_stars, not Cloak.github_stars_fresh?(), fn ->
+        Cloak.refresh_github_stars()
+      end)
+      |> maybe_start_async(:cloak_latest_release, not Cloak.latest_release_fresh?(), fn ->
+        Cloak.refresh_latest_release()
+      end)
+    else
+      socket
+    end
+  end
+
+  defp maybe_start_async(socket, _key, false, _fun), do: socket
+  defp maybe_start_async(socket, key, true, fun), do: start_async(socket, key, fun)
 
   @impl true
   def handle_async(:cloak_github_stars, {:ok, {:ok, count}}, socket) do

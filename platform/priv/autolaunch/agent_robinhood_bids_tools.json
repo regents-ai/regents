@@ -51,7 +51,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_robinhood_bid_prepare",
-        "http": "POST /api/agent/v1/autolaunch/robinhood/bids/steps"
+        "mcp": "autolaunch_robinhood_bid_prepare",
+        "http": "POST /api/agent/v1/autolaunch/robinhood/bids/steps",
+        "cli": {
+          "command": "robinhood bids prepare"
+        }
       },
       "effect": "prepare"
     },
@@ -91,7 +95,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_robinhood_bid_settlement_prepare",
-        "http": "POST /api/agent/v1/autolaunch/robinhood/bids/{bid}/steps"
+        "mcp": "autolaunch_robinhood_bid_settlement_prepare",
+        "http": "POST /api/agent/v1/autolaunch/robinhood/bids/{bid}/steps",
+        "cli": {
+          "command": "robinhood bids settle <bid>"
+        }
       },
       "effect": "prepare"
     }

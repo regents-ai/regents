@@ -92,6 +92,7 @@ defmodule RegentsWeb.Layouts do
           Buy $REGENT
         </a>
         <a href={~p"/about"}>About</a>
+        <a href={~p"/contact"}>Contact</a>
         <a href={~p"/docs"}>Developer docs</a>
         <span class="rg-tip">
           <button type="button" class="regent-footer__guide" popovertarget="footer-agent-guide">

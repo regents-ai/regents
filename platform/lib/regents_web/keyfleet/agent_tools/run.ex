@@ -12,6 +12,7 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Run do
 
   alias RegentsWeb.Keyfleet.AgentTools.{
     Account,
+    Chain,
     Code,
     Dms,
     Fleets,
@@ -41,6 +42,7 @@ defmodule RegentsWeb.Keyfleet.AgentTools.Run do
   end
 
   defp answer(Account), do: Account.Answer
+  defp answer(Chain), do: Chain.Answer
   defp answer(Code), do: Code.Answer
   defp answer(Dms), do: Dms.Answer
   defp answer(Fleets), do: Fleets.Answer

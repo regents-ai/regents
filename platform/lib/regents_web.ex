@@ -33,6 +33,7 @@ defmodule RegentsWeb do
       Account.Identity,
       Account.PairedAgent,
       Account.PrivyPair,
+      AgentTools,
       Capabilities,
       ClientAddress,
       Components.Loading,

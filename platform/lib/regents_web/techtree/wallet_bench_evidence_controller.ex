@@ -149,18 +149,29 @@ defmodule RegentsWeb.Techtree.WalletBenchEvidenceController do
   end
 
   @doc """
-  The test's `results.json` on its own, the same record techtree.sh's zip
-  starts with, for an agent that reads the test without downloading its files.
-  A test still running changes, so a caller may keep it for 30 seconds, as the
-  scores.
+  The test's `results.json` on its own, as `{:ok, map}` / `:not_found` /
+  `:database_down`, shared by the HTTP route and the hosted MCP tool.
   """
-  def summary(conn, %{"id" => id}) do
-    with {:ok, id} <- Ecto.UUID.cast(id),
-         {:ok, {attempt, events}} <- Outage.read(fn -> read(id) end) do
-      conn
-      |> put_resp_header("cache-control", "public, max-age=30")
-      |> json(record(attempt, events))
+  @spec summary_data(String.t()) :: {:ok, map()} | :not_found | :database_down
+  def summary_data(id) when is_binary(id) do
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         {:ok, {attempt, events}} <- Outage.read(fn -> read(uuid) end) do
+      {:ok, record(attempt, events)}
     else
+      :database_down -> :database_down
+      _missing -> :not_found
+    end
+  end
+
+  def summary_data(_id), do: :not_found
+
+  def summary(conn, %{"id" => id}) do
+    case summary_data(id) do
+      {:ok, payload} ->
+        conn
+        |> put_resp_header("cache-control", "public, max-age=30")
+        |> json(payload)
+
       :database_down ->
         conn
         |> put_resp_header("retry-after", "30")
@@ -171,7 +182,7 @@ defmodule RegentsWeb.Techtree.WalletBenchEvidenceController do
           "Wait the seconds in the Retry-After header, then ask again."
         )
 
-      _missing ->
+      :not_found ->
         ExactResponse.send_error(
           conn,
           404,

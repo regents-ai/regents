@@ -79,6 +79,21 @@ defmodule RegentsWeb.Techtree.AgentTools do
       )
     end
 
+    tool :techtree_publication_bundle,
+         RegentsWeb.Techtree.AgentTools.Public,
+         :publication_bundle do
+      title("Download a Techtree result bundle")
+
+      description "Read the exact submitted JSON proof bundle for a standing published Techtree Result by bundle digest."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
     tool :techtree_skill, RegentsWeb.Techtree.AgentTools.Public, :skill do
       title("Read a published Techtree Skill")
 
@@ -96,6 +111,19 @@ defmodule RegentsWeb.Techtree.AgentTools do
       title("Read Techtree Wallet Bench")
 
       description "Read the live Agent Wallet Bench score grids comparing coding agents across wallet tools."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :techtree_wallet_bench_show, RegentsWeb.Techtree.AgentTools.Public, :wallet_bench_show do
+      title("Read a Techtree Wallet Bench test")
+
+      description "Read one Agent Wallet Bench attempt's summary, rulings, timeline, and checks by attempt UUID."
 
       annotations(
         read_only_hint: true,
@@ -131,6 +159,34 @@ defmodule RegentsWeb.Techtree.AgentTools do
       )
     end
 
+    tool :techtree_docs_markdown, RegentsWeb.Techtree.AgentTools.Public, :docs_markdown do
+      title("Read Techtree Docs")
+
+      description "Read Techtree's documentation index as Markdown."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :techtree_publication_submit,
+         RegentsWeb.Techtree.AgentTools.Account,
+         :publication_submit do
+      title("Publish or withdraw a Techtree Result")
+
+      description "Submit an independently signed Techtree Result proof bundle or withdrawal request as raw JSON bytes (requires paired SIWA agent; /mcp caps total JSON at 512 KiB)."
+
+      annotations(
+        read_only_hint: false,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
     tool :techtree_account_projects, RegentsWeb.Techtree.AgentTools.Account, :account_projects do
       title("List delivered Techtree projects")
 
@@ -157,6 +213,21 @@ defmodule RegentsWeb.Techtree.AgentTools do
       )
     end
 
+    tool :techtree_account_project_package,
+         RegentsWeb.Techtree.AgentTools.Account,
+         :account_project_package do
+      title("Download a delivered Techtree project package")
+
+      description "Read a delivered Techtree project's gzipped tar package metadata and base64-encoded bytes when within the 512 KiB MCP limit, or its signed HTTP download URL for larger archives (requires paired SIWA agent)."
+
+      annotations(
+        read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
     tool :techtree_model_climb_list, RegentsWeb.Techtree.AgentTools.Account, :model_climb_list do
       title("List private Model Climb reports")
 
@@ -164,6 +235,21 @@ defmodule RegentsWeb.Techtree.AgentTools do
 
       annotations(
         read_only_hint: true,
+        idempotent_hint: true,
+        destructive_hint: false,
+        open_world_hint: false
+      )
+    end
+
+    tool :techtree_model_climb_submit,
+         RegentsWeb.Techtree.AgentTools.Account,
+         :model_climb_submit do
+      title("Submit a Model Climb proof report")
+
+      description "Verify and store a signed private Model Climb proof report for your paired person with an idempotency_key (requires paired SIWA agent)."
+
+      annotations(
+        read_only_hint: false,
         idempotent_hint: true,
         destructive_hint: false,
         open_world_hint: false

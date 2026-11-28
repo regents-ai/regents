@@ -232,7 +232,10 @@ defmodule Regents.MixProject do
         # cutting compile-connected edges from 351 to 301 and cross-product edges from 57 to 7.
         # Techtree's Factory order bridge and paired MCP account tools add two intentional links:
         # Techtree.Factory reading Order, and Techtree.AgentTools reading AgentTools.Account.
-        "xref graph --label compile-connected --fail-above 303",
+        # Core Regents hosted MCP domain (AgentTools -> Public, Account) and Keyfleet's
+        # non-custodial chain tx builders (Keyfleet.AgentTools -> Chain -> Run) raise the
+        # intentional compile-connected count to 306.
+        "xref graph --label compile-connected --fail-above 306",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check",

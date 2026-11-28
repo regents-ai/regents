@@ -14,20 +14,26 @@ defmodule RegentsWeb.Techtree.ModelClimbReportController do
   def create(conn, params) do
     actor = conn.assigns.actor
 
-    case get_req_header(conn, "idempotency-key") do
-      [key] when byte_size(key) in 1..255 ->
-        params
-        |> ModelClimb.submit_report(key, actor: actor)
-        |> answer_submit(conn)
+    key =
+      case get_req_header(conn, "idempotency-key") do
+        [header_key] when byte_size(header_key) in 1..255 -> header_key
+        [] -> params["idempotency_key"]
+        _other -> nil
+      end
 
-      _other ->
-        refuse(
-          conn,
-          400,
-          :validation_error,
-          "Send one Idempotency-Key header of 1 to 255 characters.",
-          "Use the proof's digest as the key, and the same key when you retry."
-        )
+    if is_binary(key) and byte_size(key) in 1..255 do
+      params
+      |> Map.delete("idempotency_key")
+      |> ModelClimb.submit_report(key, actor: actor)
+      |> answer_submit(conn)
+    else
+      refuse(
+        conn,
+        400,
+        :validation_error,
+        "Send one Idempotency-Key header (or idempotency_key field) of 1 to 255 characters.",
+        "Use the proof's digest as the key, and the same key when you retry."
+      )
     end
   end
 

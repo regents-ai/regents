@@ -344,6 +344,7 @@ defmodule RegentsWeb.ShellLive do
           books={RegentsWeb.Literature.books()}
         />
         <AboutLive.page :if={@route_spec.route_id == :about} />
+        <AboutLive.contact_page :if={@route_spec.route_id == :contact} />
         <DocsLive.page :if={@route_spec.route_id == :docs} docs={@docs} />
 
         <AgentStartLive.page

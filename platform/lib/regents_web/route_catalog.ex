@@ -80,6 +80,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :about
     },
     %Entry{
+      path_pattern: "/contact",
+      live_action: :contact,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :contact
+    },
+    %Entry{
       path_pattern: "/docs",
       live_action: :docs,
       parameter_schema: %{},
@@ -228,6 +235,8 @@ defmodule RegentsWeb.RouteCatalog do
       {:literature, :regent_ops, "Regents Labs", "AI & SCIFI", "/literature", [], :regents_labs,
        %{}},
     about: {:about, :regent_ops, "Regents Labs", "About", "/about", [], :regents_labs, %{}},
+    contact:
+      {:contact, :regent_ops, "Regents Labs", "Contact", "/contact", [], :regents_labs, %{}},
     docs: {:docs, :regent_ops, "Regents Labs", "Docs", "/docs", [], :regents_labs, %{}},
     app:
       {:app, :regent_ops, "Regents Labs", "Overview", "/app",

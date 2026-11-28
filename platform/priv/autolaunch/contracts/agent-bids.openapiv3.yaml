@@ -2,7 +2,7 @@
 # (AUTOLAUNCH_AGENT_BIDS=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json
 # is api-contract.openapiv3.yaml exactly. Every path and component here is new; none replaces one.
 paths:
-  /api/agent/v1/bids/steps:
+  /api/agent/v1/autolaunch/bids/steps:
     post:
       operationId: autolaunch_bid_prepare
       summary: Prepare a bid
@@ -78,7 +78,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AgentBidError'
-  /api/agent/v1/bids/{bid}/steps:
+  /api/agent/v1/autolaunch/bids/{bid}/steps:
     post:
       operationId: autolaunch_bid_settlement_prepare
       summary: Prepare a settlement

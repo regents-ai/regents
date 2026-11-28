@@ -594,6 +594,7 @@ defmodule RegentsWeb.Router do
     pipe_through :api
     get "/health", RegentsWeb.HealthController, :status
     get "/docs", RegentsWeb.PublicPagesController, :document, assigns: %{document: "/docs"}
+    get "/pages/:page", RegentsWeb.PublicPagesController, :page
     get "/products", RegentsWeb.ProductsController, :index
     get "/products/:slug", RegentsWeb.ProductsController, :show
     get "/site-tools", RegentsWeb.SiteToolsController, :index
@@ -843,6 +844,7 @@ defmodule RegentsWeb.Router do
       live "/paper-pro-daily/:paper", ShellLive, :paper_pro_daily_paper
       live "/literature", ShellLive, :literature
       live "/about", ShellLive, :about
+      live "/contact", ShellLive, :contact
       live "/docs", ShellLive, :docs
       live "/docs/:page", ShellLive, :docs_page
       live "/docs/:product/:page", ShellLive, :docs_subpage
@@ -1037,6 +1039,8 @@ defmodule RegentsWeb.Router do
   scope "/api/v1/keyfleet", RegentsWeb.Keyfleet do
     pipe_through :api
 
+    get "/about", PublicPagesController, :about_json
+    get "/docs", PublicPagesController, :docs_json
     get "/fleets", DirectoryController, :index_json
     get "/fleets/:fleet_id", DirectoryController, :show_json
     get "/fleets/:fleet_id/workspace/pulse", WorkspacePulseController, :show

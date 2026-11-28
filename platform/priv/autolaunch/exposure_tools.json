@@ -21,8 +21,25 @@
       "payment": "none",
       "route": "GET /api/v1/autolaunch/after-hour-stocks",
       "scope": "site",
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "autolaunch_after_hour_stocks_list",
+        "mcp": "autolaunch_after_hour_stocks_list",
+        "http": "GET /api/v1/autolaunch/after-hour-stocks",
+        "cli": {
+          "command": "after-hours list"
+        }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/autolaunch/after-hour-stocks",
+        "accept": "application/json"
+      },
       "request": {
-        "path": "/api/v1/after-hour-stocks"
+        "path": "/api/v1/autolaunch/after-hour-stocks"
       }
     },
     {
@@ -52,8 +69,25 @@
       "payment": "none",
       "route": "GET /api/v1/autolaunch/after-hour-stocks/{series}",
       "scope": "site",
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "autolaunch_after_hour_stocks_series",
+        "mcp": "autolaunch_after_hour_stocks_series",
+        "http": "GET /api/v1/autolaunch/after-hour-stocks/{series}",
+        "cli": {
+          "command": "after-hours series <series>"
+        }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/autolaunch/after-hour-stocks/{series}",
+        "accept": "application/json"
+      },
       "request": {
-        "path": "/api/v1/after-hour-stocks/{series}"
+        "path": "/api/v1/autolaunch/after-hour-stocks/{series}"
       }
     },
     {
@@ -87,7 +121,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_my_after_hour_stocks",
-        "http": "GET /api/agent/v1/autolaunch/after-hour-stocks/{series}/holdings"
+        "mcp": "autolaunch_my_after_hour_stocks",
+        "http": "GET /api/agent/v1/autolaunch/after-hour-stocks/{series}/holdings",
+        "cli": {
+          "command": "after-hours positions <series>"
+        }
       },
       "effect": "read"
     },
@@ -164,7 +202,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_after_hour_stocks_prepare",
-        "http": "POST /api/agent/v1/autolaunch/after-hour-stocks/{series}/steps"
+        "mcp": "autolaunch_after_hour_stocks_prepare",
+        "http": "POST /api/agent/v1/autolaunch/after-hour-stocks/{series}/steps",
+        "cli": {
+          "command": "after-hours prepare <series>"
+        }
       },
       "effect": "prepare"
     }

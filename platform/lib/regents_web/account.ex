@@ -18,6 +18,7 @@ defmodule RegentsWeb.Account do
       PairLive,
       PairedAgent,
       Points,
+      PointsEntries,
       PointsLive,
       PrivyPair,
       PrivySessionController,

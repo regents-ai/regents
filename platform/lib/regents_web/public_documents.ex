@@ -2,7 +2,10 @@ defmodule RegentsWeb.PublicDocuments do
   @moduledoc "Public documents only; never projects a signed-in page or account."
 
   @directory Application.app_dir(:regents, "priv/public")
-  @files Enum.map(~w(about llms agents skill pricing), &Path.join(@directory, &1 <> ".md"))
+  @files Enum.map(
+           ~w(about contact llms agents skill pricing),
+           &Path.join(@directory, &1 <> ".md")
+         )
   for file <- @files, do: @external_resource(file)
   @sources Map.new(@files, &{Path.basename(&1, ".md"), File.read!(&1)})
   # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
@@ -33,7 +36,7 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /app /about /changelog /privacy /terms /start /cloak /cloak/install /siwa) ++
+  @documents ~w(/ /app /about /contact /changelog /privacy /terms /start /cloak /cloak/install /siwa) ++
                RegentsWeb.Docs.Pages.paths()
   alias RegentsWeb.AgentGuides
   alias RegentsWeb.Autolaunch.PublicDocuments, as: AutolaunchDocuments
@@ -102,6 +105,9 @@ defmodule RegentsWeb.PublicDocuments do
     "/about" =>
       {"About",
        "What Regents Labs does and how it differs, who uses it, the team, key facts, common questions about REGENT and its products, and how to reach us."},
+    "/contact" =>
+      {"Contact",
+       "How to reach Regents Labs for developer support, security reports, privacy requests, legal notices, and public community channels."},
     "/changelog" => {"Changelog", "Changes to Regents Labs, newest first."},
     "/start" =>
       {"Connect your agent",
@@ -150,6 +156,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/siwa"), do: %{markdown: RegentsWeb.SiwaLive.markdown()}
 
   def document("/about"), do: %{markdown: source("about")}
+  def document("/contact"), do: %{markdown: source("contact")}
   def document("/changelog"), do: docs_document(RegentsWeb.Docs.Pages.page("/docs/changes"))
   def document("/agents" = path), do: AgentGuides.document(path)
   def document("/agents/" <> _slug = path), do: AgentGuides.document(path)
@@ -280,7 +287,7 @@ defmodule RegentsWeb.PublicDocuments do
 
   def site_type(_), do: "business"
 
-  @content_exact ~w(/docs /about /changelog /privacy /terms /articles /paper-pro-daily /literature /agents)
+  @content_exact ~w(/docs /about /contact /changelog /privacy /terms /articles /paper-pro-daily /literature /agents)
   @content_prefixes ~w(/docs/ /articles/ /paper-pro-daily/ /agents/)
   @content_suffixes ~w(/docs /about)
   @content_segments ~w(/docs/ /blog)
@@ -315,7 +322,7 @@ defmodule RegentsWeb.PublicDocuments do
     Expires: #{@released_at |> DateTime.shift(year: 1) |> DateTime.to_iso8601()}
     Preferred-Languages: en
     Canonical: #{url("/.well-known/security.txt")}
-    Policy: #{url("/about")}
+    Policy: #{url("/contact")}
     """
   end
 
@@ -453,7 +460,7 @@ defmodule RegentsWeb.PublicDocuments do
       "url" => url("/docs"),
       "description" => "Developer documentation, versioning policy, and error guidance"
     })
-    |> put_in(["info", "contact", "url"], url("/about#contact"))
+    |> put_in(["info", "contact", "url"], url("/contact"))
     |> put_in(["info", "contact", "email"], "build@regents.sh")
     |> put_in(["info", "termsOfService"], url("/terms"))
     |> put_in(["info", "license"], %{
@@ -622,7 +629,7 @@ defmodule RegentsWeb.PublicDocuments do
     locations =
       Enum.map_join(
         ~w(
-          / /about /changelog /pricing.md /privacy /terms /start /articles /paper-pro-daily /literature
+          / /about /contact /changelog /pricing.md /privacy /terms /start /articles /paper-pro-daily /literature
           /stake /redeem /redeem/gallery /cloak /cloak/download/mac /cloak/install /siwa
           /techtree /techtree/app /techtree/results /techtree/wallet-bench /techtree/docs /techtree/about
           /keyfleet /keyfleet/app /keyfleet/about /keyfleet/docs /keyfleet/opportunities
@@ -684,7 +691,7 @@ defmodule RegentsWeb.PublicDocuments do
               "@type" => "ContactPoint",
               "contactType" => "developer and product support",
               "email" => "build@regents.sh",
-              "url" => url("/about#contact"),
+              "url" => url("/contact"),
               "availableLanguage" => "English"
             },
             %{

@@ -28,8 +28,25 @@
       "payment": "none",
       "route": "GET /api/v1/autolaunch/covered-calls/{symbol}",
       "scope": "site",
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "autolaunch_covered_call_listings",
+        "mcp": "covered_call_book",
+        "http": "GET /api/v1/autolaunch/covered-calls/{symbol}",
+        "cli": {
+          "command": "covered-calls book <symbol>"
+        }
+      },
+      "http": {
+        "method": "GET",
+        "path": "/api/v1/autolaunch/covered-calls/{symbol}",
+        "accept": "application/json"
+      },
       "request": {
-        "path": "/api/v1/covered-calls/{symbol}"
+        "path": "/api/v1/autolaunch/covered-calls/{symbol}"
       }
     },
     {
@@ -84,8 +101,25 @@
       "payment": "none",
       "route": "POST /api/v1/autolaunch/covered-calls/{symbol}/quote",
       "scope": "site",
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "quote",
+      "interfaces": {
+        "webmcp": "autolaunch_covered_call_quote",
+        "mcp": "covered_call_quote",
+        "http": "POST /api/v1/autolaunch/covered-calls/{symbol}/quote",
+        "cli": {
+          "command": "covered-calls quote <symbol>"
+        }
+      },
+      "http": {
+        "method": "POST",
+        "path": "/api/v1/autolaunch/covered-calls/{symbol}/quote",
+        "accept": "application/json"
+      },
       "request": {
-        "path": "/api/v1/covered-calls/{symbol}/quote",
+        "path": "/api/v1/autolaunch/covered-calls/{symbol}/quote",
         "body": [
           "expiry",
           "amount",
@@ -125,7 +159,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_my_covered_calls",
-        "http": "GET /api/agent/v1/autolaunch/covered-calls/{symbol}/positions"
+        "mcp": "covered_call_positions",
+        "http": "GET /api/agent/v1/autolaunch/covered-calls/{symbol}/positions",
+        "cli": {
+          "command": "covered-calls positions <symbol>"
+        }
       },
       "effect": "read"
     },
@@ -217,7 +255,11 @@
       "availability": "available",
       "interfaces": {
         "webmcp": "autolaunch_covered_call_prepare",
-        "http": "POST /api/agent/v1/autolaunch/covered-calls/{symbol}/steps"
+        "mcp": "prepare_covered_call",
+        "http": "POST /api/agent/v1/autolaunch/covered-calls/{symbol}/steps",
+        "cli": {
+          "command": "covered-calls prepare <symbol>"
+        }
       },
       "effect": "prepare"
     }

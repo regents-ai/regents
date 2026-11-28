@@ -35,6 +35,7 @@ defmodule RegentsWeb.Keyfleet.AgentTools do
     resource RegentsWeb.Keyfleet.AgentTools.Publications
     resource RegentsWeb.Keyfleet.AgentTools.Code
     resource RegentsWeb.Keyfleet.AgentTools.Notebooks
+    resource RegentsWeb.Keyfleet.AgentTools.Chain
   end
 
   @browser_tools Map.new(Regents.Keyfleet.Capabilities.tools(), &{&1["name"], &1})
@@ -51,6 +52,7 @@ defmodule RegentsWeb.Keyfleet.AgentTools do
   @publications RegentsWeb.Keyfleet.AgentTools.Publications
   @code RegentsWeb.Keyfleet.AgentTools.Code
   @notebooks RegentsWeb.Keyfleet.AgentTools.Notebooks
+  @chain RegentsWeb.Keyfleet.AgentTools.Chain
 
   @tools [
     workspace_show: {@workspace, :show, "Keyfleet item", :read},
@@ -128,6 +130,29 @@ defmodule RegentsWeb.Keyfleet.AgentTools do
     workspace_pulse: {@public, :pulse, "Keyfleet pulse", :read},
     proposals_list: {@public, :proposals, "Keyfleet proposals", :read},
     treasury_show: {@public, :treasury, "Keyfleet treasury", :read},
+    fleet_seasons: {@public, :fleet_seasons, "Keyfleet settled seasons", :read},
+    fleet_season: {@public, :fleet_season, "Keyfleet season picks", :read},
+    about: {@public, :about, "Keyfleet about", :read},
+    docs: {@public, :docs, "Keyfleet docs", :read},
+    chain_presence: {@chain, :presence, "Keyfleet mark present tx", :read},
+    chain_propose: {@chain, :propose, "Keyfleet propose tx", :repeatable},
+    chain_vote: {@chain, :vote, "Keyfleet vote tx", :read},
+    chain_cancel: {@chain, :cancel, "Keyfleet cancel proposal tx", :read},
+    chain_carry_out: {@chain, :carry_out, "Keyfleet carry out proposal tx", :read},
+    chain_split: {@chain, :split, "Keyfleet daily split tx", :read},
+    chain_send_share: {@chain, :send_share, "Keyfleet send share tx", :read},
+    chain_convert: {@chain, :convert, "Keyfleet convert USDC tx", :read},
+    chain_return_advance: {@chain, :return_advance, "Keyfleet return advance tx", :read},
+    chain_launch_upkeep: {@chain, :launch_upkeep, "Keyfleet launch upkeep tx", :read},
+    chain_claim: {@chain, :claim, "Keyfleet claim Key tx", :read},
+    chain_claim_all: {@chain, :claim_all, "Keyfleet claim all Keys tx", :read},
+    chain_buy: {@chain, :buy, "Keyfleet buy Key tx", :read},
+    chain_issue_shard: {@chain, :issue_shard, "Keyfleet issue shard tx", :read},
+    chain_agent_voting: {@chain, :agent_voting, "Keyfleet shard voting tx", :read},
+    chain_end_shard: {@chain, :end_shard, "Keyfleet end shard tx", :read},
+    chain_club_claim: {@chain, :club_claim, "Keyfleet Regents Club claim tx", :read},
+    chain_reveal: {@chain, :reveal, "Keyfleet reveal Key tx", :read},
+    chain_expire_reveal: {@chain, :expire_reveal, "Keyfleet expire reveal tx", :read},
     publications_list: {@publications, :list, "Keyfleet public work", :read},
     publications_posts: {@publications, :posts, "Keyfleet publish posts", :once},
     publications_item: {@publications, :item, "Keyfleet publish item", :once},

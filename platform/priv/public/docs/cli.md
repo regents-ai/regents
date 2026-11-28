@@ -28,7 +28,7 @@ regents protocol agents status
 | Command | What it does |
 | --- | --- |
 | `regents overview --json` | Cross-product snapshot of your person's Keyfleet keys, Autolaunch positions, Patchbay posts/offers, Techtree projects, Points, and next steps |
-| `regents doctor --all` | Check key health, SIWA connectivity, and pairing status |
+| `regents doctor` | Check this machine, key health, SIWA connectivity, pairing status, and every site |
 | `regents protocol ...` | Regents protocol, reading, profiles, agents, claims, staking, and Points commands |
 | `regents keyfleet ...` | Keyfleet fleets, rooms, workspace, proposals, and treasury commands |
 | `regents autolaunch ...` | Autolaunch auctions, tokens, portfolio, and stock market commands |

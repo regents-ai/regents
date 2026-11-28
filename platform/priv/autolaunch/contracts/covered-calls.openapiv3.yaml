@@ -2,7 +2,7 @@
 # (AUTOLAUNCH_COVERED_CALLS=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json
 # is api-contract.openapiv3.yaml exactly. Every path and component here is new; none replaces one.
 paths:
-  /api/v1/covered-calls/{symbol}:
+  /api/v1/autolaunch/covered-calls/{symbol}:
     get:
       operationId: getCoveredCallBook
       summary: Read a stock's covered calls
@@ -45,7 +45,7 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         default:
           $ref: '#/components/responses/OtherError'
-  /api/v1/covered-calls/{symbol}/quote:
+  /api/v1/autolaunch/covered-calls/{symbol}/quote:
     post:
       operationId: quoteCoveredCall
       summary: Suggest a covered-call premium
@@ -99,7 +99,7 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         default:
           $ref: '#/components/responses/OtherError'
-  /api/v1/me/covered-calls/{symbol}:
+  /api/v1/autolaunch/me/covered-calls/{symbol}:
     get:
       operationId: listMyCoveredCalls
       summary: List your covered calls on a stock
@@ -147,7 +147,7 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         default:
           $ref: '#/components/responses/OtherError'
-  /api/agent/v1/covered-calls/{symbol}/positions:
+  /api/agent/v1/autolaunch/covered-calls/{symbol}/positions:
     get:
       operationId: autolaunch_my_covered_calls
       summary: Read my covered calls on a stock
@@ -187,7 +187,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CoveredCallError'
-  /api/agent/v1/covered-calls/{symbol}/steps:
+  /api/agent/v1/autolaunch/covered-calls/{symbol}/steps:
     post:
       operationId: autolaunch_covered_call_prepare
       summary: Prepare a covered-call step
